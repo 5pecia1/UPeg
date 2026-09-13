@@ -12,7 +12,8 @@ concurrency:
 jobs:
   verify:
     name: public-${{ matrix.lane }}
-    runs-on: ubuntu-24.04
+    # Use the connected fleet while private; public CI uses GitHub-hosted runners.
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
