@@ -1,0 +1,64 @@
+# Project Manifest 예제 — 프로젝트 전용 board 선언.
+#
+# 이 파일을 저장소 루트에 `upeg.toml` 로 두면, 그 디렉터리(와 하위)에서 upeg를
+# 실행하는 동안에만 존재하는 board 가 생긴다:
+#
+#   upeg board list                       # `demo-app` 이 목록에 보인다
+#   upeg board demo-app list              # 이 매니페스트가 선언한 Tool 들
+#   upeg board demo-app pin text.diff     # 헤드리스로 핀을 추가한다
+#   upeg board demo-app pin text.diff --at 1,0 --units U2
+#   upeg board demo-app unpin text.diff
+#
+# 저장소 밖에서 같은 명령을 하면 `unknown board demo-app` 이다. 핀은 이 매니페스트
+# 경로로 네임스페이스된 행에 저장되므로, 다른 프로젝트가 같은 `demo-app` 이름을
+# 써도 서로 섞이지 않는다.
+#
+# 규칙 전문: docs/architecture/project-manifest.md 의 "프로젝트 board".
+#
+# `[[boards]]` 는 Project Manifest 전용이다 — `~/.upeg/toolkits/*.toml` 에 쓰면
+# 로더가 그 파일의 등록을 거부한다.
+
+id = "demo"
+display_label = "Demo app"
+description = "프로젝트 전용 board 를 선언하는 Project Manifest 예제."
+tags = ["demo", "project"]
+
+[[boards]]
+id = "demo-app"
+label = "Demo app"
+
+# 내장 board(`dev` / `trading` / `personal`) 이름은 쓸 수 없다 — 표면마다 "어느
+# board를 말하는가"가 갈리기 때문에 로더가 거부한다.
+
+[[tools]]
+id = "test"
+display_label = "npm test"
+description = "이 프로젝트의 테스트를 돌린다."
+tags = ["test"]
+pegboard_units = "U2"
+invoker = "External"
+command = "npm"
+args_template = ["test"]
+boards = ["demo-app"]
+
+[[tools]]
+id = "dev_server"
+display_label = "npm run dev"
+description = "개발 서버를 띄운다."
+tags = ["serve"]
+pegboard_units = "U1"
+invoker = "External"
+command = "npm"
+args_template = ["run", "dev"]
+boards = ["demo-app"]
+
+[[tools]]
+id = "changed_files"
+display_label = "git status"
+description = "작업 트리의 변경 파일."
+tags = ["vcs"]
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["status", "--short"]
+boards = ["demo-app"]

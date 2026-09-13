@@ -1,0 +1,20 @@
+# Offline Http invoker example using the test-only mock adapter.
+#
+# `mock://echo` is handled locally by upeg's mock dispatcher, so this
+# example avoids any network request and stays safe for CI/offline docs.
+
+id = "http_demo"
+tags = ["example", "http"]
+
+[[tools]]
+id = "mock_echo"
+description = "Echo a name through the offline mock Http adapter."
+pegboard_units = "U1"
+invoker = "Http"
+url = "mock://echo"
+body = "hello {{input.name}}"
+
+[[tools.inputs]]
+name = "name"
+type = "string"
+required = true

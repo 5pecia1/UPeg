@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github._5pecia1.upeg</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>upeg</name>
+  <summary>Universal Pegboard</summary>
+  <description>
+    <p>upeg provides a desktop and web pegboard surface for running local tools and organizing pinned workflows.</p>
+  </description>
+  <launchable type="desktop-id">upeg.desktop</launchable>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+</component>

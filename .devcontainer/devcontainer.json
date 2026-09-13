@@ -1,0 +1,59 @@
+{
+    "name": "Universal Pegboard",
+    "remoteUser": "vscode",
+    "build": {
+        "dockerfile": "./Dockerfile",
+        "context": "."
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": "true",
+            "username": "vscode",
+            "uid": "1000",
+            "gid": "1000",
+            "upgradePackages": "true"
+        },
+        // dind issue: https://github.com/devcontainers/features/issues/1235
+        // The default `moby` package path is not packaged for Debian trixie,
+        // so install Docker CE instead. Revert to the default if the base
+        // image moves back to bookworm or upstream adds trixie support.
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "moby": false
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "24"
+        }
+    },
+    "containerEnv": {
+        "RUST_LOG": "INFO"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.watcherExclude": {
+                    "**/target/**": true,
+                    "**/.dart_tool/**": true,
+                    "**/build/**": true
+                },
+                "[rust]": {
+                    "editor.formatOnSave": true
+                },
+                "dart.flutterSdkPath": "/usr/lib/flutter",
+                "explorer.fileNesting.enabled": true,
+                "explorer.fileNesting.patterns": {
+                    "*.dart": "${capture}.g.dart, ${capture}.freezed.dart, ${capture}.frb.dart"
+                }
+            },
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml",
+                "fill-labs.dependi",
+                "ms-playwright.playwright",
+                "Dart-Code.dart-code",
+                "Dart-Code.flutter",
+                "mthuong.vscode-flutter-freezed-helper",
+                "nefrob.vscode-just-syntax"
+            ]
+        }
+    }
+}

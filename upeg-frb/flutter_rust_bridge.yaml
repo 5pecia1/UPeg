@@ -1,0 +1,10 @@
+# flutter_rust_bridge_codegen config — Rust crate side.
+#
+# This file lives in upeg-frb/ so codegen can be invoked from either
+# this directory or the workspace root. The flutter_app/ side has its
+# own flutter_rust_bridge.yaml (committed in Phase 0) pointing at the
+# same Rust sources.
+
+rust_input: crate::api
+rust_root: .
+dart_output: ../flutter_app/lib/src/rust

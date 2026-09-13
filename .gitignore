@@ -1,0 +1,39 @@
+# Rust build artifacts
+/target/
+target/
+*.rs.bk
+.sisyphus/
+
+# Node dependencies and logs
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local frontend build artifacts
+/chrome-ext/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor/OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp 
+
+# Misc local temp outputs
+/tmp/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# cargo internal cache files; not source code
+.cargo/.global-cache
+.cargo/.package-cache
+.cargo/.package-cache-mutate

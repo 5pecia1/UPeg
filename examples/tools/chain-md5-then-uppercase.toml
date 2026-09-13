@@ -1,0 +1,32 @@
+# Chain Tool composing two built-ins: md5 hex digest, then uppercase.
+#
+#   upeg call demo.loud_md5 -a input=hello
+#   → 5D41402ABC4B2A76B9719D911017C592
+#
+# `hash` gets the chain's args. The connection from `hash` to
+# `uppercase` makes `uppercase` receive the MD5 stdout as
+# `{ "input": "<text>" }`.
+
+id = "demo"
+tags = ["chain", "example"]
+
+[[tools]]
+id = "loud_md5"
+description = "MD5 of input, then uppercased."
+invoker = "Chain"
+pin = "Chain"
+pegboard_units = "U1"
+connections = [{ from = "hash", to = "uppercase" }]
+
+[[tools.inputs]]
+name = "input"
+type = "string"
+required = true
+
+[[tools.steps]]
+id = "hash"
+tool = "hash.md5"
+
+[[tools.steps]]
+id = "uppercase"
+tool = "text.uppercase"

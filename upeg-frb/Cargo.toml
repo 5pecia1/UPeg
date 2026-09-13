@@ -1,0 +1,96 @@
+# Package name uses underscores (not dashes) so that cargokit's
+# build_tool (rust_builder/cargokit/build_tool/lib/src/cargo.dart) sees
+# `upeg_frb` as the artifact stem — it computes the expected output as
+# `lib<package.name>.so` directly from the package name, and rustc
+# emits `libupeg_frb.so` regardless, so the two must agree.
+[package]
+name = "upeg_frb"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "flutter_rust_bridge cdylib for upeg's Flutter frontend (Phase 2 fills in the API surface)"
+
+[lib]
+# cdylib   : loaded by Flutter desktop binaries via FFI.
+# staticlib: future iOS/macOS static link option.
+# rlib     : in-process Rust tests of the binding-free helpers.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.12.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-pegboard-ui.workspace = true
+upeg-runtime.workspace = true
+upeg-tools.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+open.workspace = true
+upeg-cli.workspace = true
+upeg-loader.workspace = true
+# `upeg-sources` transitively pulls in `tokio[net]`/`mio` which has no
+# wasm32 backend. Gate it to native; upeg-frb itself doesn't use the
+# crate (host bootstrap delegates through upeg-cli), so wasm32 simply
+# omits source-loading. Phase 8 web build path keeps working.
+upeg-sources.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+
+[features]
+default = []
+# Loads WASM Toolkit plugins (extism-hosted) through `upeg-sources`'
+# `load_local_runtime_sources` (called from `api::boot::init_app`), and
+# switches the TOML `wasm_path` invoker (`upeg-loader`'s dispatcher)
+# from its stub error over to the real dispatch path.
+#
+# `upeg-sources` is only a dependency on native targets — see the
+# `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]` table
+# above — so this feature is inert (no dependency to forward the flag
+# to) when building `upeg_frb` for wasm32 (`wasm-pack build`, the PWA
+# path). Cargo's default-features cannot be scoped per target, so
+# "native-only" is expressed by gating the dependency itself rather
+# than the feature flag.
+#
+# Deliberately NOT a default feature (mirrors `upeg-cli`'s own
+# `wasm-plugin`, which is also opt-in): (1) it pulls in the
+# wasmtime/extism dependency tax for every desktop build, not just ones
+# that use WASM plugins; (2) Cargo unifies features across a single
+# build graph, so defaulting it on here would also flip
+# `upeg-loader`'s `wasm` feature on for *any* workspace-wide build that
+# includes `upeg_frb` (e.g. `cargo clippy --workspace`) — during
+# development this transiently surfaced an unrelated dead-code lint in
+# `upeg-loader`'s `not(feature = "wasm")` stub arm before that arm's
+# only constant was `cfg`-gated to match. Defaulting a feature on here
+# reaches further than `upeg_frb` alone; keep it an explicit opt-in via
+# `--features wasm-plugin` so its blast radius stays intentional.
+wasm-plugin = ["upeg-sources/wasm-plugin"]
+
+# Native integration tests exercise the real HTTP router and loaded tools.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+axum.workspace = true
+http-body-util.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true
+
+# Disable wasm-pack's wasm-opt post-step. The devcontainer's downloaded
+# wasm-opt binary exits 1 on this binary's pattern of allo-isolate +
+# flutter_rust_bridge runtime symbols. Skipping the optimizer ships a
+# larger wasm (~8 MB → would be ~3-4 MB after opt) but unblocks the
+# build pipeline. Re-enable when we land on a wasm-opt version that
+# handles the FRB runtime cleanly.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false

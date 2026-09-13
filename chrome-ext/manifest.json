@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "upeg",
+  "version": "0.1.0",
+  "default_locale": "en",
+  "description": "__MSG_extensionDescription__",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "upeg"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "scripting", "activeTab"],
+  "host_permissions": [
+    "http://127.0.0.1:7173/*",
+    "https://etherscan.io/*",
+    "https://*.etherscan.io/*",
+    "https://polygonscan.com/*",
+    "https://*.polygonscan.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"]
+}

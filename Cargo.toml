@@ -1,0 +1,392 @@
+[workspace]
+members = [
+    "upeg-cli",
+    "upeg-core",
+    "upeg-frb",
+    "upeg-loader",
+    "upeg-macros",
+    "upeg-pegboard-ui",
+    "upeg-plugin-api",
+    "upeg-plugin-macros",
+    "upeg-runtime",
+    "upeg-sources",
+    "upeg-tool-grammar",
+    "upeg-tools",
+    "upeg-wasm",
+]
+exclude = ["upeg-wasm/tests/fixture-src", "vendor/pdf-inspector"]
+resolver = "3"
+
+# Tighter release profile for shipped binaries. `strip = "symbols"` is
+# ~free at compile time and roughly halves the binary; `lto = "thin"`
+# trades modest compile-time for another ~20% size + faster cold start.
+# Override with `--profile=fastrel` if needed for development releases.
+[profile.release]
+strip = "symbols"
+lto = "thin"
+
+[workspace.package]
+# Single source of truth for workspace member versions. Each member opts in
+# via `version.workspace = true` in its own [package] block. Bump here for
+# any release — do not edit the seven member Cargo.toml files individually.
+version = "0.1.2"
+edition = "2024"
+rust-version = "1.92"
+authors = ["upeg contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/5pecia1/UPeg"
+
+[workspace.dependencies]
+axum = "0.8"
+base32 = "0.5"
+base64 = "0.22"
+# Local-timezone offset for `upeg log`'s human timestamps (`Local::now()`,
+# libc `localtime_r` under the hood). MIT/Apache-2.0. Already resolved
+# transitively (`upeg-tools` → `lopdf` → `chrono`), so this pins no new
+# major version. `default-features = false` + `clock` skips `Local`'s
+# unused `wasmbind`/`serde` extras — `upeg-cli` is native-only.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+# `Stream` trait only, for the HTTP surface's NDJSON streaming body
+# (`surfaces/http/stream.rs`). MIT/Apache-2.0, and already resolved
+# transitively through axum — a direct entry here adds no new
+# compilation, it just stops the surface from depending on someone
+# else's dependency graph by accident.
+futures-core = { version = "0.3", default-features = false, features = ["std"] }
+command-group = "5.0.1"
+crc32fast = "1"
+crossterm = "0.28"
+csv = "1"
+dirs = "6"
+extism = "1"
+flutter_rust_bridge = "2.12"
+getrandom = "0.3"
+http = "1"
+http-body-util = "0.1"
+humantime = "2"
+inventory = "0.3"
+md-5 = "0.10"
+notify-rust = "4"
+open = "5"
+phf = { version = "0.11", features = ["macros"] }
+qrcode = { version = "0.14", default-features = false }
+ratatui = "0.29"
+regex = "1"
+# `pty` + `termios` are what the External invoker's `pty = true` mode
+# needs (openpt/ptsname/unlockpt, and clearing OPOST so a captured line
+# is the bytes the program wrote rather than the tty's `\r\n`). Both are
+# pure-Rust rustix modules over syscalls it already links — no new
+# crate, no C dependency.
+rustix = { version = "1", features = ["fs", "process", "pty", "termios"] }
+# Shared native state store (SQLite) plus read-only access to VS Code/Cursor
+# `state.vscdb` (devcontainer discovery). `bundled` compiles SQLite from source
+# so the same version ships on every desktop target — no system libsqlite3
+# drift. Native-only: consumed by `upeg-sources`, which is itself gated to
+# `cfg(not(target_arch = "wasm32"))` by its consumers (never enters the wasm32
+# graph). 0.37 is the newest line whose libsqlite3-sys builds on rustc 1.92
+# (0.40 → libsqlite3-sys 0.38 needs the unstable `cfg_select!`).
+rusqlite = { version = "0.37", features = ["bundled"] }
+# qr.decode: QR detection/decoding, MIT/Apache-2.0/ISC. `img` feature (default)
+# pulls in `image` with its own `default-features = false` — unifies with the
+# `image` dependency below, no extra codec features.
+rqrr = { version = "0.10", default-features = false, features = ["img"] }
+schemars = { version = "1.2", features = ["preserve_order"] }
+sha1 = "0.10"
+sha2 = "0.10"
+similar = "2"
+# Test-only: temp dirs for toolkit tests that exercise real filesystem layouts
+# (devcontainer's workspaceStorage scan). Already in the tree transitively.
+tempfile = "3"
+unicode-normalization = "0.1"
+urlencoding = "2"
+# TLS-capable blocking HTTP client (rustls backend via default features).
+# Already resolved transitively through extism, so this pins no new version.
+ureq = "3"
+proc-macro2 = "1"
+quote = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+syn = { version = "2", features = ["full"] }
+# `sync` is load-bearing for the HTTP surface's streaming route: the
+# blocking dispatch worker hands NDJSON lines to the response body over
+# an mpsc channel (`surfaces/http/stream.rs`).
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "process", "io-util", "time", "sync"] }
+toml = "0.8"
+tower = "0.5"
+# CORS layer for the HTTP surface (Task B1). MIT-licensed; already
+# resolved transitively via `reqwest`, so pinning the `cors` feature
+# here adds no new major version to the dependency graph.
+tower-http = { version = "0.6", default-features = false, features = ["cors"] }
+tracing = "0.1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "v7"] }
+windows-sys = "0.61.2"
+jsonschema = { version = "0.45", default-features = false }
+# media: pptx (Office Open XML) is a ZIP archive; used natively to extract
+# embedded images from `ppt/media/*`. `deflate` covers the standard PPTX
+# compression method; no default features avoids pulling in bzip2/zstd/etc.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+zxcvbn = "3.1.1"
+# media: permissive pure-Rust dependencies; no GPL/LGPL, all wasm-capable.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi"] }
+resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
+krilla = "0.7"
+# media: pure-Rust PDF page rasterizer (media.pdf_to_images), replacing PDFium.
+# Apache-2.0 OR MIT; same author as krilla (LaurenzV); pdf.js/PDFBox regression
+# corpus; compiles to wasm32. Re-exports `vello_cpu` (the CPU backend) for the
+# rendered `Pixmap`.
+hayro = "0.7"
+# media: pure-Rust PDF embedded-image extraction (media.pdf_extract_images).
+# lopdf parses the PDF object graph; flate2/weezl inflate FlateDecode/LZWDecode
+# image samples and zune-jpeg validates DCTDecode (JPEG) passthrough streams —
+# no PDFium, no native dylib. All MIT-licensed and wasm-capable, but wired
+# native-only for stage 1 (contract unchanged; browser support lands later).
+lopdf = "0.36"
+# Pinned upstream with embedded native CMaps; see vendor/pdf-inspector/UPEG.md.
+pdf-inspector = { path = "vendor/pdf-inspector", version = "=1.17.0", default-features = false }
+flate2 = "1"
+weezl = "0.1"
+zune-jpeg = "0.5"
+# media: CCITT Group 3/4 fax decoder for scanned-document image streams
+# (CCITTFaxDecode). `Apache-2.0 OR MIT`; pure Rust, wasm-capable. Already in the
+# tree underneath `hayro` (via hayro-jbig2/hayro-syntax), which does not
+# re-export it — so it is named here to keep the version pinned to the one
+# `hayro` resolves, rather than adding a second copy of the same decoder.
+# Its API takes PDF's `/DecodeParms` almost verbatim (see media/pdf_extract).
+hayro-ccitt = "0.3"
+upeg-cli = { path = "upeg-cli", version = "0.1" }
+upeg-core = { path = "upeg-core", version = "0.1" }
+upeg_frb = { path = "upeg-frb", version = "0.1" }
+upeg-loader = { path = "upeg-loader", version = "0.1" }
+upeg-macros = { path = "upeg-macros", version = "0.1" }
+upeg-pegboard-ui = { path = "upeg-pegboard-ui", version = "0.1" }
+upeg-plugin-api = { path = "upeg-plugin-api", version = "0.1" }
+upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.1" }
+upeg-runtime = { path = "upeg-runtime", version = "0.1" }
+upeg-sources = { path = "upeg-sources", version = "0.1" }
+upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.1" }
+upeg-tools = { path = "upeg-tools", version = "0.1" }
+upeg-wasm = { path = "upeg-wasm", version = "0.1" }
+
+[workspace.lints.rust]
+# >>> sol-platform workspace.lints.rust sha256=33c3f5358c6318ee3b880d075d72b0400a37676a0cb5b4cb5ef9f616aba9fb0a
+unsafe_code = "deny"
+# <<< sol-platform workspace.lints.rust
+# Workspace-wide `unsafe` policy. We use `deny` (not `forbid`) so single
+# legitimate unsafe sites can opt in with `#[allow(unsafe_code)]` plus a
+# documented reason at the call site. The previous per-crate `forbid`
+# was traded for workspace clippy inheritance (`[lints] workspace = true`
+# in members can't coexist with a local `[lints.rust]` block in Cargo).
+# upeg-frb's `frb_expand` cfg is set transiently by flutter_rust_bridge_codegen
+# while it runs `cargo expand --cfg frb_expand`; the macro picks it up to emit
+# the expanded surface. This cfg is inert on regular builds.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+# ─── Workspace-wide hard clippy ─────────────────────────────────────
+# L3 strictest. Pedantic + Nursery + Cargo as full groups; restriction
+# is opt-in lint-by-lint (the group itself contains mutually-exclusive
+# rules and must never be enabled wholesale).
+#
+# Members opt in via `[lints] workspace = true`.
+[workspace.lints.clippy]
+# >>> sol-platform workspace.lints.clippy sha256=57b83524f9c1f954ce9309a40ca69d7ea6d711875db03ce9484e6516bbfed2ba
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+allow_attributes_without_reason = "warn"
+as_underscore = "warn"
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+deref_by_slicing = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+exit = "warn"
+expect_used = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+iter_over_hash_type = "warn"
+lossy_float_literal = "warn"
+mem_forget = "warn"
+modulo_arithmetic = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_clone_in_vec_init = "warn"
+rc_mutex = "warn"
+ref_patterns = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+suspicious_xor_used_as_pow = "warn"
+tests_outside_test_module = "warn"
+todo = "warn"
+try_err = "warn"
+unimplemented = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unwrap_used = "warn"
+use_debug = "warn"
+module_name_repetitions = "allow"
+similar_names = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+too_many_lines = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+struct_excessive_bools = "allow"
+self_named_module_files = "allow"
+mod_module_files = "allow"
+implicit_return = "allow"
+question_mark_used = "allow"
+single_call_fn = "allow"
+absolute_paths = "allow"
+arbitrary_source_item_ordering = "allow"
+big_endian_bytes = "allow"
+little_endian_bytes = "allow"
+host_endian_bytes = "allow"
+blanket_clippy_restriction_lints = "allow"
+default_numeric_fallback = "allow"
+field_scoped_visibility_modifiers = "allow"
+impl_trait_in_params = "allow"
+min_ident_chars = "allow"
+missing_docs_in_private_items = "allow"
+missing_inline_in_public_items = "allow"
+missing_trait_methods = "allow"
+multiple_inherent_impl = "allow"
+pattern_type_mismatch = "allow"
+pub_use = "allow"
+ref_option = "allow"
+semicolon_outside_block = "allow"
+shadow_reuse = "allow"
+shadow_same = "allow"
+shadow_unrelated = "allow"
+single_char_lifetime_names = "allow"
+str_to_string = "allow"
+unwrap_in_result = "allow"
+let_underscore_must_use = "allow"
+match_same_arms = "allow"
+format_push_string = "allow"
+same_name_method = "allow"
+print_stderr = "allow"
+needless_pass_by_value = "allow"
+needless_collect = "allow"
+items_after_statements = "allow"
+too_long_first_doc_paragraph = "allow"
+doc_markdown = "allow"
+doc_link_with_quotes = "allow"
+unnecessary_wraps = "allow"
+unreadable_literal = "allow"
+volatile_composites = "allow"
+or_fun_call = "allow"
+mixed_read_write_in_expression = "allow"
+missing_const_for_fn = "allow"
+map_unwrap_or = "allow"
+derive_partial_eq_without_eq = "allow"
+struct_field_names = "allow"
+trivially_copy_pass_by_ref = "allow"
+verbose_file_reads = "allow"
+literal_string_with_formatting_args = "allow"
+infinite_loop = "allow"
+redundant_type_annotations = "allow"
+used_underscore_items = "allow"
+unnecessary_safety_comment = "allow"
+wildcard_enum_match_arm = "allow"
+option_if_let_else = "allow"
+significant_drop_tightening = "allow"
+redundant_pub_crate = "allow"
+future_not_send = "allow"
+cargo_common_metadata = "allow"
+multiple_crate_versions = "allow"
+# <<< sol-platform workspace.lints.clippy
+
+# ── Restriction (cherry-picked: safety / correctness / clarity) ─────
+
+# ── Pedantic / nursery / restriction noise — silenced with reason ───
+# Stylistic naming preferences we don't share.
+# Internal crate; docs at module level cover panics/errors well enough
+# and per-fn doc churn isn't worth it.
+# Numeric casts between u16/u32/usize are pervasive in TUI/grid code;
+# truncation/sign-loss is already analysed and accepted at each site.
+# Justfile enforces our own file-size budget (≤1000 LoC); too_many_lines
+# would fire long before that.
+# Internal helpers, not public API contract.
+# Public field surfacing is intentional in some structs.
+# We use `mod.rs` style consistently.
+# Restriction-group entries that conflict with everyday Rust idiom.
+# `let _ = best_effort()` is idiomatic and pervasive (fs cleanup,
+# infallible writes to String, best-effort socket timeouts). The lint
+# misses the more interesting "you forgot to handle this error" cases
+# already covered by `unused_must_use`.
+# Exhaustively listing related error variants in distinct match arms
+# documents the cases, even when they map to the same outcome. Merging
+# would harm readability and survives future variant additions worse.
+# `s.push_str(&format!(...))` is widespread and readable; the lint
+# wants `write!(s, ...).ok()` which is noisier without buying safety.
+# Inherent `len()`/`is_empty()` alongside trait `Display`/`From` impls
+# is idiomatic Rust; the lint mostly fires on patterns the std library
+# itself uses.
+# CLI binaries treat stderr as their primary user-facing channel for
+# non-payload output (banners, warnings, prompts). Restricting `eprintln!`
+# at workspace level would tag every legitimate user-message site.
+# Parameters that match the surrounding ownership model (Vec used for
+# moves into builders, String returned from caller, etc.) should not be
+# rewritten just to satisfy the lint — the inferred &[T]/&str is often
+# what the original author already considered and rejected.
+# `.collect::<Vec<_>>().into_iter()` and similar are sometimes the
+# clearer expression of intent; the lint's "remove the collect" advice
+# can degrade readability or change borrow lifetimes.
+# Local helper functions next to where they're used (rather than at the
+# top of the enclosing fn) is a readability win that outweighs the lint's
+# "items hoist to scope start anyway" complaint.
+# Doc-style nits with low actionable value.
+# Functions returning `Result<T, E>` for shape symmetry with siblings
+# (some of which DO fail) — refactoring to T loses the symmetry.
+# Long literals like SHA-256 test vectors are deliberately written in
+# the canonical form copied from RFCs / test corpora.
+# Nursery; `include_bytes!` of PNG/font assets trips this without any
+# real volatility concern.
+# Nursery; conservative re: `Vec::with_capacity` etc.
+# Nursery; flips back and forth on inconsequential reads.
+# Nursery; would force `const fn` on plenty of functions whose return
+# type isn't actually `const`-evaluable today.
+# Style preference; both `map().unwrap_or_else()` and `map_or_else()`
+# read fine depending on the closure complexity.
+# Style; `derive(PartialEq)` without `Eq` is common for types that
+# might gain non-Eq fields.
+# Pedantic; `Foo { foo, bar }` field-name-prefix-shared-with-type is
+# fine — the type name is the topic and field is the role.
+# Pedantic; small `Copy` types passed by ref to match trait signatures.
+# Pedantic; `File::open().read_to_string()` is sometimes the right
+# shape (explicit handle, custom buffering, etc.).
+# Pedantic; an interpolated string with an unfound variable is usually
+# a copy-paste from a real format!() — but `panic!("user_id={id}")`
+# style in non-format contexts is intentional logging.
+# Restriction; matched by infinite_loop is fine for the daemon main loop.
+# Restriction; harmless on internal helpers.
+# Restriction; sometimes underscore-prefixed fields are public-ish API
+# (e.g., `_marker` fields).
+# Restriction; safety-comment requirement for unsafe-free code is moot.
+# Nursery noise.
+# Internal-workspace crates aren't published yet; fabricating readme /
+# keywords / categories metadata would be slop. Lift this if/when we
+# decide to publish.
+# Transitive dep version duplicates (e.g. syn 1 + syn 2) are out of our
+# control — `cargo update` decides the resolution, not us.

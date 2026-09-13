@@ -1,0 +1,144 @@
+# Every External-invoker execution knob in one Toolkit.
+#
+#   upeg call dev.git_log                   # uses default count = 10
+#   upeg call dev.git_log -a count=3
+#   upeg call dev.cargo_check
+#
+# What this file demonstrates:
+#
+#   cwd        the child runs here instead of inheriting upeg's own
+#              working directory. A relative path resolves against the
+#              directory holding this manifest, so a Project Manifest
+#              tool works from any subdirectory and from the host
+#              daemon. A caller may also pass an absolute path as
+#              `_upeg.cwd`; a declared `cwd` wins over it.
+#   env        plain (non-secret) environment variables. Secrets stay
+#              in `credentials`, which is applied afterwards and so
+#              wins on a name collision.
+#   timeout_ms wall-clock budget. On expiry upeg terminates the child's
+#              whole process group and fails with
+#              `details.timed_out = true`. Omit it for no limit — a
+#              twenty-minute `just verify` must stay legal.
+#   color      whether the child is told color is supported. upeg pipes
+#              both streams, so a child sees a non-TTY and turns color
+#              off by itself — `color = "force"` sets CLICOLOR_FORCE /
+#              FORCE_COLOR, unsets NO_COLOR (and sets TERM when the host
+#              has none). Pure env: no pty, same behaviour on Unix and
+#              Windows. It is the *convention*, not a terminal: a program
+#              that decides on isatty(3) alone — git, ls, grep — ignores
+#              all three and needs its own flag, as `git_log` below shows.
+#   pty        the other answer to the same question: `pty = true` opens
+#              a real pseudoterminal (Unix only) and connects the child's
+#              stdout and stderr to it, so isatty(3) is true and no flag
+#              is needed. The price is that a terminal has one buffer:
+#              both streams come back merged in `stdout` and `stderr` is
+#              empty. It implies `color = "force"` unless you declare
+#              `color` yourself. `git_log_pty` below is `git_log`
+#              without the flag. On a host that cannot open a
+#              pseudoterminal that one tool is skipped at load time, with
+#              its reason recorded; this file's other three tools load
+#              there exactly as they do on Unix.
+#   default    value substituted when the caller omits the input, so
+#              `git log -n {count}` never degrades into a bare
+#              `git log -n`.
+#
+# When a command exits non-zero, the canonical failure envelope carries
+# `error.details = { exit_code, stdout, stderr }` — `cargo`, `clippy`,
+# and `flutter analyze` write their diagnostics to stdout, so the
+# envelope keeps both streams rather than only the summary line.
+
+id = "dev"
+tags = ["dev", "example"]
+
+[[tools]]
+id = "git_log"
+description = "Recent commits, one line each."
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+# `-c color.ui=always` is what actually turns the colored ref decoration
+# back on: git decides on isatty(3) and never reads CLICOLOR_FORCE or
+# FORCE_COLOR, so the flag is the only thing it listens to here.
+args_template = ["-c", "color.ui=always", "log", "--oneline", "-n", "{count}"]
+timeout_ms = 10000
+# Declared alongside the flag because that is the half of the recipe
+# every convention-honoring CLI (`cargo`, `gh`, `eza`, anything using
+# chalk) reads instead. Both halves together are the honest way to ask a
+# captured child for color.
+color = "force"
+
+[[tools.inputs]]
+name = "count"
+type = "integer"
+default = 10
+
+[[tools]]
+id = "cargo_check"
+description = "Type-check one crate of the manifest's own project."
+pegboard_units = "U2"
+invoker = "External"
+command = "cargo"
+args_template = ["check", "--manifest-path={manifest_path}", "--quiet"]
+cwd = "."
+timeout_ms = 600000
+
+[[tools.env]]
+name = "RUST_LOG"
+value = "warn"
+
+[[tools.inputs]]
+name = "manifest_path"
+type = "file_path"
+default = "Cargo.toml"
+
+# A slow command is where the live-output contract earns its keep. Run
+# `upeg call dev.slow_progress` and the three steps appear one per
+# second on stderr instead of all at once at the end; stdout still
+# carries only the final result. The same lines reach
+# `POST /v1/tools/dev.slow_progress/stream` as NDJSON and MCP clients as
+# `notifications/message` frames. Add `--json` and nothing is streamed —
+# that mode exists to be parsed.
+[[tools]]
+id = "slow_progress"
+description = "Writes one line per second so live output is visible."
+pegboard_units = "U1"
+invoker = "External"
+command = "sh"
+args_template = ["-c", "for i in 1 2 3; do echo \"step $i\"; sleep 1; done"]
+timeout_ms = 10000
+
+# The same recent-commits list, asked for the other way. `git` decides on
+# isatty(3), so with a real terminal it colors its ref decoration with no
+# `-c color.ui=always` at all — the flag `git_log` needs exists precisely
+# because a pipe is not a terminal.
+#
+# What you give up is the split: a pty has one buffer, so anything git
+# writes to stderr (a progress line, a warning) lands inside the same
+# `stdout` text, interleaved where it happened, and `stderr` comes back
+# empty. That is the trade — pick `git_log` when the two streams must
+# stay apart, `git_log_pty` when the tool only cooperates with a terminal.
+#
+# Unix only. On a host with no pseudoterminal (Windows, wasm) this one
+# tool is skipped at load time and the rest of this file still loads —
+# which is why it can live here next to `git_log` instead of in a
+# Unix-only manifest of its own. It is skipped rather than downgraded on
+# purpose: silently falling back to pipes would make the same manifest
+# mean two different things on two machines, and that difference is the
+# whole reason to declare `pty`.
+[[tools]]
+id = "git_log_pty"
+description = "Recent commits, colored because the child sees a real terminal."
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["log", "--oneline", "-n", "{count}"]
+timeout_ms = 10000
+# Implies `color = "force"` as well: a manifest that asked for a terminal
+# wants color out of the convention-reading programs too. Declaring
+# `color` yourself wins over the implication.
+pty = true
+
+[[tools.inputs]]
+name = "count"
+type = "integer"
+default = 10

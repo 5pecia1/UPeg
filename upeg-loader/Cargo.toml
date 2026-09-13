@@ -1,0 +1,40 @@
+[package]
+name = "upeg-loader"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Declarative TOML loader for upeg Toolkits (PRD §5.1 second source — `~/.upeg/toolkits/*.toml`)."
+
+[dependencies]
+http = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+ureq = { workspace = true }
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-runtime = { workspace = true }
+upeg-wasm = { workspace = true, optional = true }
+
+[target.'cfg(any(unix, windows))'.dependencies]
+command-group = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_IO",
+] }
+
+[features]
+default = []
+wasm = ["dep:upeg-wasm"]
+
+[lints]
+workspace = true

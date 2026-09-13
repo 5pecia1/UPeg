@@ -1,0 +1,33 @@
+[package]
+name = "upeg-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core domain types for upeg — Tool/ToolMeta/PinKind/Invoker/Surface (Lexicon §4). No UI dependencies."
+
+[dependencies]
+base64 = { workspace = true }
+inventory = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+upeg-macros = { workspace = true }
+
+[dev-dependencies]
+# Manifest parsing for the workspace layering gate
+# (`tests/crate_boundaries.rs`). Dev-only: it never enters a consumer's
+# graph, and `upeg-core` itself stays dependency-light.
+toml = { workspace = true }
+
+[features]
+# Opt-in serde derives. Default off so the core crate stays minimal for
+# future surface crates that don't need (de)serialization.
+default = []
+serde = ["dep:serde"]
+
+[lints]
+workspace = true

@@ -1,0 +1,33 @@
+[package]
+name = "upeg-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Application runtime boundary for upeg registries, dispatchers, triggers, embeds, and execution context."
+
+[dependencies]
+humantime = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+upeg-core = { workspace = true, features = ["serde"] }
+
+# Optional native dependency for the Controlled Embed headless backend
+# (drives a real Chrome/Chromium/Edge via CDP). WASM-incompatible by
+# design (no async runtime, no sockets) — feature is implicitly
+# disabled on `wasm32-*` builds even when requested.
+chromiumoxide = { version = "0.7", optional = true, default-features = false, features = ["tokio-runtime"] }
+tokio = { version = "1", optional = true, default-features = false, features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
+futures-util = { version = "0.3", optional = true, default-features = false }
+
+[features]
+# Wires the Chromium-DevTools-Protocol-backed Controlled Embed
+# implementation. CLI/release binaries enable this so headless surfaces
+# (CLI/TUI/MCP/HTTP) can dispatch ControlledEmbed tools. Disabled by
+# default to keep the workspace and WASM builds chromiumoxide-free.
+controlled-embed = ["dep:chromiumoxide", "dep:tokio", "dep:futures-util"]
+
+[lints]
+workspace = true

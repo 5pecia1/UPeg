@@ -1,0 +1,17 @@
+[package]
+name = "upeg-tool-grammar"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared, drift-prone `#[tool]` grammar — the inputs/outputs DSL, tool-identity rules, and enum allow-lists reused by both upeg-macros (built-in) and upeg-plugin-macros (WASM guest). Plain library crate — no proc-macro export restrictions."
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+
+[lints]
+workspace = true

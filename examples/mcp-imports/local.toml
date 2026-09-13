@@ -1,0 +1,40 @@
+# MCP import example — self-hosted upstream.
+#
+# This is an *MCP import* config (upeg as MCP client). It points at
+# upeg's OWN `mcp` *Surface* (`args = ["mcp"]`, upeg as MCP server) as
+# the upstream — the two senses of "mcp" meet in this one file. Useful for:
+#   - Smoke-testing the MCP import path without external deps.
+#   - Re-exposing upeg's built-ins through a namespace (e.g. `local.*`).
+#
+# The import namespace is the config filename stem. Keep this file as
+# `local.toml` under `~/.upeg/mcp-imports/` (or `$UPEG_MCP_IMPORTS_DIR`)
+# so every tool the upstream `upeg mcp` exposes registers as
+# `local.<original_id>`.
+#
+# Imports load only inside long-lived server processes — `upeg host
+# start`, the desktop-embedded host, and in-process `upeg mcp`
+# (docs/architecture/mcp.md). A one-shot `upeg call` never spawns
+# subprocesses and never loads this file by itself; start the host
+# first, then call through it (the CLI attaches and dispatches via the
+# running host):
+#
+#   $ upeg host start --daemon
+#   $ upeg call local.num.hex_to_decimal -a input=0xff
+#   255
+#
+# Imported tools carry provenance (`source = "mcp-import:local"` in
+# tools_list JSON) and are NOT re-exposed over upeg's own MCP surface by
+# default — so this self-import cannot loop `local.*` back out through
+# `upeg mcp`. To deliberately re-export imported tools over MCP, opt in:
+#
+#   reexport = true
+#
+# Import is partial success per tool: an upstream tool whose schema
+# can't convert to upeg typed I/O is skipped with a logged reason;
+# the rest register. Skipped tools register on no surface at all, so
+# `reexport = true` never applies to them.
+#
+# `upeg` is found via `$PATH`. Replace with an absolute path if needed.
+
+command = "upeg"
+args = ["mcp"]

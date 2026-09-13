@@ -1,0 +1,45 @@
+id = "embed_google"
+tags = ["embed", "search", "demo"]
+
+[[tools]]
+id = "search"
+description = "Search Google from a Controlled Embed pin. Google may show consent, CAPTCHA, or changed DOM; treat this as a settings and selector example."
+pin = "ControlledEmbed"
+pegboard_units = "U2T"
+invoker = "Embed"
+embed_url = "https://www.google.com/search?igu=1"
+surfaces = ["desktop", "pwa", "ext", "cli", "tui", "mcp", "http"]
+primary_output_id = "page_title"
+
+[tools.controlled_embed.browser]
+user_agent = "mobile_safari"
+viewport = "mobile"
+
+[[tools.controlled_embed.bindings]]
+role = "input"
+field = "query"
+selector = "textarea[name='q'], input[name='q']"
+
+[[tools.controlled_embed.bindings]]
+role = "trigger"
+selector = "textarea[name='q'], input[name='q']"
+action = "enter"
+
+[[tools.controlled_embed.bindings]]
+role = "output"
+field = "page_title"
+selector = "title"
+wait = { for_selector = "title", condition = "exists", timeout_ms = 5000, settle_ms = 2000 }
+
+[[tools.inputs]]
+name = "query"
+type = "string"
+label = "Search query"
+description = "Query text to type into Google's search box."
+required = true
+
+[[tools.outputs]]
+name = "page_title"
+type = "string"
+label = "Result page title"
+description = "The document title after the Enter-triggered search navigation."

@@ -1,0 +1,27 @@
+{
+  "project": "upeg",
+  "version": 1,
+  "note": "Snapshot of pre-existing hardcoded user-facing strings in flutter_app/lib/src/{widgets,pages}. New entries fail `just flutter-i18n-check`; migrate strings to t() + the Rust En/Ko catalog and regenerate via scripts/flutter_i18n_check.py write.",
+  "violations": [
+    {
+      "file": "flutter_app/lib/src/pages/board_page.dart",
+      "literal": "Tool not found: $parsedToolId"
+    },
+    {
+      "file": "flutter_app/lib/src/pages/board_page.dart",
+      "literal": "unknown tool: ${result.toolId}"
+    },
+    {
+      "file": "flutter_app/lib/src/pages/board_page/quit_confirm_dialog.dart",
+      "literal": "Quit upeg?"
+    },
+    {
+      "file": "flutter_app/lib/src/pages/board_page/quit_confirm_dialog.dart",
+      "literal": "This closes the desktop app and releases its instance lock."
+    },
+    {
+      "file": "flutter_app/lib/src/widgets/board_canvas.dart",
+      "literal": "failed to load layout: $err"
+    }
+  ]
+}

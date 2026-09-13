@@ -1,0 +1,22 @@
+[package]
+name = "upeg-wasm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WASM plugin host for upeg — load .wasm Toolkit modules via Extism and register their tools through the upeg-runtime dispatcher."
+
+[dependencies]
+extism = { workspace = true }
+serde_json = { workspace = true }
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-plugin-api = { workspace = true }
+upeg-runtime = { workspace = true }
+
+[dev-dependencies]
+upeg-loader = { workspace = true }
+
+[lints]
+workspace = true

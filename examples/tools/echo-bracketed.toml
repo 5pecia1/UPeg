@@ -1,0 +1,24 @@
+# Minimal External invoker example showing token-substitution.
+#
+#   upeg call demo.echo_bracketed -a tag=hi
+#   → [hi]
+#
+# `{key}` placeholders are substituted with `args[key]` from the JSON
+# args, anywhere inside a token (`--out={path}` works). Write `{{` or
+# `}}` for a literal brace.
+
+id = "demo"
+tags = ["example"]
+
+[[tools]]
+id = "echo_bracketed"
+description = "Wrap an input tag in brackets via printf."
+pegboard_units = "U1"
+invoker = "External"
+command = "printf"
+args_template = ["[%s]", "{tag}"]
+
+[[tools.inputs]]
+name = "tag"
+type = "string"
+required = true

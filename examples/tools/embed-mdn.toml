@@ -1,0 +1,70 @@
+# Controlled Embed Tool example — self-contained "shout" demo.
+#
+# Pattern: borrow an existing web page as a backend. The webview is the
+# engine, the page's DOM is the IPC channel, and the upeg pin tile's
+# inline form is the cockpit. Three selector roles wire the pipeline:
+#
+#   * `role = "input"`   — write the matching `input_field` value into
+#                          the DOM element matched by `selector`.
+#   * `role = "trigger"` — click the DOM element matched by `selector`
+#                          (the page's "run/submit/search" button).
+#   * `role = "output"`  — read the DOM element matched by `selector`
+#                          after the trigger fires, surface as the
+#                          output keyed by `field`.
+#
+# Real Controlled Embed tools point `embed_url` at a stable web page
+# (a gas-fee calculator, an MDN search result, a JSON formatter, …).
+# To keep this example reproducible offline — selectors that don't
+# rot when the upstream redesigns, no network dependency, headless
+# tests that don't need the open internet — the URL is a `data:` URI
+# that ships its own HTML inline. The result is a pure ControlledEmbed
+# round-trip: type a word, press Run, get the upper-cased version
+# back from the page's DOM. Same pattern scales to real sites.
+
+id = "embed"
+tags = ["embed", "demo"]
+
+[[tools]]
+id = "shout"
+description = "Shout a word — type, press Run, read the upper-cased echo from the page."
+pin = "ControlledEmbed"
+pegboard_units = "U2T"
+invoker = "Embed"
+embed_url = 'data:text/html,<!DOCTYPE html><html><body><input id="text" /><button id="go" onclick="document.getElementById(%27out%27).textContent=document.getElementById(%27text%27).value.toUpperCase()">go</button><div id="out"></div></body></html>'
+# ControlledEmbed is available on every surface in the v2 design.
+# Headless surfaces (CLI/TUI/MCP/HTTP) drive the same pipeline through
+# a hidden Chrome/Chromium via `ControlledEmbedBackend` when the
+# `controlled-embed` cargo feature is on; otherwise NoopBackend
+# returns a clear "feature disabled" error.
+surfaces = ["desktop", "pwa", "ext", "cli", "tui", "mcp", "http"]
+primary_output_id = "loud"
+# Pipeline: write the word into the page's `<input>`, click the page's
+# `<button>`, read the upper-cased result out of the page's `<div>`.
+[[tools.controlled_embed.bindings]]
+role = "input"
+field = "text"
+selector = "#text"
+
+[[tools.controlled_embed.bindings]]
+role = "trigger"
+selector = "#go"
+
+[[tools.controlled_embed.bindings]]
+role = "output"
+field = "loud"
+selector = "#out"
+
+# Input field the user fills on the pin tile.
+[[tools.inputs]]
+name = "text"
+type = "string"
+label = "Word"
+description = "Anything you want shouted back at you."
+required = true
+
+# Output field returned by the pipeline.
+[[tools.outputs]]
+name = "loud"
+type = "string"
+label = "Shouted"
+description = "Upper-cased echo of the input."

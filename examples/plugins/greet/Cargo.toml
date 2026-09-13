@@ -1,0 +1,35 @@
+# Sample upeg WASM plugin.
+#
+# Build:
+#
+#   cd examples/plugins/greet
+#   cargo build --target wasm32-unknown-unknown --release
+#
+# Install (with the upeg binary built `--features wasm-plugin`):
+#
+#   mkdir -p ~/.upeg/wasm
+#   cp target/wasm32-unknown-unknown/release/greet.wasm ~/.upeg/wasm/
+#   upeg call greet.hello -a name=World   # → "Hello, World!"
+#
+# Empty `[workspace]` declares this crate as its own workspace root so
+# cargo doesn't try to fold it into a parent (relevant if you put this
+# example inside another cargo project).
+[workspace]
+
+[package]
+name = "greet"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "1"
+serde_json = "1"
+upeg-plugin-api = { path = "../../../upeg-plugin-api" }
+upeg-plugin-macros = { path = "../../../upeg-plugin-macros" }
+
+[profile.release]
+lto = true
+opt-level = "s"

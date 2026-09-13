@@ -1,0 +1,20 @@
+# Wrap `git status --short` as an upeg Tool.
+#
+# Drop this file into `~/.upeg/toolkits/` (or `$UPEG_TOOLKITS_DIR`) and the
+# Toolkit registers automatically on the next `upeg` invocation. Then:
+#
+#   upeg call vcs.git_status
+#
+# returns the stdout of `git status --short` from the user's CWD.
+
+id = "vcs"
+tags = ["vcs", "dev"]
+
+[[tools]]
+id = "git_status"
+description = "Run `git status --short` in the working directory."
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["status", "--short"]
+boards = ["dev"]

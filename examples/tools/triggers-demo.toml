@@ -1,0 +1,130 @@
+# Every trigger source the built-in runtime services, in one Toolkit.
+#
+#   upeg tool validate examples/tools/triggers-demo.toml
+#   upeg trigger list
+#   upeg trigger run           # single shot: fire whatever holds right now
+#   upeg trigger run --watch   # poll loop: fire on change
+#
+# Watch semantics (the poll interval is 1s):
+#   schedule   `now` fires once, on the poll that starts the watch.
+#              `every:<duration>` fires at watch start and then once per
+#              elapsed interval; the duration is humantime syntax
+#              (`30s`, `5m`, `1h 30m`) and is rejected at load time if it
+#              cannot be read or is shorter than the 1s poll. A fire that
+#              a poll notices late does not push the next one back — the
+#              schedule keeps its original grid — and a watch that stalled
+#              for many intervals fires once, not a catch-up burst.
+#   file       fires when the watched file is created and whenever its
+#   directory  mtime changes (a directory's mtime changes when entries are
+#              added or removed). The first poll is a silent baseline, so a
+#              path that already exists when the watch starts is not a change,
+#              and removal never fires.
+#   clipboard  fires when the clipboard content changes, never on the content
+#              that was already there when the watch started.
+#   webhook    never fires from the poll loop; it fires on
+#              `POST /v1/trigger/{tool_id}` against the HTTP surface.
+#
+# `hotkey` is deliberately absent: it needs a platform global-hotkey adapter
+# (upeg-cli's opt-in `hotkey-trigger` feature), not the poll loop.
+#
+# Conditions naming a path are used verbatim — no `~` expansion, no globbing.
+#
+# Each source's condition contract is enforced at load time: `file`,
+# `directory`, and `hotkey` require one, `clipboard` and `webhook` reject one,
+# and `schedule` treats an absent condition as `now`.
+#
+# A fired trigger stamps `_upeg.trigger` with the trigger's own label —
+# `<source>` or `<source>:<condition>` — so a tool with several triggers can
+# tell which one fired.
+
+id = "trigger_demo"
+tags = ["example", "trigger"]
+description = "Trigger declarations for every runtime-serviced source."
+
+[[tools]]
+id = "startup_notice"
+description = "Announce once that the trigger watch is running."
+pegboard_units = "U1"
+invoker = "External"
+command = "printf"
+args_template = ["upeg trigger watch started\n"]
+
+[[tools.triggers]]
+source = "schedule"
+condition = "now"
+
+[[tools]]
+id = "heartbeat"
+description = "Print the wall-clock time on a fixed cadence."
+pegboard_units = "U1"
+invoker = "External"
+command = "date"
+args_template = ["+%FT%T"]
+
+[[tools.triggers]]
+source = "schedule"
+condition = "every:30s"
+
+[[tools]]
+id = "drop_ingest"
+description = "Count the lines of a dropped file when it appears or changes."
+pegboard_units = "U1"
+invoker = "External"
+command = "wc"
+args_template = ["-l", "{path}"]
+
+[[tools.inputs]]
+name = "path"
+type = "file_path"
+label = "Dropped file"
+required = true
+
+[[tools.triggers]]
+source = "file"
+condition = "/tmp/upeg-trigger-demo/drop.txt"
+
+[[tools]]
+id = "inbox_watch"
+description = "List an inbox directory whenever its contents change."
+pegboard_units = "U1"
+invoker = "External"
+command = "ls"
+args_template = ["-1", "{path}"]
+
+[[tools.inputs]]
+name = "path"
+type = "file_path"
+label = "Watched directory"
+required = true
+
+[[tools.triggers]]
+source = "directory"
+condition = "/tmp/upeg-trigger-demo/inbox"
+
+[[tools]]
+id = "clip_capture"
+description = "Echo whatever was just copied to the clipboard."
+pegboard_units = "U1"
+invoker = "External"
+command = "printf"
+args_template = ["%s", "{input}"]
+
+[[tools.inputs]]
+name = "input"
+type = "string"
+label = "Clipboard text"
+required = true
+
+[[tools.triggers]]
+source = "clipboard"
+
+[[tools]]
+id = "deploy_hook"
+description = "Fire from an inbound webhook, never from the poll loop."
+pegboard_units = "U1"
+invoker = "External"
+command = "printf"
+args_template = ["deploy requested\n"]
+
+[[tools.triggers]]
+source = "webhook"

@@ -1,0 +1,7 @@
+# Test runner config — declares custom tags so `flutter test --tags=golden`
+# only runs the golden regression lane in `ui-parity-check`. Without this
+# declaration `flutter test` prints a "tag was used that wasn't specified"
+# warning for every golden test.
+tags:
+  golden:
+    skip: false

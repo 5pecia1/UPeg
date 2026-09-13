@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>controlled embed wait semantics</title>
+  </head>
+  <body>
+    <div id="visible">ready</div>
+    <div id="hidden" style="display:none">ready</div>
+    <div id="hidden-vis" style="visibility:hidden">ready</div>
+    <div id="zero-opacity" style="opacity:0">ready</div>
+    <div id="zero-size" style="width:0;height:0">ready</div>
+    <div class="multi" style="display:none"></div><div class="multi">visible</div>
+  </body>
+</html>

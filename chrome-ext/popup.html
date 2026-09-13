@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>upeg</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      box-sizing: border-box;
+      width: 280px;
+      margin: 0;
+      padding: 14px;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    #header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    #settings-toggle {
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 6px;
+      padding: 3px 7px;
+      background: color-mix(in srgb, CanvasText 6%, Canvas);
+      font-size: 13px;
+      line-height: 1.3;
+      cursor: pointer;
+    }
+
+    #settings-toggle[aria-expanded="true"] {
+      background: color-mix(in srgb, CanvasText 16%, Canvas);
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: color-mix(in srgb, CanvasText 72%, Canvas);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    a {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: color-mix(in srgb, CanvasText 8%, Canvas);
+      color: CanvasText;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    a:focus-visible,
+    button:focus-visible {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
+
+    /* Board tab strip — "Filter bar / compact tabs" (docs/ui-ux-surface-contract.md). */
+    #board-tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      margin-bottom: 10px;
+      padding-bottom: 2px;
+    }
+
+    .tab {
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: color-mix(in srgb, CanvasText 6%, Canvas);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tab[aria-selected="true"] {
+      background: color-mix(in srgb, CanvasText 16%, Canvas);
+    }
+
+    .tab.focused {
+      outline: 2px solid Highlight;
+      outline-offset: 1px;
+    }
+
+    /* Pinned tool list — "Popup / popover menu" (docs/ui-ux-surface-contract.md). */
+    #tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .tool {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+      border-radius: 6px;
+      padding: 6px 9px;
+      background: color-mix(in srgb, CanvasText 4%, Canvas);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .tool[aria-selected="true"] {
+      background: color-mix(in srgb, CanvasText 14%, Canvas);
+    }
+
+    .tool.focused {
+      outline: 2px solid Highlight;
+      outline-offset: 1px;
+    }
+
+    .tool-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tool-id {
+      font-size: 10px;
+      color: color-mix(in srgb, CanvasText 55%, Canvas);
+    }
+
+    .tool-list-status {
+      margin: 0;
+      font-size: 12px;
+      color: color-mix(in srgb, CanvasText 60%, Canvas);
+    }
+
+    #message-hint {
+      font-size: 11px;
+    }
+
+    /* Per-site enablement — the in-page capabilities are opt-in per origin
+       (site_access.js), so the current tab's state is always on screen. */
+    #site-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding: 6px 8px;
+      border: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+      border-radius: 6px;
+      background: color-mix(in srgb, CanvasText 4%, Canvas);
+    }
+
+    #site-origin {
+      margin: 0;
+      overflow: hidden;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #site-toggle {
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 5px;
+      padding: 3px 8px;
+      background: color-mix(in srgb, CanvasText 8%, Canvas);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #site-toggle[aria-pressed="true"] {
+      background: color-mix(in srgb, CanvasText 18%, Canvas);
+    }
+
+    #site-status {
+      margin: -4px 0 10px;
+      font-size: 11px;
+      color: color-mix(in srgb, CanvasText 60%, Canvas);
+    }
+
+    #message-token-action {
+      margin-bottom: 12px;
+    }
+
+    /* Token settings — collapsible section (task E7). */
+    #settings-panel {
+      margin-bottom: 12px;
+      padding: 8px 9px;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 6px;
+      background: color-mix(in srgb, CanvasText 4%, Canvas);
+    }
+
+    #settings-panel label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #token-input {
+      box-sizing: border-box;
+      width: 100%;
+      margin-bottom: 6px;
+      border: 1px solid color-mix(in srgb, CanvasText 22%, Canvas);
+      border-radius: 5px;
+      padding: 5px 7px;
+      background: Field;
+      color: FieldText;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .settings-actions button {
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 5px;
+      padding: 4px 9px;
+      background: color-mix(in srgb, CanvasText 8%, Canvas);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #token-status {
+      margin: 0;
+      font-size: 11px;
+      color: color-mix(in srgb, CanvasText 60%, Canvas);
+    }
+
+    /* Direct-dispatch panel (Task B2) — inline form + result for
+       non-embed tools, so a pinned Function/External/Http/Chain/Llm/Wasm
+       tool can run without leaving the popup. */
+    #dispatch-panel {
+      margin-bottom: 12px;
+      padding: 8px 9px;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+      border-radius: 6px;
+      background: color-mix(in srgb, CanvasText 4%, Canvas);
+    }
+
+    #dispatch-tool-label {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 650;
+      color: CanvasText;
+    }
+
+    .dispatch-field {
+      margin-bottom: 6px;
+    }
+
+    .dispatch-field label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .dispatch-field input[type="text"],
+    .dispatch-field input[type="number"],
+    .dispatch-field select,
+    .dispatch-field textarea {
+      box-sizing: border-box;
+      width: 100%;
+      border: 1px solid color-mix(in srgb, CanvasText 22%, Canvas);
+      border-radius: 5px;
+      padding: 5px 7px;
+      background: Field;
+      color: FieldText;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .dispatch-field textarea {
+      min-height: 44px;
+      resize: vertical;
+      font-family: ui-monospace, monospace;
+    }
+
+    .dispatch-field-note {
+      margin: 3px 0 0;
+      font-size: 10px;
+      color: color-mix(in srgb, CanvasText 55%, Canvas);
+    }
+
+    #dispatch-status {
+      margin: 0;
+      font-size: 11px;
+      color: color-mix(in srgb, CanvasText 60%, Canvas);
+    }
+
+    #dispatch-result {
+      margin-top: 6px;
+      padding: 6px 7px;
+      border: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+      border-radius: 5px;
+      background: color-mix(in srgb, CanvasText 6%, Canvas);
+    }
+
+    #dispatch-result-label {
+      margin: 0 0 3px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    #dispatch-result-value {
+      margin: 0;
+      max-height: 120px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header-row">
+    <h1>upeg</h1>
+    <button
+      id="settings-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="settings-panel"
+      data-i18n-aria-label="settingsToggleTitle"
+      data-i18n-title="settingsToggleTitle"
+    >⚙</button>
+  </div>
+  <div id="site-row">
+    <p id="site-origin"></p>
+    <button id="site-toggle" type="button" aria-pressed="false" data-i18n-title="siteToggleTitle" hidden></button>
+  </div>
+  <p id="site-status" aria-live="polite"></p>
+  <div id="settings-panel" hidden>
+    <label for="token-input" data-i18n="tokenInputLabel"></label>
+    <input
+      id="token-input"
+      type="password"
+      autocomplete="off"
+      spellcheck="false"
+      data-i18n-placeholder="tokenInputPlaceholder"
+    />
+    <div class="settings-actions">
+      <button id="token-save" type="button" data-i18n="tokenSaveButton"></button>
+      <button id="token-clear" type="button" data-i18n="tokenClearButton"></button>
+    </div>
+    <p id="token-status" aria-live="polite"></p>
+  </div>
+  <div id="board-tabs" role="tablist" data-i18n-aria-label="boardTabsAriaLabel" hidden></div>
+  <div id="tool-list" role="listbox" data-i18n-aria-label="toolListAriaLabel" hidden></div>
+  <div id="dispatch-panel" hidden>
+    <p id="dispatch-tool-label"></p>
+    <form id="dispatch-form"></form>
+    <div class="settings-actions">
+      <button id="dispatch-run" type="button" data-i18n="dispatchRunButton"></button>
+      <button id="dispatch-cancel" type="button" data-i18n="dispatchCancelButton"></button>
+    </div>
+    <p id="dispatch-status" aria-live="polite"></p>
+    <div id="dispatch-result" aria-live="polite" hidden>
+      <p id="dispatch-result-label"></p>
+      <pre id="dispatch-result-value"></pre>
+    </div>
+  </div>
+  <div id="message">
+    <p id="message-text" aria-live="polite" data-i18n="initialLoading"></p>
+    <p id="message-hint" hidden></p>
+    <button id="message-token-action" type="button" data-i18n="openTokenSettingsButton" hidden></button>
+  </div>
+  <a id="open-upeg" href="upeg://open?surface=ext" aria-label="upeg">
+    <span data-i18n="openUpegLink"></span>
+  </a>
+  <script src="wire.js"></script>
+  <script src="host_api.js"></script>
+  <script src="file_input.js"></script>
+  <script src="site_access.js"></script>
+  <script src="tool_routing.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

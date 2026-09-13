@@ -1,0 +1,31 @@
+[package]
+name = "upeg-pegboard-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure Rust UI-state crate for upeg pegboard (consumed by upeg-frb / Flutter)"
+
+[dependencies]
+phf.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-runtime.workspace = true
+upeg-tools.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# No surface crate here: `upeg-pegboard-ui` is UI state, so it stops at
+# the shared-storage adapter. Config-root resolution comes from
+# `upeg-core::paths`, which every layer already depends on.
+upeg-sources = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Window", "Storage"] }
+
+[lints]
+workspace = true

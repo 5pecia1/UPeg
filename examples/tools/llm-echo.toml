@@ -1,0 +1,21 @@
+# Offline Llm invoker example using the deterministic local echo provider.
+#
+# `provider = "echo"` renders the prompt locally, so this example makes
+# no network request and needs no configured account.
+
+id = "llm_demo"
+tags = ["example", "llm"]
+
+[[tools]]
+id = "echo_prompt"
+description = "Render a prompt with the deterministic local echo provider."
+pin = "Llm"
+pegboard_units = "U1"
+invoker = "Llm"
+provider = "echo"
+prompt = "Summarize: {{input}}"
+
+[[tools.inputs]]
+name = "input"
+type = "string"
+required = true

@@ -1,0 +1,30 @@
+[package]
+name = "upeg-sources"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Runtime source discovery and registration for upeg Toolkits, project manifests, WASM, and upstream MCP servers."
+
+[dependencies]
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-loader = { workspace = true }
+upeg-runtime = { workspace = true }
+upeg-tools = { workspace = true }
+upeg-wasm = { workspace = true, optional = true }
+
+[features]
+default = []
+wasm-plugin = ["dep:upeg-wasm", "upeg-loader/wasm"]
+
+[lints]
+workspace = true

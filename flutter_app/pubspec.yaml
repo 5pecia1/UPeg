@@ -1,0 +1,157 @@
+name: upeg
+description: "upeg — Universal Pegboard Flutter UI"
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  freezed_annotation: ^3.1.0
+  flutter_rust_bridge: 2.12.0
+  # cargokit-driven Rust integration. The `upeg_frb` Flutter FFI plugin
+  # lives at `rust_builder/`. Its per-platform native build files
+  # (linux/CMakeLists.txt, windows/CMakeLists.txt, macos/upeg_frb.podspec,
+  # ios/upeg_frb.podspec) invoke cargokit, which runs
+  # `cargo build -p upeg-frb` and bundles the resulting cdylib into the
+  # Flutter app at the platform-appropriate location.
+  upeg_frb:
+    path: rust_builder
+  flutter_riverpod: ^3.3.1
+  url_launcher: ^6.3.2
+  tray_manager: ^0.5.2
+  window_manager: ^0.5.1
+  app_links: ^7.0.0
+  # Global hotkey (launcher immediacy). Chosen over wiring the
+  # `global-hotkey` Rust crate through upeg-frb: that crate needs to
+  # attach to the platform event loop (winit/tao-style), which the
+  # Flutter-embedded cdylib does not own, while `hotkey_manager`
+  # (leanflutter, MIT) plugs into the Flutter engine's own loop on
+  # macOS (Carbon RegisterEventHotKey) / Windows (RegisterHotKey) /
+  # Linux X11 (keybinder-3.0; Wayland sessions are not supported —
+  # registration fails soft and the tray/deep-link paths still work).
+  hotkey_manager: ^0.2.3
+  file_picker: ^8.0.0
+  desktop_drop: ^0.7.1
+  web: ^1.1.1
+  # Native WebViews and app-owned offscreen Controlled Embed sessions.
+  # webview_all wraps WKWebView (Apple) / Android WebView / WebView2
+  # (Windows) / WebKitGTK 4.1 (Linux) / js-interop (Web) behind a single
+  # `WebViewWidget` API. Session ownership lets the debugger display the
+  # existing controller without reloading it. Linux still needs WebKitGTK;
+  # the current plugin can install/reuse the runner's GtkOverlay itself.
+  webview_all: ^1.4.1
+  # Public native sizing API used by the isolated Linux viewport adapter.
+  webview_all_linux: ^1.4.1
+  # kIsWeb-safe HTTP client for the PWA host-attach client (Task B3).
+  # `package:http` compiles on every target (web uses `fetch` under the
+  # hood) so the desktop build links it harmlessly even though only the
+  # wasm/PWA runtime ever dispatches through the attach client.
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  fake_async: ^1.3.1
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+  freezed: ^3.2.5
+  build_runner: ^2.15.0
+  msix: ^3.16.7
+  webview_platform_interface: ^1.4.1
+
+# Windows MSIX packaging metadata (Phase 8). Consumed by
+# `flutter pub run msix:create` via `just package-windows-msix`.
+# Code-signing is intentionally OUT OF SCOPE — Phase 9+ may layer it on.
+msix_config:
+  display_name: upeg
+  publisher_display_name: upeg contributors
+  identity_name: io.github.5pecia1.upeg
+  publisher: CN=upeg contributors
+  msix_version: 0.1.2.0
+  logo_path: web/icons/Icon-512.png
+  capabilities: internetClient
+  # Register the upeg:// custom scheme so packaged Windows installs route
+  # browser/extension deep links into app_links → DeepLinkListener.
+  protocol_activation: upeg
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # Asset bundle. `tray_icon.png` is a 16×16 cyan PNG used by
+  # `lib/src/platform/tray.dart::installTrayIcon` so the system tray
+  # menu shows a recognisable pictogram (B01/B02). Add new assets to
+  # the list — `flutter pub get` re-bundles automatically.
+  assets:
+    - assets/tray_icon.png
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # Bundled monospace fonts (both SIL OFL 1.1 — license texts ship
+  # alongside the binaries in fonts/OFL-*.txt):
+  #   * JetBrainsMono — the primary mono family the theme references
+  #     (`upegMonoFontFamily`); bundling it stops the app depending on
+  #     a system-installed copy.
+  #   * D2Coding (NAVER) — Korean monospace fallback so Hangul strings
+  #     from the Ko catalog render mono instead of falling through to a
+  #     proportional system font. Wired via `upegMonoFontFamilyFallback`
+  #     in lib/src/theme/upeg_theme.dart.
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: fonts/JetBrainsMono-Regular.ttf
+        - asset: fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+    - family: D2Coding
+      fonts:
+        - asset: fonts/D2Coding.ttf
+        - asset: fonts/D2CodingBold.ttf
+          weight: 700

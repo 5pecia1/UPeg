@@ -1,0 +1,1007 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolkitToml",
+  "description": "Root of the Toolkit TOML manifest loaded from `~/.upeg/toolkits/*.toml`.\n\nThis is the top-level shape that TOML authors write. The `id`, `tools`,\nand toolkit-level metadata (`tags`, `display_label`, `description`)\npropagate to every tool entry registered under this namespace.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "Stable toolkit namespace. Tool entries are registered as `<toolkit>.<tool>`.",
+      "type": "string"
+    },
+    "tags": {
+      "description": "Toolkit-level tags inherited by every tool unless already present.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "default": null
+    },
+    "display_label": {
+      "description": "Human-readable toolkit label for UI surfaces.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "description": {
+      "description": "Human-readable toolkit description.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "tools": {
+      "description": "Tools declared inside this toolkit manifest.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ToolEntryToml"
+      },
+      "minItems": 1
+    },
+    "boards": {
+      "description": "Boards this manifest declares. Project Manifests (`upeg.toml`)\nonly — the loader rejects the field on a toolkits-directory\nmanifest, which has no project to scope a board to.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BoardEntryToml"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "tools"
+  ],
+  "x-doc-reference": true,
+  "x-doc-order": 1,
+  "$defs": {
+    "ToolEntryToml": {
+      "description": "One tool entry inside a toolkit manifest's `[[tools]]` array.\n\nThis shape contains every user-authored field for a single tool: base\nmetadata (`id`, `tags`, `display_label`, `description`), I/O schema,\nruntime invoker parameters, chain step declarations, and adapter-specific\nreferences such as credentials and selector bindings.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Local tool id. The loader prefixes it with the toolkit id.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Tool-specific tags appended to toolkit-level tags.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "display_label": {
+          "description": "Human-readable tool label for UI surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Human-readable tool description.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "inputs": {
+          "description": "Typed input fields accepted by this tool. Omit for tools with no inputs.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InputFieldToml"
+          }
+        },
+        "outputs": {
+          "description": "Typed output fields produced by this tool. Omit for action-only tools.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OutputFieldToml"
+          }
+        },
+        "primary_output_id": {
+          "description": "Canonical output field id used for the default CLI result, MCP text\nfallback, and UI primary emphasis. Required when `outputs` is non-empty,\nand omitted when `outputs` is empty.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pin": {
+          "description": "UI rendering hint only, such as `Inline`, `Modal`, or `Embed`; runtime\nadapter selection is controlled by `invoker`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pegboard_units": {
+          "description": "Pegboard size class. Loader validation requires `U1`, `U2`, or `U2T`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "invoker": {
+          "description": "Runtime adapter selector. `Embed` is the canonical runtime declaration\nfor embedded sidecars; `steps` can infer `Chain`, while other runtime\ntools must set this explicitly.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "surfaces": {
+          "description": "Surface ids where this tool should appear, such as `cli`, `tui`, or `http`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "boards": {
+          "description": "Board ids where UI surfaces should group this tool.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "command": {
+          "description": "External-invoker support: program to spawn (e.g. `\"git\"`).\nHonored only when `invoker = \"External\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "args_template": {
+          "description": "Arg list template for the spawned command. `{key}` placeholders\nare substituted anywhere inside a token (`--manifest-path={path}`);\n`{{` / `}}` escape a literal brace. Every `key` must name a\ndeclared `inputs` field (or `input`, which the `Chain` invoker\nsupplies to every step) — a placeholder naming nothing else is a\nload error rather than a silently empty argument. A token that is\nnothing but `{key}` for an optional input with neither a value\nnor a `default` is dropped from the arg list; every other token\nkeeps its position and renders the absent placeholder as `\"\"`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "cwd": {
+          "description": "Working directory for the spawned command. A relative path\nresolves against the directory holding this manifest file.\nHonored only when `invoker = \"External\"`. When omitted, a\nProject Manifest (`upeg.toml`) tool runs in the manifest's own\ndirectory and a caller-supplied working directory is honored\nonly if it sits inside that directory.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "description": "Plain (non-secret) environment variables handed to the spawned\ncommand. Secrets belong in `credentials`, which is applied after\nthis list and therefore wins on a name collision.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/KeyValueToml"
+          }
+        },
+        "timeout_ms": {
+          "description": "Wall-clock budget for the spawned command, in milliseconds. When\nit elapses upeg terminates the child's whole process group and\nfails with `details.timed_out = true`. Omit for no limit.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "color": {
+          "description": "Whether the spawned command is told color is supported.\n`\"inherit\"` (the default) leaves it seeing a captured pipe and\nturning color off; `\"force\"` sets `CLICOLOR_FORCE`/`FORCE_COLOR`,\nunsets `NO_COLOR` (and sets `TERM` when the host has none). It is\nthe environment convention, not a pty: a program that decides on\n`isatty(3)` alone needs its own flag. Honored only when\n`invoker = \"External\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pty": {
+          "description": "Whether the spawned command gets a real terminal instead of two\npipes. `true` opens a pseudoterminal on Unix and connects the\nchild's stdout and stderr to it, so `isatty(3)` is true and a\nprogram that decides on it alone — `git`, `ls`, `grep` — emits\nits terminal output. The two streams arrive **merged** in one\ncaptured `stdout`, since a terminal has only one buffer, and\n`pty = true` implies `color = \"force\"` unless `color` is declared\nexplicitly. stdin stays `/dev/null`. Rejected at load time on a\nhost with no pty (Windows, wasm). Honored only when\n`invoker = \"External\"`.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "steps": {
+          "description": "Chain steps. This is the single PRD v2.1 manifest shape for\nexpression flow, branching, approvals, and connected node execution.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ChainStepToml"
+          }
+        },
+        "connections": {
+          "description": "Directed edges between chain steps. Steps without incoming connections\nreceive the chain input; connected steps receive upstream outputs.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ChainConnectionToml"
+          }
+        },
+        "approval_surfaces": {
+          "description": "Surface labels allowed to satisfy this chain's `requires_approval`\nsteps. An approval (`approve = true` / `_upeg.approvedSteps`) is\nhonored only when the call's `_upeg.surface` is in this list;\nevery other surface is refused with `approval_denied_for_surface`.\nDefaults to the three surfaces a person is sitting at — `cli`,\n`tui`, `desktop` — each of which ships a real approval gesture\n(`upeg call <chain> -a approve=true`, the TUI's confirm dialog,\nthe desktop's confirm dialog). Every other surface must be named\nexplicitly. Must overlap this tool's `surfaces`, or the gated\nstep could never be approved by anyone who can reach it.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "output": {
+          "description": "Optional final output expression for Chain tools.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "url": {
+          "description": "HTTP invoker URL template.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "method": {
+          "description": "HTTP method (`GET`/`POST`/...). Defaults to POST when a body is present,\nGET otherwise.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "headers": {
+          "description": "HTTP headers as name/value templates.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/KeyValueToml"
+          }
+        },
+        "body": {
+          "description": "HTTP request body template.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "prompt": {
+          "description": "LLM prompt template. `{{input}}`, `{{input.key}}`, and\n`{{credential.name}}` expressions are resolved at execution time.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "provider": {
+          "description": "LLM provider. `echo` is deterministic/local; `tool:<id>` delegates the\nrendered prompt into another Tool; `openai` calls an OpenAI-compatible\n`/chat/completions` HTTP endpoint (see `base_url`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "model": {
+          "description": "Provider model name. Required when `provider = \"openai\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "base_url": {
+          "description": "OpenAI-compatible provider base URL, e.g. `https://api.openai.com/v1`.\nOnly meaningful when `provider = \"openai\"`. Defaults to the loader's\nbuilt-in OpenAI endpoint when omitted; set this to point at a\nself-hosted OpenAI-compatible server instead.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "credential": {
+          "description": "Primary credential name/key for HTTP/LLM templates. Reuses the matching\ndeclared entry from `credentials` when present; otherwise resolves the\ndefault env fallback `UPEG_CREDENTIAL_<NAME>`. Never inline a secret.\nFor `provider = \"openai\"`, this is the credential resolved as the\n`Authorization: Bearer` API key.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "credentials": {
+          "description": "Named credential references from env, keychain, or adapter sources; no\nsecret values are persisted in toolkit manifests.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/CredentialRefToml"
+          }
+        },
+        "wasm_path": {
+          "description": "WASM module path for declarative WASM adapter diagnostics/host loading.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "triggers": {
+          "description": "Trigger declarations. Runtime adapters normalize all sources into the\nsame Tool-dispatch event contract.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TriggerToml"
+          }
+        },
+        "embed_url": {
+          "description": "GUI sidecar URL registered when present and non-empty. Recommended together with\n`invoker = \"Embed\"` and `pin = \"Embed\"`, but it is not gated\nonly by `pin`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "controlled_embed": {
+          "description": "Controlled Embed browser settings for User-Agent and viewport overrides.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ControlledEmbedToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 2
+    },
+    "InputFieldToml": {
+      "description": "One typed input field declared in Toolkit TOML.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Canonical argument key, such as `input`, `path`, or `mode`.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Closed input kind: `string`, `number`, `integer`, `boolean`, `options`,\n`multi_options`, `markdown`, `json`, `datetime`, `file_path`, `url`, or `file`.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional human-readable label for form surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Optional help text for form surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "required": {
+          "description": "Whether the caller must provide this input. Defaults to optional.",
+          "type": "boolean",
+          "default": false
+        },
+        "default": {
+          "description": "Value used when the caller omits this input. Lowered into the\nfield's [`upeg_core::FieldConstraints`], so it also reaches the\ngenerated JSON Schema and every form surface, and the External\ninvoker substitutes it into `args_template`.\n`number` / `integer` inputs take a number; `string`, `options`,\n`markdown`, `json`, `datetime`, `file_path`, and `url` take a\nstring. Other types (including `boolean`) have no default slot\nand are rejected at load time.",
+          "anyOf": [
+            {
+              "description": "Default value declared on an input field.\n\nThe core's `FieldConstraints` has a numeric slot and a string slot\nand nothing else, so this mirrors exactly what can be lowered.\n`Boolean` is accepted by the parser only to reject it with a field-\nspecific error instead of an opaque \"matched no variant\" TOML error.",
+              "anyOf": [
+                {
+                  "description": "TOML boolean. Rejected at load time — booleans have no\nconstraint slot in the core input spec.",
+                  "type": "boolean"
+                },
+                {
+                  "description": "TOML integer or float, for `type = \"number\"` / `\"integer\"`.",
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "description": "TOML string, for the text-shaped input kinds.",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "options": {
+          "description": "Selectable choices for `type = \"options\"` or `type = \"multi_options\"`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/InputChoiceToml"
+          }
+        },
+        "extensions": {
+          "description": "Allowed file suffixes. Values are normalized to lowercase without a\nleading dot. An empty or omitted list allows every extension.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "max_count": {
+          "description": "Maximum recursive file leaf count for `type = \"file\"`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 1,
+          "maximum": 100,
+          "default": null
+        },
+        "max_file_bytes": {
+          "description": "Optional maximum byte length of each file leaf.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "max_total_bytes": {
+          "description": "Optional maximum aggregate byte length across all file leaves.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 3
+    },
+    "InputChoiceToml": {
+      "description": "One selectable choice for `options` and `multi_options` input fields.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Stable value sent in tool arguments when this choice is selected.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional human-readable label for form surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Optional help text for this choice.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 4
+    },
+    "OutputFieldToml": {
+      "description": "One typed output field declared in Toolkit TOML.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Canonical output key, such as `result`, `count`, or `view`.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Closed output kind: `string`, `number`, `integer`, `boolean`, `options`,\n`multi_options`, `markdown`, `json`, `datetime`, `file_path`, `url`,\n`file`, or `embedded_view`.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional human-readable label for rendering surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Optional help text for rendering surfaces.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "options": {
+          "description": "Selectable choices for `type = \"options\"` or `type = \"multi_options\"`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/InputChoiceToml"
+          }
+        },
+        "url": {
+          "description": "URL for `type = \"embedded_view\"` outputs.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 5
+    },
+    "KeyValueToml": {
+      "description": "TOML name/value template pair used for HTTP headers and similar maps.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Key or header name.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value template.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 8
+    },
+    "ChainStepToml": {
+      "description": "A single step in a Chain tool's execution flow.\n\nChain steps declare which tool to invoke, templated arguments, conditional\nguards, and optional approval barriers. Directed edges in `connections`\norder step execution.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Stable local node id used by expressions and `connections`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tool": {
+          "description": "Canonical Tool id to invoke.",
+          "type": "string"
+        },
+        "args": {
+          "description": "JSON object template for step args. When omitted, unconnected source\nsteps receive the chain input. A step with one upstream receives\n`{ \"input\": upstream_output }`; multiple upstreams receive\n`{ \"input\": last_upstream_output, \"inputs\": { \"<upstream>\": \"<output>\" } }`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "when": {
+          "description": "Boolean expression. False skips the step.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "requires_approval": {
+          "description": "Approval barrier. The caller must include this step id in\n`_upeg.approvedSteps` or pass `approve = true`.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 6
+    },
+    "ChainConnectionToml": {
+      "description": "Directed edge between two chain steps.\n\nThe `from` step id produces an output that flows into the `to` step as\nits input. Steps without incoming connections receive the chain input.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "Upstream chain step id.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Downstream chain step id.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 7
+    },
+    "CredentialRefToml": {
+      "description": "Reference to a credential value resolved outside the manifest.\n\nManifests declare metadata and reference names only; the actual secret\nvalue is resolved at execution time from env, keychain, or adapter.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Logical credential name used by prompt/header/body templates.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Secret value type for adapter validation (`api_key`, `bearer`, etc.).\nThis is schema metadata only; the value itself is never stored.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "store": {
+          "description": "Reference backend. `env` reads an environment variable; `keychain`\nreads an OS keychain item by service/account when the host supports it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "description": "Environment variable to read. Defaults to `UPEG_CREDENTIAL_<NAME>`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "keychain_service": {
+          "description": "OS keychain service name when `store = \"keychain\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "keychain_account": {
+          "description": "OS keychain account/user when `store = \"keychain\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "Adapter-specific target name (for example external process env name or\nHTTP header expression name). Defaults to `name`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "required": {
+          "description": "Missing credentials fail by default. Set false only for optional\nprovider features.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 9
+    },
+    "TriggerToml": {
+      "description": "Declarative event trigger that can dispatch a tool.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "`webhook`, `schedule`, `file`, `directory`, `clipboard`, or `hotkey`.",
+          "type": "string"
+        },
+        "condition": {
+          "description": "Source-specific predicate. Every source's contract is checked at load\ntime, so a missing or superfluous condition fails `upeg tool validate`\nrather than at watch time.\n\n`schedule` takes `now` (fire once when the watch starts) or\n`every:<duration>` such as `every:30s`, and defaults to `now` when\nomitted; the watch polls once per second, so a shorter interval is\nrejected and an interval that is not a whole multiple of the poll fires\non the first poll at or after each due moment. `file` and `directory`\nrequire the watched path and fire on creation and on modification.\n`hotkey` requires an accelerator such as `ctrl+shift+u`. `clipboard` and\n`webhook` take no condition and reject one.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 11
+    },
+    "ControlledEmbedToml": {
+      "description": "Controlled Embed settings declared at the tool level.",
+      "type": "object",
+      "properties": {
+        "browser": {
+          "description": "Browser identity and viewport overrides.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ControlledEmbedBrowserToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bindings": {
+          "description": "Selector bindings nested under Controlled Embed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/SelectorBindingToml"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 12
+    },
+    "ControlledEmbedBrowserToml": {
+      "description": "Controlled Embed browser settings declared under `controlled_embed.browser`.\n\n`user_agent` accepts `\"default\"`, `\"mobile_safari\"`, or `\"custom\"`.\n`custom_user_agent` is required only for `user_agent = \"custom\"`.\n`viewport` accepts `\"mobile\"`, `\"tablet\"`, `\"desktop\"`, or `\"custom\"`.\n`viewport_width` and `viewport_height` are required only for\n`viewport = \"custom\"`.",
+      "type": "object",
+      "properties": {
+        "user_agent": {
+          "description": "User-Agent mode: `default`, `mobile_safari`, or `custom`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "custom_user_agent": {
+          "description": "Custom User-Agent string. Required only when `user_agent = \"custom\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "viewport": {
+          "description": "Viewport mode: `mobile`, `tablet`, `desktop`, or `custom`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "viewport_width": {
+          "description": "Custom viewport width. Required only when `viewport = \"custom\"`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": null
+        },
+        "viewport_height": {
+          "description": "Custom viewport height. Required only when `viewport = \"custom\"`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 12
+    },
+    "SelectorBindingToml": {
+      "description": "TOML shape for a single selector binding. Mirrors\n`upeg_runtime::SelectorBinding` but lives here so the loader doesn't\nexpose `SelectorBinding`'s `'static`-string semantics to TOML\nauthors. The loader leaks the strings on registration.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "description": "Role this binding plays in the Controlled Embed pipeline:\n`\"input\"` (write field → DOM), `\"trigger\"` (click DOM element),\n`\"output\"` (read DOM → field). Defaults to `\"input\"` when\nomitted so simple manifests stay terse.",
+          "type": "string",
+          "default": "input"
+        },
+        "field": {
+          "description": "Tool input or output field name to bind. Unused for `trigger`.",
+          "type": "string",
+          "default": ""
+        },
+        "selector": {
+          "description": "CSS selector inside the embedded page.",
+          "type": "string"
+        },
+        "action": {
+          "description": "Trigger action for `role = \"trigger\"`: `\"click\"` (default) or\n`\"enter\"`. Non-trigger bindings may omit this or use `\"click\"` only.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "wait": {
+          "description": "Optional wait settings before this binding is applied or read. Supported\nonly for Controlled Embed selector bindings; network-idle,\nDOM-stability, and page lifecycle waits are out of scope.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BindingWaitToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "selector"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 10
+    },
+    "BindingWaitToml": {
+      "description": "Optional Controlled Embed wait settings for a single selector binding.\nWaits are selector readiness checks only; network-idle, DOM-stability,\nand page lifecycle waits are out of scope.",
+      "type": "object",
+      "properties": {
+        "for_selector": {
+          "description": "CSS selector to wait for. Defaults to the binding's own selector.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "condition": {
+          "description": "Wait condition. Supported values are `\"exists\"` and `\"visible\"`.\nDefaults to `\"exists\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "timeout_ms": {
+          "description": "Maximum wait duration in milliseconds. Defaults to 5000.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "settle_ms": {
+          "description": "Fixed delay in milliseconds after the condition matches. Defaults to 0.\nThis is not a network-idle or DOM-stability detector.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "on_timeout": {
+          "description": "Timeout behavior. Supported values are `\"fail\"` and `\"continue\"`.\nDefaults to `\"fail\"`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 13
+    },
+    "BoardEntryToml": {
+      "description": "One entry in a Project Manifest's top-level `[[boards]]` array.\n\nProject-declared boards are the only way a manifest can add a board\ntab; they exist while the manifest is detected and disappear when it\nis not (`docs/architecture/project-manifest.md`). Toolkit manifests\nunder `~/.upeg/toolkits` are global and have no project to scope a\nboard to, so the loader rejects `[[boards]]` there.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Board id, as typed on every surface (`upeg board <id> list`) and\nas named by a tool's `boards = [...]` array. Must be canonical\n(unpadded), must not contain `:`, and must not shadow a built-in\nboard.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Tab title for GUI surfaces. Defaults to `id` when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Short description of the board's purpose. Empty when omitted.",
+          "type": "string",
+          "default": ""
+        },
+        "instructions": {
+          "description": "Markdown guidance for people and agents using this board.",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 14
+    }
+  }
+}

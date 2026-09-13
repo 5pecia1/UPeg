@@ -1,0 +1,276 @@
+library;
+
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:upeg/src/i18n/t.dart';
+import 'package:upeg/src/platform/file_picker_bridge.dart';
+import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/widgets/expanded_modal/file_drop_adapter.dart';
+import 'package:upeg/src/widgets/expanded_modal/file_picker_selection_adapter.dart';
+import 'package:upeg/src/widgets/expanded_modal/file_selection_assembler.dart';
+import 'package:upeg/src/widgets/expanded_modal/form_value.dart';
+
+part 'file_input_actions.dart';
+
+const Duration _highlightDuration = Duration(milliseconds: 120);
+const double _borderWidth = 2;
+const double _dragHighlightOpacity = 0.12;
+const String _emptyPrompt = '파일을 선택하거나\n여기로 끌어 놓으세요.';
+const String _pickFailureMessage = '파일을 선택하지 못했습니다.';
+
+abstract final class FileInputKeys {
+  static const dropTarget = Key('file-input-drop-target');
+  static const pickFocusRing = Key('file-input-pick-focus-ring');
+  static const clearFocusRing = Key('file-input-clear-focus-ring');
+  static const pickButton = Key('file-input-pick-button');
+  static const clearButton = Key('file-input-clear-button');
+}
+
+final class FileInputField extends StatefulWidget {
+  const FileInputField({
+    required this.label,
+    required this.value,
+    required this.policy,
+    required this.pickerBridge,
+    required this.onChanged,
+    required this.onCleared,
+    this.description,
+    this.dropAdapter = const DesktopFileDropAdapter(),
+    this.compact = false,
+    super.key,
+  });
+
+  final String label;
+  final String? description;
+  final FileFormValue? value;
+  final FileSelectionPolicy policy;
+  final FilePickerBridge pickerBridge;
+  final ValueChanged<FileFormValue> onChanged;
+  final VoidCallback onCleared;
+  final FileDropAdapter dropAdapter;
+  final bool compact;
+
+  @override
+  State<FileInputField> createState() => _FileInputFieldState();
+}
+
+final class _FileInputFieldState extends State<FileInputField> {
+  bool _isDragging = false;
+  bool _isBusy = false;
+  String? _errorMessage;
+
+  List<String> get _selectedNames {
+    final value = widget.value?.value;
+    if (value == null) return const [];
+    return switch (value.content) {
+      CanonicalFileContent_Bytes() => [value.name],
+      CanonicalFileContent_Directory(:final entries) =>
+        entries.map((entry) => entry.name).toList(growable: false),
+    };
+  }
+
+  Future<void> _pickFiles() async {
+    if (_isBusy) return;
+    _beginSelection();
+    try {
+      final picked = await widget.pickerBridge.pickOpenFiles(
+        allowedExtensions: widget.policy.extensions.isEmpty
+            ? null
+            : widget.policy.extensions,
+        allowMultiple: widget.policy.maxCount > 1,
+        maxCount: widget.policy.maxCount,
+        maxFileBytes: widget.policy.maxFileBytes,
+        maxTotalBytes: widget.policy.maxTotalBytes,
+      );
+      if (picked == null) return;
+      await _assembleAndCommit(fileSelectionCandidatesFromPicked(picked));
+    } on FilePickerReadFailure catch (failure) {
+      _showError(
+        FileSelectionFailure(
+          FileSelectionErrorCode.readFailed,
+          fileName: failure.fileName,
+        ).message,
+      );
+    } on FilePickerSelectionFailure catch (failure) {
+      _showError(fileSelectionFailureFromPicker(failure).message);
+    } on FileSelectionFailure catch (failure) {
+      _showError(failure.message);
+    } on Exception {
+      _showError(_pickFailureMessage);
+    } finally {
+      _finishSelection();
+    }
+  }
+
+  void _startPicking() {
+    unawaited(
+      _pickFiles().catchError((Object error, StackTrace stackTrace) {
+        if (error is! Error) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        // Material button callbacks cannot await a Future. Forward programmer
+        // Errors unchanged to Flutter's error boundary instead of user feedback.
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'upeg file input',
+            context: ErrorDescription('파일 선택 동작을 처리하는 중'),
+          ),
+        );
+      }),
+    );
+  }
+
+  Future<void> _dropFiles(List<FileSelectionCandidate> candidates) async {
+    if (_isBusy) return;
+    _beginSelection();
+    try {
+      await _assembleAndCommit(candidates);
+    } on FileSelectionFailure catch (failure) {
+      _showError(failure.message);
+    } on Exception {
+      _showError(_pickFailureMessage);
+    } finally {
+      _finishSelection();
+    }
+  }
+
+  Future<void> _assembleAndCommit(
+    List<FileSelectionCandidate> candidates,
+  ) async {
+    final assembled = await FileSelectionAssembler(
+      widget.policy,
+    ).assemble(candidates);
+    if (!mounted) return;
+    widget.onChanged(FileFormValue(assembled));
+  }
+
+  void _beginSelection() {
+    setState(() {
+      _isBusy = true;
+      _isDragging = false;
+      _errorMessage = null;
+    });
+  }
+
+  void _finishSelection() {
+    if (!mounted) return;
+    setState(() => _isBusy = false);
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    setState(() => _errorMessage = message);
+  }
+
+  void _setDragging(bool value) {
+    if (_isBusy || _isDragging == value) return;
+    setState(() => _isDragging = value);
+  }
+
+  void _clear() {
+    if (_isBusy) return;
+    setState(() => _errorMessage = null);
+    widget.onCleared();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final names = _selectedNames;
+    final theme = Theme.of(context);
+    final tokens = context.upeg;
+    final borderColor = _isDragging ? tokens.accent : tokens.line;
+    final content = AnimatedContainer(
+      key: FileInputKeys.dropTarget,
+      duration: _highlightDuration,
+      padding: widget.compact
+          ? const EdgeInsets.all(UpegSizing.pinGap)
+          : UpegSizing.pinBodyPadding,
+      decoration: BoxDecoration(
+        color: _isDragging
+            ? tokens.accent.withValues(alpha: _dragHighlightOpacity)
+            : tokens.surface2,
+        border: Border.all(color: borderColor, width: _borderWidth),
+        borderRadius: BorderRadius.circular(UpegSizing.radius2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.label, style: theme.textTheme.labelMedium),
+          // A drop target has no InputDecoration, so the declared
+          // description gets its own line under the label instead of
+          // the helperText slot every other field kind uses. A compact
+          // tile has no room for it (mirrors `_multiOptionsField`).
+          if (widget.description case final description?
+              when !widget.compact && description.isNotEmpty) ...[
+            const SizedBox(height: UpegSizing.radius1),
+            Text(
+              description,
+              style: theme.textTheme.labelSmall?.copyWith(color: tokens.fg3),
+            ),
+          ],
+          const SizedBox(height: UpegSizing.radius2),
+          Text(names.isEmpty ? _emptyPrompt : '${names.length}개 파일 선택됨'),
+          if (names.isNotEmpty) ...[
+            const SizedBox(height: UpegSizing.radius1),
+            for (final name in names)
+              Text(
+                name,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+          const SizedBox(height: UpegSizing.radius2),
+          _FileInputActions(
+            isBusy: _isBusy,
+            hasSelection: names.isNotEmpty,
+            onPick: _startPicking,
+            onClear: _clear,
+          ),
+          if (_errorMessage case final message?) ...[
+            const SizedBox(height: UpegSizing.radius1),
+            Semantics(
+              container: true,
+              liveRegion: true,
+              label: message,
+              child: ExcludeSemantics(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tokens.warn,
+                    borderRadius: BorderRadius.circular(UpegSizing.radius1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: UpegSizing.radius2,
+                      vertical: UpegSizing.radius1,
+                    ),
+                    child: Text(
+                      message,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.onWarn,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    return widget.dropAdapter.wrap(
+      child: content,
+      callbacks: FileDropCallbacks(
+        onEntered: () => _setDragging(true),
+        onExited: () => _setDragging(false),
+        onDropped: _dropFiles,
+      ),
+    );
+  }
+}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=upeg
+Comment=Universal Pegboard
+Exec=upeg %u
+Icon=upeg
+Categories=Utility;
+Terminal=false
+StartupWMClass=upeg
+MimeType=x-scheme-handler/upeg;

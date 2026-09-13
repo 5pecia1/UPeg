@@ -1,0 +1,54 @@
+# cargo-deny licence policy for the UPeg workspace.
+#
+# The allow-list is the set of licences whose obligations UPeg can actually
+# discharge: permissive notice-retention terms, plus MPL-2.0 file-level
+# copyleft, whose notice and source-availability terms must be fulfilled. Every
+# entry here is present in the real dependency graph; adding a licence to this
+# list is a deliberate decision, not a way to make the gate pass.
+#
+# Attribution for these dependencies lives in the root NOTICE file. When this
+# list changes, NOTICE changes with it.
+#
+# Strong copyleft (GPL/AGPL/LGPL), source-available-but-not-open licences
+# (SSPL, BUSL, Elastic) and non-commercial terms (CC-BY-NC, Commons Clause)
+# are absent by policy — see docs/architecture/stack.md.
+#
+[licenses]
+version = 2
+confidence-threshold = 0.8
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+
+# ittapi and ittapi-sys use GPL-2.0-only OR BSD-3-Clause. The global BSD
+# allowance accepts that branch; NOTICE records the distribution's choice.
+# A package exception is unnecessary and does not change the SPDX expression.
+
+# allo-isolate ships no `license` field in its Cargo.toml; its LICENSE file is
+# Apache-2.0, which cargo-deny should detect from the file text at the
+# confidence threshold above. If it does not, add a [[licenses.clarify]] entry
+# here using the hash cargo-deny prints in its error message.
+
+[bans]
+multiple-versions = "allow"
+
+[advisories]
+version = 2
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

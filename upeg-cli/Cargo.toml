@@ -1,0 +1,93 @@
+[package]
+name = "upeg-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "upeg CLI surface — `upeg <subcommand>`. PRD v2.1 §6.5: minimal one-line output, pipe-friendly."
+
+[[bin]]
+name = "upeg"
+path = "src/main.rs"
+
+[lib]
+name = "upeg_cli"
+path = "src/lib.rs"
+
+[dependencies]
+axum = { workspace = true }
+cap-fs-ext = "3.4.5"
+cap-std = "3.4.5"
+chrono = { workspace = true }
+clap = { workspace = true, features = ["string"] }
+clap_complete = { workspace = true }
+crossterm = { workspace = true }
+dirs = { workspace = true }
+# `Stream` for the HTTP surface's NDJSON streaming response body.
+futures-core = { workspace = true }
+getrandom = { workspace = true }
+# Optional global-hotkey backend for `hotkey`-source triggers. Default builds
+# skip it entirely (see the `hotkey-trigger` feature). Apache-2.0/MIT.
+global-hotkey = { version = "0.8", optional = true }
+notify-rust = { workspace = true }
+phf = { workspace = true }
+ratatui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+# CORS layer for the HTTP surface's REST data plane (Task B1) — lets
+# browser-origin clients (PWA, chrome-ext popup) call `/v1/*`.
+tower-http = { workspace = true }
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-loader = { workspace = true }
+upeg-runtime = { workspace = true }
+upeg-sources = { workspace = true }
+# Desktop/PWA/Chrome-ext interface inventory contracts live in
+# `crate::inventory::desktop_pwa_ext`. (Historical: this module's location
+# originally avoided a Cargo cycle with the Dioxus `upeg-desktop-ui` crate,
+# which depended on `upeg-cli` for the tray + embedded HTTP server; Phase 11
+# removed that crate.)
+# Linking upeg-tools pulls every #[upeg::tool] submission into this binary's
+# inventory section so the CLI sees the same toolbox as the Flutter desktop UI.
+upeg-tools = { workspace = true }
+# Optional WASM plugin host. Default builds skip the
+# wasmtime/extism dep tax — opt in with `--features wasm-plugin`.
+upeg-wasm = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1.4", features = ["fs"] }
+
+[features]
+# `wasm-plugin` ships by default so `upeg plugin install`/`list` and
+# `~/.upeg/wasm/*.wasm` auto-load work out of the box. Opt out with
+# `--no-default-features --features controlled-embed` (or list only the
+# features you want) to skip the wasmtime/extism dep tax.
+default = ["controlled-embed", "wasm-plugin"]
+# Enable `upeg wasm load <path>` / `upeg plugin {new,install,list}` and
+# auto-load of `$UPEG_WASM_DIR` / `~/.upeg/wasm/*.wasm` at startup.
+wasm-plugin = ["dep:upeg-wasm", "upeg-sources/wasm-plugin"]
+# Enable the chromiumoxide-backed Controlled Embed dispatcher. Without
+# this feature the CLI ships a Noop backend and ControlledEmbed tools
+# surface a "feature disabled" error when invoked.
+controlled-embed = ["upeg-runtime/controlled-embed"]
+# Enable the global-hotkey-backed adapter for `hotkey`-source triggers. Headless
+# hosts (no display) report a clear diagnostic and keep the rest of the watch
+# running. Off by default so the standard build takes no extra dep tax.
+hotkey-trigger = ["dep:global-hotkey"]
+
+[dev-dependencies]
+base64 = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+image = { workspace = true }
+jsonschema = { workspace = true }
+tempfile = { workspace = true }
+tower = { workspace = true }
+zip = { workspace = true }
+
+[lints]
+workspace = true

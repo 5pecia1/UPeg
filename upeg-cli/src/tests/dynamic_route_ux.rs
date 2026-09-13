@@ -1,0 +1,225 @@
+//! Dynamic `{toolkit} {tool}` route UX: `--help` interception, output
+//! flag parity with `upeg call`, and `--local` attach opt-out.
+
+use super::common::parse;
+use crate::*;
+
+// ─── --help interception ─────────────────────────────────
+
+#[test]
+fn 도구킷_help는_도구_목록과_한줄_설명을_보여준다() {
+    for argv in [&["upeg", "num", "--help"][..], &["upeg", "num", "-h"][..]] {
+        let out = run(parse(argv)).expect("toolkit help must not dispatch");
+        assert!(
+            out.contains("usage: upeg num <tool> [args...]"),
+            "missing usage line for {argv:?}:\n{out}"
+        );
+        assert!(
+            out.contains("hex-to-decimal"),
+            "tool listing must use kebab spelling:\n{out}"
+        );
+        assert!(
+            out.contains("Parse a hex string"),
+            "each tool row must carry its one-line description:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn 도구_help는_스키마_기반_usage와_두_호출_예시를_보여준다() {
+    let out = run(parse(&["upeg", "num", "hex-to-decimal", "--help"]))
+        .expect("tool help must not dispatch");
+    // Reuses the `tool show` block: schema inputs with type/required.
+    assert!(
+        out.contains("id            num.hex_to_decimal"),
+        "tool help must reuse the tool show block:\n{out}"
+    );
+    assert!(
+        out.contains("(string, required)"),
+        "inputs must carry type + required marker:\n{out}"
+    );
+    // Both invocation forms, ready to copy-paste.
+    assert!(
+        out.contains("upeg num hex-to-decimal <input>"),
+        "missing dynamic route example:\n{out}"
+    );
+    assert!(
+        out.contains("upeg call num.hex_to_decimal -a input=<string>"),
+        "missing call example:\n{out}"
+    );
+}
+
+#[test]
+fn 알수없는_도구킷의_help는_오류를_반환한다() {
+    let result = run(parse(&["upeg", "no_such_toolkit_zzz", "--help"]));
+    match result {
+        Err(CliError::ToolFailed(msg)) => {
+            assert!(msg.contains("unknown toolkit"), "got: {msg}");
+        }
+        other => panic!("expected unknown toolkit error, got {other:?}"),
+    }
+}
+
+#[test]
+fn 알수없는_도구의_help는_unknown_tool_오류를_반환한다() {
+    let result = run(parse(&["upeg", "num", "no-such-tool", "--help"]));
+    assert!(
+        matches!(result, Err(CliError::UnknownTool(_))),
+        "got {result:?}"
+    );
+}
+
+// ─── output flag parity with `upeg call` ─────────────────
+
+#[test]
+fn 동적_라우트_json은_call과_동일한_envelope를_반환한다() {
+    let direct =
+        run(parse(&["upeg", "num", "hex-to-decimal", "0xff", "--json"])).expect("dynamic --json");
+    let via_call = run(parse(&[
+        "upeg",
+        "call",
+        "num.hex_to_decimal",
+        "-a",
+        "input=0xff",
+        "--json",
+    ]))
+    .expect("call --json");
+    assert_eq!(direct, via_call, "canonical envelope must match call");
+
+    let value: serde_json::Value = serde_json::from_str(&direct).expect("canonical JSON");
+    assert_eq!(value["ok"], true);
+    assert_eq!(value["outputs"][0]["value"], 255);
+}
+
+#[test]
+fn 동적_라우트_field와_pretty는_call과_시맨틱이_같다() {
+    let field = run(parse(&[
+        "upeg",
+        "num",
+        "hex-to-decimal",
+        "0xff",
+        "--field",
+        "result",
+    ]))
+    .expect("dynamic --field");
+    assert_eq!(field, "255\n");
+
+    let direct_pretty = run(parse(&[
+        "upeg",
+        "num",
+        "hex-to-decimal",
+        "0xff",
+        "--pretty",
+    ]))
+    .expect("dynamic --pretty");
+    let call_pretty = run(parse(&[
+        "upeg",
+        "call",
+        "num.hex_to_decimal",
+        "-a",
+        "input=0xff",
+        "--pretty",
+    ]))
+    .expect("call --pretty");
+    assert_eq!(direct_pretty, call_pretty);
+}
+
+#[test]
+fn 동적_라우트_json의_도구_오류는_표준출력_failure_envelope다() {
+    let result = run(parse(&["upeg", "num", "hex-to-decimal", "0xZZ", "--json"]));
+    match result {
+        Err(CliError::StdoutFailure { stdout }) => {
+            let value: serde_json::Value = serde_json::from_str(&stdout).expect("failure JSON");
+            assert_eq!(value["ok"], false);
+            assert!(
+                value["error"]["message"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("invalid hex")
+            );
+        }
+        other => panic!("expected stdout failure JSON, got {other:?}"),
+    }
+}
+
+#[test]
+fn 동적_라우트_출력_플래그_조합은_거부된다() {
+    let result = run(parse(&[
+        "upeg",
+        "num",
+        "hex-to-decimal",
+        "0xff",
+        "--json",
+        "--pretty",
+    ]));
+    match result {
+        Err(CliError::ToolFailed(msg)) => {
+            assert!(msg.contains("cannot be combined"), "got: {msg}");
+        }
+        other => panic!("expected output-mode conflict error, got {other:?}"),
+    }
+}
+
+#[test]
+fn 이중대시_이후_플래그_모양_토큰은_입력값으로_전달된다() {
+    // `--` ends option scanning: `--json` here is slugify's INPUT, not
+    // an output flag.
+    let out = run(parse(&["upeg", "text", "slugify", "--", "--json"]))
+        .expect("literal positional after --");
+    assert_eq!(out, "json\n");
+}
+
+// ─── --local attach opt-out ──────────────────────────────
+
+#[test]
+fn local_플래그는_동적_라우트와_call_양쪽에서_in_process로_dispatch한다() {
+    let direct =
+        run(parse(&["upeg", "num", "hex-to-decimal", "0xff", "--local"])).expect("dynamic --local");
+    assert_eq!(direct, "255\n");
+
+    let via_call = run(parse(&[
+        "upeg",
+        "call",
+        "num.hex_to_decimal",
+        "-a",
+        "input=0xff",
+        "--local",
+    ]))
+    .expect("call --local");
+    assert_eq!(via_call, "255\n");
+}
+
+// ─── tool show invocation examples ───────────────────────
+
+#[test]
+fn 도구_표시는_말미에_두_호출_형태_예시를_보여준다() {
+    let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"])).expect("tool show");
+    let invoke_index = out.find("invoke\n").expect("invoke section present");
+    let tail = &out[invoke_index..];
+    assert!(
+        tail.contains("  upeg num hex-to-decimal <input>"),
+        "missing dynamic route example:\n{out}"
+    );
+    assert!(
+        tail.contains("  upeg call num.hex_to_decimal -a input=<string>"),
+        "missing call example:\n{out}"
+    );
+}
+
+// ─── completions carry tool ids ──────────────────────────
+
+#[test]
+fn 완성_스크립트는_동적_도구_id_후보를_포함한다() {
+    let out = run(parse(&["upeg", "completions", "bash"])).expect("bash completions");
+    assert!(
+        out.contains("num.hex_to_decimal"),
+        "`upeg call <TAB>` candidates must include canonical ids:\n(script elided)"
+    );
+    assert!(
+        out.contains("hex-to-decimal"),
+        "`upeg num <TAB>` candidates must include kebab tool names:\n(script elided)"
+    );
+
+    let zsh = run(parse(&["upeg", "completions", "zsh"])).expect("zsh completions");
+    assert!(zsh.contains("num.hex_to_decimal"));
+}

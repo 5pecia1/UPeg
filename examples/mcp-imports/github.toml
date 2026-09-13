@@ -1,0 +1,22 @@
+# Real-world MCP server example: GitHub.
+#
+# Requires the official GitHub MCP server to be installable via npx,
+# plus `GITHUB_PERSONAL_ACCESS_TOKEN` set in your environment for auth.
+# See: https://github.com/modelcontextprotocol/server-github
+#
+# The import namespace is the config filename stem. Keep this file as
+# `github.toml` under `~/.upeg/mcp-imports/` so every upstream tool registers as
+# `github.<original_id>` and becomes callable through every upeg surface
+# (CLI / MCP / HTTP / TUI / Desktop):
+#
+#   $ upeg call github.list_pulls -a repo=owner/name
+#
+# Import is partial success per tool: if an upstream tool's schema
+# uses constructs upeg's typed I/O can't express (e.g. `$ref`,
+# `oneOf`), that one tool is skipped — the startup log names the tool
+# and the reason — and the rest of the server registers normally.
+#
+# Adjust the args if the upstream server's invocation changes.
+
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]

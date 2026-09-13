@@ -1,0 +1,23 @@
+[package]
+name = "upeg-macros"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Procedural macros for upeg — `#[tool]` attribute that registers a Tool's manifest at link time via inventory."
+
+[lib]
+proc-macro = true
+
+[dependencies]
+humantime = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+serde_json = { workspace = true }
+syn = { workspace = true }
+upeg-tool-grammar = { workspace = true }
+
+[lints]
+workspace = true

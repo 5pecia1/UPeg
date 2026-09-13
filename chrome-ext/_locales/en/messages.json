@@ -1,0 +1,304 @@
+{
+  "extensionDescription": {
+    "message": "Universal Pegboard — pin once, call anywhere. Compact popup plus in-page detectors and a selector adapter on the sites you enable."
+  },
+
+  "settingsToggleTitle": {
+    "message": "Host token settings"
+  },
+  "tokenInputLabel": {
+    "message": "Host token"
+  },
+  "tokenInputPlaceholder": {
+    "message": "Paste token…"
+  },
+  "tokenSaveButton": {
+    "message": "Save"
+  },
+  "tokenClearButton": {
+    "message": "Clear"
+  },
+  "boardTabsAriaLabel": {
+    "message": "Boards"
+  },
+  "toolListAriaLabel": {
+    "message": "Pinned tools"
+  },
+  "initialLoading": {
+    "message": "Loading…"
+  },
+  "openTokenSettingsButton": {
+    "message": "Open token settings"
+  },
+  "openUpegLink": {
+    "message": "Open upeg"
+  },
+
+  "daemonUnreachable": {
+    "message": "Could not reach upeg on $ADDRESS$.",
+    "placeholders": {
+      "address": { "content": "$1", "example": "127.0.0.1:7173" }
+    }
+  },
+  "runHint": {
+    "message": "Not running? Start it with: $COMMAND$",
+    "placeholders": {
+      "command": { "content": "$1", "example": "upeg http --addr 127.0.0.1:7173" }
+    }
+  },
+  "tokenRejected": {
+    "message": "upeg rejected this token — check it and save again."
+  },
+  "tokenRequired": {
+    "message": "upeg requires a token — add it below."
+  },
+  "noBoardsFound": {
+    "message": "No boards found — pin a tool to a board first."
+  },
+
+  "toolListLoading": {
+    "message": "Loading pinned tools…"
+  },
+  "boardLoadFailed": {
+    "message": "Could not load this board — try another tab."
+  },
+  "boardEmpty": {
+    "message": "No pinned tools on this board yet."
+  },
+
+  "tokenSavedStatus": {
+    "message": "Token saved. Paste a new one to replace it."
+  },
+  "tokenMissingStatus": {
+    "message": "No token saved — required if upeg enforces auth."
+  },
+  "tokenEmptyPrompt": {
+    "message": "Enter a token before saving."
+  },
+
+  "jsonValuePlaceholder": {
+    "message": "JSON value"
+  },
+  "jsonFieldNote": {
+    "message": "No dedicated control for this field — enter a JSON value."
+  },
+  "fieldRequired": {
+    "message": "\"$FIELD$\" is required.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "query" }
+    }
+  },
+  "fieldNotNumber": {
+    "message": "\"$FIELD$\" must be a number.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "count" }
+    }
+  },
+  "fieldNotJson": {
+    "message": "\"$FIELD$\" must be valid JSON.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "payload" }
+    }
+  },
+  "fileTooMany": {
+    "message": "\"$FIELD$\" accepts at most $LIMIT$ files; $ACTUAL$ were selected.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" },
+      "actual": { "content": "$2", "example": "3" },
+      "limit": { "content": "$3", "example": "2" }
+    }
+  },
+  "fileTooManyNodes": {
+    "message": "\"$FIELD$\" produces $ACTUAL$ file nodes; the limit is $LIMIT$.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" },
+      "actual": { "content": "$2", "example": "129" },
+      "limit": { "content": "$3", "example": "128" }
+    }
+  },
+  "fileExtensionNotAllowed": {
+    "message": "\"$FILE$\" is not an allowed file type. Expected: $EXTENSIONS$.",
+    "placeholders": {
+      "file": { "content": "$1", "example": "image.gif" },
+      "extensions": { "content": "$2", "example": ".png, .jpg" }
+    }
+  },
+  "fileTooLarge": {
+    "message": "\"$FILE$\" is $ACTUAL$ bytes; the per-file limit is $LIMIT$ bytes.",
+    "placeholders": {
+      "file": { "content": "$1", "example": "image.png" },
+      "actual": { "content": "$2", "example": "20" },
+      "limit": { "content": "$3", "example": "10" }
+    }
+  },
+  "fileTotalTooLarge": {
+    "message": "\"$FIELD$\" totals $ACTUAL$ bytes; the policy limit is $LIMIT$ bytes.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" },
+      "actual": { "content": "$2", "example": "20" },
+      "limit": { "content": "$3", "example": "10" }
+    }
+  },
+  "fileTransportTooLarge": {
+    "message": "\"$FIELD$\" totals $ACTUAL$ bytes; the extension transport limit is $LIMIT$ bytes.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" },
+      "actual": { "content": "$2", "example": "60000000" },
+      "limit": { "content": "$3", "example": "52428800" }
+    }
+  },
+  "fileMetadataTooLarge": {
+    "message": "\"$FIELD$\" file names and MIME types total $ACTUAL$ UTF-8 bytes; the limit is $LIMIT$ bytes.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" },
+      "actual": { "content": "$2", "example": "16385" },
+      "limit": { "content": "$3", "example": "16384" }
+    }
+  },
+  "fileReadTooLarge": {
+    "message": "\"$FILE$\" exceeded the $LIMIT$-byte limit while being read.",
+    "placeholders": {
+      "file": { "content": "$1", "example": "image.png" },
+      "limit": { "content": "$2", "example": "52428800" }
+    }
+  },
+  "fileReadSizeMismatch": {
+    "message": "\"$FILE$\" changed size while being read. Select it again.",
+    "placeholders": {
+      "file": { "content": "$1", "example": "image.png" }
+    }
+  },
+  "fileReadFailed": {
+    "message": "Could not read \"$FIELD$\". Select the files again.",
+    "placeholders": {
+      "field": { "content": "$1", "example": "images" }
+    }
+  },
+  "fileOutputTooLarge": {
+    "message": "The File output is $ACTUAL$ bytes; this popup can download up to $LIMIT$ bytes.",
+    "placeholders": {
+      "actual": { "content": "$1", "example": "67108865" },
+      "limit": { "content": "$2", "example": "67108864" }
+    }
+  },
+  "dispatchRunning": {
+    "message": "Running…"
+  },
+  "dispatchDone": {
+    "message": "Done."
+  },
+  "dispatchRunButton": {
+    "message": "Run"
+  },
+  "dispatchCancelButton": {
+    "message": "Cancel"
+  },
+  "toolRunFailed": {
+    "message": "Tool run failed."
+  },
+  "hostUnavailable": {
+    "message": "upeg is not serving requests right now."
+  },
+  "requestBodyTooLarge": {
+    "message": "The request is $ACTUAL$ UTF-8 bytes; it must be smaller than $LIMIT$ bytes.",
+    "placeholders": {
+      "actual": { "content": "$1", "example": "1000000" },
+      "limit": { "content": "$2", "example": "1000000" }
+    }
+  },
+  "httpErrorStatus": {
+    "message": "upeg http $STATUS$",
+    "placeholders": {
+      "status": { "content": "$1", "example": "500" }
+    }
+  },
+
+  "inPageUnreachable": {
+    "message": "This tab has no upeg content script — reload it and try again."
+  },
+  "inPageFilled": {
+    "message": "Filled $COUNT$ page field(s).",
+    "placeholders": {
+      "count": { "content": "$1", "example": "2" }
+    }
+  },
+  "inPageTriggered": {
+    "message": "Filled $COUNT$ page field(s) and fired the trigger.",
+    "placeholders": {
+      "count": { "content": "$1", "example": "2" }
+    }
+  },
+
+  "siteToggleTitle": {
+    "message": "Run upeg's in-page tools on this site"
+  },
+  "siteEnableButton": {
+    "message": "Enable on this site"
+  },
+  "siteDisableButton": {
+    "message": "Disable on this site"
+  },
+  "siteUnsupported": {
+    "message": "upeg cannot run inside this page."
+  },
+  "siteDenied": {
+    "message": "Chrome denied access to this site."
+  },
+  "siteEnabled": {
+    "message": "Enabled on $SITE$.",
+    "placeholders": {
+      "site": { "content": "$1", "example": "https://etherscan.io/*" }
+    }
+  },
+  "siteEnabledNeedsReload": {
+    "message": "Enabled on $SITE$ — reload the page to start.",
+    "placeholders": {
+      "site": { "content": "$1", "example": "https://etherscan.io/*" }
+    }
+  },
+  "siteDisabled": {
+    "message": "Disabled on $SITE$ — reload the page to clear it.",
+    "placeholders": {
+      "site": { "content": "$1", "example": "https://etherscan.io/*" }
+    }
+  },
+
+  "openInDesktopTitle": {
+    "message": "Open in upeg Desktop"
+  },
+  "detectorLabelHex": {
+    "message": "hex"
+  },
+  "detectorLabelBase64": {
+    "message": "base64"
+  },
+  "detectorLabelEpoch": {
+    "message": "epoch"
+  },
+  "detectorTipValue": {
+    "message": "$LABEL$ · $VALUE$",
+    "placeholders": {
+      "label": { "content": "$1", "example": "hex" },
+      "value": { "content": "$2", "example": "255" }
+    }
+  },
+  "detectorTipValueLink": {
+    "message": "$LABEL$ · $VALUE$ · click: upeg",
+    "placeholders": {
+      "label": { "content": "$1", "example": "hex" },
+      "value": { "content": "$2", "example": "255" }
+    }
+  },
+  "detectorTipPending": {
+    "message": "$LABEL$ · resolving…",
+    "placeholders": {
+      "label": { "content": "$1", "example": "base64" }
+    }
+  },
+  "detectorTipLink": {
+    "message": "$LABEL$ · click: upeg",
+    "placeholders": {
+      "label": { "content": "$1", "example": "base64" }
+    }
+  }
+}
