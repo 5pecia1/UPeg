@@ -131,7 +131,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 생성된_토큰은_43자의_url_안전_문자열이다() {
+    fn generated_token_is_a_43_char_url_safe_string() {
         let token = generate_token().unwrap();
         assert_eq!(token.len(), 43, "32-byte input → 43-char base64-url no-pad");
         assert!(
@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn 서로_다른_호출은_서로_다른_토큰을_생성한다() {
+    fn separate_calls_generate_distinct_tokens() {
         // Birthday-bound non-collision check; 32 bytes of entropy makes
         // a same-process repeat unimaginably rare.
         let mut seen = std::collections::HashSet::new();
@@ -153,14 +153,14 @@ mod tests {
     }
 
     #[test]
-    fn 명시적_인자는_env보다_우선한다() {
+    fn explicit_argument_wins_over_env() {
         let resolved = resolve_token(Some("supplied-token"), None).expect("resolve");
         assert_eq!(resolved.token, "supplied-token");
         assert_eq!(resolved.source, TokenSource::Provided);
     }
 
     #[test]
-    fn agent_토큰_목록은_공백과_중복을_정리한다() {
+    fn agent_token_list_is_trimmed_of_blanks_and_duplicates() {
         assert_eq!(
             parse_agent_tokens(" alpha , beta ,, alpha , "),
             vec!["alpha".to_string(), "beta".to_string()]
@@ -170,30 +170,26 @@ mod tests {
     }
 
     #[test]
-    fn operator_토큰과_agent_토큰은_서로_다른_역할을_증명한다() {
+    fn operator_and_agent_tokens_prove_distinct_roles() {
         let tokens = HostTokens::with_agents("op-token", vec!["agent-token".to_string()]);
 
         assert_eq!(tokens.role_for("op-token"), Some(PrincipalRole::Operator));
         assert_eq!(tokens.role_for("agent-token"), Some(PrincipalRole::Agent));
         assert_eq!(tokens.role_for("nonsense"), None);
-        assert_eq!(
-            tokens.role_for(""),
-            None,
-            "빈 bearer는 아무것도 증명하지 않는다"
-        );
+        assert_eq!(tokens.role_for(""), None, "an empty bearer proves nothing");
     }
 
     #[test]
-    fn 토큰이_하나도_없는_호스트만_bearer를_요구하지_않는다() {
+    fn only_a_tokenless_host_does_not_require_bearer() {
         assert!(!HostTokens::with_agents("", Vec::new()).requires_bearer());
         assert!(HostTokens::with_agents("op", Vec::new()).requires_bearer());
         assert!(HostTokens::with_agents("", vec!["agent".to_string()]).requires_bearer());
     }
 
     #[test]
-    fn 토큰을_요구하지_않는_호스트는_아무_역할도_증명하지_못한다() {
-        // 브링업/테스트용 tokenless 라우터: 인증하지 않으므로 누구도
-        // operator로 승격시키지 않는다.
+    fn a_host_that_requires_no_token_proves_no_role() {
+        // Tokenless bring-up/test router: it authenticates nobody, so it
+        // promotes nobody to operator.
         let tokens = HostTokens::with_agents("", vec!["agent-token".to_string()]);
 
         assert_eq!(tokens.role_for(""), None);
@@ -201,12 +197,12 @@ mod tests {
         assert_eq!(
             tokens.role_for("agent-token"),
             Some(PrincipalRole::Agent),
-            "operator 토큰이 없어도 명시적으로 설정된 agent 토큰은 여전히 agent다"
+            "an explicitly configured agent token stays an agent without an operator token"
         );
     }
 
     #[test]
-    fn 빈_토큰_파일은_거부된이다() {
+    fn empty_token_file_is_rejected() {
         let path = std::env::temp_dir().join("upeg-auth-empty-token");
         std::fs::write(&path, "   \n").unwrap();
         let err = resolve_token(None, Some(&path)).expect_err("must reject empty token file");

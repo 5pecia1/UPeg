@@ -540,7 +540,7 @@ mod tests {
     // ─── clamp_forecast_days ────────────────────────────────────
 
     #[test]
-    fn 예보_일수는_유효_범위로_클램프된다() {
+    fn forecast_days_clamp_to_valid_range() {
         assert_eq!(clamp_forecast_days(0), MIN_FORECAST_DAYS);
         assert_eq!(clamp_forecast_days(7), 7);
         assert_eq!(clamp_forecast_days(1000), MAX_FORECAST_DAYS);
@@ -556,7 +556,7 @@ mod tests {
     // is documented to accept.
 
     #[test]
-    fn 지오코딩_url은_도시명을_인코딩한다() {
+    fn geocoding_url_encodes_city_name() {
         let url = build_geocoding_url("São Paulo");
         assert!(url.starts_with("https://geocoding-api.open-meteo.com/v1/search?"));
         assert!(url.contains("name=S%C3%A3o%20Paulo"));
@@ -566,13 +566,13 @@ mod tests {
     }
 
     #[test]
-    fn 지오코딩_url은_도시명_주변_공백을_잘라낸다() {
+    fn geocoding_url_trims_whitespace_around_city_name() {
         let url = build_geocoding_url("  Seoul  ");
         assert!(url.contains("name=Seoul"));
     }
 
     #[test]
-    fn 현재_날씨_url은_좌표와_필드를_담는다() {
+    fn current_weather_url_carries_coordinates_and_fields() {
         let url = build_current_weather_url(37.5665, 126.978);
         assert!(url.starts_with("https://api.open-meteo.com/v1/forecast?"));
         assert!(url.contains("latitude=37.5665"));
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn 예보_url은_좌표와_일수를_담는다() {
+    fn forecast_url_carries_coordinates_and_days() {
         let url = build_forecast_url(37.5665, 126.978, 5);
         assert!(url.starts_with("https://api.open-meteo.com/v1/forecast?"));
         assert!(url.contains("daily=weather_code,temperature_2m_max,temperature_2m_min"));
@@ -593,7 +593,7 @@ mod tests {
     // `time` is always returned, never requested — naming it in `current=`
     // or `daily=` is rejected by Open-Meteo.
     #[test]
-    fn 요청_필드_목록은_time을_포함하지_않는다() {
+    fn request_field_lists_do_not_include_time() {
         assert!(!CurrentField::request_list().contains(CurrentField::Time.wire_name()));
         assert!(!DailyField::request_list().contains(DailyField::Time.wire_name()));
     }
@@ -604,32 +604,32 @@ mod tests {
     // days, so a Seoul forecast's max would span 09:00→09:00 KST and the
     // first date could be the local yesterday — wrong, and silently so.
     #[test]
-    fn 예보_url은_지역_시간대로_집계를_요청한다() {
+    fn forecast_url_requests_local_timezone_aggregation() {
         assert!(build_forecast_url(37.5665, 126.978, 5).contains("timezone=auto"));
     }
 
     #[test]
-    fn 현재_날씨_url도_지역_시간대를_요청한다() {
+    fn current_weather_url_also_requests_local_timezone() {
         assert!(build_current_weather_url(37.5665, 126.978).contains("timezone=auto"));
     }
 
     // ─── weather_code_description ───────────────────────────────
 
     #[test]
-    fn 날씨_코드를_사람이_읽는_설명으로_매핑한다() {
+    fn weather_code_maps_to_human_readable_description() {
         assert_eq!(weather_code_description(0), "Clear sky");
         assert_eq!(weather_code_description(95), "Thunderstorm");
     }
 
     #[test]
-    fn 알수_없는_날씨_코드는_unknown으로_매핑한다() {
+    fn unknown_weather_code_maps_to_unknown() {
         assert_eq!(weather_code_description(4242), WEATHER_CODE_UNKNOWN);
     }
 
     // ─── parse_geocoding ────────────────────────────────────────
 
     #[test]
-    fn 지오코딩_응답에서_상위_결과를_파싱한다() {
+    fn geocoding_response_parses_top_result() {
         let body = r#"{
             "results": [
                 {"name": "Seoul", "country": "South Korea", "latitude": 37.5665, "longitude": 126.978},
@@ -649,7 +649,7 @@ mod tests {
     }
 
     #[test]
-    fn 지오코딩_결과에_이름이나_국가가_없으면_에러를_반환한다() {
+    fn geocoding_result_missing_name_or_country_errors() {
         let missing_name =
             r#"{"results": [{"country": "South Korea", "latitude": 37.5, "longitude": 127.0}]}"#;
         let missing_country =
@@ -659,20 +659,20 @@ mod tests {
     }
 
     #[test]
-    fn 지오코딩_결과가_없으면_에러를_반환한다() {
+    fn geocoding_empty_results_error() {
         assert!(parse_geocoding(r#"{"results": []}"#).is_err());
         assert!(parse_geocoding(r#"{"generationtime_ms": 0.1}"#).is_err());
     }
 
     #[test]
-    fn 지오코딩_응답이_유효한_json이_아니면_에러를_반환한다() {
+    fn geocoding_invalid_json_errors() {
         assert!(parse_geocoding("not json").is_err());
     }
 
     // ─── parse_current_weather ──────────────────────────────────
 
     #[test]
-    fn 현재_날씨_응답을_파싱한다() {
+    fn current_weather_response_parses() {
         let body = r#"{
             "current": {
                 "time": "2026-07-17T10:00",
@@ -696,7 +696,7 @@ mod tests {
     }
 
     #[test]
-    fn 현재_날씨_필드가_빠지면_에러를_반환한다() {
+    fn current_weather_missing_fields_error() {
         let body = r#"{"current": {"temperature_2m": 21.3}}"#;
         assert!(parse_current_weather(body).is_err());
     }
@@ -704,7 +704,7 @@ mod tests {
     // ─── parse_daily_forecast ───────────────────────────────────
 
     #[test]
-    fn 일별_예보_응답을_파싱한다() {
+    fn daily_forecast_response_parses() {
         let body = r#"{
             "daily": {
                 "time": ["2026-07-14", "2026-07-15"],
@@ -729,14 +729,14 @@ mod tests {
     }
 
     #[test]
-    fn 일별_예보에_daily가_없으면_에러를_반환한다() {
+    fn daily_forecast_missing_daily_errors() {
         assert!(parse_daily_forecast(r#"{"latitude": 37.5}"#).is_err());
     }
 
     // Open-Meteo emits `null` for a value it doesn't have yet at the edge of
     // the horizon; one such day must not cost the caller every other day.
     #[test]
-    fn 값이_null인_날은_건너뛰고_나머지_날을_유지한다() {
+    fn null_valued_days_are_skipped_and_others_kept() {
         let body = r#"{
             "daily": {
                 "time": ["2026-07-14", "2026-07-15", "2026-07-16"],
@@ -751,7 +751,7 @@ mod tests {
     }
 
     #[test]
-    fn 배열이_시간보다_짧으면_남는_날을_건너뛴다() {
+    fn shorter_arrays_skip_trailing_days() {
         let body = r#"{
             "daily": {
                 "time": ["2026-07-14", "2026-07-15"],
@@ -768,7 +768,7 @@ mod tests {
     // ─── input validation (no network) ──────────────────────────
 
     #[test]
-    fn 도시명이_비어있으면_네트워크_호출_전에_거부한다() {
+    fn empty_city_is_rejected_before_network_call() {
         assert_eq!(
             weather_lookup(""),
             Err("city must not be empty".to_string())

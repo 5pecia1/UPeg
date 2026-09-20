@@ -54,7 +54,7 @@ mod tests {
     }
 
     #[test]
-    fn 저장과_로드는_왕복한다() {
+    fn save_and_load_round_trip() {
         let dir = temp_path("rt");
         let path = dir.join("tweaks.json");
         let payload = r#"{"theme":"Dark","accent":"Pink","show_holes":true,"locale":"Ko"}"#;
@@ -68,7 +68,7 @@ mod tests {
     }
 
     #[test]
-    fn 저장은_누락된_상위_디렉터리를_만든다() {
+    fn save_creates_missing_parent_directories() {
         let dir = temp_path("mkdir").join("nested").join("deeper");
         let path = dir.join("tweaks.json");
         assert!(
@@ -86,13 +86,13 @@ mod tests {
     }
 
     #[test]
-    fn 없는_경로에서_로드하면_없음을_반환한다() {
+    fn load_from_missing_path_returns_none() {
         let missing = temp_path("missing").join("never-written.json");
         assert!(load_from_path(&missing).is_none());
     }
 
     #[test]
-    fn 디렉터리에서_로드하면_없음을_반환한다() {
+    fn load_from_directory_returns_none() {
         // Reading a directory path (not a file) is an IO error — must be
         // surfaced as None rather than panicking.
         let dir = temp_path("dir-as-file");
@@ -102,7 +102,7 @@ mod tests {
     }
 
     #[test]
-    fn 설정_경로_생성은_정규_파일명을_덧붙인다() {
+    fn settings_path_construction_appends_canonical_filename() {
         let dir = std::path::Path::new("/tmp/upeg-cfg");
         let path = tweaks_path_in(dir);
         assert_eq!(path, dir.join(TWEAKS_FILENAME));

@@ -96,7 +96,7 @@ Widget _harness({
 void main() {
   group('BackupSection', () {
     testWidgets(
-      'BackupSection_export_탭은_FRB_export_backup을_호출하고_받은_JSON을_file_picker로_저장한다',
+      'BackupSection_export_tap_calls_frb_export_backup_and_saves_the_json_via_file_picker',
       (tester) async {
         final bridge = _RecordingFilePickerBridge()
           ..savePathToReturn = '/tmp/u.json';
@@ -126,30 +126,33 @@ void main() {
       },
     );
 
-    testWidgets('BackupSection_export_탭은_사용자가_취소하면_파일을_쓰지_않는다', (tester) async {
-      final bridge = _RecordingFilePickerBridge()..savePathToReturn = null;
-      await tester.pumpWidget(
-        _harness(
-          bridge: bridge,
-          exportFn: () => _validJson,
-          importFn: (_) => const BackupImportReportDto(
-            boardCount: 0,
-            layoutCount: 0,
-            memoCount: 0,
+    testWidgets(
+      'BackupSection_export_tap_writes_no_file_when_the_user_cancels',
+      (tester) async {
+        final bridge = _RecordingFilePickerBridge()..savePathToReturn = null;
+        await tester.pumpWidget(
+          _harness(
+            bridge: bridge,
+            exportFn: () => _validJson,
+            importFn: (_) => const BackupImportReportDto(
+              boardCount: 0,
+              layoutCount: 0,
+              memoCount: 0,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('backup-section-export-button')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('backup-section-export-button')));
+        await tester.pumpAndSettle();
 
-      // No write attempt when the user cancels the save dialog.
-      expect(bridge.savedJsons, isEmpty);
-    });
+        // No write attempt when the user cancels the save dialog.
+        expect(bridge.savedJsons, isEmpty);
+      },
+    );
 
     testWidgets(
-      'BackupSection_import_탭은_file_picker로_파일을_열고_FRB_import_backup을_호출한다',
+      'BackupSection_import_tap_opens_a_file_via_file_picker_and_calls_frb_import_backup',
       (tester) async {
         final bridge = _RecordingFilePickerBridge()
           ..openFileToReturn = (
@@ -183,7 +186,9 @@ void main() {
       },
     );
 
-    testWidgets('BackupSection_import_실패는_에러_메시지를_표시한다', (tester) async {
+    testWidgets('BackupSection_import_failure_shows_an_error_message', (
+      tester,
+    ) async {
       final bridge = _RecordingFilePickerBridge()
         ..openFileToReturn = (
           name: 'broken.json',
@@ -208,7 +213,9 @@ void main() {
       expect(find.byKey(const Key('backup-section-error')), findsOneWidget);
     });
 
-    testWidgets('BackupSection_import_성공은_보드_count를_노출한다', (tester) async {
+    testWidgets('BackupSection_import_success_exposes_the_board_count', (
+      tester,
+    ) async {
       final bridge = _RecordingFilePickerBridge()
         ..openFileToReturn = (
           name: 'selected-backup.json',

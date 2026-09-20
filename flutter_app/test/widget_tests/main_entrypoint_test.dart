@@ -9,10 +9,13 @@ const String _windowManagerSingletonInitialization =
     'windowManager.ensureInitialized';
 
 void main() {
-  test('main_entrypoint는_binding_초기화_전_windowManager_singleton을_건드리지_않는다', () {
-    final source = File(_mainEntrypointPath).readAsStringSync();
+  test(
+    'the_main_entrypoint_never_touches_the_windowmanager_singleton_before_binding_init',
+    () {
+      final source = File(_mainEntrypointPath).readAsStringSync();
 
-    expect(source, isNot(contains(_windowManagerPackageImport)));
-    expect(source, isNot(contains(_windowManagerSingletonInitialization)));
-  });
+      expect(source, isNot(contains(_windowManagerPackageImport)));
+      expect(source, isNot(contains(_windowManagerSingletonInitialization)));
+    },
+  );
 }

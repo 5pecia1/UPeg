@@ -1,27 +1,38 @@
 'use strict';
 
-// Host wire (chrome-ext/host_api.js) — deep-link construction and the
-// dispatch classification popup.js and background.js share.
+// Host wire (chrome-ext/host_api.js) — deep-link construction, the
+// dispatch classification popup.js and background.js share, and the
+// configurable loopback endpoint both of them read.
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
   CONTENT_SCRIPT_BOARD,
+  DEFAULT_ENDPOINT,
+  DEFAULT_HTTP_ADDRESS,
+  DEFAULT_HTTP_BASE_URL,
   DISPATCH_RESULT_KIND,
+  ENDPOINT_ERROR,
+  ENDPOINT_STORAGE_KEY,
   HTTP_STATUS,
+  PAIRING_COMMAND,
   RUNTIME_MESSAGE,
+  RUN_HINT_COMMAND,
   authHeaders,
   buildDeepLink,
   callTool,
   classifyDispatchResponse,
+  endpointForStoredValue,
   isAuthStatus,
   outputText,
+  parseLoopbackEndpoint,
   primaryOutput,
+  readHostEndpoint,
   toolCallPath,
 } = require('../host_api.js');
 
-test('deep_link는_rust_desktop_deep_link와_같은_순서와_인코딩을_쓴다', () => {
+test('deep_link_uses_the_same_order_and_encoding_as_the_rust_desktop_deep_link', () => {
   // `upeg_pegboard_ui::deep_link::desktop_deep_link` emits surface, board,
   // tool, input in this order with the RFC 3986 unreserved set kept.
   assert.equal(
@@ -32,29 +43,29 @@ test('deep_link는_rust_desktop_deep_link와_같은_순서와_인코딩을_쓴�
   assert.equal(buildDeepLink({ board: 'dev' }), 'upeg://open?surface=ext&board=dev');
 });
 
-test('deep_link_값은_예약_문자를_퍼센트_인코딩한다', () => {
+test('deep_link_values_percent_encode_reserved_characters', () => {
   assert.equal(
     buildDeepLink({ board: 'dev', toolId: 'convert.base64_decode', input: 'a+b/c==' }),
     'upeg://open?surface=ext&board=dev&tool=convert.base64_decode&input=a%2Bb%2Fc%3D%3D',
   );
 });
 
-test('빈_값과_공백만_있는_값은_deep_link에_실리지_않는다', () => {
+test('empty_and_whitespace_only_values_are_not_carried_into_the_deep_link', () => {
   assert.equal(buildDeepLink({ board: '  ', toolId: '', input: null }), 'upeg://open?surface=ext');
 });
 
-test('토큰이_있을_때만_authorization_헤더가_붙는다', () => {
+test('the_authorization_header_is_attached_only_when_a_token_exists', () => {
   assert.deepEqual(authHeaders('tok'), { Accept: 'application/json', Authorization: 'Bearer tok' });
   assert.deepEqual(authHeaders(null), { Accept: 'application/json' });
   assert.deepEqual(authHeaders(''), { Accept: 'application/json' });
 });
 
-test('도구_경로는_id를_인코딩한다', () => {
+test('the_tool_path_encodes_the_id', () => {
   assert.equal(toolCallPath('num.hex_to_decimal'), '/v1/tools/num.hex_to_decimal');
   assert.equal(toolCallPath('a/b'), '/v1/tools/a%2Fb');
 });
 
-test('401과_403은_인증_실패로_분류된다', () => {
+test('401_and_403_are_classified_as_auth_failures', () => {
   for (const status of [HTTP_STATUS.UNAUTHORIZED, HTTP_STATUS.FORBIDDEN]) {
     assert.equal(isAuthStatus(status), true);
     assert.equal(classifyDispatchResponse(status, null).kind, DISPATCH_RESULT_KIND.AUTH_ERROR);
@@ -62,7 +73,7 @@ test('401과_403은_인증_실패로_분류된다', () => {
   assert.equal(isAuthStatus(200), false);
 });
 
-test('503은_서버_hint를_그대로_실어_host_unavailable이_된다', () => {
+test('503_carries_the_server_hint_and_becomes_host_unavailable', () => {
   assert.deepEqual(
     classifyDispatchResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, { hint: 'shutting down' }),
     { kind: DISPATCH_RESULT_KIND.HOST_UNAVAILABLE, hint: 'shutting down' },
@@ -73,7 +84,7 @@ test('503은_서버_hint를_그대로_실어_host_unavailable이_된다', () => 
   });
 });
 
-test('canonical_성공과_실패_envelope는_각각의_종류로_분류된다', () => {
+test('canonical_success_and_failure_envelopes_are_classified_into_their_kinds', () => {
   const success = { ok: true, primary_output_id: 'result', outputs: [] };
   assert.deepEqual(classifyDispatchResponse(200, success), {
     kind: DISPATCH_RESULT_KIND.SUCCESS,
@@ -87,7 +98,7 @@ test('canonical_성공과_실패_envelope는_각각의_종류로_분류된다', 
   });
 });
 
-test('본문이_없는_오류는_상태_코드만_실어_실패로_분류된다', () => {
+test('a_bodiless_error_is_classified_as_failure_carrying_only_the_status', () => {
   // host_api.js does not know this surface's message catalog, so it hands
   // the status back and popup.js renders it.
   const outcome = classifyDispatchResponse(500, null);
@@ -95,7 +106,7 @@ test('본문이_없는_오류는_상태_코드만_실어_실패로_분류된다'
   assert.equal(outcome.status, 500);
 });
 
-test('네트워크가_끊기면_network_error로_분류되고_예외는_새지_않는다', async () => {
+test('a_dropped_network_is_classified_as_network_error_and_the_exception_does_not_leak', async () => {
   const outcome = await callTool({
     fetchImpl: async () => {
       throw new TypeError('Failed to fetch');
@@ -106,7 +117,7 @@ test('네트워크가_끊기면_network_error로_분류되고_예외는_새지_�
   assert.deepEqual(outcome, { kind: DISPATCH_RESULT_KIND.NETWORK_ERROR });
 });
 
-test('본문이_요청_상한을_넘으면_전송_전에_request_too_large가_된다', async () => {
+test('a_body_over_the_request_cap_becomes_request_too_large_before_sending', async () => {
   let called = false;
   const outcome = await callTool({
     fetchImpl: async () => {
@@ -121,7 +132,7 @@ test('본문이_요청_상한을_넘으면_전송_전에_request_too_large가_�
   assert.ok(outcome.actualBytes > outcome.limitBytes - 1);
 });
 
-test('디스패치는_bearer_토큰과_json_본문으로_v1_tools에_post한다', async () => {
+test('dispatch_posts_to_v1_tools_with_a_bearer_token_and_a_json_body', async () => {
   const seen = [];
   const outcome = await callTool({
     fetchImpl: async (url, init) => {
@@ -143,7 +154,25 @@ test('디스패치는_bearer_토큰과_json_본문으로_v1_tools에_post한다'
   assert.deepEqual(JSON.parse(init.body), { input: '0xff' });
 });
 
-test('primary_output은_선언된_id를_고르고_없으면_첫_행으로_되돌아간다', () => {
+test('dispatch_against_a_configured_endpoint_uses_that_base_url', async () => {
+  // `upeg http` binds an ephemeral port, so the endpoint the popup saved
+  // must be the origin every request targets.
+  const seen = [];
+  const endpoint = parseLoopbackEndpoint('127.0.0.1:49317').endpoint;
+  const outcome = await callTool({
+    fetchImpl: async (url) => {
+      seen.push(url);
+      return { status: 200, json: async () => ({ ok: true, outputs: [] }) };
+    },
+    baseUrl: endpoint.baseUrl,
+    toolId: 'num.hex_to_decimal',
+    args: {},
+  });
+  assert.equal(outcome.kind, DISPATCH_RESULT_KIND.SUCCESS);
+  assert.equal(seen[0], 'http://127.0.0.1:49317/v1/tools/num.hex_to_decimal');
+});
+
+test('primary_output_picks_the_declared_id_and_falls_back_to_the_first_row', () => {
   const outputs = [
     { id: 'extra', value: 'no' },
     { id: 'result', value: '255' },
@@ -154,7 +183,7 @@ test('primary_output은_선언된_id를_고르고_없으면_첫_행으로_되돌
   assert.equal(primaryOutput({}), null);
 });
 
-test('출력_텍스트는_문자열을_그대로_두고_나머지를_compact_json으로_만든다', () => {
+test('output_text_keeps_strings_and_compacts_the_rest_to_json', () => {
   assert.equal(outputText('255'), '255');
   assert.equal(outputText(255), '255');
   assert.equal(outputText({ a: 1 }), '{"a":1}');
@@ -162,10 +191,124 @@ test('출력_텍스트는_문자열을_그대로_두고_나머지를_compact_jso
   assert.equal(outputText(undefined), '');
 });
 
-test('런타임_메시지_종류는_확장_안에서만_쓰이는_고정_이름이다', () => {
+test('runtime_message_kinds_are_fixed_names_used_only_inside_the_extension', () => {
   const values = Object.values(RUNTIME_MESSAGE);
   assert.equal(new Set(values).size, values.length);
   for (const value of values) {
     assert.match(value, /^upeg:/);
   }
+});
+
+// === Configurable endpoint ===
+
+test('the_default_endpoint_stays_the_legacy_127_0_0_1_7173', () => {
+  assert.equal(DEFAULT_HTTP_BASE_URL, 'http://127.0.0.1:7173');
+  assert.equal(DEFAULT_HTTP_ADDRESS, '127.0.0.1:7173');
+  assert.equal(DEFAULT_ENDPOINT.baseUrl, 'http://127.0.0.1:7173');
+  assert.equal(DEFAULT_ENDPOINT.address, '127.0.0.1:7173');
+  assert.equal(DEFAULT_ENDPOINT.permissionPattern, 'http://127.0.0.1:7173/*');
+});
+
+test('the_pairing_command_matches_the_cli_status_flag', () => {
+  // upeg-cli prints the running host's URL + token for
+  // `upeg http status --pairing`; the run hint points there.
+  assert.equal(PAIRING_COMMAND, 'upeg http status --pairing');
+  assert.equal(RUN_HINT_COMMAND, 'upeg http');
+});
+
+test('the_endpoint_parser_accepts_url_host_port_and_localhost_spellings', () => {
+  for (const input of [
+    'http://127.0.0.1:49317',
+    '127.0.0.1:49317',
+    'localhost:8080',
+    'http://localhost:8080',
+    '[::1]:9000',
+    'http://[::1]:9000',
+  ]) {
+    const parsed = parseLoopbackEndpoint(input);
+    assert.equal(parsed.ok, true, input);
+  }
+  const parsed = parseLoopbackEndpoint('localhost:8080');
+  assert.equal(parsed.endpoint.baseUrl, 'http://localhost:8080');
+  assert.equal(parsed.endpoint.address, 'localhost:8080');
+  assert.equal(parsed.endpoint.host, 'localhost');
+  assert.equal(parsed.endpoint.port, 8080);
+  assert.equal(parsed.endpoint.permissionPattern, 'http://localhost:8080/*');
+});
+
+test('an_omitted_port_means_the_default_7173_so_a_bare_host_keeps_working', () => {
+  for (const input of ['127.0.0.1', 'localhost', 'http://127.0.0.1']) {
+    const parsed = parseLoopbackEndpoint(input);
+    assert.equal(parsed.ok, true, input);
+    assert.equal(parsed.endpoint.port, 7173, input);
+  }
+});
+
+test('the_endpoint_parser_normalizes_ipv4_spellings_to_the_dotted_quad', () => {
+  // `new URL` canonicalizes "127.1" and "0x7f.0.0.1" to 127.0.0.1 — the
+  // loopback check must see the normalized host, not the raw spelling.
+  const parsed = parseLoopbackEndpoint('http://127.1:8080');
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.endpoint.host, '127.0.0.1');
+  assert.equal(parsed.endpoint.baseUrl, 'http://127.0.0.1:8080');
+});
+
+test('the_endpoint_parser_rejects_everything_that_is_not_plain_loopback_http', () => {
+  const cases = [
+    ['https://127.0.0.1:7173', ENDPOINT_ERROR.NOT_HTTP],
+    ['http://example.com:7173', ENDPOINT_ERROR.NOT_LOOPBACK],
+    ['http://10.0.0.5:7173', ENDPOINT_ERROR.NOT_LOOPBACK],
+    ['http://[::2]:7173', ENDPOINT_ERROR.NOT_LOOPBACK],
+    ['http://user:pw@127.0.0.1:7173', ENDPOINT_ERROR.CREDENTIALS],
+    ['http://127.0.0.1:7173/v1/boards', ENDPOINT_ERROR.PATH_OR_QUERY],
+    ['http://127.0.0.1:7173?x=1', ENDPOINT_ERROR.PATH_OR_QUERY],
+    ['http://127.0.0.1:notaport', ENDPOINT_ERROR.BAD_PORT],
+    ['http://127.0.0.1:0', ENDPOINT_ERROR.BAD_PORT],
+    ['http://127.0.0.1:99999', ENDPOINT_ERROR.BAD_PORT],
+    ['', ENDPOINT_ERROR.NOT_A_URL],
+    ['   ', ENDPOINT_ERROR.NOT_A_URL],
+    ['::not a url::', ENDPOINT_ERROR.NOT_A_URL],
+  ];
+  for (const [input, error] of cases) {
+    const parsed = parseLoopbackEndpoint(input);
+    assert.equal(parsed.ok, false, input);
+    assert.equal(parsed.error, error, input);
+  }
+  assert.equal(parseLoopbackEndpoint(undefined).ok, false);
+  assert.equal(parseLoopbackEndpoint(7173).ok, false);
+});
+
+test('endpointForStoredValue_returns_the_default_for_missing_or_corrupt_values', () => {
+  for (const stored of [undefined, null, '', 'https://evil.example', 42, {}]) {
+    assert.equal(endpointForStoredValue(stored), DEFAULT_ENDPOINT, String(stored));
+  }
+  // A valid persisted value survives the round trip.
+  const stored = parseLoopbackEndpoint('127.0.0.1:49317').endpoint.baseUrl;
+  assert.equal(endpointForStoredValue(stored).baseUrl, 'http://127.0.0.1:49317');
+});
+
+test('readHostEndpoint_falls_back_to_the_default_when_nothing_is_stored', async () => {
+  // Legacy installs have only the token key — a missing endpoint must
+  // migrate to the default, not break the existing pairing.
+  const storage = { get: async () => ({}) };
+  assert.equal(await readHostEndpoint(storage), DEFAULT_ENDPOINT);
+});
+
+test('readHostEndpoint_returns_the_stored_endpoint_and_survives_storage_errors', async () => {
+  const storage = {
+    get: async (key) => {
+      assert.equal(key, ENDPOINT_STORAGE_KEY);
+      return { [ENDPOINT_STORAGE_KEY]: 'http://127.0.0.1:49317' };
+    },
+  };
+  const endpoint = await readHostEndpoint(storage);
+  assert.equal(endpoint.baseUrl, 'http://127.0.0.1:49317');
+  assert.equal(endpoint.address, '127.0.0.1:49317');
+
+  const broken = {
+    get: async () => {
+      throw new Error('storage unavailable');
+    },
+  };
+  assert.equal(await readHostEndpoint(broken), DEFAULT_ENDPOINT);
 });

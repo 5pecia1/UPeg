@@ -36,7 +36,7 @@ const Duration kAttachRequestTimeout = Duration(seconds: 8);
 const int kHostUnavailableStatus = 503;
 
 /// Fallback hint shown when a 503 body carries no explicit remediation.
-const String kHostUnavailableDefaultHint = '호스트가 일시적으로 응답할 수 없습니다';
+const String kHostUnavailableDefaultHint = 'host temporarily unavailable';
 
 const String kAttachResponseTooLargeErrorCode = 'response_too_large';
 const String kAttachMalformedResponseErrorCode = 'malformed_response';
@@ -271,13 +271,13 @@ final class HttpAttachClient implements AttachClient {
             return _dispatchToolError(
               code: kAttachResponseTooLargeErrorCode,
               message:
-                  '호스트 응답이 최대 '
-                  '$kAttachDispatchResponseMaxBytes bytes를 초과했습니다',
+                  'host response exceeded the '
+                  '$kAttachDispatchResponseMaxBytes-byte limit',
             );
           case AttachResponseBodyMalformed():
             return _dispatchToolError(
               code: kAttachMalformedResponseErrorCode,
-              message: '호스트 응답이 유효한 UTF-8이 아닙니다',
+              message: 'host response was not valid UTF-8',
             );
           case AttachResponseBodyUnreachable():
             _completeAbort(abortTrigger);
@@ -338,7 +338,7 @@ AttachDispatchResult decodeDispatchBody(String body, {int? statusFallback}) {
       CanonicalToolError(
         code: kAttachMalformedResponseErrorCode,
         message: statusFallback == null
-            ? '호스트 응답을 해석할 수 없습니다'
+            ? 'host response could not be decoded'
             : 'host returned status $statusFallback',
       ),
     );
@@ -347,7 +347,7 @@ AttachDispatchResult decodeDispatchBody(String body, {int? statusFallback}) {
     return const AttachDispatchToolError(
       CanonicalToolError(
         code: kAttachMalformedResponseErrorCode,
-        message: '호스트 응답 형식이 올바르지 않습니다',
+        message: 'malformed host response',
       ),
     );
   }
@@ -355,7 +355,10 @@ AttachDispatchResult decodeDispatchBody(String body, {int? statusFallback}) {
   if (result.ok) return AttachDispatchOk(result);
   return AttachDispatchToolError(
     result.error ??
-        const CanonicalToolError(code: 'tool_error', message: '도구 실행 실패'),
+        const CanonicalToolError(
+          code: 'tool_error',
+          message: 'tool run failed',
+        ),
   );
 }
 

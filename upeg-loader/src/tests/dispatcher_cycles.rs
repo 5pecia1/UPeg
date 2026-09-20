@@ -20,7 +20,7 @@ fn fanout_recursive_step(args: upeg_runtime::DispatchArgs<'_>) -> Result<String,
 }
 
 #[test]
-fn 체인_dispatcher는_직접_자기참조_순환을_끊는다() {
+fn chain_dispatcher_breaks_direct_self_reference_cycle() {
     // Iter 171: A → A. Pre-iter-171 this overflowed the thread
     // stack at runtime. The `--resolve-chain` validate flag would
     // catch it but is opt-in; runtime needs its own guard.
@@ -34,6 +34,8 @@ fn 체인_dispatcher는_직접_자기참조_순환을_끊는다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -71,7 +73,7 @@ fn 체인_dispatcher는_직접_자기참조_순환을_끊는다() {
 }
 
 #[test]
-fn 체인_dispatcher는_간접_순환을_끊는다() {
+fn chain_dispatcher_breaks_indirect_cycle() {
     // Iter 171: A → B → A. The opt-in `--resolve-chain` validate
     // command only catches the *direct* self-reference case (step
     // == own id), so indirect cycles slipped past validate and
@@ -90,6 +92,8 @@ fn 체인_dispatcher는_간접_순환을_끊는다() {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -127,7 +131,7 @@ fn 체인_dispatcher는_간접_순환을_끊는다() {
 }
 
 #[test]
-fn 체인_dispatcher는_팬아웃_재귀_순환을_끊는다() {
+fn chain_dispatcher_breaks_fanout_recursive_cycle() {
     FANOUT_RECURSIVE_STEP_CALLS.store(0, Ordering::SeqCst);
     upeg_runtime::register_single_text_runtime_dispatcher(
         "iter259.fanout_left",
@@ -165,7 +169,7 @@ fn 체인_dispatcher는_팬아웃_재귀_순환을_끊는다() {
 }
 
 #[test]
-fn 체인_깊이_카운터는_반복된_깊이_제한_오류_후_초기화된다() {
+fn chain_depth_counter_resets_after_repeated_depth_limit_errors() {
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: "iter258.cycle_self",
         toolkit: "iter258",
@@ -176,6 +180,8 @@ fn 체인_깊이_카운터는_반복된_깊이_제한_오류_후_초기화된다
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -223,7 +229,7 @@ fn 체인_깊이_카운터는_반복된_깊이_제한_오류_후_초기화된다
 }
 
 #[test]
-fn 체인_깊이_카운터는_최상위_호출_사이에_초기화된다() {
+fn chain_depth_counter_resets_between_top_level_calls() {
     // Iter 171: the depth counter is thread-local + RAII-decremented
     // on closure exit. After a successful chain run, the next
     // top-level call must see depth=0 again — a leaked counter

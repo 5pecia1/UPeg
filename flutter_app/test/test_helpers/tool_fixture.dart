@@ -34,6 +34,8 @@ ToolDto fixtureToolDto({
   SourceDto source = const SourceDto.userInput(),
   bool requiresApproval = false,
   List<String> approvalSurfaces = const <String>[],
+  ToolEffectDto effect = ToolEffectDto.unknown,
+  ToolPresentationDto? presentation,
 }) {
   return ToolDto(
     id: id,
@@ -49,5 +51,7 @@ ToolDto fixtureToolDto({
     source: source,
     requiresApproval: requiresApproval,
     approvalSurfaces: approvalSurfaces,
+    effect: effect,
+    presentation: presentation,
   );
 }

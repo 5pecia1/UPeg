@@ -23,7 +23,7 @@ final ToolDto _hex = fixtureToolDto(
 
 void main() {
   group('emptyBoardSuggestionsProvider', () {
-    test('emptyBoardSuggestionsProvider는_보드키별로_로더를_호출한다', () {
+    test('emptyBoardSuggestionsProvider_calls_loader_per_board_key', () {
       final receivedKeys = <BoardKey>[];
       final container = ProviderContainer(
         overrides: [
@@ -49,7 +49,7 @@ void main() {
       expect(receivedKeys, [BoardKey.parse('dev'), BoardKey.parse('prod')]);
     });
 
-    test('emptyBoardSuggestionsProvider는_같은_키에_대해_캐시한다', () {
+    test('emptyBoardSuggestionsProvider_caches_for_the_same_key', () {
       var callCount = 0;
       final container = ProviderContainer(
         overrides: [

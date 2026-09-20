@@ -118,6 +118,8 @@ fn search_fixture_tool(id: &'static str, display_label: &'static str) -> ToolMet
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -147,7 +149,7 @@ fn shared_search_ids_for_surface(
 }
 
 #[test]
-fn search_같은_query_signals는_tui_desktop_popup에서_같은_ordered_ids를_반환한다() {
+fn search_with_the_same_query_and_signals_returns_the_same_ordered_ids_on_tui_desktop_and_popup() {
     let first_id = "cross.search_alpha";
     let second_id = "cross.search_beta";
     let third_id = "cross.search_gamma";
@@ -207,7 +209,7 @@ fn search_같은_query_signals는_tui_desktop_popup에서_같은_ordered_ids를_
 /// canonical example used by every dispatch test in this file, so its full
 /// ToolMeta contract is pinned once here rather than assumed implicitly.
 #[test]
-fn hex_to_dec_도구는_레지스트리에_노출된다() {
+fn the_hex_to_dec_tool_is_exposed_in_the_registry() {
     let tool = toolbox_tool("num.hex_to_decimal")
         .expect("num.hex_to_decimal must be in the toolbox registry");
     assert_eq!(tool.toolkit, "num");
@@ -222,7 +224,7 @@ fn hex_to_dec_도구는_레지스트리에_노출된다() {
 }
 
 #[tokio::test]
-async fn 내장_도구는_모든_표면에_걸쳐_동일한_결과를_낸다() {
+async fn a_builtin_tool_produces_identical_results_on_every_surface() {
     // hex_to_decimal is the canonical example: deterministic, simple input,
     // exercises arg-extraction in every surface.
     let (direct, via_mcp, via_http) =
@@ -233,7 +235,7 @@ async fn 내장_도구는_모든_표면에_걸쳐_동일한_결과를_낸다() {
 }
 
 #[tokio::test]
-async fn 두_인자_내장_도구는_모든_표면에서_일관된_결과를_낸다() {
+async fn a_two_arg_builtin_tool_produces_consistent_results_on_every_surface() {
     // Two-arg tool — exercises `read_str(args, "a")` + `read_str(args, "b")`.
     let (direct, via_mcp, via_http) =
         dispatch_three_ways("text.diff", json!({"left": "alpha", "right": "alpha"})).await;
@@ -249,7 +251,7 @@ async fn 두_인자_내장_도구는_모든_표면에서_일관된_결과를_낸
 /// The text inside each surface's error envelope must match the
 /// underlying canonical failure message verbatim.
 #[tokio::test]
-async fn 도구_오류_텍스트는_모든_표면에_걸쳐_동일하다() {
+async fn tool_error_text_is_identical_on_every_surface() {
     let tool_id = "num.hex_to_decimal";
     let bad_args = json!({"input": "0xZZ"});
 
@@ -314,7 +316,7 @@ async fn 도구_오류_텍스트는_모든_표면에_걸쳐_동일하다() {
 /// surfaces, parse out the suggestions from each envelope, and assert
 /// the suggested-id sets are identical.
 #[tokio::test]
-async fn 알수없는_도구_제안은_mcp와_http에_걸쳐_동일하다() {
+async fn unknown_tool_suggestions_are_identical_across_mcp_and_http() {
     let typo = "num.hex_to_de"; // truncated — near hex_to_decimal
 
     // 1. Direct dispatch returns NotFound (no message — the surface
@@ -417,7 +419,7 @@ async fn 알수없는_도구_제안은_mcp와_http에_걸쳐_동일하다() {
 /// dispatched identically by every surface — there's no path that
 /// accidentally checks `inventory` only and skips runtime entries.
 #[tokio::test]
-async fn 외부_toml_도구는_모든_표면에_걸쳐_일관된_결과를_낸다() {
+async fn an_external_toml_tool_produces_consistent_results_on_every_surface() {
     use upeg_loader::load_and_register_dir_verbose;
     // Drop a TOML External tool into a temp dir and load it.
     let dir = std::env::temp_dir().join("upeg_iter64_external");
@@ -587,14 +589,14 @@ fn mcp_board_pin_ids(board: &str) -> Vec<String> {
     assert_eq!(
         ids.iter().filter(|id| *id == BOARD_CONTEXT_TOOL).count(),
         1,
-        "MCP는 핀과 별개로 보드 안내 조회를 한 번 제공한다",
+        "MCP offers the board-guidance lookup exactly once, separate from the pins",
     );
     ids.retain(|id| id != BOARD_CONTEXT_TOOL);
     ids
 }
 
 #[tokio::test]
-async fn 보드_목록은_표면에_없는_핀을_각_표면에서_제외한다() {
+async fn board_listings_exclude_pins_not_on_that_surface_on_every_surface() {
     let _lock = board_home_lock().lock().await;
     let _home = ScratchPegboardHome::seed("mixed", |state| {
         state.boards.push(upeg_sources::pegboard::BoardData {
@@ -632,7 +634,7 @@ async fn 보드_목록은_표면에_없는_핀을_각_표면에서_제외한다(
 }
 
 #[tokio::test]
-async fn 모든_표면에_있는_핀은_세_표면에서_같은_id_집합으로_나온다() {
+async fn a_pin_on_every_surface_comes_out_as_the_same_id_set_on_all_three_surfaces() {
     let _lock = board_home_lock().lock().await;
     let _home = ScratchPegboardHome::seed("uniform", |state| {
         state.boards.push(upeg_sources::pegboard::BoardData {
@@ -681,7 +683,7 @@ fn cli_board_edit(board: &str, verb: &str, tool_id: &str, extra: &[&str]) -> Str
 }
 
 #[tokio::test]
-async fn cli_핀은_http와_mcp_보드_목록에_그대로_나타난다() {
+async fn a_cli_pin_shows_up_verbatim_in_the_http_and_mcp_board_listings() {
     let _lock = board_home_lock().lock().await;
     let _home = ScratchPegboardHome::seed("cli-pin", |state| {
         state.boards.push(upeg_sources::pegboard::BoardData {
@@ -694,41 +696,41 @@ async fn cli_핀은_http와_mcp_보드_목록에_그대로_나타난다() {
 
     assert!(
         cli_board_list_ids("cli-pin").is_empty(),
-        "빈 보드로 시작한다"
+        "starts with an empty board"
     );
 
     let out = cli_board_edit("cli-pin", "pin", "num.hex_to_decimal", &["--at", "1,2"]);
-    assert!(out.contains("pinned"), "핀 출력: {out}");
+    assert!(out.contains("pinned"), "pin output: {out}");
 
     let expected = vec!["num.hex_to_decimal".to_string()];
-    assert_eq!(cli_board_list_ids("cli-pin"), expected, "CLI 목록");
+    assert_eq!(cli_board_list_ids("cli-pin"), expected, "CLI listing");
     assert_eq!(
         http_board_show_ids("cli-pin").await,
         expected,
-        "HTTP /v1/boards/{{b}} 가 CLI 핀을 못 본다"
+        "HTTP /v1/boards/{{b}} cannot see the CLI pin"
     );
     assert_eq!(
         mcp_board_pin_ids("cli-pin"),
         expected,
-        "MCP board tools/list 가 CLI 핀을 못 본다"
+        "MCP board tools/list cannot see the CLI pin"
     );
 
     let out = cli_board_edit("cli-pin", "unpin", "num.hex_to_decimal", &[]);
-    assert!(out.contains("unpinned"), "언핀 출력: {out}");
+    assert!(out.contains("unpinned"), "unpin output: {out}");
 
-    assert!(cli_board_list_ids("cli-pin").is_empty(), "CLI 목록");
+    assert!(cli_board_list_ids("cli-pin").is_empty(), "CLI listing");
     assert!(
         http_board_show_ids("cli-pin").await.is_empty(),
-        "HTTP 가 언핀을 반영하지 않는다"
+        "HTTP does not reflect the unpin"
     );
     assert!(
         mcp_board_pin_ids("cli-pin").is_empty(),
-        "MCP 가 언핀을 반영하지 않는다"
+        "MCP does not reflect the unpin"
     );
 }
 
 #[tokio::test]
-async fn cli_핀의_좌표와_크기는_보드_상태에_저장된다() {
+async fn a_cli_pin_coordinates_and_size_are_saved_in_board_state() {
     let _lock = board_home_lock().lock().await;
     let _home = ScratchPegboardHome::seed("cli-pin-geometry", |state| {
         state.boards.push(upeg_sources::pegboard::BoardData {
@@ -748,23 +750,19 @@ async fn cli_핀의_좌표와_크기는_보드_상태에_저장된다() {
 
     let state = upeg_sources::pegboard::load_state();
     let placement = upeg_sources::pegboard::placement_in(&state, "cli-geo", "num.hex_to_decimal")
-        .expect("핀이 저장되어야 한다");
-    assert_eq!(
-        (placement.x, placement.y),
-        (1, 2),
-        "--at 은 <row>,<col> 이다"
-    );
+        .expect("the pin must be saved");
+    assert_eq!((placement.x, placement.y), (1, 2), "--at is <row>,<col>");
     assert_eq!(
         placement.span.map(upeg_core::PinSpan::grid_span),
         Some((2, 1)),
-        "--units U2 는 2×1 span 이다"
+        "--units U2 is a 2×1 span"
     );
 
     cli_board_edit("cli-geo", "move", "num.hex_to_decimal", &["--at", "0,0"]);
     let state = upeg_sources::pegboard::load_state();
     let placement = upeg_sources::pegboard::placement_in(&state, "cli-geo", "num.hex_to_decimal")
-        .expect("핀이 남아 있어야 한다");
-    assert_eq!((placement.x, placement.y), (0, 0), "move 후 좌표");
+        .expect("the pin must remain");
+    assert_eq!((placement.x, placement.y), (0, 0), "coordinates after move");
 }
 
 /// RAII holder for the process-global project board scope. Every test
@@ -795,7 +793,7 @@ impl Drop for ScratchProjectBoards {
 }
 
 #[tokio::test]
-async fn 프로젝트_보드는_세_표면에서_모두_열거되고_밖에서는_사라진다() {
+async fn a_project_board_is_enumerated_on_all_three_surfaces_and_disappears_outside() {
     let _lock = board_home_lock().lock().await;
     let _home = ScratchPegboardHome::seed("project-board", |_state| {});
     let project =
@@ -808,13 +806,13 @@ async fn 프로젝트_보드는_세_표면에서_모두_열거되고_밖에서�
     assert_eq!(http_board_show_ids("scratch-proj").await, expected, "HTTP");
     assert_eq!(mcp_board_pin_ids("scratch-proj"), expected, "MCP");
 
-    // 매니페스트가 더 이상 탐지되지 않으면 board 자체가 사라진다.
+    // Once the manifest is no longer detected, the board itself disappears.
     drop(project);
 
     let boards = upeg_sources::pegboard::board_keys_in(&upeg_sources::pegboard::load_state());
     assert!(
         !boards.iter().any(|board| board == "scratch-proj"),
-        "프로젝트 밖에서는 열거되면 안 된다: {boards:?}"
+        "must not be enumerated outside the project: {boards:?}"
     );
     let resp = http_router()
         .oneshot(
@@ -829,6 +827,6 @@ async fn 프로젝트_보드는_세_표면에서_모두_열거되고_밖에서�
     assert_eq!(
         resp.status(),
         StatusCode::NOT_FOUND,
-        "HTTP 도 프로젝트 밖에서는 404 여야 한다"
+        "HTTP must 404 outside the project too"
     );
 }

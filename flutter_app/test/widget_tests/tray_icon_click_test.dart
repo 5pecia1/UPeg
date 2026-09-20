@@ -19,33 +19,41 @@ const MethodChannel _windowChannel = MethodChannel('window_manager');
 
 void main() {
   group('Tray icon click', () {
-    test('Tray_icon_click은_지원_platform에서_context_menu를_연다', () async {
-      var calls = 0;
+    test(
+      'tray_icon_click_opens_the_context_menu_on_supported_platforms',
+      () async {
+        var calls = 0;
 
-      await showTrayContextMenuFromIconClick(
-        isSupported: () => true,
-        popUpContextMenu: () async {
-          calls += 1;
-        },
-      );
+        await showTrayContextMenuFromIconClick(
+          isSupported: () => true,
+          popUpContextMenu: () async {
+            calls += 1;
+          },
+        );
 
-      expect(calls, 1);
-    });
+        expect(calls, 1);
+      },
+    );
 
-    test('Tray_icon_click은_미지원_platform에서_context_menu를_열지_않는다', () async {
-      var calls = 0;
+    test(
+      'tray_icon_click_does_not_open_the_context_menu_on_unsupported_platforms',
+      () async {
+        var calls = 0;
 
-      await showTrayContextMenuFromIconClick(
-        isSupported: () => false,
-        popUpContextMenu: () async {
-          calls += 1;
-        },
-      );
+        await showTrayContextMenuFromIconClick(
+          isSupported: () => false,
+          popUpContextMenu: () async {
+            calls += 1;
+          },
+        );
 
-      expect(calls, 0);
-    });
+        expect(calls, 0);
+      },
+    );
 
-    testWidgets('Tray_왼쪽_click은_menu_대신_summon_toggle을_실행한다', (tester) async {
+    testWidgets('tray_left_click_runs_summon_toggle_instead_of_the_menu', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
         final trayCalls = <String>[];
@@ -55,7 +63,8 @@ void main() {
               trayCalls.add(call.method);
               return true;
             });
-        // 보이는 창 시나리오: toggle 판정이 hide로 떨어져야 한다.
+        // Visible-window scenario: the toggle verdict must come out
+        // hide.
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(_windowChannel, (call) async {
               windowCalls.add(call.method);
@@ -97,43 +106,46 @@ void main() {
       }
     });
 
-    testWidgets('Tray_오른쪽_click은_설치된_listener에서_context_menu를_연다', (
-      tester,
-    ) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      try {
-        final trayCalls = <String>[];
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(_trayChannel, (call) async {
-              trayCalls.add(call.method);
-              return true;
-            });
+    testWidgets(
+      'tray_right_click_opens_the_context_menu_from_the_installed_listener',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          final trayCalls = <String>[];
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(_trayChannel, (call) async {
+                trayCalls.add(call.method);
+                return true;
+              });
 
-        final container = ProviderContainer();
-        addTearDown(container.dispose);
-        final installProvider = Provider<Future<void>>(
-          (ref) => UpegTray.install(ref),
-        );
+          final container = ProviderContainer();
+          addTearDown(container.dispose);
+          final installProvider = Provider<Future<void>>(
+            (ref) => UpegTray.install(ref),
+          );
 
-        await container.read(installProvider);
+          await container.read(installProvider);
 
-        trayCalls.clear();
-        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .handlePlatformMessage(
-              _trayChannel.name,
-              const StandardMethodCodec().encodeMethodCall(
-                const MethodCall('onTrayIconRightMouseDown'),
-              ),
-              (_) {},
-            );
-        await tester.pump();
+          trayCalls.clear();
+          await TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .handlePlatformMessage(
+                _trayChannel.name,
+                const StandardMethodCodec().encodeMethodCall(
+                  const MethodCall('onTrayIconRightMouseDown'),
+                ),
+                (_) {},
+              );
+          await tester.pump();
 
-        expect(trayCalls, contains('popUpContextMenu'));
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(_trayChannel, null);
-      }
-    });
+          expect(trayCalls, contains('popUpContextMenu'));
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(_trayChannel, null);
+        }
+      },
+    );
   });
 }

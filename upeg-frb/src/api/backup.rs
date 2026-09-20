@@ -213,14 +213,14 @@ mod tests {
     use super::{export_backup, import_backup};
 
     #[test]
-    fn export_backup은_유효한_json을_반환한다() {
+    fn export_backup_returns_valid_json() {
         let json = export_backup().expect("export ok");
         let parsed = EnvironmentBackup::from_json(&json).expect("round-trip");
         assert_eq!(parsed.version, BACKUP_VERSION);
     }
 
     #[test]
-    fn import_backup은_export_결과를_round_trip한다() {
+    fn import_backup_round_trips_export_result() {
         run_with_storage_backup(|| {
             let json = export_backup().expect("export");
             let report = import_backup(json).expect("import");
@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn import_backup은_boards_layouts_memos_tweaks를_다음_export에_복원한다() {
+    fn import_backup_restores_boards_layouts_memos_tweaks_into_next_export() {
         run_with_storage_backup(|| {
             let mut layouts = BTreeMap::new();
             layouts.insert(
@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn import_backup은_memos를_거부하지_않고_count를_보고한다() {
+    fn import_backup_accepts_memos_and_reports_count() {
         run_with_storage_backup(|| {
             let json = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{"scratch":"hello"},"boards":[]}"#;
             let report = import_backup(json.to_string()).expect("import with memos");
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn import_backup은_version_불일치시_validation_error를_반환한다() {
+    fn import_backup_returns_validation_error_on_version_mismatch() {
         let bad = r#"{"version":999,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{},"boards":[]}"#;
         match import_backup(bad.to_string()) {
             Err(FrbError::Validation { field, .. }) => {
@@ -309,7 +309,7 @@ mod tests {
     /// namespace.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn export_backup은_프로젝트_보드와_그_레이아웃을_제외한다() {
+    fn export_backup_excludes_project_boards_and_their_layouts() {
         use crate::api::pegboard::project_scope_test_support::ScopedProjectBoard;
 
         const PROJECT_BOARD_ID: &str = "frb-backup-proj";
@@ -317,12 +317,13 @@ mod tests {
         run_with_storage_backup(|| {
             let _project = ScopedProjectBoard::declare(PROJECT_BOARD_ID, "FRB Backup Project");
 
-            // 프로젝트 보드는 load 시 병합되므로 여기서는 실제로 보인다.
+            // Project boards are merged at load time, so the board is
+            // actually visible here.
             let visible =
                 upeg_sources::pegboard::board_keys_in(&upeg_sources::pegboard::load_state());
             assert!(
                 visible.iter().any(|key| key == PROJECT_BOARD_ID),
-                "전제 조건: 프로젝트 안에서는 보드가 보여야 한다: {visible:?}"
+                "precondition: the board must be visible inside the project: {visible:?}"
             );
 
             let exported = EnvironmentBackup::from_json(&export_backup().expect("export"))
@@ -333,12 +334,12 @@ mod tests {
                     .boards
                     .iter()
                     .any(|board| board.key == PROJECT_BOARD_ID),
-                "백업이 프로젝트 보드를 실어 갔다: {:?}",
+                "backup carried a project board: {:?}",
                 exported.boards
             );
             assert!(
                 !exported.layouts.contains_key(PROJECT_BOARD_ID),
-                "보드를 뺐는데 레이아웃만 남으면 고아 항목이다: {:?}",
+                "a layout left behind without its board is an orphan: {:?}",
                 exported.layouts.keys().collect::<Vec<_>>()
             );
         });
@@ -349,7 +350,7 @@ mod tests {
     /// not contain, and writing it would put a key in the store that
     /// can never be selected.
     #[test]
-    fn import_backup은_잘못된_board_key를_거부한다() {
+    fn import_backup_rejects_invalid_board_key() {
         let bad = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{},"boards":[{"key":"project:ns:oops","title":"Reserved"}]}"#;
         match import_backup(bad.to_string()) {
             Err(FrbError::Validation { field, reason }) => {
@@ -372,7 +373,7 @@ mod tests {
     /// everything.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn import_backup은_프로젝트_보드를_전역으로_평탄화하지_않는다() {
+    fn import_backup_does_not_flatten_project_boards_to_global() {
         use crate::api::pegboard::project_scope_test_support::ScopedProjectBoard;
 
         const PROJECT_BOARD_ID: &str = "frb-import-proj";
@@ -401,25 +402,29 @@ mod tests {
             {
                 let _project = ScopedProjectBoard::declare(PROJECT_BOARD_ID, "FRB Import Project");
                 let report = import_backup(imported.to_json()).expect("import");
-                assert_eq!(report.board_count, 1, "리포트는 실제로 쓴 것만 세야 한다");
+                assert_eq!(
+                    report.board_count, 1,
+                    "the report must count only what was actually written"
+                );
             }
 
-            // 매니페스트 밖: 프로젝트 보드가 전역 행으로 남아 있으면 안 된다.
+            // Outside the manifest: the project board must not remain as
+            // a global row.
             let boards =
                 upeg_sources::pegboard::board_keys_in(&upeg_sources::pegboard::load_state());
             assert!(
                 boards.iter().any(|key| key == GLOBAL_BOARD_ID),
-                "전역 보드는 복원되어야 한다: {boards:?}"
+                "the global board must be restored: {boards:?}"
             );
             assert!(
                 !boards.iter().any(|key| key == PROJECT_BOARD_ID),
-                "프로젝트 보드가 전역으로 평탄화되었다: {boards:?}"
+                "project board was flattened to global: {boards:?}"
             );
         });
     }
 
     #[test]
-    fn import_backup은_unknown_field시_validation_error를_반환한다() {
+    fn import_backup_returns_validation_error_on_unknown_field() {
         let bad = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{},"boards":[],"bogus":1}"#;
         match import_backup(bad.to_string()) {
             Err(FrbError::Validation { field, .. }) => {

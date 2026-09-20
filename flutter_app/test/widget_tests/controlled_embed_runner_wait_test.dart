@@ -7,8 +7,8 @@ import '../test_helpers/controlled_embed_runner_harness.dart';
 void main() {
   useStubbedExecutionScripts();
 
-  group('대기_실행_행동 (Wait Execution)', () {
-    test('대기_성공_후_Read가_실행되고_outputs를_반환한다', () async {
+  group('Wait execution behavior', () {
+    test('Read_runs_after_a_successful_wait_and_returns_outputs', () async {
       // Wait returns false first, then true (polling succeeds).
       final recorder = WaitJsRecorder(
         commandResponses: <Object?>[null],
@@ -48,73 +48,79 @@ void main() {
       expect(recorder.resultCalls, ['/*READ*/']);
     });
 
-    test('대기_fail_timeout_이후_canonical_wait_timeout_error를_반환한다', () async {
-      // Wait always returns false, timeout after 100ms.
-      final recorder = WaitJsRecorder(
-        commandResponses: <Object?>[],
-        waitResponses: [false, false, false],
-        resultResponses: <Object?>[],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          inputBindingWithWait(
-            timeoutMs: big100,
-            onTimeout: BindingWaitOnTimeoutDto.fail,
-          ),
-        ],
-        inputs: {'q': 'test'}, // Per-binding flow requires matching input
-      );
+    test(
+      'a_fail_policy_wait_timeout_returns_a_canonical_wait_timeout_error',
+      () async {
+        // Wait always returns false, timeout after 100ms.
+        final recorder = WaitJsRecorder(
+          commandResponses: <Object?>[],
+          waitResponses: [false, false, false],
+          resultResponses: <Object?>[],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            inputBindingWithWait(
+              timeoutMs: big100,
+              onTimeout: BindingWaitOnTimeoutDto.fail,
+            ),
+          ],
+          inputs: {'q': 'test'}, // Per-binding flow requires matching input
+        );
 
-      expect(result.ok, isFalse);
-      expect(result.error, isNotNull);
-      expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
-      expect(result.errorMessage, contains('timed out'));
-      expect(result.errorMessage, contains('input'));
-    });
+        expect(result.ok, isFalse);
+        expect(result.error, isNotNull);
+        expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
+        expect(result.errorMessage, contains('timed out'));
+        expect(result.errorMessage, contains('input'));
+      },
+    );
 
-    test('대기_continue_timeout은_wait_없이_기존_실행을_진행한다', () async {
-      // Wait always returns false, but on_timeout=continue.
-      // Use timeout_ms=0 for immediate single check in unit test.
-      final recorder = WaitJsRecorder(
-        commandResponses: <Object?>[null],
-        waitResponses: [false],
-        resultResponses: <Object?>['{"out":"goes on"}'],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          inputBindingWithWait(
-            timeoutMs: big0,
-            onTimeout: BindingWaitOnTimeoutDto.continue_,
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.trigger,
-            field: '',
-            selector: 'button',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'out',
-            selector: '#out',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-        ],
-        inputs: {'q': 'test'}, // Per-binding flow requires matching input
-      );
+    test(
+      'a_continue_policy_timeout_proceeds_without_further_waiting',
+      () async {
+        // Wait always returns false, but on_timeout=continue.
+        // Use timeout_ms=0 for immediate single check in unit test.
+        final recorder = WaitJsRecorder(
+          commandResponses: <Object?>[null],
+          waitResponses: [false],
+          resultResponses: <Object?>['{"out":"goes on"}'],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            inputBindingWithWait(
+              timeoutMs: big0,
+              onTimeout: BindingWaitOnTimeoutDto.continue_,
+            ),
+            SelectorBindingDto(
+              role: BindingRoleDto.trigger,
+              field: '',
+              selector: 'button',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'out',
+              selector: '#out',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+          ],
+          inputs: {'q': 'test'}, // Per-binding flow requires matching input
+        );
 
-      expect(result.ok, isTrue);
-      expect(outputTextById(result), {'out': 'goes on'});
-    });
+        expect(result.ok, isTrue);
+        expect(outputTextById(result), {'out': 'goes on'});
+      },
+    );
 
-    test('timeout_0은_single_immediate_체크만_수행한다', () async {
+    test('a_zero_timeout_performs_only_one_immediate_check', () async {
       final recorder = WaitJsRecorder(
         commandResponses: <Object?>[null],
         // With timeout_ms=0, only one wait check is performed.
@@ -153,134 +159,143 @@ void main() {
       expect(recorder.waitCalls, hasLength(1));
     });
 
-    test('timeout_0에서_바로_실패하면_wait_timeout_error를_반환한다', () async {
-      final recorder = WaitJsRecorder(
-        commandResponses: <Object?>[],
-        waitResponses: [false], // Immediate not-ready
-        resultResponses: <Object?>[],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          inputBindingWithWait(
-            timeoutMs: big0,
-            onTimeout: BindingWaitOnTimeoutDto.fail,
-          ),
-        ],
-        inputs: {'q': 'test'}, // Per-binding flow requires matching input
-      );
+    test(
+      'an_immediate_failure_with_zero_timeout_returns_a_wait_timeout_error',
+      () async {
+        final recorder = WaitJsRecorder(
+          commandResponses: <Object?>[],
+          waitResponses: [false], // Immediate not-ready
+          resultResponses: <Object?>[],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            inputBindingWithWait(
+              timeoutMs: big0,
+              onTimeout: BindingWaitOnTimeoutDto.fail,
+            ),
+          ],
+          inputs: {'q': 'test'}, // Per-binding flow requires matching input
+        );
 
-      expect(result.ok, isFalse);
-      expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
-    });
+        expect(result.ok, isFalse);
+        expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
+      },
+    );
 
-    test('대기_없음_하위호환_기존_동작은_변경되지_않는다', () async {
-      // Same as existing test: no wait → normal write/trigger/read.
-      final recorder = RunJsRecorder(
-        <Object?>[null, null],
-        <Object?>['{"intro":"hi"}'],
-      );
-      final result = await const ControlledEmbedRunner(settleDelay: emptySettle)
-          .execute(
-            runCommandJs: recorder.runCommandJs,
-            runResultJs: recorder.runResultJs,
-            bindings: const [
-              SelectorBindingDto(
-                role: BindingRoleDto.input,
-                field: 'q',
-                selector: '#q',
-                triggerAction: ControlledEmbedTriggerActionDto.click,
-              ),
-              SelectorBindingDto(
-                role: BindingRoleDto.trigger,
-                field: '',
-                selector: 'button',
-                triggerAction: ControlledEmbedTriggerActionDto.click,
-              ),
-              SelectorBindingDto(
-                role: BindingRoleDto.output,
-                field: 'intro',
-                selector: '#intro',
-                triggerAction: ControlledEmbedTriggerActionDto.click,
-              ),
-            ],
-            inputs: const {'q': 'hello'},
-          );
-      expect(recorder.commandCalls, ['/*WRITE*/', '/*TRIGGER*/']);
-      expect(recorder.resultCalls, ['/*READ*/']);
-      expect(result.ok, isTrue);
-      expect(outputTextById(result), {'intro': 'hi'});
-    });
+    test(
+      'execution_without_wait_options_preserves_existing_behavior',
+      () async {
+        // Same as existing test: no wait → normal write/trigger/read.
+        final recorder = RunJsRecorder(
+          <Object?>[null, null],
+          <Object?>['{"intro":"hi"}'],
+        );
+        final result =
+            await const ControlledEmbedRunner(settleDelay: emptySettle).execute(
+              runCommandJs: recorder.runCommandJs,
+              runResultJs: recorder.runResultJs,
+              bindings: const [
+                SelectorBindingDto(
+                  role: BindingRoleDto.input,
+                  field: 'q',
+                  selector: '#q',
+                  triggerAction: ControlledEmbedTriggerActionDto.click,
+                ),
+                SelectorBindingDto(
+                  role: BindingRoleDto.trigger,
+                  field: '',
+                  selector: 'button',
+                  triggerAction: ControlledEmbedTriggerActionDto.click,
+                ),
+                SelectorBindingDto(
+                  role: BindingRoleDto.output,
+                  field: 'intro',
+                  selector: '#intro',
+                  triggerAction: ControlledEmbedTriggerActionDto.click,
+                ),
+              ],
+              inputs: const {'q': 'hello'},
+            );
+        expect(recorder.commandCalls, ['/*WRITE*/', '/*TRIGGER*/']);
+        expect(recorder.resultCalls, ['/*READ*/']);
+        expect(result.ok, isTrue);
+        expect(outputTextById(result), {'intro': 'hi'});
+      },
+    );
   });
 
-  group('per-binding wait execution (바인딩별 개별 대기)', () {
-    test('동일_role의_여러_바인딩이_각각_자신의_대기를_실행한다', () async {
-      // Two input bindings, each with own wait. Wait responses are per-call.
-      // First binding's wait: false->true (2 calls)
-      // Second binding's wait: true (1 call, immediate)
-      final recorder = WaitJsRecorder(
-        commandResponses: <Object?>[null, null], // two input writes
-        waitResponses: [false, true, true],
-        resultResponses: <Object?>['{"result":"ok"}'],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q1',
-            selector: '#q1',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#ready1',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+  group('Per-binding wait execution', () {
+    test(
+      'multiple_bindings_with_the_same_role_each_run_their_own_wait',
+      () async {
+        // Two input bindings, each with own wait. Wait responses are per-call.
+        // First binding's wait: false->true (2 calls)
+        // Second binding's wait: true (1 call, immediate)
+        final recorder = WaitJsRecorder(
+          commandResponses: <Object?>[null, null], // two input writes
+          waitResponses: [false, true, true],
+          resultResponses: <Object?>['{"result":"ok"}'],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q1',
+              selector: '#q1',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#ready1',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q2',
-            selector: '#q2',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#ready2',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q2',
+              selector: '#q2',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#ready2',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.trigger,
-            field: '',
-            selector: 'button',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'result',
-            selector: '#result',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-        ],
-        inputs: {'q1': 'hello', 'q2': 'world'},
-      );
+            SelectorBindingDto(
+              role: BindingRoleDto.trigger,
+              field: '',
+              selector: 'button',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'result',
+              selector: '#result',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+          ],
+          inputs: {'q1': 'hello', 'q2': 'world'},
+        );
 
-      expect(result.ok, isTrue);
-      expect(outputTextById(result), {'result': 'ok'});
-      // 3 wait calls total: 2 for first binding (retry), 1 for second
-      expect(recorder.waitCalls, hasLength(3));
-    });
+        expect(result.ok, isTrue);
+        expect(outputTextById(result), {'result': 'ok'});
+        // 3 wait calls total: 2 for first binding (retry), 1 for second
+        expect(recorder.waitCalls, hasLength(3));
+      },
+    );
 
-    test('continue_바인딩의_timeout이_fail_바인딩에_영향을_주지_않는다', () async {
+    test('a_continue_binding_timeout_does_not_affect_a_fail_binding', () async {
       // Two input bindings: first has continue (will timeout), second has fail (will succeed)
       // First binding timeout should NOT throw — it continues.
       // Second binding wait succeeds immediately.
@@ -341,258 +356,273 @@ void main() {
       expect(outputTextById(result), {'out': 'continued'});
     });
 
-    test('짧은_timeout은_initial_check_후_추가_poll없이_fail한다', () async {
-      executionScriptsBuilder = eventExecutionScripts;
-      bindingWaitScriptBuilder = eventBindingWaitScript;
-      final recorder = EventJsRecorder(waitResponses: [false]);
-      final runner = ControlledEmbedRunner(
-        settleDelay: emptySettle,
-        waitPollInterval: Duration(milliseconds: big50.toInt()),
-      );
+    test(
+      'a_short_timeout_fails_after_the_initial_check_without_another_poll',
+      () async {
+        executionScriptsBuilder = eventExecutionScripts;
+        bindingWaitScriptBuilder = eventBindingWaitScript;
+        final recorder = EventJsRecorder(waitResponses: [false]);
+        final runner = ControlledEmbedRunner(
+          settleDelay: emptySettle,
+          waitPollInterval: Duration(milliseconds: big50.toInt()),
+        );
 
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q',
-            selector: '#q',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big1,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q',
+              selector: '#q',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big1,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-        ],
-        inputs: {'q': 'hello'},
-      );
+          ],
+          inputs: {'q': 'hello'},
+        );
 
-      expect(result.ok, isFalse);
-      expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
-      expect(recorder.events, ['wait:#ready']);
-    });
+        expect(result.ok, isFalse);
+        expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
+        expect(recorder.events, ['wait:#ready']);
+      },
+    );
 
-    test('바인딩별_wait_write_trigger_output_read_순서를_보존한다', () async {
-      executionScriptsBuilder = eventExecutionScripts;
-      bindingWaitScriptBuilder = eventBindingWaitScript;
-      final recorder = EventJsRecorder(
-        waitResponses: [true, true, true],
-        resultResponses: ['{"out":"done"}'],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+    test(
+      'per_binding_wait_write_trigger_output_read_order_is_preserved',
+      () async {
+        executionScriptsBuilder = eventExecutionScripts;
+        bindingWaitScriptBuilder = eventBindingWaitScript;
+        final recorder = EventJsRecorder(
+          waitResponses: [true, true, true],
+          resultResponses: ['{"out":"done"}'],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
 
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q',
-            selector: '#q',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#input-ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q',
+              selector: '#q',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#input-ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.trigger,
-            field: '',
-            selector: '#go',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#trigger-ready',
-              condition: BindingWaitConditionDto.visible,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+            SelectorBindingDto(
+              role: BindingRoleDto.trigger,
+              field: '',
+              selector: '#go',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#trigger-ready',
+                condition: BindingWaitConditionDto.visible,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'out',
-            selector: '#out',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#output-ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'out',
+              selector: '#out',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#output-ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-        ],
-        inputs: {'q': 'hello'},
-      );
+          ],
+          inputs: {'q': 'hello'},
+        );
 
-      expect(result.ok, isTrue);
-      expect(outputTextById(result), {'out': 'done'});
-      expect(recorder.events, [
-        'wait:#input-ready',
-        'command:write',
-        'wait:#trigger-ready',
-        'command:trigger',
-        'wait:#output-ready',
-        'result:read',
-      ]);
-    });
+        expect(result.ok, isTrue);
+        expect(outputTextById(result), {'out': 'done'});
+        expect(recorder.events, [
+          'wait:#input-ready',
+          'command:write',
+          'wait:#trigger-ready',
+          'command:trigger',
+          'wait:#output-ready',
+          'result:read',
+        ]);
+      },
+    );
 
-    test('continue_timeout_후_다음_fail_timeout은_실패하고_read를_실행하지_않는다', () async {
-      executionScriptsBuilder = eventExecutionScripts;
-      bindingWaitScriptBuilder = eventBindingWaitScript;
-      final recorder = EventJsRecorder(waitResponses: [false, false]);
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+    test(
+      'a_fail_timeout_after_a_continue_timeout_stops_execution_without_reading',
+      () async {
+        executionScriptsBuilder = eventExecutionScripts;
+        bindingWaitScriptBuilder = eventBindingWaitScript;
+        final recorder = EventJsRecorder(waitResponses: [false, false]);
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
 
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'a',
-            selector: '#a',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#continue-ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big0,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.continue_,
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'a',
+              selector: '#a',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#continue-ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big0,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.continue_,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'b',
-            selector: '#b',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#fail-ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big0,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'b',
+              selector: '#b',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#fail-ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big0,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'out',
-            selector: '#out',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-        ],
-        inputs: {'a': 'continue', 'b': 'fail'},
-      );
-
-      expect(result.ok, isFalse);
-      expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
-      expect(result.errorMessage, contains('#fail-ready'));
-      expect(recorder.events, [
-        'wait:#continue-ready',
-        'command:write',
-        'wait:#fail-ready',
-      ]);
-    });
-
-    test('wait_js_예외는_execution_failed로_전파하고_후속작업을_중단한다', () async {
-      executionScriptsBuilder = eventExecutionScripts;
-      bindingWaitScriptBuilder = eventBindingWaitScript;
-      final recorder = EventJsRecorder(
-        waitResponses: [Exception('wait exploded')],
-        resultResponses: ['{"out":"unreachable"}'],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q',
-            selector: '#q',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'out',
+              selector: '#out',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'out',
-            selector: '#out',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-        ],
-        inputs: {'q': 'hello'},
-      );
+          ],
+          inputs: {'a': 'continue', 'b': 'fail'},
+        );
 
-      expect(result.ok, isFalse);
-      expect(result.error!.code, kControlledEmbedExecutionErrorCode);
-      expect(result.errorMessage, contains('wait exploded'));
-      expect(recorder.events, ['wait:#ready']);
-    });
+        expect(result.ok, isFalse);
+        expect(result.error!.code, kControlledEmbedWaitTimeoutCode);
+        expect(result.errorMessage, contains('#fail-ready'));
+        expect(recorder.events, [
+          'wait:#continue-ready',
+          'command:write',
+          'wait:#fail-ready',
+        ]);
+      },
+    );
 
-    test('trigger_바인딩의_대기가_트리거_직전에_실행된다', () async {
-      final recorder = WaitJsRecorder(
-        commandResponses: <Object?>[null, null], // input write + trigger
-        waitResponses: [true], // triggers wait succeeds immediately
-        resultResponses: <Object?>['{"out":"done"}'],
-      );
-      final runner = ControlledEmbedRunner(settleDelay: emptySettle);
-      final result = await runner.execute(
-        runCommandJs: recorder.runCommandJs,
-        runResultJs: recorder.runResultJs,
-        runWaitJs: recorder.runWaitJs,
-        bindings: [
-          SelectorBindingDto(
-            role: BindingRoleDto.input,
-            field: 'q',
-            selector: '#q',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.trigger,
-            field: '',
-            selector: '#go',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-            wait: BindingWaitDto(
-              forSelector: '#go-ready',
-              condition: BindingWaitConditionDto.exists,
-              timeoutMs: big100,
-              settleMs: big0,
-              onTimeout: BindingWaitOnTimeoutDto.fail,
+    test(
+      'wait_js_exceptions_propagate_as_execution_failed_and_stop_subsequent_operations',
+      () async {
+        executionScriptsBuilder = eventExecutionScripts;
+        bindingWaitScriptBuilder = eventBindingWaitScript;
+        final recorder = EventJsRecorder(
+          waitResponses: [Exception('wait exploded')],
+          resultResponses: ['{"out":"unreachable"}'],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q',
+              selector: '#q',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
             ),
-          ),
-          SelectorBindingDto(
-            role: BindingRoleDto.output,
-            field: 'out',
-            selector: '#out',
-            triggerAction: ControlledEmbedTriggerActionDto.click,
-          ),
-        ],
-        inputs: {'q': 'test'},
-      );
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'out',
+              selector: '#out',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+          ],
+          inputs: {'q': 'hello'},
+        );
 
-      expect(result.ok, isTrue);
-      expect(recorder.waitCalls, hasLength(1));
-      expect(recorder.commandCalls, hasLength(2)); // input write + trigger
-    });
+        expect(result.ok, isFalse);
+        expect(result.error!.code, kControlledEmbedExecutionErrorCode);
+        expect(result.errorMessage, contains('wait exploded'));
+        expect(recorder.events, ['wait:#ready']);
+      },
+    );
 
-    test('output_바인딩의_대기가_리드_직전에_실행된다', () async {
+    test(
+      'a_trigger_binding_wait_runs_immediately_before_the_trigger',
+      () async {
+        final recorder = WaitJsRecorder(
+          commandResponses: <Object?>[null, null], // input write + trigger
+          waitResponses: [true], // triggers wait succeeds immediately
+          resultResponses: <Object?>['{"out":"done"}'],
+        );
+        final runner = ControlledEmbedRunner(settleDelay: emptySettle);
+        final result = await runner.execute(
+          runCommandJs: recorder.runCommandJs,
+          runResultJs: recorder.runResultJs,
+          runWaitJs: recorder.runWaitJs,
+          bindings: [
+            SelectorBindingDto(
+              role: BindingRoleDto.input,
+              field: 'q',
+              selector: '#q',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+            SelectorBindingDto(
+              role: BindingRoleDto.trigger,
+              field: '',
+              selector: '#go',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+              wait: BindingWaitDto(
+                forSelector: '#go-ready',
+                condition: BindingWaitConditionDto.exists,
+                timeoutMs: big100,
+                settleMs: big0,
+                onTimeout: BindingWaitOnTimeoutDto.fail,
+              ),
+            ),
+            SelectorBindingDto(
+              role: BindingRoleDto.output,
+              field: 'out',
+              selector: '#out',
+              triggerAction: ControlledEmbedTriggerActionDto.click,
+            ),
+          ],
+          inputs: {'q': 'test'},
+        );
+
+        expect(result.ok, isTrue);
+        expect(recorder.waitCalls, hasLength(1));
+        expect(recorder.commandCalls, hasLength(2)); // input write + trigger
+      },
+    );
+
+    test('an_output_binding_wait_runs_immediately_before_reading', () async {
       final recorder = WaitJsRecorder(
         commandResponses: <Object?>[null],
         waitResponses: [true], // output wait succeeds
@@ -632,8 +662,8 @@ void main() {
     });
   });
 
-  group('settle_대기 (Settle Delay)', () {
-    test('대기_성공_후_settleMs만큼_delay를_적용한다', () async {
+  group('Settle delay', () {
+    test('a_successful_wait_applies_the_settleMs_delay', () async {
       final recorder = WaitJsRecorder(
         commandResponses: <Object?>[null],
         waitResponses: [true], // Ready immediately

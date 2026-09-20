@@ -290,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_동일한_입력에_대해_변경_없음을_보고한다() {
+    fn csv_diff_reports_no_changes_for_identical_inputs() {
         let csv_text = "a,b,c\n1,2,3\n";
         let v = diff_json(csv_text, csv_text);
         assert_eq!(v["added"], 0);
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_추가된_행을_센다() {
+    fn csv_diff_counts_added_rows() {
         let v = diff_json("a,b\n1,2\n", "a,b\n1,2\n3,4\n");
         assert_eq!(v["added"], 1);
         assert_eq!(v["removed"], 0);
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_제거된_행을_센다() {
+    fn csv_diff_counts_removed_rows() {
         let v = diff_json("a,b\n1,2\n3,4\n", "a,b\n1,2\n");
         assert_eq!(v["added"], 0);
         assert_eq!(v["removed"], 1);
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_변경된_행을_센다() {
+    fn csv_diff_counts_changed_rows() {
         let v = diff_json("a,b\n1,2\n", "a,b\n1,9\n");
         assert_eq!(v["added"], 0);
         assert_eq!(v["removed"], 0);
@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_따옴표로_묶인_쉼표와_줄바꿈을_열로서_올바르게_처리한다() {
+    fn csv_diff_treats_quoted_commas_and_newlines_as_field_data() {
         // A naive line-based diff would split this row's embedded comma
         // and newline as if they were structural — the whole reason
         // `csv.diff` uses a real CSV parser instead of `text.diff`.
@@ -348,7 +348,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_한쪽_내부에서_불일치하는_열_개수를_잘못된_csv로_거부한다() {
+    fn csv_diff_rejects_mismatched_column_counts_as_invalid_csv() {
         // Strict (non-`flexible`) parsing: every row within one CSV must
         // share the first row's field count. A row with a differing
         // column count is a genuine validity error, not silently diffed —
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn csv_차이는_샘플_개수를_상한으로_제한하지만_카운트는_정확하다() {
+    fn csv_diff_caps_sample_count_but_counts_exactly() {
         use std::fmt::Write as _;
 
         let left = String::new();
@@ -384,7 +384,7 @@ mod tests {
     // ─── csv.to_json ────────────────────────────────────────────
 
     #[test]
-    fn csv_json_변환은_헤더를_키로_사용한다() {
+    fn csv_to_json_uses_headers_as_keys() {
         let out = csv_to_json("a,b\n1,2\n3,4\n").unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(
@@ -397,40 +397,40 @@ mod tests {
     }
 
     #[test]
-    fn csv_json_변환은_데이터_행이_없으면_빈_배열을_반환한다() {
+    fn csv_to_json_returns_empty_array_without_data_rows() {
         let out = csv_to_json("a,b\n").unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v, serde_json::json!([]));
     }
 
     #[test]
-    fn csv_json_변환은_따옴표로_묶인_쉼표를_열로서_올바르게_처리한다() {
+    fn csv_to_json_treats_quoted_commas_as_field_data() {
         let out = csv_to_json("a,b\n\"hello, world\",2\n").unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v, serde_json::json!([{"a": "hello, world", "b": "2"}]));
     }
 
     #[test]
-    fn csv_json_변환은_열_개수가_어긋난_행을_거부한다() {
+    fn csv_to_json_rejects_rows_with_wrong_column_counts() {
         assert!(csv_to_json("a,b\n1,2,3\n").is_err());
     }
 
     // ─── csv.select ─────────────────────────────────────────────
 
     #[test]
-    fn csv_선택은_요청한_열만_요청한_순서로_남긴다() {
+    fn csv_select_keeps_requested_columns_in_requested_order() {
         let out = csv_select("a,b,c\n1,2,3\n4,5,6\n", "c,a").unwrap();
         assert_eq!(out, "c,a\n3,1\n6,4\n");
     }
 
     #[test]
-    fn csv_선택은_열_이름_주변_공백을_잘라낸다() {
+    fn csv_select_trims_whitespace_around_column_names() {
         let out = csv_select("a,b\n1,2\n", " a , b ").unwrap();
         assert_eq!(out, "a,b\n1,2\n");
     }
 
     #[test]
-    fn csv_선택은_알수없는_열을_소문자_무점_오류로_거부한다() {
+    fn csv_select_rejects_unknown_columns_with_lowercase_unpunctuated_error() {
         match csv_select("a,b\n1,2\n", "a,z") {
             Err(msg) => {
                 assert_eq!(msg, "unknown column `z`");
@@ -441,13 +441,13 @@ mod tests {
     }
 
     #[test]
-    fn csv_선택은_빈_열_목록을_거부한다() {
+    fn csv_select_rejects_empty_column_list() {
         assert!(csv_select("a,b\n1,2\n", "").is_err());
         assert!(csv_select("a,b\n1,2\n", "  ").is_err());
     }
 
     #[test]
-    fn csv_선택은_단일_열로_축소할_수_있다() {
+    fn csv_select_can_reduce_to_single_column() {
         let out = csv_select("a,b,c\n1,2,3\n", "b").unwrap();
         assert_eq!(out, "b\n2\n");
     }

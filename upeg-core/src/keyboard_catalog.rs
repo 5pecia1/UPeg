@@ -748,7 +748,7 @@ mod tests {
     }
 
     #[test]
-    fn 카탈로그의_모든_바인딩은_resolve_key와_일치한다() {
+    fn every_catalog_binding_matches_resolve_key() {
         for scope_bindings in binding_catalog() {
             for entry in &scope_bindings.entries {
                 let ctx = context(scope_bindings.scope, entry.requires_tool_focus);
@@ -757,7 +757,7 @@ mod tests {
                         assert_eq!(
                             resolve_key(ctx, stroke),
                             Some(binding.command),
-                            "{:?} 스코프의 카탈로그 chord {:?} ({})는 resolver와 일치해야 한다",
+                            "catalog chord {1:?} ({2}) in {0:?} scope must match the resolver",
                             scope_bindings.scope,
                             binding.chord,
                             entry.label_key,
@@ -769,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn 포커스_게이트_엔트리는_포커스_없이_해석되지_않는다() {
+    fn focus_gated_entries_do_not_resolve_without_focus() {
         for scope_bindings in binding_catalog() {
             for entry in &scope_bindings.entries {
                 if !entry.requires_tool_focus {
@@ -781,7 +781,7 @@ mod tests {
                         assert_eq!(
                             resolve_key(ctx, stroke),
                             None,
-                            "{}는 포커스 없이 해석되면 안 된다",
+                            "{} must not resolve without focus",
                             entry.label_key,
                         );
                     }
@@ -887,7 +887,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_key가_해석하는_모든_키는_카탈로그에_존재한다() {
+    fn every_key_resolve_key_resolves_exists_in_the_catalog() {
         let catalog = binding_catalog();
         let universe = stroke_universe();
         for scope_bindings in &catalog {
@@ -910,7 +910,7 @@ mod tests {
                     }
                     assert!(
                         catalog_covers(&scope_bindings.entries, stroke, command),
-                        "{:?} 스코프에서 {stroke:?} → {command:?} 바인딩이 카탈로그에 없다",
+                        "{stroke:?} → {command:?} in {:?} scope is missing from the catalog",
                         scope_bindings.scope,
                     );
                 }
@@ -919,7 +919,7 @@ mod tests {
     }
 
     #[test]
-    fn 카탈로그는_모든_스코프를_한_번씩_포함한다() {
+    fn catalog_contains_every_scope_exactly_once() {
         let catalog = binding_catalog();
         assert_eq!(catalog.len(), ALL_KEYBOARD_SCOPES.len());
         for (scope_bindings, expected) in catalog.iter().zip(ALL_KEYBOARD_SCOPES) {
@@ -927,15 +927,16 @@ mod tests {
             assert_eq!(scope_bindings.label_key, scope_label_key(expected));
             assert!(
                 !scope_bindings.entries.is_empty(),
-                "{expected:?} 스코프의 카탈로그가 비어 있다",
+                "catalog for {expected:?} scope is empty",
             );
         }
     }
 
     #[test]
-    fn 물음표는_보드_스코프에서_치트시트를_연다() {
-        // Shift+/ 로 입력되는 '?' — label 파서가 문자를 그대로 넘기므로
-        // shift 플래그 유무와 무관하게 해석되어야 한다.
+    fn question_mark_opens_the_cheatsheet_in_board_scope() {
+        // '?' arrives via Shift+/ — the label parser passes the char
+        // through verbatim, so it must resolve with or without the
+        // shift flag set.
         let ctx = context(KeyboardScope::Board, false);
         assert_eq!(
             resolve_key(ctx, KeyStroke::plain(Key::Char('?'))),

@@ -1,49 +1,93 @@
 # Contributing to UPeg
 
-This repository is a one-way source mirror. Contributions are welcome through
-fork pull requests. Accepted changes are reviewed and imported by the maintainer
-into the source repository, then included in a subsequent public snapshot.
-The original pull request is closed with a link to the published commit.
+Contributions are welcome through ordinary GitHub pull requests against
+this repository.
 
-Public snapshot commits use a bot author and committer. Contributor attribution
-remains in the original pull request and applicable source copyright notices;
-private commit messages and author trailers are not copied into snapshot commits.
+## How contributions land
 
-## 기여 절차
+UPeg is developed in a private source repository; this repository is its
+public mirror. Two kinds of pull requests show up here, and they mean
+different things:
 
-1. Fork에서 변경을 작성하고 이 저장소로 PR을 보냅니다.
-2. 검토가 끝나면 관리자가 변경을 소스 저장소에 반영하고 CI를 실행합니다.
-3. 검증된 공개 스냅샷이 게시되면 원래 PR에 해당 커밋을 연결하고 PR을 닫습니다.
-   공개 main에 직접 merge하지 않으므로 PR은 Closed로 표시됩니다.
+- **Your PR** (a contribution): reviewed here, then **imported into the
+  source repository** and published back through a later export (below).
+- **Export PRs** (publishing, maintainer-only): the source repository's
+  export workflow pushes an export branch and opens a PR against `main`;
+  that PR merges like a normal PR after its checks pass.
 
-커밋은 [Developer Certificate of Origin](https://developercertificate.org/)에
-따라 `git commit -s`로 서명합니다. 기여 출처와 필요한 저작권 고지를 보존하세요.
+In detail, for a contribution:
 
-## 검증
+1. Open a pull request against this repository as usual — fork, branch,
+   PR. CI runs on it like any other PR.
+2. A maintainer reviews the change. When it is accepted, the maintainer
+   **imports it into the source repository** — path-by-path, since the
+   source tree has a different layout — and runs full verification there.
+   Importing is a manual maintainer step; a contributor PR is never merged
+   into `main` directly and is never auto-imported.
+3. The maintainer then publishes an update: in the source repository's
+   Actions tab they run **Publish UPeg**. That input-free manual workflow
+   verifies the export, pushes an export branch to this repository, and
+   opens an ordinary pull request, which merges into `main` normally.
+4. Your change arrives with that export PR, and the maintainer closes your
+   PR with a link to it. Your PR shows as **Closed**, not Merged — that is
+   the expected outcome for contributor PRs, not a rejection.
 
-공개 CI와 로컬은 `scripts/verify_public.sh`를 공유합니다. Rust 1.92.0,
-Flutter 3.44.0, cargo-deny 0.18.2, just 1.51.0과 WASM 빌드 도구를 사용합니다.
-네이티브 패키지 의존성과 설치 절차는 `.github/actions/verify/action.yml`에 있습니다.
+The development history itself is not mirrored — each export carries one
+squashed, verified commit.
+
+Credit is preserved: the exported commit keeps the change itself, your PR
+retains your authorship record, and a `GitOrigin-RevId`-style link ties
+the published commit back to the review. Sign your commits with
+`git commit -s` — the
+[Developer Certificate of Origin](https://developercertificate.org/) —
+and keep any copyright notices your change requires.
+
+Small tips that make review/import smoother:
+
+- Keep PRs focused; a mirror rewards small, self-contained changes.
+- Don't rely on source-repository-internal paths, filenames, or test
+  names in your description — describe behavior and intent.
+
+## Verifying locally
+
+Local verification and public CI share `scripts/verify_public.sh`
+(Rust 1.92.0, Flutter 3.44.0, cargo-deny 0.18.9, just 1.51.0, plus the
+WASM toolchain). Native package dependencies and install steps are in
+`.github/actions/verify/action.yml`.
 
 ```bash
 just verify
-# 변경 영역을 먼저 확인할 때:
-bash scripts/verify_public.sh rust
+# or one lane at a time:
+bash scripts/verify_public.sh rust       # needs a Chrome/Chromium binary for E2E
 bash scripts/verify_public.sh wasm
 bash scripts/verify_public.sh flutter
 bash scripts/verify_public.sh licenses
 ```
 
-Rust lane은 workspace 빌드·fmt·clippy·테스트, WASM lane은 대상별 clippy,
-Flutter lane은 잠금 파일·analyze·테스트·Linux/web 빌드를 확인합니다.
-라이선스 검사는 배포물의 실제 고지 동봉 검토와 함께 사용합니다.
+The `rust` lane covers the workspace build, fmt, clippy, and tests;
+`wasm` runs per-target clippy; `flutter` checks the lockfile, analyze,
+tests, and Linux/web builds; `licenses` runs cargo-deny. `just check` is
+the cheaper pre-commit gate. See the
+[development guide](https://github.com/5pecia1/UPeg/blob/main/docs/guides/development.md).
 
-테스트 함수 이름은 자연스러운 한국어로 작성합니다. 전문 용어의 영어는 허용합니다.
-기능의 책임을 나누고 복잡도를 낮추며, Rust 타입으로 불가능한 상태를 표현하지 않도록 합니다.
+## Conventions
 
-## 라이선스
+- **Write test names in descriptive English** — a test name should say
+  what it proves (e.g. `rejects_urlsafe_base64_in_file_wire`). This applies
+  to tests you add or modify.
+- Split responsibilities to keep complexity low, and use the type system
+  so unrepresentable states stay unrepresentable.
+- Hand-written Rust and Dart files stay within the 1000-line file-size
+  budget.
+- Documentation and code comments are in English; user-visible vocabulary
+  follows `docs/LEXICON.md`.
+- `docs/TOOL_MANIFEST.md` and `fixtures/` baselines are generated — don't
+  hand-edit; regenerate with the `just` recipes in the development guide.
 
-UPeg 자체 코드는 [Apache-2.0](LICENSE)입니다. `upeg-plugin-api`와
-`upeg-plugin-macros`는 해당 디렉터리의 MIT 또는 Apache-2.0을 선택할 수 있습니다.
-기여는 변경하는 코드와 같은 라이선스로 받습니다. 서드파티 코드·데이터·폰트에는
-각자의 조건이 적용되며 [NOTICE](NOTICE)와 원문 고지를 보존해야 합니다.
+## License
+
+UPeg's own code is [Apache-2.0](https://github.com/5pecia1/UPeg/blob/main/LICENSE). `upeg-plugin-api` and
+`upeg-plugin-macros` may use the MIT or Apache-2.0 license in their own
+directories. Contributions are accepted under the same license as the
+code they change. Third-party code, data, and fonts keep their own terms —
+preserve [NOTICE](https://github.com/5pecia1/UPeg/blob/main/NOTICE) and the original notices.

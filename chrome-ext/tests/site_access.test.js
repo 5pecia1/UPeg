@@ -97,14 +97,14 @@ function mockScripting(existing = []) {
 
 // --- match patterns ----------------------------------------------------
 
-test('탭_url은_포트를_뺀_호스트_매치_패턴이_된다', () => {
+test('a_tab_url_becomes_a_host_match_pattern_without_the_port', () => {
   // Chrome match patterns address hosts, never ports — the E2E page served
   // on :8000 must be enabled by `http://localhost/*`.
   assert.equal(matchPatternForUrl('http://localhost:8000/page.html'), 'http://localhost/*');
   assert.equal(matchPatternForUrl('https://etherscan.io/tx/0xff?a=b'), 'https://etherscan.io/*');
 });
 
-test('content_script가_붙을_수_없는_url은_패턴을_만들지_않는다', () => {
+test('urls_a_content_script_cannot_attach_to_produce_no_pattern', () => {
   for (const url of [
     'chrome://extensions',
     'about:blank',
@@ -116,7 +116,7 @@ test('content_script가_붙을_수_없는_url은_패턴을_만들지_않는다',
   }
 });
 
-test('와일드카드_호스트_패턴은_기본_도메인과_하위_도메인을_모두_덮는다', () => {
+test('a_wildcard_host_pattern_covers_the_apex_and_subdomains', () => {
   assert.equal(matchPatternMatchesUrl('https://*.etherscan.io/*', 'https://etherscan.io/x'), true);
   assert.equal(
     matchPatternMatchesUrl('https://*.etherscan.io/*', 'https://api.etherscan.io/x'),
@@ -130,7 +130,7 @@ test('와일드카드_호스트_패턴은_기본_도메인과_하위_도메인�
   assert.equal(matchPatternMatchesUrl('https://etherscan.io/*', 'http://etherscan.io/x'), false);
 });
 
-test('잘못된_패턴은_파싱되지_않고_목록에서_걸러진다', () => {
+test('invalid_patterns_do_not_parse_and_are_filtered_out_of_the_list', () => {
   for (const pattern of ['', 'etherscan.io', 'https://', 'https:///*', null, 42]) {
     assert.equal(parseMatchPattern(pattern), null, String(pattern));
   }
@@ -141,7 +141,7 @@ test('잘못된_패턴은_파싱되지_않고_목록에서_걸러진다', () => 
 
 // --- allow-list --------------------------------------------------------
 
-test('첫_실행은_etherscan과_polygonscan을_미리_켜진_상태로_심는다', async () => {
+test('the_first_run_seeds_etherscan_and_polygonscan_pre_enabled', async () => {
   const storage = mockStorage();
   const patterns = await ensureSeededPatterns(storage);
 
@@ -152,13 +152,13 @@ test('첫_실행은_etherscan과_polygonscan을_미리_켜진_상태로_심는�
   assert.equal(isUrlEnabled(patterns, 'https://example.com/'), false);
 });
 
-test('이미_저장된_목록은_빈_목록이어도_다시_심지_않는다', async () => {
+test('an_already_stored_list_is_never_reseeded_even_when_empty', async () => {
   const storage = mockStorage({ [ENABLED_PATTERNS_STORAGE_KEY]: [] });
   assert.deepEqual(await ensureSeededPatterns(storage), []);
   assert.equal(storage.writes, 0, 'seeding an existing empty list would re-enable sites');
 });
 
-test('사이트_켜기는_패턴을_더하고_끄기는_그_url을_덮는_모든_패턴을_뺀다', () => {
+test('enabling_a_site_adds_its_pattern_and_disabling_drops_every_covering_pattern', () => {
   const enabled = enablePattern(SEED_PATTERNS, 'http://localhost/*');
   assert.equal(isUrlEnabled(enabled, 'http://localhost:8000/x'), true);
 
@@ -171,7 +171,7 @@ test('사이트_켜기는_패턴을_더하고_끄기는_그_url을_덮는_모든
   assert.equal(isUrlEnabled(disabled, 'http://localhost:8000/x'), true);
 });
 
-test('저장은_정규화된_목록만_기록한다', async () => {
+test('saving_writes_only_the_normalized_list', async () => {
   const storage = mockStorage();
   const written = await writeEnabledPatterns(storage, [
     'https://b.com/*',
@@ -185,14 +185,14 @@ test('저장은_정규화된_목록만_기록한다', async () => {
 
 // --- permissions -------------------------------------------------------
 
-test('허가되지_않은_패턴은_granted_목록에서_빠진다', async () => {
+test('ungranted_patterns_are_left_out_of_the_granted_list', async () => {
   const permissions = mockPermissions({ granted: ['https://a.com/*'] });
   assert.deepEqual(await grantedPatterns(permissions, ['https://a.com/*', 'https://b.com/*']), [
     'https://a.com/*',
   ]);
 });
 
-test('권한_요청은_거부되면_false를_돌려준다', async () => {
+test('a_denied_permission_request_returns_false', async () => {
   const granting = mockPermissions({ grant: true });
   assert.equal(await requestSitePermission(granting, 'http://localhost/*'), true);
   assert.deepEqual(granting.requested, ['http://localhost/*']);
@@ -206,7 +206,7 @@ test('권한_요청은_거부되면_false를_돌려준다', async () => {
   assert.deepEqual(untouched.requested, []);
 });
 
-test('권한_해제는_해당_패턴만_chrome에_넘긴다', async () => {
+test('revoking_hands_chrome_only_that_pattern', async () => {
   const permissions = mockPermissions({ granted: ['http://localhost/*'] });
   assert.equal(await removeSitePermission(permissions, 'http://localhost/*'), true);
   assert.deepEqual(permissions.removed, ['http://localhost/*']);
@@ -215,7 +215,7 @@ test('권한_해제는_해당_패턴만_chrome에_넘긴다', async () => {
 
 // --- dynamic registration ----------------------------------------------
 
-test('등록_인자는_하나의_id로_모든_매치와_content_script_파일을_싣는다', () => {
+test('the_registration_args_carry_every_match_and_content_file_under_one_id', () => {
   const [registration] = contentScriptRegistrations(['https://a.com/*', 'https://b.com/*']);
   assert.equal(registration.id, CONTENT_SCRIPT_ID);
   assert.deepEqual(registration.matches, ['https://a.com/*', 'https://b.com/*']);
@@ -224,7 +224,7 @@ test('등록_인자는_하나의_id로_모든_매치와_content_script_파일을
   assert.deepEqual(contentScriptRegistrations([]), []);
 });
 
-test('등록_diff는_새_등록과_갱신과_해제를_구분한다', () => {
+test('the_registration_diff_separates_new_updates_and_removals', () => {
   const desired = contentScriptRegistrations(['https://a.com/*']);
   const fresh = registrationDiff([], desired);
   assert.deepEqual(fresh.toRegister.map((s) => s.id), [CONTENT_SCRIPT_ID]);
@@ -239,7 +239,7 @@ test('등록_diff는_새_등록과_갱신과_해제를_구분한다', () => {
   assert.deepEqual(emptied.toUnregister, [CONTENT_SCRIPT_ID]);
 });
 
-test('동기화는_권한이_있는_패턴만_등록한다', async () => {
+test('sync_registers_only_the_patterns_with_permission', async () => {
   const scripting = mockScripting();
   const permissions = mockPermissions({ granted: ['https://a.com/*'] });
 
@@ -253,7 +253,7 @@ test('동기화는_권한이_있는_패턴만_등록한다', async () => {
   assert.deepEqual(scripting.registered[0].matches, ['https://a.com/*']);
 });
 
-test('두_번째_동기화는_중복_등록_대신_갱신한다', async () => {
+test('a_second_sync_updates_instead_of_duplicate_registering', async () => {
   const scripting = mockScripting();
   const permissions = mockPermissions({ granted: ['https://a.com/*', 'https://b.com/*'] });
 
@@ -268,7 +268,7 @@ test('두_번째_동기화는_중복_등록_대신_갱신한다', async () => {
   assert.deepEqual(scripting.registered[0].matches, ['https://a.com/*', 'https://b.com/*']);
 });
 
-test('권한이_사라지면_동기화가_등록을_해제한다', async () => {
+test('sync_unregisters_once_the_permission_disappears', async () => {
   const scripting = mockScripting();
   const permissions = mockPermissions({ granted: ['https://a.com/*'] });
   await syncContentScripts(scripting, permissions, ['https://a.com/*']);

@@ -27,6 +27,8 @@ fn controlled_embed_dispatcher_for(
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::new(fields).unwrap(),
             primary_output_id: parsed.primary_output_id.clone(),
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             pin: upeg_core::PinKind::ControlledEmbed,
             pegboard_units: upeg_core::PegboardUnits::U2T,
             invoker: upeg_core::Invoker::Embed,
@@ -40,7 +42,7 @@ fn controlled_embed_dispatcher_for(
 }
 
 #[test]
-fn controlled_embed_dispatcher는_backend_unavailable을_전용_error_code로_반환한다() {
+fn controlled_embed_dispatcher_returns_backend_unavailable_as_dedicated_error_code() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     upeg_runtime::controlled_embed::set_controlled_embed_backend(Arc::new(
         upeg_runtime::controlled_embed::NoopControlledEmbedBackend,
@@ -94,7 +96,7 @@ fn controlled_embed_dispatcher는_backend_unavailable을_전용_error_code로_�
 }
 
 #[test]
-fn controlled_embed_dispatcher는_backend_failed를_실행_error_code로_반환한다() {
+fn controlled_embed_dispatcher_returns_backend_failed_as_execution_error_code() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
 
@@ -140,7 +142,7 @@ fn controlled_embed_dispatcher는_backend_failed를_실행_error_code로_반환�
 }
 
 #[test]
-fn controlled_embed_dispatcher는_wait_timeout을_표준_error_code로_반환한다() {
+fn controlled_embed_dispatcher_returns_wait_timeout_as_standard_error_code() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
 
@@ -191,7 +193,7 @@ fn controlled_embed_dispatcher는_wait_timeout을_표준_error_code로_반환한
 }
 
 #[test]
-fn controlled_embed_dispatcher는_large_unicode_output을_정규_output으로_보존한다() {
+fn controlled_embed_dispatcher_preserves_large_unicode_output_as_regular_output() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
 
@@ -304,7 +306,7 @@ impl upeg_runtime::controlled_embed::ControlledEmbedBackend for ChainCaptureBack
 }
 
 #[test]
-fn controlled_embed_dispatcher는_등록된_settings를_request로_전달한다() {
+fn controlled_embed_dispatcher_forwards_registered_settings_to_request() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
 
@@ -358,7 +360,7 @@ fn controlled_embed_dispatcher는_등록된_settings를_request로_전달한다(
 }
 
 #[test]
-fn controlled_embed_dispatcher는_선언된_output_spec으로_dom_출력을_정규화한다() {
+fn controlled_embed_dispatcher_normalizes_dom_output_with_declared_output_spec() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
 
@@ -391,7 +393,7 @@ fn controlled_embed_dispatcher는_선언된_output_spec으로_dom_출력을_정�
 }
 
 #[test]
-fn 체인은_컨트롤드_임베드의_내부_바인딩을_모른다() {
+fn chain_does_not_see_controlled_embed_internal_bindings() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
     const EMBED_URL: &str = "data:text/html,<!DOCTYPE html><html><body><input id=\"text\" /><button id=\"go\" onclick=\"document.getElementById(%27out%27).textContent=document.getElementById(%27text%27).value.toUpperCase()\">go</button><div id=\"out\"></div></body></html>";
@@ -513,7 +515,7 @@ args = '{"text":"{{input.word}}"}'
 }
 
 #[test]
-fn headless_dispatch는_owned_binding을_우선한다() {
+fn headless_dispatch_prefers_owned_binding() {
     // E4 regression: the headless dispatcher must read GUI/FRB-authored
     // (owned) selector bindings, not only the compile-time static ones.
     // Register a static binding and an owned binding for the same tool id

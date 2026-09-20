@@ -43,7 +43,7 @@ Widget _hostHarness(Future<void> Function(BuildContext context) opener) {
 
 void main() {
   group('showUpegPopover', () {
-    testWidgets('popover는_선택된_item의_값을_반환한다', (tester) async {
+    testWidgets('the_popover_returns_the_selected_items_value', (tester) async {
       String? picked;
       await tester.pumpWidget(
         _hostHarness((ctx) async {
@@ -76,7 +76,7 @@ void main() {
       expect(picked, 'delete');
     });
 
-    testWidgets('popover는_barrier_tap_시_null을_반환한다', (tester) async {
+    testWidgets('the_popover_returns_null_on_a_barrier_tap', (tester) async {
       String? picked = 'sentinel';
       await tester.pumpWidget(
         _hostHarness((ctx) async {
@@ -107,7 +107,9 @@ void main() {
       expect(picked, isNull);
     });
 
-    testWidgets('popover는_키보드로_이동하고_선택한다', (tester) async {
+    testWidgets('the_popover_navigates_and_selects_via_the_keyboard', (
+      tester,
+    ) async {
       String? picked;
       await tester.pumpWidget(
         _hostHarness((ctx) async {

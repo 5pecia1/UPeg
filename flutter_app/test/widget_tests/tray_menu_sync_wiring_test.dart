@@ -48,7 +48,7 @@ bool _pauseItemDisabled(Map<Object?, Object?> setContextMenuArgs) {
 
 void main() {
   testWidgets(
-    'TrayMenuSync는_UpegTray_install보다_먼저_구독해_embedded_전환에서_Pause를_재활성화한다',
+    'TrayMenuSync_subscribes_before_UpegTray_install_and_reenables_Pause_on_the_embedded_transition',
     (tester) async {
       final controller = StreamController<HostStateEvent>();
       addTearDown(controller.close);

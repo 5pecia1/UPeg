@@ -31,7 +31,7 @@ final ToolDto _uuid = fixtureToolDto(
 
 void main() {
   group('toolsProvider', () {
-    test('toolsProvider는_로더_결과를_그대로_반환한다', () async {
+    test('toolsProvider_returns_loader_result_verbatim', () async {
       final container = ProviderContainer(
         overrides: [
           toolsLoaderProvider.overrideWith(
@@ -48,7 +48,7 @@ void main() {
   });
 
   group('toolByIdProvider', () {
-    test('toolByIdProvider는_일치하는_id를_반환한다', () async {
+    test('toolByIdProvider_returns_matching_id', () async {
       final container = ProviderContainer(
         overrides: [
           toolsLoaderProvider.overrideWith(
@@ -69,7 +69,7 @@ void main() {
       );
     });
 
-    test('toolByIdProvider는_미존재_id에_null을_반환한다', () async {
+    test('toolByIdProvider_returns_null_for_missing_id', () async {
       final container = ProviderContainer(
         overrides: [
           toolsLoaderProvider.overrideWith(

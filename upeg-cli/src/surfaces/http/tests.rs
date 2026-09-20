@@ -60,7 +60,7 @@ async fn assert_get_array_field(app: Router, uri: &str, field: &str) {
 }
 
 #[test]
-fn 자격증명_목록_응답은_저장소_읽기_실패를_오류로_보고한다() {
+fn credentials_list_response_reports_registry_read_failure_as_an_error() {
     let (status, Json(body)) = credentials_list_response(Err(std::io::Error::new(
         std::io::ErrorKind::InvalidData,
         "invalid credential json",
@@ -73,7 +73,7 @@ fn 자격증명_목록_응답은_저장소_읽기_실패를_오류로_보고한�
 }
 
 #[test]
-fn logs_목록_응답은_저장소_읽기_오류를_보고한다() {
+fn logs_list_response_reports_store_read_errors() {
     let (status, Json(body)) = logs_list_response(Err(std::io::Error::new(
         std::io::ErrorKind::PermissionDenied,
         "log file denied",
@@ -86,7 +86,7 @@ fn logs_목록_응답은_저장소_읽기_오류를_보고한다() {
 }
 
 #[tokio::test]
-async fn 상태확인은_200과_페어링_힌트를_반환한다() {
+async fn healthz_returns_200_and_a_pairing_hint() {
     let resp = router()
         .oneshot(
             Request::builder()
@@ -102,7 +102,7 @@ async fn 상태확인은_200과_페어링_힌트를_반환한다() {
     assert_eq!(v["version"], env!("CARGO_PKG_VERSION"));
     assert!(
         v.get("restApi").is_none(),
-        "desired-state 게이트는 삭제되었다 — 실행 중인 host는 항상 /v1을 제공한다: {v}"
+        "the desired-state gate is gone — a running host always serves /v1: {v}"
     );
     assert!(
         v.get("token").is_none(),
@@ -111,10 +111,11 @@ async fn 상태확인은_200과_페어링_힌트를_반환한다() {
 }
 
 #[tokio::test]
-async fn 상태확인은_임포트_보류_신호를_담는다() {
-    // 라우트가 실제로 필드를 싣는지만 본다. 정확한 매핑은 아래
-    // `healthz_body` 단위 테스트가 고정한다 — 페이즈는 프로세스
-    // 전역이라 다른 테스트와 병렬로 값이 바뀔 수 있다.
+async fn healthz_carries_the_imports_pending_signal() {
+    // This only checks that the route actually carries the fields. The
+    // exact mapping is pinned by the `healthz_body` unit test below —
+    // the phase is process-global, so its value can change under
+    // parallel tests.
     let resp = router()
         .oneshot(
             Request::builder()
@@ -128,16 +129,16 @@ async fn 상태확인은_임포트_보류_신호를_담는다() {
 
     assert!(
         v[mcp_imports::IMPORTS_PENDING_FIELD].is_boolean(),
-        "attached client는 한 비트로 '아직 로딩 중'을 알 수 있어야 한다: {v}"
+        "an attached client must be able to tell 'still loading' from one bit: {v}"
     );
     assert!(
         v[mcp_imports::MCP_IMPORTS_FIELD].is_object(),
-        "임포트 상세 블록이 있어야 한다: {v}"
+        "the import detail block must be present: {v}"
     );
 }
 
 #[test]
-fn healthz_본문은_페이즈를_그대로_반영한다() {
+fn healthz_body_mirrors_the_phase() {
     use crate::infrastructure::mcp_imports::{McpImportPhase, McpImportTally};
 
     let loading = healthz_body(McpImportPhase::Loading);
@@ -154,7 +155,7 @@ fn healthz_본문은_페이즈를_그대로_반영한다() {
 }
 
 #[tokio::test]
-async fn http_요청_본문은_독립된_상한을_넘는_첫_바이트에서_413을_반환한다() {
+async fn http_request_body_returns_413_at_the_first_byte_past_the_cap() {
     let body = vec![b'x'; MAX_HTTP_REQUEST_BODY_BYTES + 1];
 
     let response = router()
@@ -164,16 +165,16 @@ async fn http_요청_본문은_독립된_상한을_넘는_첫_바이트에서_41
                 .uri("/v1/tools/num.hex_to_decimal")
                 .header("content-type", "application/json")
                 .body(Body::from(body))
-                .expect("HTTP 요청을 만들어야 한다"),
+                .expect("must build the HTTP request"),
         )
         .await
-        .expect("HTTP 응답을 받아야 한다");
+        .expect("must receive the HTTP response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[tokio::test]
-async fn 도구_목록_기준선은_내장_http_도구_형태를_포함한다() {
+async fn tool_list_baseline_includes_the_builtin_http_tool_shape() {
     let body = get_ok_json(router(), "/v1/tools").await;
     let tools = body["tools"].as_array().expect("tools array");
     assert!(!tools.is_empty(), "HTTP tools/list must not be empty");
@@ -205,7 +206,7 @@ async fn 도구_목록_기준선은_내장_http_도구_형태를_포함한다() 
 }
 
 #[tokio::test]
-async fn 도구킷_태그_보드_경로는_일급_리소스를_그대로_노출한다() {
+async fn toolkit_tag_board_routes_expose_first_class_resources() {
     let app = router();
 
     let body = get_ok_json(app.clone(), "/v1/toolkits").await;
@@ -241,6 +242,8 @@ async fn 도구킷_태그_보드_경로는_일급_리소스를_그대로_노출�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -283,7 +286,7 @@ async fn 도구킷_태그_보드_경로는_일급_리소스를_그대로_노출�
 }
 
 #[test]
-fn 보드_맥락_경로는_사용자_핀을_게이트로_도구를_dispatch한다() {
+fn board_context_route_dispatches_tools_gated_by_user_pins() {
     let mut env = BTreeMap::new();
     env.insert("PROFILE".to_string(), "dev".to_string());
     upeg_runtime::register_board_context(upeg_core::BoardExecutionContext {
@@ -301,6 +304,8 @@ fn 보드_맥락_경로는_사용자_핀을_게이트로_도구를_dispatch한�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -368,11 +373,11 @@ fn 보드_맥락_경로는_사용자_핀을_게이트로_도구를_dispatch한�
 }
 
 #[test]
-fn 보드_경유_호출은_핀_preset을_기본값으로_병합한다() {
+fn board_routed_call_merges_the_pin_preset_as_defaults() {
     crate::test_support::with_seeded_pegboard_home(
         "http-board-preset",
         |state| {
-            let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+            let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
             state.boards.push(upeg_sources::pegboard::BoardData {
                 guidance: upeg_core::BoardGuidance::default(),
                 key: "preset-dev".into(),
@@ -393,7 +398,10 @@ fn 보드_경유_호출은_핀_preset을_기본값으로_병합한다() {
                 let resp = post_json("/v1/boards/preset-dev/tools/num.hex_to_decimal", "").await;
                 assert_eq!(resp.status(), StatusCode::OK);
                 let body = body_to_value(resp.into_body()).await;
-                assert_eq!(body["outputs"][0]["value"], 255, "preset이 기본값이 된다");
+                assert_eq!(
+                    body["outputs"][0]["value"], 255,
+                    "the preset becomes the default"
+                );
 
                 // Explicit caller args override the preset key.
                 let resp = post_json(
@@ -405,7 +413,7 @@ fn 보드_경유_호출은_핀_preset을_기본값으로_병합한다() {
                 let body = body_to_value(resp.into_body()).await;
                 assert_eq!(
                     body["outputs"][0]["value"], 16,
-                    "호출자 인자가 preset을 덮어쓴다"
+                    "caller args override the preset"
                 );
             });
         },
@@ -413,7 +421,7 @@ fn 보드_경유_호출은_핀_preset을_기본값으로_병합한다() {
 }
 
 #[tokio::test]
-async fn 트리거_경로는_맥락이_있는_선언된_webhook_트리거를_dispatch한다() {
+async fn trigger_route_dispatches_a_declared_webhook_trigger_with_context() {
     const ID: &str = "httptrigger.webhook_echo";
     static CALLS: AtomicUsize = AtomicUsize::new(0);
     CALLS.store(0, Ordering::SeqCst);
@@ -430,6 +438,8 @@ async fn 트리거_경로는_맥락이_있는_선언된_webhook_트리거를_dis
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -467,7 +477,7 @@ async fn 트리거_경로는_맥락이_있는_선언된_webhook_트리거를_dis
 }
 
 #[tokio::test]
-async fn 트리거_경로는_webhook_트리거_바인딩이_없는_http_도구를_거부한다() {
+async fn trigger_route_rejects_http_tools_without_a_webhook_trigger_binding() {
     const PLAIN_ID: &str = "httptrigger.plain_http";
     const HOTKEY_ID: &str = "httptrigger.hotkey_only";
     static CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -486,6 +496,8 @@ async fn 트리거_경로는_webhook_트리거_바인딩이_없는_http_도구�
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -530,7 +542,7 @@ async fn 트리거_경로는_webhook_트리거_바인딩이_없는_http_도구�
 }
 
 #[test]
-fn 사전_설정되지_않으면_보드_맥락은_가장_가까운_프로젝트_manifest를_감지한다() {
+fn unconfigured_board_context_detects_the_nearest_project_manifest() {
     struct CwdRestore(std::path::PathBuf);
 
     impl Drop for CwdRestore {
@@ -569,6 +581,8 @@ tools = [{ id = "noop" }]"#,
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

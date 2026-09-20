@@ -1,6 +1,6 @@
-//! `render_tests` 모듈의 짝 — 선언된 입력 제약(기본값/범위/플레이스홀더)이
-//! Form 보기까지 도달하는지만 확인한다. 워크스페이스 1000-LoC 파일 크기
-//! 예산 때문에 분리했다.
+//! Companion to the `render_tests` module — checks only that declared
+//! input constraints (defaults/ranges/placeholders) reach the Form
+//! view. Split out for the workspace 1000-LoC file-size budget.
 
 use super::*;
 use upeg_core::{FieldConstraints, NumberConstraints, StringConstraints};
@@ -12,18 +12,18 @@ fn constrained_field(
     constraints: FieldConstraints,
 ) -> InputFieldSpec {
     InputFieldSpec::with_constraints(
-        InputName::new(name).expect("테스트 입력 이름"),
+        InputName::new(name).expect("test input name"),
         None,
         description.map(str::to_string),
         false,
         kind,
         constraints,
     )
-    .expect("테스트 입력 필드")
+    .expect("test input field")
 }
 
 fn form_state(fields: Vec<InputFieldSpec>) -> TuiFormState {
-    TuiFormState::new(InputSpec::new(fields).expect("테스트 입력 명세"))
+    TuiFormState::new(InputSpec::new(fields).expect("test input spec"))
 }
 
 fn rendered_form(form: TuiFormState) -> String {
@@ -36,16 +36,16 @@ fn rendered_form(form: TuiFormState) -> String {
         },
         ..State::default()
     };
-    let mut terminal = Terminal::new(TestBackend::new(80, 24)).expect("테스트 터미널");
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).expect("test terminal");
     let tools = list_tools();
     terminal
         .draw(|f| render(f, &state, &tools))
-        .expect("렌더 성공");
+        .expect("render success");
     format!("{:?}", terminal.backend().buffer())
 }
 
 #[test]
-fn form_보기는_선언된_기본값을_초기_draft로_보여준다() {
+fn form_view_shows_declared_default_as_initial_draft() {
     let buf = rendered_form(form_state(vec![constrained_field(
         "count",
         Some("Password length"),
@@ -62,16 +62,16 @@ fn form_보기는_선언된_기본값을_초기_draft로_보여준다() {
 
     assert!(
         buf.contains("count"),
-        "Form 보기는 필드 이름을 보여줘야 한다. got: {buf}"
+        "Form view must show the field name. got: {buf}"
     );
     assert!(
         buf.contains("20"),
-        "선언된 기본값이 초기 draft에 들어가야 한다. got: {buf}"
+        "the declared default must enter the initial draft. got: {buf}"
     );
 }
 
 #[test]
-fn form_보기는_설명_아래에_최소_최대를_보여준다() {
+fn form_view_shows_min_max_below_description() {
     let buf = rendered_form(form_state(vec![constrained_field(
         "count",
         Some("Password length"),
@@ -88,20 +88,20 @@ fn form_보기는_설명_아래에_최소_최대를_보여준다() {
 
     assert!(
         buf.contains("Password length"),
-        "필드 설명이 보여야 한다. got: {buf}"
+        "the field description must be visible. got: {buf}"
     );
     assert!(
         buf.contains("min 8"),
-        "선언된 최소값이 보여야 한다. got: {buf}"
+        "the declared minimum must be visible. got: {buf}"
     );
     assert!(
         buf.contains("max 128"),
-        "선언된 최대값이 보여야 한다. got: {buf}"
+        "the declared maximum must be visible. got: {buf}"
     );
 }
 
 #[test]
-fn form_보기는_플레이스홀더를_예시로_보여준다() {
+fn form_view_shows_placeholder_as_example() {
     let buf = rendered_form(form_state(vec![constrained_field(
         "slug",
         None,
@@ -118,6 +118,6 @@ fn form_보기는_플레이스홀더를_예시로_보여준다() {
 
     assert!(
         buf.contains("e.g. my-post-title"),
-        "선언된 플레이스홀더가 예시로 보여야 한다. got: {buf}"
+        "the declared placeholder must appear as an example. got: {buf}"
     );
 }

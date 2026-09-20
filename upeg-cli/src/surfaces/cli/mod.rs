@@ -27,7 +27,7 @@ const CLI_TEST_PATH: &str = "upeg-cli/src/inventory/tests.rs";
 /// The test inside [`CLI_TEST_PATH`] that actually asserts these
 /// entries. Pinned by the inventory honesty check, which fails when
 /// no `fn <name>` with this spelling exists in that file.
-const CLI_TEST_NAME: &str = "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다";
+const CLI_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
 
 struct CliCommandDeclaration {
     id: &'static str,
@@ -153,7 +153,7 @@ pub struct Cli {
     #[arg(long)]
     pub board: Option<String>,
     /// Open the TUI with one effective Tag selected. This keeps `upeg`
-    /// keyboard-first while still exposing the PRD Board + Tag filter model
+    /// keyboard-first while still exposing the Board + Tag filter model
     /// without adding a separate compatibility command.
     #[arg(long = "tui-tag")]
     pub tui_tag: Option<String>,
@@ -226,7 +226,7 @@ pub enum Command {
         action: TriggerAction,
     },
     /// Run as an MCP server over stdio (JSON-RPC). Wires every Tool registered
-    /// via `#[upeg::tool]` into Claude Code / Cursor / Claude Desktop. PRD §7
+    /// via `#[upeg::tool]` into Claude Code / Cursor / Claude Desktop.
     /// Configure in `claude_desktop_config.json`:
     ///
     ///   { "command": "upeg", "args": ["mcp"] }
@@ -238,7 +238,7 @@ pub enum Command {
         #[arg(long)]
         board: Option<String>,
     },
-    /// Run as an HTTP server (PRD §6.8, §5.5).
+    /// Run as an HTTP server.
     ///
     /// With no subcommand, starts a foreground server. With `--daemon`,
     /// detaches and writes to a log file. Use `status` / `stop` /
@@ -251,7 +251,7 @@ pub enum Command {
         /// Bind address. Default `127.0.0.1:0` (ephemeral loopback).
         #[arg(long)]
         addr: Option<String>,
-        /// Detach into a background daemon process (PRD §5.5).
+        /// Detach into a background daemon process.
         #[arg(long)]
         daemon: bool,
         /// Explicit bearer token. Otherwise read from `UPEG_HTTP_TOKEN`
@@ -270,7 +270,7 @@ pub enum Command {
         /// CORS (repeatable, e.g. `--cors-origin https://app.example.com`).
         /// Loopback (`http://127.0.0.1:*`, `http://localhost:*`) and
         /// `chrome-extension://` origins are always allowed; this adds
-        /// to that set. No wildcard (`*`) — Task B1.
+        /// to that set. No wildcard (`*`).
         #[arg(long = "cors-origin", value_name = "ORIGIN")]
         cors_origin: Vec<String>,
     },
@@ -309,7 +309,7 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Enter the interactive TUI explicitly (B-5). Equivalent to
+    /// Enter the interactive TUI explicitly. Equivalent to
     /// running `upeg` with no subcommand on a terminal stdout — same
     /// entry point ([`crate::app::run_no_command`]), so it honours the
     /// global `--board` / `--tui-tag` flags identically. Exists for
@@ -317,7 +317,7 @@ pub enum Command {
     /// rather than relying on "no args on a terminal".
     Tui,
     /// Generic tool caller. Sends JSON-formatted args to the named Tool
-    /// and prints its primary output value by default. If a host (PRD §5.2 L1/L2/L3) is
+    /// and prints its primary output value by default. If a host is
     /// already running, `call` automatically attaches to it via the
     /// discovery file so the run shows up in shared state; otherwise it
     /// dispatches in-process.
@@ -384,16 +384,14 @@ pub enum HttpAction {
         /// Emit JSON instead of the human-readable block.
         #[arg(long)]
         json: bool,
-        /// Also print a pairing block: the endpoint, bearer token, and
-        /// a scannable QR (rendered by the real `qr.encode` tool)
-        /// encoding a compact pairing payload, for browser/mobile
-        /// pairing without hand-copying the port + token. Local
-        /// operator only — this is CLI-side display, never served
-        /// over HTTP.
+        /// Also print a pairing block: the endpoint and bearer token as
+        /// plain text, for browser/mobile pairing without digging the
+        /// port + token out of `server.json`. Local operator only —
+        /// this is CLI-side display, never served over HTTP.
         #[arg(long)]
         pairing: bool,
     },
-    /// Stop the running host. PRD §5.5: SIGTERM with 5s grace, then
+    /// Stop the running host. Sends SIGTERM with 5s grace, then
     /// SIGKILL only with `--force`.
     Stop {
         /// Escalate to SIGKILL after the grace window expires.
@@ -521,7 +519,7 @@ pub enum ToolAction {
     /// List every registered Tool.
     ///
     /// Default output: tab-separated `<id>\t<toolkit>\t<pin>` rows
-    /// (pipe-friendly, PRD §6.5). With `--json`, emit one JSON array
+    /// (pipe-friendly). With `--json`, emit one JSON array
     /// matching the `/v1/tools` HTTP shape so machine consumers don't
     /// have to parse tabs.
     List {
@@ -801,7 +799,7 @@ pub enum TriggerAction {
     /// binding (`source[:condition]`); a Tool with no binding is stamped with
     /// nothing.
     Fire {
-        /// Trigger/Tool id. For v2.1 this is the canonical Tool id.
+        /// Trigger/Tool id — the canonical Tool id.
         id: String,
         /// JSON args object. Defaults to `{}`. Pass `-` to read from stdin.
         #[arg(default_value = "{}")]
@@ -818,7 +816,7 @@ mod tui_command_tests {
     use clap::Parser as _;
 
     #[test]
-    fn upeg_tui는_tui_커맨드_변형으로_파싱된다() {
+    fn upeg_tui_parses_as_tui_command_variant() {
         let cli = Cli::parse_from(["upeg", "tui"]);
         assert!(
             matches!(cli.command, Some(Command::Tui)),
@@ -828,7 +826,7 @@ mod tui_command_tests {
     }
 
     #[test]
-    fn upeg_tui는_전역_board와_tui_tag_플래그를_그대로_받는다() {
+    fn upeg_tui_accepts_global_board_and_tui_tag_flags() {
         let cli = Cli::parse_from(["upeg", "--board", "dev", "--tui-tag", "pure", "tui"]);
         assert!(matches!(cli.command, Some(Command::Tui)));
         assert_eq!(cli.board.as_deref(), Some("dev"));

@@ -54,14 +54,15 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// desktop/pwa/ext 선언은 self-pin이 아니라 실재하는 source/docs/tests 좌표를
-/// 가리켜야 한다 — 백로그 "inventory declaration honesty" 항목의 저렴하지만
-/// 실제적인 검증. `desktop_pwa_ext.rs`의 손으로 선언한 각 항목에 대해 (1)
-/// `source`/`command_path` 로케이터가 실재 파일(+심볼)을 가리키는지, (2) 문서
-/// 앵커가 실재 heading을 가리키는지, (3) `tests` 포인터가 선언 파일 자신이
-/// 아닌 실재 파일을 가리키는지 확인한다.
+/// desktop/pwa/ext declarations must point at real source/docs/tests
+/// coordinates, not self-pins — the cheap but real check behind the
+/// "inventory declaration honesty" backlog item. For each hand-declared
+/// entry in `desktop_pwa_ext.rs`, verifies (1) the `source`/`command_path`
+/// locators point at a real file (+symbol), (2) doc anchors point at a
+/// real heading, and (3) `tests` pointers point at a real file other than
+/// the declaring file itself.
 #[test]
-fn desktop_pwa_ext_선언은_실재하는_source_docs_tests_좌표를_가리킨다() {
+fn desktop_pwa_ext_declarations_point_to_real_source_docs_tests_coordinates() {
     let repo_root = repo_root();
 
     for entry in desktop_pwa_ext::interface_inventory_entries() {
@@ -69,10 +70,10 @@ fn desktop_pwa_ext_선언은_실재하는_source_docs_tests_좌표를_가리킨�
             .source
             .path
             .as_deref()
-            .unwrap_or_else(|| panic!("{}: source.path가 없다", entry.id));
+            .unwrap_or_else(|| panic!("{}: has no source.path", entry.id));
         assert!(
             repo_root.join(source_path).exists(),
-            "{}: source.path {source_path}가 존재하지 않는다",
+            "{}: source.path {source_path} does not exist",
             entry.id
         );
 
@@ -90,18 +91,18 @@ fn desktop_pwa_ext_선언은_실재하는_source_docs_tests_좌표를_가리킨�
         }
 
         // An uncovered entry has no path to check — the gap itself is
-        // the declaration, and `모든_surface_선언의_tests_포인터는_...`
+        // the declaration, and `all_surface_declaration_tests_pointers_...`
         // asserts its reason is present.
         if let Some(tests_path) = entry.tests.path() {
             assert_ne!(
                 tests_path,
                 desktop_pwa_ext::DECLARING_FILE_PATH,
-                "{}: tests.path가 여전히 선언 파일 자신을 가리키는 self-pin이다",
+                "{}: tests.path is still a self-pin pointing at the declaring file itself",
                 entry.id
             );
             assert!(
                 repo_root.join(tests_path).exists(),
-                "{}: tests.path {tests_path}가 존재하지 않는다",
+                "{}: tests.path {tests_path} does not exist",
                 entry.id
             );
         }
@@ -121,14 +122,14 @@ fn assert_locator_resolves(repo_root: &Path, locator: &str, source_path: &str, e
         let symbol = locator
             .rsplit("::")
             .next()
-            .unwrap_or_else(|| panic!("{entry_id}: 빈 Rust 경로 locator `{locator}`"));
+            .unwrap_or_else(|| panic!("{entry_id}: empty Rust path locator `{locator}`"));
         assert_file_contains(repo_root, source_path, &format!("fn {symbol}"), entry_id);
         return;
     }
 
     assert!(
         repo_root.join(locator).exists(),
-        "{entry_id}: command_path {locator}가 존재하지 않는다"
+        "{entry_id}: command_path {locator} does not exist"
     );
 }
 
@@ -152,31 +153,31 @@ fn assert_schema_ref_resolves(repo_root: &Path, schema_ref: &str, entry_id: &str
 
     assert!(
         repo_root.join(schema_ref).exists(),
-        "{entry_id}: schemaRef {schema_ref}가 존재하지 않는다"
+        "{entry_id}: schemaRef {schema_ref} does not exist"
     );
 }
 
 fn assert_file_contains(repo_root: &Path, rel_path: &str, needle: &str, entry_id: &str) {
     let file = repo_root.join(rel_path);
     let content = std::fs::read_to_string(&file)
-        .unwrap_or_else(|e| panic!("{entry_id}: {rel_path} 읽기 실패: {e}"));
+        .unwrap_or_else(|e| panic!("{entry_id}: failed to read {rel_path}: {e}"));
     assert!(
         content.contains(needle),
-        "{entry_id}: {rel_path} 안에서 심볼 `{needle}`을 찾을 수 없다 (stale locator)"
+        "{entry_id}: symbol `{needle}` not found in {rel_path} (stale locator)"
     );
 }
 
 fn assert_doc_heading_exists(repo_root: &Path, doc_path: &str, anchor: &str, entry_id: &str) {
     let file = repo_root.join(doc_path);
     let content = std::fs::read_to_string(&file)
-        .unwrap_or_else(|e| panic!("{entry_id}: {doc_path} 읽기 실패: {e}"));
+        .unwrap_or_else(|e| panic!("{entry_id}: failed to read {doc_path}: {e}"));
     let has_heading = content
         .lines()
         .filter_map(heading_slug)
         .any(|slug| slug == anchor);
     assert!(
         has_heading,
-        "{entry_id}: {doc_path} 안에 앵커 `#{anchor}`에 대응하는 heading이 없다"
+        "{entry_id}: no heading in {doc_path} matching anchor `#{anchor}`"
     );
 }
 
@@ -234,15 +235,16 @@ impl TestFileLanguage {
     }
 }
 
-/// 손으로 선언한 surface 항목의 `tests` 포인터는 전부 실재해야 한다 —
-/// desktop/pwa/ext 뿐 아니라 cli/http/mcp/mcp-import/tui 까지. 파일이
-/// 있는지만이 아니라 **그 파일 안에 그 이름의 테스트가 실제로 있는지**
-/// 본다. 존재하지 않는 테스트 이름을 적어 두면 인벤토리는 커버된 것처럼
-/// 보이지만 아무것도 검증되지 않는다 — 그게 이 검사가 막는 실패다.
-/// 테스트가 없는 항목은 `TestMapping::Uncovered { reason }`으로 정직하게
-/// 선언해야 하며, 그때는 사유가 비어 있지 않은지만 본다.
+/// Every hand-declared surface entry's `tests` pointer must be real —
+/// not only desktop/pwa/ext but cli/http/mcp/mcp-import/tui too. It is
+/// not enough for the file to exist: **a test of that name must actually
+/// exist inside it**. Writing down a nonexistent test name makes the
+/// inventory look covered while nothing is verified — that is the failure
+/// this check prevents. Entries with no test must be honestly declared as
+/// `TestMapping::Uncovered { reason }`, in which case only the reason's
+/// non-emptiness is checked.
 #[test]
-fn 모든_surface_선언의_tests_포인터는_실재하는_테스트를_가리킨다() {
+fn all_surface_declaration_tests_pointers_point_to_real_tests() {
     let repo_root = repo_root();
 
     for entry in all_declared_surface_entries() {
@@ -250,7 +252,7 @@ fn 모든_surface_선언의_tests_포인터는_실재하는_테스트를_가리�
             upeg_core::interface_inventory::TestMapping::Uncovered { reason } => {
                 assert!(
                     !reason.trim().is_empty(),
-                    "{}: uncovered 선언에 사유가 없다",
+                    "{}: uncovered declaration has no reason",
                     entry.id
                 );
                 continue;
@@ -263,7 +265,7 @@ fn 모든_surface_선언의_tests_포인터는_실재하는_테스트를_가리�
         let file = repo_root.join(path);
         assert!(
             file.exists(),
-            "{}: tests.path {path}가 존재하지 않는다",
+            "{}: tests.path {path} does not exist",
             entry.id
         );
 
@@ -271,21 +273,21 @@ fn 모든_surface_선언의_tests_포인터는_실재하는_테스트를_가리�
             continue;
         };
         let language = TestFileLanguage::of(path)
-            .unwrap_or_else(|| panic!("{}: tests.path {path}는 .rs 도 .dart 도 아니다", entry.id));
+            .unwrap_or_else(|| panic!("{}: tests.path {path} is neither .rs nor .dart", entry.id));
         let content = std::fs::read_to_string(&file)
-            .unwrap_or_else(|e| panic!("{}: {path} 읽기 실패: {e}", entry.id));
+            .unwrap_or_else(|e| panic!("{}: failed to read {path}: {e}", entry.id));
         let forms = language.declaration_forms(test_name);
         assert!(
             forms.iter().any(|form| content.contains(form)),
-            "{}: {path} 안에 `{test_name}` 테스트가 없다 (찾은 형태: {forms:?}) — \
-             존재하지 않는 테스트를 가리키는 선언은 커버리지를 지어낸다",
+            "{}: no `{test_name}` test in {path} (forms tried: {forms:?}) — \
+             a declaration pointing at a nonexistent test fabricates coverage",
             entry.id
         );
     }
 }
 
 #[test]
-fn 인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다() {
+fn interface_inventory_covers_cli_http_and_mcp() {
     let entries = all_surface_entries();
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
@@ -294,8 +296,9 @@ fn 인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다() {
 
     inventory.validate().expect("surface inventory validates");
 
-    // 개수는 파생값이다 — 기대 id 목록이 단일 진실이고, `len()`은 거기서 나온다.
-    // 새 surface entry를 추가하면 숫자가 아니라 이 목록을 고쳐야 한다.
+    // The count is derived — the expected id list is the single source of
+    // truth and `len()` follows from it. Adding a new surface entry means
+    // editing this list, not a number.
     const EXPECTED_SURFACE_ENTRY_IDS: &[&str] = &[
         "cli.tool.list",
         "cli.call",
@@ -325,7 +328,7 @@ fn 인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다() {
     expected_ids.sort_unstable();
     assert_eq!(
         actual_ids, expected_ids,
-        "surface 인벤토리 id 집합이 달라졌다"
+        "the surface inventory id set changed"
     );
     assert_eq!(entries.len(), EXPECTED_SURFACE_ENTRY_IDS.len());
     assert!(entries.iter().all(|entry| entry.version == "v1"));
@@ -357,14 +360,15 @@ fn 인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다() {
             .as_deref(),
         Some("host.start")
     );
-    // service/source control plane은 삭제되었다 — 인벤토리에도 남으면 안 된다.
+    // The service/source control plane was removed — it must not remain
+    // in the inventory either.
     assert!(
         !entries
             .iter()
             .any(|entry| entry.id.starts_with("cli.service.")
                 || entry.id.starts_with("cli.source.")
                 || entry.id.starts_with("http.control.")),
-        "삭제된 control plane 항목이 인터페이스 인벤토리에 남아 있다"
+        "removed control-plane entries remain in the interface inventory"
     );
 
     let http_tools_list = find_entry(&entries, "http.v1.tools.list", InterfaceKind::HttpRoute);
@@ -432,7 +436,7 @@ fn 인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_유효하지_않은_http_경로_계약을_거부한다() {
+fn interface_inventory_rejects_invalid_http_route_contract() {
     let mut invalid = surfaces::http::interface_inventory_entries()
         .into_iter()
         .find(|entry| entry.id == "http.v1.tools.list")
@@ -452,7 +456,7 @@ fn 인터페이스_인벤토리는_유효하지_않은_http_경로_계약을_거
 }
 
 #[test]
-fn 인터페이스_인벤토리_생성은_종료_코드_0을_반환한다() {
+fn interface_inventory_generate_succeeds() {
     let dir = temp_inventory_dir("generate");
     let json_path = dir.join("inventory.json");
     let markdown_path = dir.join("inventory.md");
@@ -534,7 +538,7 @@ fn 인터페이스_인벤토리_생성은_종료_코드_0을_반환한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리_markdown은_headless_정합성_요약을_표시한다() {
+fn interface_inventory_markdown_shows_headless_coherence_summary() {
     let markdown = interface_inventory_command::format_inventory_markdown(&static_tool_inventory());
 
     assert!(markdown.contains(
@@ -547,7 +551,7 @@ fn 인터페이스_인벤토리_markdown은_headless_정합성_요약을_표시�
 }
 
 #[test]
-fn 혼합_surface_도구는_markdown에서_headless로_집계된다() {
+fn mixed_surface_tools_count_as_headless_in_markdown() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: vec![
@@ -576,7 +580,7 @@ fn 혼합_surface_도구는_markdown에서_headless로_집계된다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리_확인은_이탈을_감지한다() {
+fn interface_inventory_check_detects_drift() {
     let dir = temp_inventory_dir("check");
     let baseline_path = dir.join("baseline.json");
     let docs_path = dir.join("docs.md");
@@ -629,7 +633,7 @@ fn 인터페이스_인벤토리_확인은_이탈을_감지한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리_확인은_경로_수준_계약_이탈을_먼저_보고한다() {
+fn interface_inventory_check_reports_path_level_contract_drift_first() {
     let dir = temp_inventory_dir("check-path-drift");
     let baseline_path = dir.join("baseline.json");
     let docs_path = dir.join("docs.md");

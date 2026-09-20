@@ -39,7 +39,7 @@ fn entry(id: &str, surfaces: impl Into<SurfaceSet>, kind: InterfaceKind) -> Inte
         },
         tests: TestMapping::covered(
             "upeg-core/src/interface_inventory.rs",
-            Some("인터페이스_인벤토리의_직렬화는_결정적이다".to_string()),
+            Some("interface_inventory_serialization_is_deterministic".to_string()),
         ),
     }
 }
@@ -70,7 +70,7 @@ fn assert_missing_local_path(entry: InterfaceEntry, expected_field: &str, expect
 }
 
 #[test]
-fn 인터페이스_인벤토리의_직렬화는_결정적이다() {
+fn interface_inventory_serialization_is_deterministic() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: vec![
@@ -104,7 +104,7 @@ fn 인터페이스_인벤토리의_직렬화는_결정적이다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_중복된_id를_거부한다() {
+fn interface_inventory_rejects_duplicate_ids() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: vec![
@@ -121,7 +121,7 @@ fn 인터페이스_인벤토리는_중복된_id를_거부한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_표면_집합이_다른_같은_계약도_중복으로_본다() {
+fn interface_inventory_treats_same_contract_with_different_surfaces_as_duplicate() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: vec![
@@ -138,7 +138,7 @@ fn 인터페이스_인벤토리는_표면_집합이_다른_같은_계약도_중�
 }
 
 #[test]
-fn 인터페이스_인벤토리는_표면이_없는_항목을_거부한다() {
+fn interface_inventory_rejects_entries_without_surfaces() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: vec![entry("surfaceless", Vec::new(), InterfaceKind::CliCommand)],
@@ -152,7 +152,7 @@ fn 인터페이스_인벤토리는_표면이_없는_항목을_거부한다() {
 }
 
 #[test]
-fn 인터페이스_항목은_가장_낮은_표면_rank로_정렬된다() {
+fn interface_entries_sort_by_lowest_surface_rank() {
     let mut entries = [
         entry("mcp-only", Surface::Mcp, InterfaceKind::Tool),
         entry(
@@ -175,7 +175,7 @@ fn 인터페이스_항목은_가장_낮은_표면_rank로_정렬된다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_schema_버전_일_문서를_거부한다() {
+fn interface_inventory_rejects_schema_version_one_documents() {
     let inventory = InterfaceInventory {
         schema_version: 1,
         entries: vec![entry("v1", Surface::Cli, InterfaceKind::CliCommand)],
@@ -189,7 +189,7 @@ fn 인터페이스_인벤토리는_schema_버전_일_문서를_거부한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_표면_커버리지를_보장한다() {
+fn interface_inventory_enforces_surface_coverage() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: ALL_SURFACES
@@ -215,7 +215,7 @@ fn 인터페이스_인벤토리는_표면_커버리지를_보장한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_누락된_로컬_참조를_거부한다() {
+fn interface_inventory_rejects_missing_local_references() {
     let mut missing_docs = entry("missing-docs", Surface::Cli, InterfaceKind::CliCommand);
     missing_docs.docs.path = Some("docs/does-not-exist.md".to_string());
     assert_missing_local_path(missing_docs, "entry.docs", "docs/does-not-exist.md");
@@ -238,7 +238,7 @@ fn 인터페이스_인벤토리는_누락된_로컬_참조를_거부한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_누락된_필수_필드를_거부한다() {
+fn interface_inventory_rejects_missing_required_fields() {
     let mut invalid = entry("", Surface::Cli, InterfaceKind::CliCommand);
     invalid.tests = TestMapping::covered(String::new(), None);
     let inventory = InterfaceInventory {

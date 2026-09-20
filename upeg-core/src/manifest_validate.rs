@@ -189,9 +189,9 @@ mod tests {
     use super::*;
     use crate::types::ControlledEmbedTriggerAction;
 
-    /// `ControlledEmbed`에서 모든 검증을 통과하는 최소 바인딩 세트
-    /// (Input + Trigger + Output 한 줄씩). 합법 케이스 테스트의
-    /// 공통 입력.
+    /// The minimal binding set that passes every `ControlledEmbed`
+    /// validation check (one line each of Input + Trigger + Output).
+    /// Shared input for the legal-case tests.
     fn ok_controlled_bindings() -> Vec<SelectorBinding> {
         vec![
             SelectorBinding {
@@ -219,14 +219,14 @@ mod tests {
     }
 
     #[test]
-    fn passive_embed_과_static_invoker는_validate된다() {
+    fn passive_embed_with_static_invoker_validates() {
         assert!(
             validate_embed_pairing("demo.passive", PinKind::Embed, Invoker::Static, &[]).is_ok()
         );
     }
 
     #[test]
-    fn passive_embed_과_embed_invoker는_거부된다() {
+    fn passive_embed_with_embed_invoker_is_rejected() {
         let result = validate_embed_pairing("demo.passive", PinKind::Embed, Invoker::Embed, &[]);
         assert!(matches!(
             result,
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn passive_embed_과_function_invoker는_거부된다() {
+    fn passive_embed_with_function_invoker_is_rejected() {
         let result = validate_embed_pairing("demo.passive", PinKind::Embed, Invoker::Function, &[]);
         assert!(matches!(
             result,
@@ -244,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn passive_embed에_바인딩이_있으면_거부된다() {
+    fn passive_embed_with_bindings_is_rejected() {
         let bindings = vec![SelectorBinding {
             role: BindingRole::Input,
             field: "x".into(),
@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_과_embed_invoker는_validate된다() {
+    fn controlled_embed_with_embed_invoker_validates() {
         assert!(
             validate_embed_pairing(
                 "demo.controlled",
@@ -278,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_과_function_invoker는_거부된다() {
+    fn controlled_embed_with_function_invoker_is_rejected() {
         let result = validate_embed_pairing(
             "demo.controlled",
             PinKind::ControlledEmbed,
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn embed_invoker는_controlled_embed가_아니면_거부된다() {
+    fn embed_invoker_outside_controlled_embed_is_rejected() {
         let result = validate_embed_pairing("demo.misuse", PinKind::Inline, Invoker::Embed, &[]);
         assert!(matches!(
             result,
@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn static_invoker는_passive_embed가_아니면_거부된다() {
+    fn static_invoker_outside_passive_embed_is_rejected() {
         let result = validate_embed_pairing("demo.misuse", PinKind::Action, Invoker::Static, &[]);
         assert!(matches!(
             result,
@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed는_바인딩이_없으면_거부된다() {
+    fn controlled_embed_without_bindings_is_rejected() {
         let result = validate_embed_pairing(
             "demo.controlled.empty",
             PinKind::ControlledEmbed,
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed는_trigger_없이_거부된다() {
+    fn controlled_embed_without_trigger_is_rejected() {
         let bindings = vec![
             SelectorBinding {
                 role: BindingRole::Input,
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed는_output_없이_거부된다() {
+    fn controlled_embed_without_output_is_rejected() {
         let bindings = vec![
             SelectorBinding {
                 role: BindingRole::Input,
@@ -384,8 +384,8 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed는_input_없어도_허용된다() {
-        // "버튼만 누르면 결과 반환" 케이스 — Input 0 OK.
+    fn controlled_embed_is_allowed_without_input() {
+        // "press a button and get a result back" case — zero Inputs OK.
         let bindings = vec![
             SelectorBinding {
                 role: BindingRole::Trigger,
@@ -414,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn non_embed_tool은_pairing_검사_통과한다() {
+    fn non_embed_tool_passes_the_pairing_check() {
         // Any non-embed pin+invoker combination is out of scope.
         assert!(
             validate_embed_pairing("demo.regular", PinKind::Inline, Invoker::Function, &[],)

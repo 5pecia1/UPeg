@@ -129,50 +129,50 @@ mod tests {
     // ─── hex_to_decimal ─────────────────────────────────────────────
 
     #[test]
-    fn 소문자_접두사를_허용한다() {
+    fn hex_to_decimal_allows_lowercase_prefix() {
         assert_eq!(hex_to_decimal("0xff"), Ok(255));
     }
 
     #[test]
-    fn 대문자_접두사를_허용한다() {
+    fn hex_to_decimal_allows_uppercase_prefix() {
         assert_eq!(hex_to_decimal("0XFF"), Ok(255));
     }
 
     #[test]
-    fn 접두사가_없는_hex도_허용한다() {
+    fn hex_to_decimal_allows_missing_prefix() {
         assert_eq!(hex_to_decimal("ff"), Ok(255));
     }
 
     #[test]
-    fn 주변_공백을_잘라낸다() {
+    fn hex_to_decimal_trims_surrounding_whitespace() {
         assert_eq!(hex_to_decimal("  0xff  "), Ok(255));
     }
 
     #[test]
-    fn hex_0_값을_처리한다() {
+    fn hex_to_decimal_handles_zero() {
         assert_eq!(hex_to_decimal("0x0"), Ok(0));
     }
 
     #[test]
-    fn 빈_입력은_오류이다() {
+    fn hex_to_decimal_rejects_empty_input() {
         assert_eq!(hex_to_decimal(""), Err("empty input"));
         assert_eq!(hex_to_decimal("0x"), Err("empty input"));
     }
 
     #[test]
-    fn 유효하지_않은_문자들은_오류이다() {
+    fn hex_to_decimal_rejects_invalid_chars() {
         assert_eq!(hex_to_decimal("0xZZ"), Err("invalid hex or overflow"));
         assert_eq!(hex_to_decimal("not-hex"), Err("invalid hex or overflow"));
     }
 
     #[test]
-    fn u128_최대를_처리한다() {
+    fn hex_to_decimal_handles_u128_max() {
         let s = "0xffffffffffffffffffffffffffffffff";
         assert_eq!(hex_to_decimal(s), Ok(u128::MAX));
     }
 
     #[test]
-    fn u128를_초과하는_넘침은_거부한다() {
+    fn hex_to_decimal_rejects_overflow_above_u128_max() {
         let s = "0xfffffffffffffffffffffffffffffffff";
         assert_eq!(hex_to_decimal(s), Err("invalid hex or overflow"));
     }
@@ -180,19 +180,19 @@ mod tests {
     // ─── decimal_to_hex ─────────────────────────────────────────────
 
     #[test]
-    fn 십진수를_소문자_hex로_포맷한다() {
+    fn decimal_to_hex_formats_lowercase() {
         assert_eq!(decimal_to_hex("255").unwrap(), "ff");
         assert_eq!(decimal_to_hex("0").unwrap(), "0");
         assert_eq!(decimal_to_hex("16").unwrap(), "10");
     }
 
     #[test]
-    fn 십진수_hex_변환은_주변_공백을_잘라낸다() {
+    fn decimal_to_hex_trims_surrounding_whitespace() {
         assert_eq!(decimal_to_hex("  255  ").unwrap(), "ff");
     }
 
     #[test]
-    fn 십진수_hex_변환은_u128_최대를_처리한다() {
+    fn decimal_to_hex_handles_u128_max() {
         assert_eq!(
             decimal_to_hex(&u128::MAX.to_string()).unwrap(),
             "ffffffffffffffffffffffffffffffff"
@@ -200,14 +200,14 @@ mod tests {
     }
 
     #[test]
-    fn 십진수_hex_변환은_유효하지_않은_입력을_거부한다() {
+    fn decimal_to_hex_rejects_invalid_input() {
         assert!(decimal_to_hex("not-a-number").is_err());
         assert!(decimal_to_hex("-1").is_err());
         assert!(decimal_to_hex("").is_err());
     }
 
     #[test]
-    fn 십진수_hex_왕복은_hex_to_decimal과_일치한다() {
+    fn decimal_hex_roundtrip_matches_hex_to_decimal() {
         for n in [0_u128, 1, 16, 255, 4096, u128::MAX] {
             let hex = decimal_to_hex(&n.to_string()).unwrap();
             assert_eq!(hex_to_decimal(&hex), Ok(n), "round-trip failed for {n}");
@@ -217,19 +217,19 @@ mod tests {
     // ─── decimal_to_binary ────────────────────────────────────────
 
     #[test]
-    fn 십진수를_이진수_문자열로_포맷한다() {
+    fn decimal_to_binary_formats_binary_string() {
         assert_eq!(decimal_to_binary("255").unwrap(), "11111111");
         assert_eq!(decimal_to_binary("0").unwrap(), "0");
         assert_eq!(decimal_to_binary("5").unwrap(), "101");
     }
 
     #[test]
-    fn 십진수_이진수_변환은_주변_공백을_잘라낸다() {
+    fn decimal_to_binary_trims_surrounding_whitespace() {
         assert_eq!(decimal_to_binary("  5  ").unwrap(), "101");
     }
 
     #[test]
-    fn 십진수_이진수_변환은_유효하지_않은_입력을_거부한다() {
+    fn decimal_to_binary_rejects_invalid_input() {
         assert!(decimal_to_binary("not-a-number").is_err());
         assert!(decimal_to_binary("-1").is_err());
         assert!(decimal_to_binary("").is_err());
@@ -238,43 +238,43 @@ mod tests {
     // ─── binary_to_decimal ────────────────────────────────────────
 
     #[test]
-    fn 이진수를_십진수로_파싱한다() {
+    fn binary_to_decimal_parses_binary() {
         assert_eq!(binary_to_decimal("11111111"), Ok(255));
         assert_eq!(binary_to_decimal("101"), Ok(5));
         assert_eq!(binary_to_decimal("0"), Ok(0));
     }
 
     #[test]
-    fn 이진수_파싱은_0b_접두사를_허용한다() {
+    fn binary_to_decimal_allows_0b_prefix() {
         assert_eq!(binary_to_decimal("0b101"), Ok(5));
         assert_eq!(binary_to_decimal("0B101"), Ok(5));
     }
 
     #[test]
-    fn 이진수_파싱은_주변_공백을_잘라낸다() {
+    fn binary_to_decimal_trims_surrounding_whitespace() {
         assert_eq!(binary_to_decimal("  101  "), Ok(5));
     }
 
     #[test]
-    fn 이진수_파싱은_빈_입력을_거부한다() {
+    fn binary_to_decimal_rejects_empty_input() {
         assert_eq!(binary_to_decimal(""), Err("empty input"));
         assert_eq!(binary_to_decimal("0b"), Err("empty input"));
     }
 
     #[test]
-    fn 이진수_파싱은_0과_1_이외의_문자를_거부한다() {
+    fn binary_to_decimal_rejects_chars_beyond_0_and_1() {
         assert!(binary_to_decimal("1012").is_err());
         assert!(binary_to_decimal("not-binary").is_err());
     }
 
     #[test]
-    fn 이진수_파싱은_u128_최대를_처리한다() {
+    fn binary_to_decimal_handles_u128_max() {
         let s = "1".repeat(128);
         assert_eq!(binary_to_decimal(&s), Ok(u128::MAX));
     }
 
     #[test]
-    fn 이진수_십진수_왕복은_decimal_to_binary와_일치한다() {
+    fn binary_decimal_roundtrip_matches_decimal_to_binary() {
         for n in [0_u128, 1, 5, 255, 4096, u128::MAX] {
             let bin = decimal_to_binary(&n.to_string()).unwrap();
             assert_eq!(binary_to_decimal(&bin), Ok(n), "round-trip failed for {n}");

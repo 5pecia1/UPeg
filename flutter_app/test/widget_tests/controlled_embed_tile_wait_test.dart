@@ -6,7 +6,9 @@ import '../test_helpers/controlled_embed_tile_harness.dart';
 void main() {
   useStubbedControlledEmbedSeams();
 
-  testWidgets('대기 시간 초과는 디스패처가 반환한 메시지 그대로 표시한다', (tester) async {
+  testWidgets('a wait timeout shows the dispatcher message verbatim', (
+    tester,
+  ) async {
     const message =
         'wait for input element to exist timed out at "#ready" after 5000ms';
     controlledEmbedFixture.executor =
@@ -26,7 +28,9 @@ void main() {
     robot.expectRunEnabled(true);
   });
 
-  testWidgets('대기를 마친 결과도 공통 결과 영역에 표시한다', (tester) async {
+  testWidgets('a result after waiting also shows in the shared result area', (
+    tester,
+  ) async {
     controlledEmbedFixture.executor =
         ({required toolId, required args, boardKey}) async =>
             canonicalSuccess({'intro': 'waited successfully'});

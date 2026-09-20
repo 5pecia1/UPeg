@@ -258,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    fn host_state_broadcaster는_여러_업데이트를_emit한다() {
+    fn host_state_broadcaster_emits_multiple_updates() {
         let sinks: Mutex<Vec<std::sync::Arc<StubSink<HostStateEvent>>>> = Mutex::new(Vec::new());
         let sink = std::sync::Arc::new(StubSink::<HostStateEvent>::default());
         sinks.lock().unwrap().push(std::sync::Arc::clone(&sink));
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn host_state_broadcaster는_여러_구독자에게_같은_이벤트를_보낸다() {
+    fn host_state_broadcaster_sends_same_event_to_multiple_subscribers() {
         let sinks: Mutex<Vec<std::sync::Arc<StubSink<HostStateEvent>>>> = Mutex::new(Vec::new());
         let a = std::sync::Arc::new(StubSink::<HostStateEvent>::default());
         let b = std::sync::Arc::new(StubSink::<HostStateEvent>::default());
@@ -299,7 +299,7 @@ mod tests {
     }
 
     #[test]
-    fn focus_loss_stream는_focus_lost_이벤트를_emit한다() {
+    fn focus_loss_stream_emits_focus_lost_events() {
         // S8 / P18 — the broadcaster fan-out must reach every live
         // subscriber. `()` payload mirrors the production FRB shape.
         let sinks: Mutex<Vec<std::sync::Arc<StubSink<()>>>> = Mutex::new(Vec::new());
@@ -316,7 +316,7 @@ mod tests {
     }
 
     #[test]
-    fn deep_link_stream는_url_이벤트를_emit한다() {
+    fn deep_link_stream_emits_url_events() {
         // S9 / P19 / D06 — same broadcaster shape, String payload.
         let sinks: Mutex<Vec<std::sync::Arc<StubSink<String>>>> = Mutex::new(Vec::new());
         let sink = std::sync::Arc::new(StubSink::<String>::default());
@@ -332,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn focus_loss_emit_for_test는_live_subscriber에게_도달한다() {
+    fn focus_loss_emit_for_test_reaches_live_subscriber() {
         // Smoke-test the FRB-facing entry point — push through the
         // production registry and assert no panic. Sub-test of P18.
         focus_loss_emit_for_test();
@@ -343,13 +343,13 @@ mod tests {
     }
 
     #[test]
-    fn deep_link_emit_for_test는_live_subscriber에게_도달한다() {
+    fn deep_link_emit_for_test_reaches_live_subscriber() {
         // Same shape as the focus-loss smoke test (P19).
         deep_link_emit_for_test("upeg://open?board=dev".to_string());
     }
 
     #[test]
-    fn deep_link_broadcaster는_빈_subscriber에서도_panic하지_않는다() {
+    fn deep_link_broadcaster_does_not_panic_with_no_subscribers() {
         // D06 — second-instance forwarding may fire a deep link before
         // any FRB subscriber has registered (Dart bootstraps the
         // notifier lazily). The broadcaster must short-circuit without
@@ -360,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn host_state_broadcaster는_죽은_구독자를_제거한다() {
+    fn host_state_broadcaster_removes_dead_subscribers() {
         let sinks: Mutex<Vec<std::sync::Arc<StubSink<HostStateEvent>>>> = Mutex::new(Vec::new());
         let live = std::sync::Arc::new(StubSink::<HostStateEvent>::default());
         let dead = std::sync::Arc::new(StubSink::<HostStateEvent>::default());

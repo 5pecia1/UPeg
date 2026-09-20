@@ -80,7 +80,7 @@ fn args_with(key: &str, value: serde_json::Value) -> serde_json::Map<String, ser
 }
 
 #[test]
-fn 숫자_제약은_최소값_미만을_거절한다() {
+fn number_constraints_reject_below_the_minimum() {
     let spec = InputSpec::new(vec![numeric_field("port", Some(1.0), Some(65535.0))]).expect("spec");
     let args = args_with("port", serde_json::json!(0));
     assert!(matches!(
@@ -91,7 +91,7 @@ fn 숫자_제약은_최소값_미만을_거절한다() {
 }
 
 #[test]
-fn 숫자_제약은_최대값_초과를_거절한다() {
+fn number_constraints_reject_above_the_maximum() {
     let spec = InputSpec::new(vec![numeric_field("port", Some(1.0), Some(65535.0))]).expect("spec");
     let args = args_with("port", serde_json::json!(70000));
     assert!(matches!(
@@ -101,14 +101,14 @@ fn 숫자_제약은_최대값_초과를_거절한다() {
 }
 
 #[test]
-fn 숫자_제약은_범위_내_값을_받아들인다() {
+fn number_constraints_accept_in_range_values() {
     let spec = InputSpec::new(vec![numeric_field("port", Some(1.0), Some(65535.0))]).expect("spec");
     let args = args_with("port", serde_json::json!(8080));
     assert!(spec.validate_json_args(&args).is_ok());
 }
 
 #[test]
-fn 정수_제약도_범위를_강제한다() {
+fn integer_constraints_enforce_the_range_too() {
     let spec = InputSpec::new(vec![integer_field("retries", Some(0.0), Some(5.0))]).expect("spec");
     let args = args_with("retries", serde_json::json!(10));
     assert!(matches!(
@@ -118,7 +118,7 @@ fn 정수_제약도_범위를_강제한다() {
 }
 
 #[test]
-fn 문자열_정규식_제약은_불일치를_거절한다() {
+fn string_regex_constraint_rejects_mismatches() {
     let spec =
         InputSpec::new(vec![string_field_with_regex("slug", "^[a-z][a-z0-9-]*$")]).expect("spec");
     let bad = args_with("slug", serde_json::json!("Has Space"));
@@ -130,7 +130,7 @@ fn 문자열_정규식_제약은_불일치를_거절한다() {
 }
 
 #[test]
-fn 문자열_정규식_제약은_일치하면_통과한다() {
+fn string_regex_constraint_passes_on_match() {
     let spec =
         InputSpec::new(vec![string_field_with_regex("slug", "^[a-z][a-z0-9-]*$")]).expect("spec");
     let ok = args_with("slug", serde_json::json!("hello-world"));
@@ -138,7 +138,7 @@ fn 문자열_정규식_제약은_일치하면_통과한다() {
 }
 
 #[test]
-fn 파일_입력은_구조화된_객체만_받는다() {
+fn file_input_accepts_only_structured_objects() {
     let f = field("upload", true, InputKind::File(FileInputPolicy::default()));
     let spec = InputSpec::new(vec![f]).expect("spec");
     let valid = args_with(
@@ -153,7 +153,7 @@ fn 파일_입력은_구조화된_객체만_받는다() {
 }
 
 #[test]
-fn 파일_입력은_빈_객체를_거절한다() {
+fn file_input_rejects_an_empty_object() {
     let f = field("upload", true, InputKind::File(FileInputPolicy::default()));
     let spec = InputSpec::new(vec![f]).expect("spec");
     let empty = args_with("upload", serde_json::json!({}));
@@ -166,7 +166,7 @@ fn 파일_입력은_빈_객체를_거절한다() {
 }
 
 #[test]
-fn 파일_입력은_content_kind_없으면_거절한다() {
+fn file_input_rejects_a_missing_content_kind() {
     let f = field("upload", true, InputKind::File(FileInputPolicy::default()));
     let spec = InputSpec::new(vec![f]).expect("spec");
     let bad = args_with(
@@ -186,7 +186,7 @@ fn 파일_입력은_content_kind_없으면_거절한다() {
 }
 
 #[test]
-fn 파일_입력_드래프트는_json으로_직렬화된다() {
+fn file_input_draft_serializes_to_json() {
     let f = field("upload", false, InputKind::File(FileInputPolicy::default()));
     let spec = InputSpec::new(vec![f]).expect("spec");
     let mut state = spec.initial_form_state();
@@ -203,9 +203,9 @@ fn 파일_입력_드래프트는_json으로_직렬화된다() {
 }
 
 #[test]
-fn 파일_입력_드래프트가_없으면_args에서_누락된다() {
-    // Optional File 필드가 비어있을 때 args_from_form_state가 폴백 에러로 떨어지지
-    // 않고 단순히 키를 생략해야 한다 (P1 #3 회귀 방지).
+fn absent_file_input_draft_is_omitted_from_args() {
+    // When an optional File field is empty, args_from_form_state must omit
+    // the key instead of falling back to an error (P1 #3 regression guard).
     let f = field("upload", false, InputKind::File(FileInputPolicy::default()));
     let spec = InputSpec::new(vec![f]).expect("spec");
     let state = spec.initial_form_state();
@@ -215,17 +215,17 @@ fn 파일_입력_드래프트가_없으면_args에서_누락된다() {
     assert!(json.get("upload").is_none());
 }
 
-// ─── ECMA-262 pattern이 regex 크레이트에서 컴파일되지 않을 때 ────
+// ─── When an ECMA-262 pattern does not compile in the regex crate ────
 //
-// MCP 서버는 ECMA-262 `pattern`을 내보낸다. look-around와 backreference는
-// 거기서는 합법이지만 `regex` 크레이트는 지원하지 않는다. 예전에는 검증
-// 시점에 PatternMismatch로 보고돼서 사용자가 무엇을 입력하든 통과할 수
-// 없는 필드가 만들어졌다.
+// MCP servers export ECMA-262 `pattern`s. Look-around and backreferences
+// are legal there but unsupported by the `regex` crate. Previously they
+// surfaced as PatternMismatch at validation time, producing a field no
+// user input could ever satisfy.
 
-const 컴파일_불가_패턴: &str = "(?<=a)b";
+const UNCOMPILABLE_PATTERN: &str = "(?<=a)b";
 
 #[test]
-fn 컴파일할_수_없는_패턴은_명세를_만들_때_거부된다() {
+fn uncompilable_pattern_is_rejected_at_spec_construction() {
     let error = InputFieldSpec::with_constraints(
         input_name("token"),
         None,
@@ -235,13 +235,13 @@ fn 컴파일할_수_없는_패턴은_명세를_만들_때_거부된다() {
         FieldConstraints {
             number: None,
             string: Some(StringConstraints {
-                regex: Some(컴파일_불가_패턴.to_string()),
+                regex: Some(UNCOMPILABLE_PATTERN.to_string()),
                 placeholder: None,
                 default: None,
             }),
         },
     )
-    .expect_err("look-behind는 regex 크레이트에서 컴파일되지 않는다");
+    .expect_err("look-behind does not compile in the regex crate");
 
     let InputSpecError::UncompilablePattern {
         name,
@@ -249,27 +249,27 @@ fn 컴파일할_수_없는_패턴은_명세를_만들_때_거부된다() {
         detail,
     } = error
     else {
-        panic!("UncompilablePattern을 기대한다: {error:?}");
+        panic!("expected UncompilablePattern: {error:?}");
     };
     assert_eq!(name.as_str(), "token");
-    assert_eq!(pattern, 컴파일_불가_패턴);
-    assert!(!detail.is_empty(), "왜 컴파일되지 않는지 밝혀야 한다");
+    assert_eq!(pattern, UNCOMPILABLE_PATTERN);
+    assert!(!detail.is_empty(), "must explain why it does not compile");
 }
 
 #[test]
-fn 컴파일할_수_없는_패턴을_담은_json_schema는_가져오기에서_거부된다() {
+fn json_schema_with_an_uncompilable_pattern_is_rejected_on_import() {
     let schema = serde_json::json!({
         "type": "object",
-        "properties": { "token": { "type": "string", "pattern": 컴파일_불가_패턴 } }
+        "properties": { "token": { "type": "string", "pattern": UNCOMPILABLE_PATTERN } }
     });
 
-    let error = InputSpec::try_from(&schema).expect_err("가져오기가 거부되어야 한다");
+    let error = InputSpec::try_from(&schema).expect_err("import must be rejected");
 
     assert!(
         matches!(
             error,
             InputAdapterError::Spec(InputSpecError::UncompilablePattern { .. })
         ),
-        "값 탓이 아니라 선언 탓임을 밝혀야 한다: {error:?}"
+        "must show the declaration is at fault, not the value: {error:?}"
     );
 }

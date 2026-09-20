@@ -218,13 +218,13 @@ mod tests {
     // ─── resolve_endpoint ───────────────────────────────────────
 
     #[test]
-    fn 엔드포인트가_비어있으면_기본값을_사용한다() {
+    fn empty_endpoint_uses_default() {
         assert_eq!(resolve_endpoint(""), DEFAULT_ETH_RPC_ENDPOINT);
         assert_eq!(resolve_endpoint("   "), DEFAULT_ETH_RPC_ENDPOINT);
     }
 
     #[test]
-    fn 엔드포인트가_주어지면_그대로_사용한다() {
+    fn given_endpoint_is_used_verbatim() {
         assert_eq!(
             resolve_endpoint("https://example.test/rpc"),
             "https://example.test/rpc"
@@ -232,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn 엔드포인트_주변_공백을_잘라낸다() {
+    fn endpoint_surrounding_whitespace_is_trimmed() {
         assert_eq!(
             resolve_endpoint("  https://example.test/rpc  "),
             "https://example.test/rpc"
@@ -242,38 +242,38 @@ mod tests {
     // ─── parse_hex_wei ──────────────────────────────────────────
 
     #[test]
-    fn hex_수량을_십진_wei로_파싱한다() {
+    fn hex_quantity_parses_to_decimal_wei() {
         assert_eq!(parse_hex_wei("0xff"), Ok(255));
         assert_eq!(parse_hex_wei("0x0"), Ok(0));
     }
 
     #[test]
-    fn hex_수량_파싱은_대문자_접두사를_허용한다() {
+    fn hex_quantity_parse_allows_uppercase_prefix() {
         assert_eq!(parse_hex_wei("0XFF"), Ok(255));
     }
 
     #[test]
-    fn hex_수량_파싱은_빈_입력을_거부한다() {
+    fn hex_quantity_parse_rejects_empty_input() {
         assert!(parse_hex_wei("").is_err());
         assert!(parse_hex_wei("0x").is_err());
     }
 
     #[test]
-    fn hex_수량_파싱은_유효하지_않은_문자를_거부한다() {
+    fn hex_quantity_parse_rejects_invalid_chars() {
         assert!(parse_hex_wei("0xzz").is_err());
     }
 
     // ─── format_gwei / format_eth_balance ───────────────────────
 
     #[test]
-    fn wei를_gwei_문자열로_포맷한다() {
+    fn wei_formats_as_gwei_string() {
         assert_eq!(format_gwei(WEI_PER_GWEI), "1");
         assert_eq!(format_gwei(0), "0");
         assert_eq!(format_gwei(WEI_PER_GWEI / 2), "0.5");
     }
 
     #[test]
-    fn wei를_eth_잔액_문자열로_포맷한다() {
+    fn wei_formats_as_eth_balance_string() {
         assert_eq!(format_eth_balance(WEI_PER_ETHER), "1 ETH");
         assert_eq!(format_eth_balance(0), "0 ETH");
         assert_eq!(format_eth_balance(WEI_PER_ETHER / 2), "0.5 ETH");
@@ -282,7 +282,7 @@ mod tests {
     // ─── eth_address_lookup input validation (no network) ───────
 
     #[test]
-    fn 주소가_비어있으면_네트워크_호출_전에_거부한다() {
+    fn empty_address_is_rejected_before_network_call() {
         assert_eq!(
             eth_address_lookup("", ""),
             Err("address must not be empty".to_string())

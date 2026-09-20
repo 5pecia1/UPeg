@@ -127,7 +127,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn upeg_home이_있으면_설정_루트로_그_값을_사용한다() {
+    fn upeg_home_is_used_as_the_config_root_when_set() {
         let root = config_root_from_env_lookup(
             |name| (name == env::UPEG_HOME).then(|| "/tmp/upeg-home".into()),
             Platform::Unix,
@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn unix는_home_아래_dot_upeg를_설정_루트로_사용한다() {
+    fn unix_uses_dot_upeg_under_home_as_the_config_root() {
         let root = config_root_from_env_lookup(
             |name| (name == env::HOME).then(|| "/home/me".into()),
             Platform::Unix,
@@ -151,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn windows는_appdata_아래_upeg를_설정_루트로_사용한다() {
+    fn windows_uses_upeg_under_appdata_as_the_config_root() {
         let root = config_root_from_env_lookup(
             |name| (name == env::APPDATA).then(|| "C:/Users/me/AppData/Roaming".into()),
             Platform::Windows,
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn 공유_파일_경로는_같은_설정_루트에서_조립된다() {
+    fn shared_file_paths_are_assembled_under_the_same_config_root() {
         let root = std::path::Path::new("/tmp/upeg");
         assert_eq!(tweaks_path_in(root), root.join(TWEAKS_FILENAME));
         assert_eq!(store_path_in(root), root.join(STORE_FILE));

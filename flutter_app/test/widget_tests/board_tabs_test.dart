@@ -121,7 +121,7 @@ void main() {
   // `_verifyInvariants` on every widget-test pump.
 
   group('BoardTabs', () {
-    testWidgets('BoardTabs는_각_board의_title을_렌더한다', (tester) async {
+    testWidgets('BoardTabs_renders_each_board_title', (tester) async {
       const boards = <BoardDto>[
         BoardDto(key: 'dev', title: 'Dev'),
         BoardDto(key: 'media', title: 'Media'),
@@ -135,7 +135,9 @@ void main() {
       expect(find.text('Misc'), findsOneWidget);
     });
 
-    testWidgets('BoardTabs_탭_누르면_currentBoardProvider가_갱신된다', (tester) async {
+    testWidgets('tapping_a_BoardTabs_tab_updates_currentBoardProvider', (
+      tester,
+    ) async {
       const boards = <BoardDto>[
         BoardDto(key: 'dev', title: 'Dev'),
         BoardDto(key: 'media', title: 'Media'),
@@ -155,7 +157,9 @@ void main() {
       expect(container.read(currentBoardKeyProvider), BoardKey.parse('media'));
     });
 
-    testWidgets('BoardTabs는_빈_board_목록에서도_렌더한다', (tester) async {
+    testWidgets('BoardTabs_renders_even_with_an_empty_board_list', (
+      tester,
+    ) async {
       // Post-parity: BoardTabs no longer prints a "(no boards registered)"
       // placeholder — the empty-state copy moved to the BoardCanvas. The
       // tab strip just renders its right-aligned action buttons.
@@ -166,7 +170,9 @@ void main() {
       expect(find.byKey(const Key('open-settings-btn')), findsOneWidget);
     });
 
-    testWidgets('BoardTabs는_locale_Ko에서_search_라벨이_한국어로_바뀐다', (tester) async {
+    testWidgets('BoardTabs_switches_the_search_label_to_Korean_in_locale_Ko', (
+      tester,
+    ) async {
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
       final container = _container(boards, locale: LocaleDto.ko);
       addTearDown(container.dispose);
@@ -182,7 +188,9 @@ void main() {
       expect(find.text('+ 핀'), findsOneWidget);
     });
 
-    testWidgets('BoardTabs_우클릭_시_UpegPopover가_렌더된다', (tester) async {
+    testWidgets('BoardTabs_renders_the_UpegPopover_on_right_click', (
+      tester,
+    ) async {
       // Right-click should open the custom UpegPopover (not Material
       // showMenu). Verifies the Rename/Delete entries appear with the
       // ghost-styled labels.
@@ -205,52 +213,61 @@ void main() {
       expect(find.text('Delete'), findsOneWidget);
     });
 
-    testWidgets('BoardTabs는_키보드로_board_menu를_열고_항목을_선택한다', (tester) async {
-      const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
-      await tester.pumpWidget(_harness(boards: boards));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'BoardTabs_opens_the_board_menu_and_selects_items_by_keyboard',
+      (tester) async {
+        const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
+        await tester.pumpWidget(_harness(boards: boards));
+        await tester.pumpAndSettle();
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.f10);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('board-menu-rename-dev')), findsOneWidget);
-      expect(find.byKey(const Key('board-menu-delete-dev')), findsOneWidget);
+        expect(find.byKey(const Key('board-menu-rename-dev')), findsOneWidget);
+        expect(find.byKey(const Key('board-menu-delete-dev')), findsOneWidget);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('delete-board-dialog-dev')), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('delete-board-dialog-dev')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('BoardTabs는_좁은_폭과_긴_한국어_라벨에서도_overflow하지_않는다', (tester) async {
-      const boards = <BoardDto>[
-        BoardDto(key: 'dev', title: '개발도구모음보드'),
-        BoardDto(key: 'media', title: '미디어변환작업보드'),
-        BoardDto(key: 'ops', title: '운영자동화긴보드'),
-      ];
-      final container = _container(boards, locale: LocaleDto.ko);
-      addTearDown(container.dispose);
+    testWidgets(
+      'BoardTabs_does_not_overflow_at_narrow_widths_with_long_Korean_labels',
+      (tester) async {
+        const boards = <BoardDto>[
+          BoardDto(key: 'dev', title: '개발도구모음보드'),
+          BoardDto(key: 'media', title: '미디어변환작업보드'),
+          BoardDto(key: 'ops', title: '운영자동화긴보드'),
+        ];
+        final container = _container(boards, locale: LocaleDto.ko);
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        _sizedHarness(
-          boards: boards,
-          size: const Size(320, UpegSizing.tabBarHeight),
-          container: container,
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _sizedHarness(
+            boards: boards,
+            size: const Size(320, UpegSizing.tabBarHeight),
+            container: container,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.byType(SingleChildScrollView), findsOneWidget);
-      expect(find.text('설정'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.byType(SingleChildScrollView), findsOneWidget);
+        expect(find.text('설정'), findsOneWidget);
+      },
+    );
 
-    testWidgets('BoardTabs는_linux_CtrlK와_3개_board에서도_overflow하지_않는다', (
+    testWidgets('BoardTabs_does_not_overflow_with_linux_CtrlK_and_3_boards', (
       tester,
     ) async {
       const boards = <BoardDto>[
@@ -277,7 +294,7 @@ void main() {
       expect(find.byKey(const Key('open-settings-btn')), findsOneWidget);
     });
 
-    testWidgets('BoardTabs_BoardEditor는_Enter로_create를_commit한다', (
+    testWidgets('BoardTabs_BoardEditor_commits_create_on_Enter', (
       tester,
     ) async {
       final created = <String>[];
@@ -309,7 +326,7 @@ void main() {
     });
 
     testWidgets(
-      'BoardTabs_BoardEditor는_Escape로_transition없이_create를_cancel한다',
+      'BoardTabs_BoardEditor_cancels_create_on_Escape_without_a_transition',
       (tester) async {
         final created = <String>[];
         const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
@@ -339,7 +356,7 @@ void main() {
       },
     );
 
-    testWidgets('BoardTabs_BoardEditor는_Enter로_rename을_commit한다', (
+    testWidgets('BoardTabs_BoardEditor_commits_rename_on_Enter', (
       tester,
     ) async {
       final renamed = <(String, String)>[];
@@ -367,7 +384,9 @@ void main() {
       expect(find.byKey(const Key('rename-board-dialog-dev')), findsNothing);
     });
 
-    testWidgets('BoardTabs_ConfirmDelete는_y와_Enter로_confirm한다', (tester) async {
+    testWidgets('BoardTabs_ConfirmDelete_confirms_on_y_and_Enter', (
+      tester,
+    ) async {
       final deleted = <String>[];
       const boards = <BoardDto>[
         BoardDto(key: 'dev', title: 'Dev'),
@@ -396,32 +415,35 @@ void main() {
       expect(find.byKey(const Key('delete-board-dialog-ops')), findsNothing);
     });
 
-    testWidgets('BoardTabs는_현재_board를_삭제하면_남은_board를_선택한다', (tester) async {
-      final deleted = <String>[];
-      const boards = <BoardDto>[
-        BoardDto(key: 'dev', title: 'Dev'),
-        BoardDto(key: 'ops', title: 'Ops'),
-      ];
-      final container = _container(boards, boardDeleter: deleted.add);
-      addTearDown(container.dispose);
-      container
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
+    testWidgets(
+      'BoardTabs_selects_a_remaining_board_after_deleting_the_current_one',
+      (tester) async {
+        final deleted = <String>[];
+        const boards = <BoardDto>[
+          BoardDto(key: 'dev', title: 'Dev'),
+          BoardDto(key: 'ops', title: 'Ops'),
+        ];
+        final container = _container(boards, boardDeleter: deleted.add);
+        addTearDown(container.dispose);
+        container
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('dev'));
 
-      await tester.pumpWidget(_harness(boards: boards, container: container));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_harness(boards: boards, container: container));
+        await tester.pumpAndSettle();
 
-      await _openBoardMenu(tester, 'dev');
-      await tester.tap(find.byKey(const Key('board-menu-delete-dev')));
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
-      await tester.pumpAndSettle();
+        await _openBoardMenu(tester, 'dev');
+        await tester.tap(find.byKey(const Key('board-menu-delete-dev')));
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+        await tester.pumpAndSettle();
 
-      expect(deleted, <String>['dev']);
-      expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
-    });
+        expect(deleted, <String>['dev']);
+        expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
+      },
+    );
 
-    testWidgets('BoardTabs_ConfirmDelete는_n_q_Escape로_cancel한다', (
+    testWidgets('BoardTabs_ConfirmDelete_cancels_on_n_q_and_Escape', (
       tester,
     ) async {
       final deleted = <String>[];
@@ -448,7 +470,9 @@ void main() {
       expect(deleted, isEmpty);
     });
 
-    testWidgets('색상_버튼은_focused_pin이_있으면_enabled_상태다', (tester) async {
+    testWidgets('the_color_button_is_enabled_when_a_pin_is_focused', (
+      tester,
+    ) async {
       var opened = false;
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
       final container = _container(boards);
@@ -479,7 +503,9 @@ void main() {
       expect(opened, isTrue);
     });
 
-    testWidgets('색상_버튼은_focused_pin이_없으면_disabled_상태다', (tester) async {
+    testWidgets('the_color_button_is_disabled_without_a_focused_pin', (
+      tester,
+    ) async {
       var opened = false;
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
       final container = _container(boards);
@@ -516,7 +542,9 @@ void main() {
       expect(opened, isFalse);
     });
 
-    testWidgets('BoardTabs는_색상_버튼의_disabled_상태를_포커스에_맞춘다', (tester) async {
+    testWidgets('BoardTabs_tracks_the_color_button_disabled_state_to_focus', (
+      tester,
+    ) async {
       var opened = false;
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
       final container = _container(boards);
@@ -558,7 +586,9 @@ void main() {
       expect(opened, isTrue);
     });
 
-    testWidgets('편집_토글_버튼은_모드리스에서_제거되었다', (tester) async {
+    testWidgets('the_edit_toggle_button_was_removed_in_modeless', (
+      tester,
+    ) async {
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
       await tester.pumpWidget(_harness(boards: boards));
       await tester.pumpAndSettle();

@@ -98,7 +98,7 @@ String inlineShortcutSourceHint(String keys) =>
     '$_inlineShortcutHintPrefix: $keys';
 
 const String _inlineDispatchErrorCode = 'inline_dispatch_failed';
-const String _inlineLoadingSemanticsLabel = 'Running tool';
+const String _inlineLoadingSemanticsKey = 'a11y.inline.running';
 const String _inlineOutputValueKeyPrefix = 'inline-output-value-';
 const String _inlineFallbackOutputId = 'result';
 const double _inlineLoadingSize = 16;
@@ -479,7 +479,7 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
 
   Widget _loadingIndicator() {
     return Semantics(
-      label: _inlineLoadingSemanticsLabel,
+      label: t(ref, _inlineLoadingSemanticsKey),
       liveRegion: true,
       child: const Align(
         alignment: Alignment.centerRight,
@@ -514,7 +514,7 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
         onPressed: _allOk && !_running
             ? () => _requestRun(_RunTrigger.manual)
             : null,
-        child: const Text('Run'),
+        child: Text(t(ref, 'inline.run')),
       ),
     );
   }
@@ -555,7 +555,7 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
     }
     if (!result.ok) {
       return Text(
-        inlineSafeDispatchErrorMessage,
+        t(ref, 'inline.dispatch_failed'),
         maxLines: _inlineErrorMaxLines,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(

@@ -14,7 +14,7 @@ const GUIDE_FRONTMATTER: &str = "\
 ---
 type: Generated Reference
 title: External Tool Manifest Guide
-description: Rust 매니페스트 타입에서 생성된 Toolkit TOML 전체 필드 레퍼런스.
+description: Full Toolkit TOML field reference generated from the Rust manifest types.
 tags: [manifest, toml, reference, generated]
 status: stable
 generated: { by: process:upeg-interface-toolkit-schema }
@@ -62,6 +62,10 @@ mod tests {
         ("ControlledEmbedBrowserToml", 12),
         ("BindingWaitToml", 13),
         ("BoardEntryToml", 14),
+        ("PresentationToml", 15),
+        ("PresentationColumnToml", 16),
+        ("PresentationActionToml", 17),
+        ("PresentationBindingToml", 18),
     ];
 
     fn discover_field_reference_schemas() -> Vec<String> {
@@ -101,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn manifest_문서_마크다운은_필수_내용을_포함한다() {
+    fn manifest_docs_markdown_contains_required_content() {
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
 
         assert!(markdown.contains("# External Tool Manifest Guide"));
@@ -226,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn 필드_참조는_schema_탐색을_사용한다() {
+    fn field_reference_uses_schema_discovery() {
         let schema = toolkit_schema_value().expect("schema");
         let mut names = Vec::new();
 
@@ -273,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn 섹션_분기는_타입_있는_열거형을_사용한다() {
+    fn section_branching_uses_typed_enum() {
         use super::sections::{GUIDE_SECTIONS, SectionKind};
         let kinds: Vec<_> = GUIDE_SECTIONS.iter().map(|s| s.kind).collect();
         assert!(kinds.contains(&SectionKind::FieldReference));
@@ -282,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn manifest_문서에는_내용_상수가_없다() {
+    fn manifest_docs_defines_no_content_constants() {
         let source = include_str!("manifest_docs.rs");
         let render_constants = [
             "const SECTIONS",
@@ -314,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn 호출자_표는_공유_메타데이터를_사용한다() {
+    fn invoker_table_uses_shared_metadata() {
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
         for (name, purpose) in &[
             ("External", "spawn a local process"),
@@ -340,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn 문제해결은_공유_메타데이터를_사용한다() {
+    fn troubleshooting_uses_shared_metadata() {
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
         for problem in &[
             "retired `category` or `cat` field",
@@ -360,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn 호출자_이름은_runtime_호출자와_일치한다() {
+    fn invoker_names_match_runtime_invokers() {
         use crate::invoker_metadata::RUNTIME_INVOKERS;
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
 
@@ -381,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn 문제해결_항목은_공유_메타데이터와_일치한다() {
+    fn troubleshooting_entries_match_shared_metadata() {
         use crate::error_metadata::TOOLKIT_TROUBLESHOOTING;
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
 
@@ -395,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn 생성된_문서는_파일_기반_예제를_포함한다() {
+    fn generated_docs_include_file_based_examples() {
         let markdown = toolkit_manifest_docs_markdown().expect("docs should render");
         for expected in [
             "invoker = \"External\"",
@@ -417,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn 탐색된_schema_메타데이터_수는_문서_표와_일치한다() {
+    fn discovered_schema_metadata_count_matches_doc_tables() {
         let discovered = discover_field_reference_schemas();
         let docs = toolkit_manifest_docs_markdown().expect("docs should render");
         let table_sections = docs.matches("### ").count();

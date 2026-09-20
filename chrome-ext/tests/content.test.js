@@ -226,11 +226,11 @@ const marks = (element) =>
 
 // --- tests -------------------------------------------------------------
 
-test('같은_프레임에서_다시_주입돼도_리스너와_옵저버는_하나씩만_남는다', () => {
+test('reinjection_in_the_same_frame_keeps_one_listener_and_one_observer', () => {
   const browser = makeBrowser();
   const { context, evaluate } = loadContentScript(browser);
 
-  assert.equal(context[SENTINEL_KEY], true, '첫 평가가 표식을 남겨야 한다');
+  assert.equal(context[SENTINEL_KEY], true, 'the first evaluation must leave the mark');
   assert.equal(browser.messageListeners.length, 1);
   assert.equal(browser.observers.length, 1);
 
@@ -240,16 +240,16 @@ test('같은_프레임에서_다시_주입돼도_리스너와_옵저버는_하�
   assert.equal(
     browser.messageListeners.length,
     1,
-    '재주입이 chrome.runtime.onMessage 리스너를 늘리면 PING에 여러 번 답한다',
+    'reinjection adding another onMessage listener would answer PING twice',
   );
   assert.equal(
     browser.observers.length,
     1,
-    '재주입이 MutationObserver를 늘리면 DOM 변경 하나를 여러 번 스캔한다',
+    'reinjection adding another MutationObserver would scan each DOM change twice',
   );
 });
 
-test('첫_스캔은_skip_태그_안의_텍스트를_건드리지_않는다', () => {
+test('the_first_scan_leaves_text_inside_skip_tags_alone', () => {
   const browser = makeBrowser();
   const skipped = elementWith('textarea', DETECTED_TEXT);
   const plain = elementWith('div', DETECTED_TEXT);
@@ -261,10 +261,10 @@ test('첫_스캔은_skip_태그_안의_텍스트를_건드리지_않는다', () 
   assert.equal(skipped.childNodes.length, 1);
   assert.equal(skipped.childNodes[0].nodeType, TEXT_NODE);
   assert.equal(skipped.childNodes[0].nodeValue, DETECTED_TEXT);
-  assert.equal(marks(plain).length, 1, '일반 문맥은 그대로 감싸져야 한다');
+  assert.equal(marks(plain).length, 1, 'normal context must still be wrapped');
 });
 
-test('mutation으로_들어온_텍스트도_skip_태그_안이면_건드리지_않는다', () => {
+test('mutation_delivered_text_inside_skip_tags_is_left_alone', () => {
   const browser = makeBrowser();
   loadContentScript(browser);
   const [observer] = browser.observers;
@@ -281,7 +281,7 @@ test('mutation으로_들어온_텍스트도_skip_태그_안이면_건드리지_�
   assert.equal(added.nodeValue, DETECTED_TEXT);
 });
 
-test('mutation으로_들어온_텍스트가_일반_문맥이면_감싼다', () => {
+test('mutation_delivered_text_in_normal_context_is_wrapped', () => {
   const browser = makeBrowser();
   loadContentScript(browser);
   const [observer] = browser.observers;
@@ -293,10 +293,10 @@ test('mutation으로_들어온_텍스트가_일반_문맥이면_감싼다', () =
 
   observer.callback([{ addedNodes: [added] }]);
 
-  assert.equal(marks(host).length, 1, 'mutation 경로가 감지를 아예 못 하면 위 두 테스트가 헛돈다');
+  assert.equal(marks(host).length, 1, 'if the mutation path detected nothing the two tests above would be moot');
 });
 
-test('mutation으로_들어온_엘리먼트도_skip_태그면_그_안을_건드리지_않는다', () => {
+test('mutation_delivered_elements_inside_skip_tags_are_not_touched', () => {
   const browser = makeBrowser();
   loadContentScript(browser);
   const [observer] = browser.observers;
@@ -310,7 +310,7 @@ test('mutation으로_들어온_엘리먼트도_skip_태그면_그_안을_건드�
   assert.equal(skipped.childNodes[0].nodeType, TEXT_NODE);
 });
 
-test('이미_감싼_span_안의_텍스트는_다시_감싸지_않는다', () => {
+test('text_inside_an_already_wrapped_span_is_not_wrapped_again', () => {
   const browser = makeBrowser();
   loadContentScript(browser);
   const [observer] = browser.observers;

@@ -69,7 +69,7 @@ pub(crate) fn dispatch_tool_call(
     dispatch_tool_on_surface(tool_id, &args, context.surface())
 }
 
-/// D-1: must this tool be dispatched in-process even when a host is
+/// Must this tool be dispatched in-process even when a host is
 /// reachable?
 ///
 /// A Project Manifest (`upeg.toml`) is resolved per *process working
@@ -83,7 +83,7 @@ pub(crate) fn requires_local_dispatch(tool_id: &str) -> bool {
     upeg_runtime::tool_provenance(tool_id).is_project_manifest()
 }
 
-/// D-2: stamp the caller's absolute working directory into the `_upeg`
+/// Stamp the caller's absolute working directory into the `_upeg`
 /// block before shipping args to a host.
 ///
 /// Without it the host runs `External` tools from the *daemon's* cwd,
@@ -128,7 +128,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 호출자_cwd_각인은_기존_맥락을_보존한다() {
+    fn caller_cwd_stamp_preserves_existing_context() {
         let args = serde_json::json!({
             "input": "hi",
             EXECUTION_CONTEXT_ARG: { "approvedSteps": ["format"] },
@@ -139,14 +139,14 @@ mod tests {
         let context = out
             .get(EXECUTION_CONTEXT_ARG)
             .and_then(Value::as_object)
-            .expect("맥락 블록");
+            .expect("context block");
         assert_eq!(context[EXECUTION_CONTEXT_CWD], "/workspaces/upeg");
         assert_eq!(context["approvedSteps"][0], "format");
         assert_eq!(out["input"], "hi");
     }
 
     #[test]
-    fn 호출자_cwd_각인은_null_인자도_객체로_승격한다() {
+    fn caller_cwd_stamp_promotes_null_args_to_object() {
         let out = stamp_caller_cwd(Value::Null, "/tmp/project");
 
         assert_eq!(
@@ -156,15 +156,15 @@ mod tests {
     }
 
     #[test]
-    fn 등록되지_않은_도구는_로컬_전용_dispatch를_요구하지_않는다() {
+    fn unregistered_tool_does_not_require_local_dispatch() {
         assert!(
             !requires_local_dispatch("test.context.never_registered"),
-            "provenance가 없는 도구는 project manifest 출신이 아니다"
+            "a tool without provenance does not come from a project manifest"
         );
     }
 
     #[test]
-    fn project_manifest_provenance_도구는_로컬_전용_dispatch를_요구한다() {
+    fn project_manifest_provenance_tool_requires_local_dispatch() {
         let id = "test.context.project_scoped";
         upeg_runtime::register_tool_provenance(
             id,

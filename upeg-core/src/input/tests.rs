@@ -155,7 +155,7 @@ fn all_kind_spec() -> InputSpec {
 }
 
 #[test]
-fn 빈_입력_명세는_필드가_없고_유효한_빈_상태를_가진다() {
+fn empty_input_spec_has_no_fields_and_a_valid_empty_state() {
     let spec = InputSpec::empty();
 
     assert!(spec.fields.is_empty());
@@ -169,7 +169,7 @@ fn 빈_입력_명세는_필드가_없고_유효한_빈_상태를_가진다() {
 }
 
 #[test]
-fn 입력_이름_생성자는_빈_이름과_공백_있는_이름을_거부한다() {
+fn input_name_constructor_rejects_empty_and_padded_names() {
     assert_eq!(InputName::new(""), Err(InputSpecError::EmptyName));
     assert!(matches!(
         InputName::new(" name"),
@@ -186,7 +186,7 @@ fn 입력_이름_생성자는_빈_이름과_공백_있는_이름을_거부한다
 }
 
 #[test]
-fn 입력_생성자는_메타데이터를_보존한다() {
+fn input_constructors_preserve_metadata() {
     let option = ChoiceOption::new(
         "fast",
         Some("Fast".to_string()),
@@ -212,7 +212,7 @@ fn 입력_생성자는_메타데이터를_보존한다() {
 }
 
 #[test]
-fn 입력_선택지_검증은_빈_옵션과_중복_옵션을_거부한다() {
+fn input_choice_validation_rejects_empty_and_duplicate_options() {
     assert_eq!(
         ChoiceSpec::new(Vec::new()),
         Err(InputSpecError::EmptyChoices)
@@ -244,7 +244,7 @@ fn 입력_선택지_검증은_빈_옵션과_중복_옵션을_거부한다() {
 }
 
 #[test]
-fn 새_입력_명세는_중복_이름을_거부하고_순서를_보존한다() {
+fn new_input_spec_rejects_duplicate_names_and_preserves_order() {
     let spec = InputSpec::new(vec![
         field("second", false, InputKind::String),
         field("first", false, InputKind::Boolean),
@@ -268,7 +268,7 @@ fn 새_입력_명세는_중복_이름을_거부하고_순서를_보존한다() {
 }
 
 #[test]
-fn 정적_입력_필드는_모든_정적_종류를_변환한다() {
+fn static_input_fields_convert_every_static_kind() {
     let spec = StaticInputSpec {
         fields: STATIC_FIELDS,
     }
@@ -311,7 +311,7 @@ fn 정적_입력_필드는_모든_정적_종류를_변환한다() {
 }
 
 #[test]
-fn 초기_폼_상태는_안정적인_순서와_초안_변형을_사용한다() {
+fn initial_form_state_uses_stable_order_and_draft_variants() {
     let spec = InputSpec::new(vec![
         field("text", false, InputKind::String),
         field("number", false, InputKind::Number),
@@ -353,7 +353,7 @@ fn 초기_폼_상태는_안정적인_순서와_초안_변형을_사용한다() {
 }
 
 #[test]
-fn json_인자_검증은_모든_입력_종류_변형을_허용한다() {
+fn json_args_validation_accepts_every_input_kind_variant() {
     let spec = all_kind_spec();
     let args = object(serde_json::json!({
         "string": "hello",
@@ -391,7 +391,7 @@ fn json_인자_검증은_모든_입력_종류_변형을_허용한다() {
 }
 
 #[test]
-fn json_인자_검증은_누락된_필수값과_잘못된_선택지를_거부한다() {
+fn json_args_validation_rejects_missing_required_and_invalid_choices() {
     let spec = all_kind_spec();
     let missing_bool = object(serde_json::json!({
         "string": "hello",
@@ -445,7 +445,7 @@ fn json_인자_검증은_누락된_필수값과_잘못된_선택지를_거부한
 }
 
 #[test]
-fn json_인자_검증은_종류와_필수_여부에_따라_널을_처리한다() {
+fn json_args_validation_handles_null_by_kind_and_requiredness() {
     let spec = InputSpec::new(vec![
         field("optional_text", false, InputKind::String),
         field("required_text", true, InputKind::String),
@@ -474,7 +474,7 @@ fn json_인자_검증은_종류와_필수_여부에_따라_널을_처리한다()
 }
 
 #[test]
-fn json_인자_검증은_필수_여부에_따라_빈_다중_옵션을_처리한다() {
+fn json_args_validation_handles_empty_multi_options_by_requiredness() {
     let spec = InputSpec::new(vec![
         field(
             "required_flags",
@@ -506,7 +506,7 @@ fn json_인자_검증은_필수_여부에_따라_빈_다중_옵션을_처리한�
 }
 
 #[test]
-fn 폼_상태에서_인자_생성은_초안을_파싱하고_다중_선택_배열을_출력한다() {
+fn args_from_form_state_parses_drafts_and_outputs_multi_select_arrays() {
     let spec = all_kind_spec();
     let state = FormState {
         fields: vec![
@@ -582,7 +582,7 @@ fn 폼_상태에서_인자_생성은_초안을_파싱하고_다중_선택_배열
 }
 
 #[test]
-fn 폼_상태에서_인자_생성은_빈_선택_초안을_생략한다() {
+fn args_from_form_state_omits_empty_optional_drafts() {
     let spec = InputSpec::new(vec![
         field("count", false, InputKind::Integer),
         field("payload", false, InputKind::Json),
@@ -623,7 +623,7 @@ fn 폼_상태에서_인자_생성은_빈_선택_초안을_생략한다() {
 }
 
 #[test]
-fn 폼_상태에서_인자_생성은_잘못된_초안_형태를_거부한다() {
+fn args_from_form_state_rejects_wrong_draft_shapes() {
     let spec = InputSpec::new(vec![field("count", true, InputKind::Integer)])
         .expect("spec should construct");
     let wrong_kind = FormState {
@@ -654,7 +654,7 @@ fn 폼_상태에서_인자_생성은_잘못된_초안_형태를_거부한다() {
 }
 
 #[test]
-fn 폼_상태에서_인자_생성은_알수없거나_중복되거나_누락된_필수_필드를_거부한다() {
+fn args_from_form_state_rejects_unknown_duplicate_and_missing_required_fields() {
     let spec = InputSpec::new(vec![field("count", true, InputKind::Integer)])
         .expect("spec should construct");
 
@@ -698,7 +698,7 @@ fn 폼_상태에서_인자_생성은_알수없거나_중복되거나_누락된_�
 }
 
 #[test]
-fn 파일_입력_종류는_라벨과_초기_draft를_올바르게_노출한다() {
+fn file_input_kind_exposes_label_and_initial_draft_correctly() {
     let spec = InputSpec::new(vec![field(
         "attachment",
         false,
@@ -714,7 +714,7 @@ fn 파일_입력_종류는_라벨과_초기_draft를_올바르게_노출한다()
 }
 
 #[test]
-fn 파일_입력_유효성은_구조화된_객체만_허용한다() {
+fn file_input_validation_accepts_only_structured_objects() {
     let spec = InputSpec::new(vec![field(
         "doc",
         true,
@@ -748,14 +748,14 @@ fn 파일_입력_유효성은_구조화된_객체만_허용한다() {
 }
 
 #[test]
-fn 파일_입력_유효성은_legacy_바이트_배열을_거부한다() {
+fn file_input_validation_rejects_legacy_byte_arrays() {
     // Given
     let spec = InputSpec::new(vec![field(
         "doc",
         true,
         InputKind::File(FileInputPolicy::default()),
     )])
-    .expect("입력 명세를 생성해야 한다");
+    .expect("must construct the input spec");
     let mut args = serde_json::Map::new();
     args.insert(
         "doc".to_string(),
@@ -779,14 +779,14 @@ fn 파일_입력_유효성은_legacy_바이트_배열을_거부한다() {
 }
 
 #[test]
-fn 파일_입력_유효성은_비정규_base64를_거부한다() {
+fn file_input_validation_rejects_noncanonical_base64() {
     // Given
     let spec = InputSpec::new(vec![field(
         "doc",
         true,
         InputKind::File(FileInputPolicy::default()),
     )])
-    .expect("입력 명세를 생성해야 한다");
+    .expect("must construct the input spec");
     let mut args = serde_json::Map::new();
     args.insert(
         "doc".to_string(),
@@ -810,7 +810,7 @@ fn 파일_입력_유효성은_비정규_base64를_거부한다() {
 }
 
 #[test]
-fn 파일_값은_json으로_경로별_필드를_보존한다() {
+fn file_value_preserves_pathed_fields_in_json() {
     let file = FileValue {
         name: "report.md".to_string(),
         content: FileContent::Bytes(vec![97, 98, 99]),
@@ -838,7 +838,7 @@ fn 파일_값은_json으로_경로별_필드를_보존한다() {
 }
 
 #[test]
-fn 디렉토리는_재귀_엔트리로_보존된다() {
+fn directory_preserves_recursive_entries() {
     let inner = FileValue {
         name: "child.txt".to_string(),
         content: FileContent::Bytes(vec![]),
@@ -873,7 +873,7 @@ fn 디렉토리는_재귀_엔트리로_보존된다() {
 }
 
 #[test]
-fn 파일_정적_종류는_owned로_변환된다() {
+fn file_static_kind_converts_to_owned() {
     static FIELDS: &[StaticInputFieldSpec] = &[StaticInputFieldSpec {
         name: "f",
         label: None,
@@ -890,7 +890,7 @@ fn 파일_정적_종류는_owned로_변환된다() {
 }
 
 #[test]
-fn 필드_제약은_기본값이_비어있다() {
+fn field_constraints_default_to_empty() {
     let constraints = FieldConstraints::default();
     assert!(constraints.is_empty());
     assert!(constraints.number.is_none());
@@ -898,7 +898,7 @@ fn 필드_제약은_기본값이_비어있다() {
 }
 
 #[test]
-fn 숫자_제약은_min_max_default를_보존한다() {
+fn number_constraints_preserve_min_max_default() {
     let constraints = FieldConstraints {
         number: Some(NumberConstraints {
             min: Some(1.0),
@@ -915,7 +915,7 @@ fn 숫자_제약은_min_max_default를_보존한다() {
 }
 
 #[test]
-fn 문자열_제약은_regex_placeholder_default를_보존한다() {
+fn string_constraints_preserve_regex_placeholder_default() {
     let constraints = FieldConstraints {
         number: None,
         string: Some(StringConstraints {
@@ -931,7 +931,7 @@ fn 문자열_제약은_regex_placeholder_default를_보존한다() {
 }
 
 #[test]
-fn 정적_제약은_owned로_정확히_변환된다() {
+fn static_constraints_convert_to_owned_exactly() {
     let static_c = StaticFieldConstraints {
         number: Some(StaticNumberConstraints {
             min: Some(0.0),
@@ -960,7 +960,7 @@ fn 정적_제약은_owned로_정확히_변환된다() {
 }
 
 #[test]
-fn 제약이_있는_입력_필드는_with_constraints로_생성된다() {
+fn constrained_input_field_constructs_via_with_constraints() {
     let constraints = FieldConstraints {
         number: Some(NumberConstraints {
             min: Some(0.0),

@@ -351,6 +351,26 @@ impl InputSpec {
         Ok(())
     }
 
+    /// Validate only values supplied by a presentation binding. Missing required
+    /// fields remain editable in the target form and are reported separately.
+    pub fn validate_bound_json_args(
+        &self,
+        args: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(), InputValueError> {
+        for (name, value) in args {
+            let Some(field) = self.fields.iter().find(|field| field.name.as_str() == name) else {
+                continue;
+            };
+            if value.is_null() && !matches!(field.kind, InputKind::Json) {
+                return Err(InputValueError::MissingRequired {
+                    name: field.name.clone(),
+                });
+            }
+            validate_json_value(field, value)?;
+        }
+        Ok(())
+    }
+
     pub fn args_from_form_state(
         &self,
         state: &FormState,

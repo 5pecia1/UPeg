@@ -4,7 +4,55 @@
   },
 
   "settingsToggleTitle": {
-    "message": "호스트 토큰 설정"
+    "message": "호스트 엔드포인트·토큰 설정"
+  },
+  "endpointInputLabel": {
+    "message": "호스트 엔드포인트"
+  },
+  "endpointInputPlaceholder": {
+    "message": "http://127.0.0.1:7173"
+  },
+  "endpointSaveButton": {
+    "message": "저장"
+  },
+  "endpointResetButton": {
+    "message": "기본값"
+  },
+  "endpointSavedStatus": {
+    "message": "엔드포인트가 $ADDRESS$(으)로 설정되었습니다.",
+    "placeholders": {
+      "address": { "content": "$1", "example": "127.0.0.1:49317" }
+    }
+  },
+  "endpointResetStatus": {
+    "message": "엔드포인트가 기본값 $ADDRESS$(으)로 되돌아갔습니다.",
+    "placeholders": {
+      "address": { "content": "$1", "example": "127.0.0.1:7173" }
+    }
+  },
+  "endpointPermissionDenied": {
+    "message": "해당 엔드포인트 접근이 거부되었습니다 — 허용해야 저장할 수 있습니다."
+  },
+  "endpointErrorNotUrl": {
+    "message": "URL 또는 host:port 형태로 입력하세요. 예: http://127.0.0.1:7173"
+  },
+  "endpointErrorNotHttp": {
+    "message": "로컬 호스트에는 http:// 엔드포인트만 지원됩니다."
+  },
+  "endpointErrorCredentials": {
+    "message": "user:password@ 부분을 제거하세요 — 엔드포인트는 호스트와 포트뿐입니다."
+  },
+  "endpointErrorPath": {
+    "message": "경로나 쿼리를 제거하세요 — 엔드포인트는 서버 주소뿐입니다. 예: http://127.0.0.1:7173"
+  },
+  "endpointErrorNotLoopback": {
+    "message": "보안을 위해 엔드포인트는 이 기기에 있어야 합니다 — 127.0.0.1, localhost, ::1."
+  },
+  "endpointErrorPort": {
+    "message": "포트는 1에서 65535 사이의 숫자여야 합니다."
+  },
+  "pairingHelp": {
+    "message": "`upeg http status --pairing`을 실행하면 실행 중인 호스트의 URL과 토큰이 출력됩니다. 여기에 붙여넣으세요."
   },
   "tokenInputLabel": {
     "message": "호스트 토큰"
@@ -41,9 +89,10 @@
     }
   },
   "runHint": {
-    "message": "실행 중이 아닌가요? 이 명령으로 시작하세요: $COMMAND$",
+    "message": "실행 중이 아닌가요? $COMMAND$으로 시작한 뒤 $PAIRING$을 실행하면 설정에 입력할 호스트 URL과 토큰이 출력됩니다.",
     "placeholders": {
-      "command": { "content": "$1", "example": "upeg http --addr 127.0.0.1:7173" }
+      "command": { "content": "$1", "example": "upeg http" },
+      "pairing": { "content": "$2", "example": "upeg http status --pairing" }
     }
   },
   "tokenRejected": {

@@ -18,7 +18,7 @@
 
 use super::*;
 
-fn 기본_이미지_변환(
+fn default_images_convert(
     images: &FileValue,
     format: &str,
     limit: usize,
@@ -186,20 +186,20 @@ fn pdf_page_count(bytes: &[u8]) -> usize {
 // ─── normalize_dpi (pdf_to_images) ──────────────────────────────────
 
 #[test]
-fn dpi_정규화는_기본값을_사용한다() {
+fn dpi_normalization_uses_default() {
     let result = normalize_dpi(PDF_TO_IMAGES_DEFAULT_DPI);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 144.0);
 }
 
 #[test]
-fn dpi_정규화는_최소값과_최대값을_허용한다() {
+fn dpi_normalization_allows_min_and_max() {
     assert!(normalize_dpi(PDF_TO_IMAGES_MIN_DPI).is_ok());
     assert!(normalize_dpi(PDF_TO_IMAGES_MAX_DPI).is_ok());
 }
 
 #[test]
-fn dpi_정규화는_범위_밖을_거부한다() {
+fn dpi_normalization_rejects_out_of_range() {
     assert!(normalize_dpi(PDF_TO_IMAGES_MIN_DPI - 1.0).is_err());
     assert!(normalize_dpi(PDF_TO_IMAGES_MAX_DPI + 1.0).is_err());
 }
@@ -208,7 +208,7 @@ fn dpi_정규화는_범위_밖을_거부한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이미지_zip에서_pdf를_만든다() {
+fn image_to_pdf_makes_pdf_from_image_zip() {
     let png = png_bytes(3, 2, [255, 0, 0, 255]);
     let zip = build_zip(&[("photo.png", &png)]);
 
@@ -225,7 +225,7 @@ fn 이미지_to_pdf는_이미지_zip에서_pdf를_만든다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_여러_이미지를_이름순_페이지로_만든다() {
+fn image_to_pdf_orders_multiple_images_by_name() {
     let a_png = png_bytes(5, 3, [255, 0, 0, 255]);
     let b_jpg = jpeg_bytes(2, 7, [0, 0, 255]);
     // Store out of order to prove sorting by entry name drives page order.
@@ -241,7 +241,7 @@ fn 이미지_to_pdf는_여러_이미지를_이름순_페이지로_만든다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이미지가_없는_zip에_오류를_낸다() {
+fn image_to_pdf_errors_on_zip_without_images() {
     let zip = build_zip(&[("readme.txt", b"not an image")]);
 
     let err = image_to_pdf(&file_input("empty.zip", zip), MAX_MEDIA_OUTPUT_BYTES)
@@ -251,7 +251,7 @@ fn 이미지_to_pdf는_이미지가_없는_zip에_오류를_낸다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_손상된_이미지에_오류를_낸다() {
+fn image_to_pdf_errors_on_corrupt_image() {
     let zip = build_zip(&[("corrupt.png", b"not really a png")]);
 
     let err = image_to_pdf(&file_input("bad.zip", zip), MAX_MEDIA_OUTPUT_BYTES)
@@ -259,11 +259,12 @@ fn 이미지_to_pdf는_손상된_이미지에_오류를_낸다() {
     assert!(err.contains("could not decode"), "got {err:?}");
 }
 
-/// 이 툴에 이미지 한 장을 그대로 주는 것이 사람이 가장 흔히 하는 일이다.
-/// 예전에는 그 입력이 zip 파서에 들어가 `Could not find EOCD`로 끝났다.
+/// Handing this tool a single bare image is the most common thing a person
+/// does. That input used to fall into the zip parser and end in `Could not
+/// find EOCD`.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이미지_한_장을_한_페이지_pdf로_만든다() {
+fn image_to_pdf_makes_single_image_one_page_pdf() {
     let png = png_bytes(4, 6, [0, 128, 64, 255]);
 
     let result = image_to_pdf(&file_input("scan.png", png), MAX_MEDIA_OUTPUT_BYTES)
@@ -279,10 +280,10 @@ fn 이미지_to_pdf는_이미지_한_장을_한_페이지_pdf로_만든다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_디렉터리를_이름순_페이지로_만든다() {
+fn image_to_pdf_orders_directory_pages_by_name() {
     let a_png = png_bytes(5, 3, [255, 0, 0, 255]);
     let b_jpg = jpeg_bytes(2, 7, [0, 0, 255]);
-    // 이름순 정렬이 페이지 순서를 정하는지 보이려고 역순으로 담는다.
+    // Store out of order to prove sorting by name drives page order.
     let dir_input = FileValue {
         name: "album".to_string(),
         content: FileContent::Directory(vec![
@@ -325,10 +326,11 @@ fn 이미지_to_pdf는_디렉터리를_이름순_페이지로_만든다() {
     );
 }
 
-/// zip 경로가 `readme.txt`를 무시하는 것과 같은 관용이 디렉터리에도 적용된다.
+/// The same tolerance the zip path shows for `readme.txt` applies to
+/// directories.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_디렉터리의_이미지_아닌_항목을_건너뛴다() {
+fn image_to_pdf_skips_non_image_directory_entries() {
     let png = png_bytes(3, 3, [10, 20, 30, 255]);
     let dir_input = FileValue {
         name: "mixed".to_string(),
@@ -348,7 +350,7 @@ fn 이미지_to_pdf는_디렉터리의_이미지_아닌_항목을_건너뛴다()
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이미지가_없는_디렉터리에_오류를_낸다() {
+fn image_to_pdf_errors_on_directory_without_images() {
     let dir_input = FileValue {
         name: "dir".to_string(),
         content: FileContent::Directory(Vec::new()),
@@ -359,15 +361,15 @@ fn 이미지_to_pdf는_이미지가_없는_디렉터리에_오류를_낸다() {
         image_to_pdf(&dir_input, MAX_MEDIA_OUTPUT_BYTES).expect_err("an empty directory must fail");
     assert!(
         err.contains("input directory contains no PNG/JPEG images"),
-        "오류가 zip이 아니라 디렉터리를 가리켜야 한다: {err:?}"
+        "error must name the directory, not a zip: {err:?}"
     );
 }
 
-/// 이미지도 zip도 아닌 바이트는 zip 파서의 내부 용어가 아니라 무엇이
-/// 잘못됐는지로 실패해야 한다.
+/// Bytes that are neither an image nor a zip must fail with what went wrong,
+/// not zip-parser internals.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이미지도_zip도_아닌_입력에_디코딩_오류를_낸다() {
+fn image_to_pdf_errors_with_decode_error_for_non_image_non_zip() {
     let err = image_to_pdf(
         &file_input("notes.txt", b"not an image".to_vec()),
         MAX_MEDIA_OUTPUT_BYTES,
@@ -376,7 +378,7 @@ fn 이미지_to_pdf는_이미지도_zip도_아닌_입력에_디코딩_오류를_
     assert!(err.contains("could not decode"), "got {err:?}");
     assert!(
         !err.contains("EOCD"),
-        "zip 내부 용어가 사용자에게 새어 나가면 안 된다: {err:?}"
+        "zip internals must not leak to the user: {err:?}"
     );
 }
 
@@ -397,7 +399,7 @@ fn pdf_from_image(name: &str, width: u32, height: u32) -> Vec<u8> {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_to_이미지는_pdf_페이지를_png로_래스터화한다() {
+fn pdf_to_images_rasterizes_pdf_pages_to_png() {
     let pdf = pdf_from_image("page.png", 100, 60);
 
     let result = pdf_to_images(&file_input("doc.pdf", pdf), 72.0, MAX_MEDIA_OUTPUT_BYTES)
@@ -417,7 +419,7 @@ fn pdf_to_이미지는_pdf_페이지를_png로_래스터화한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_to_이미지는_dpi로_해상도를_키운다() {
+fn pdf_to_images_scales_resolution_with_dpi() {
     let pdf = pdf_from_image("page.png", 50, 40);
 
     // 144 dpi = scale 2 → doubled pixel dimensions.
@@ -431,7 +433,7 @@ fn pdf_to_이미지는_dpi로_해상도를_키운다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_to_이미지는_유효하지_않은_dpi를_거부한다() {
+fn pdf_to_images_rejects_invalid_dpi() {
     let err = pdf_to_images(
         &file_input("x.pdf", b"%PDF-1.7".to_vec()),
         10.0,
@@ -443,7 +445,7 @@ fn pdf_to_이미지는_유효하지_않은_dpi를_거부한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_to_이미지는_pdf가_아닌_바이트에_오류를_낸다() {
+fn pdf_to_images_errors_on_non_pdf_bytes() {
     let err = pdf_to_images(
         &file_input("x.pdf", b"not a pdf".to_vec()),
         144.0,
@@ -456,14 +458,14 @@ fn pdf_to_이미지는_pdf가_아닌_바이트에_오류를_낸다() {
 // ─── shared archive helpers ─────────────────────────────────────────
 
 #[test]
-fn pptx_이미지_엔트리는_media_아래_이미지_확장자만_인정한다() {
+fn pptx_image_entry_accepts_only_image_extensions_under_media() {
     assert!(is_pptx_image_entry("ppt/media/image1.png"));
     assert!(is_pptx_image_entry("ppt/media/photo.JPEG"));
     assert!(is_pptx_image_entry("ppt/media/logo.Emf"));
 }
 
 #[test]
-fn pptx_이미지_엔트리는_비이미지와_다른_경로를_거부한다() {
+fn pptx_image_entry_rejects_non_images_and_other_paths() {
     assert!(!is_pptx_image_entry("ppt/slides/slide1.xml"));
     assert!(!is_pptx_image_entry("ppt/media/notes.xml"));
     assert!(!is_pptx_image_entry("ppt/media/no_extension"));
@@ -471,7 +473,7 @@ fn pptx_이미지_엔트리는_비이미지와_다른_경로를_거부한다() {
 }
 
 #[test]
-fn image_to_pdf_확장자는_png와_jpeg만_인정한다() {
+fn image_to_pdf_extensions_accept_only_png_and_jpeg() {
     assert!(entry_has_extension("a.png", IMAGE_TO_PDF_EXTENSIONS));
     assert!(entry_has_extension("b.JPG", IMAGE_TO_PDF_EXTENSIONS));
     assert!(entry_has_extension("c.jpeg", IMAGE_TO_PDF_EXTENSIONS));
@@ -480,7 +482,7 @@ fn image_to_pdf_확장자는_png와_jpeg만_인정한다() {
 }
 
 #[test]
-fn zip_엔트리_basename은_마지막_경로_요소만_남긴다() {
+fn zip_entry_basename_keeps_only_last_path_component() {
     assert_eq!(
         zip_entry_basename("ppt/media/image1.png"),
         Some("image1.png")
@@ -490,7 +492,7 @@ fn zip_엔트리_basename은_마지막_경로_요소만_남긴다() {
 }
 
 #[test]
-fn zip_엔트리_basename은_경로_순회를_무해화한다() {
+fn zip_entry_basename_neutralizes_path_traversal() {
     // Zip Slip payloads collapse to a harmless basename (or are rejected),
     // never an absolute or parent-relative path.
     assert_eq!(zip_entry_basename("../../../etc/passwd"), Some("passwd"));
@@ -500,7 +502,7 @@ fn zip_엔트리_basename은_경로_순회를_무해화한다() {
 }
 
 #[test]
-fn 이미지_zip_이름은_스템에_접미사를_붙인다() {
+fn images_zip_name_appends_suffix_to_stem() {
     assert_eq!(
         images_zip_name("deck.pptx", PPTX_DEFAULT_STEM),
         "deck-images.zip"
@@ -519,7 +521,7 @@ fn 이미지_zip_이름은_스템에_접미사를_붙인다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pptx_추출은_media_이미지만_뽑고_zip_slip을_막는다() {
+fn pptx_extract_pulls_only_media_images_and_blocks_zip_slip() {
     let pptx = build_zip(&[
         ("ppt/media/image1.png", b"\x89PNG-one"),
         ("ppt/slides/slide1.xml", b"<xml/>"),
@@ -548,7 +550,7 @@ fn pptx_추출은_media_이미지만_뽑고_zip_slip을_막는다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pptx_추출은_이미지가_없으면_빈_zip을_반환한다() {
+fn pptx_extract_returns_empty_zip_without_images() {
     let pptx = build_zip(&[("ppt/slides/slide1.xml", b"<xml/>")]);
 
     let result = pptx_extract_images(&file_input("empty.pptx", pptx))
@@ -564,7 +566,7 @@ fn pptx_추출은_이미지가_없으면_빈_zip을_반환한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pptx_추출은_같은_basename_충돌을_구분한다() {
+fn pptx_extract_distinguishes_colliding_basenames() {
     let pptx = build_zip(&[
         ("ppt/media/image1.png", b"a"),
         ("ppt/media/sub/image1.png", b"b"),
@@ -825,7 +827,7 @@ fn single_extracted_image(result_json: &str, name_suffix: &str) -> Vec<u8> {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_flate_devicergb_이미지를_png로_재구성한다() {
+fn pdf_extract_reconstructs_flate_devicergb_image_as_png() {
     let (width, height) = (4_u32, 3_u32);
     let raw: Vec<u8> = (0..width * height)
         .flat_map(|i| [(i * 10) as u8, (i * 20) as u8, (i * 30) as u8])
@@ -851,7 +853,7 @@ fn pdf_추출은_flate_devicergb_이미지를_png로_재구성한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_dct_이미지를_jpg로_패스스루한다() {
+fn pdf_extract_passes_dct_image_through_as_jpg() {
     let jpeg = encode_jpeg(8, 8);
     let pdf = build_image_pdf_fixture(8, 8, "DeviceRGB", "DCTDecode", jpeg.clone());
 
@@ -866,7 +868,7 @@ fn pdf_추출은_dct_이미지를_jpg로_패스스루한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_미지원_필터를_건너뛰고_노트에_사유를_남긴다() {
+fn pdf_extract_skips_unsupported_filter_and_notes_reason() {
     let pdf = build_image_pdf_fixture(4, 4, "DeviceRGB", "JPXDecode", vec![0_u8; 16]);
 
     let result = pdf_extract_images(&file_input("jpx.pdf", pdf))
@@ -888,7 +890,7 @@ fn pdf_추출은_미지원_필터를_건너뛰고_노트에_사유를_남긴다(
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_flate_png_predictor_이미지를_복원한다() {
+fn pdf_extract_restores_flate_png_predictor_image() {
     let (width, height, colors) = (5_usize, 4_usize, 3_usize);
     let raw: Vec<u8> = (0..width * height * colors)
         .map(|i| (i * 7 % 256) as u8)
@@ -926,7 +928,7 @@ fn pdf_추출은_flate_png_predictor_이미지를_복원한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_flate_tiff_predictor_이미지를_복원한다() {
+fn pdf_extract_restores_flate_tiff_predictor_image() {
     let (width, height, colors) = (6_usize, 3_usize, 1_usize);
     let raw: Vec<u8> = (0..width * height).map(|i| (i * 13 % 256) as u8).collect();
     let predicted = tiff_predict_encode(&raw, width, height, colors);
@@ -962,7 +964,7 @@ fn pdf_추출은_flate_tiff_predictor_이미지를_복원한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_pdf가_아닌_바이트에_오류를_낸다() {
+fn pdf_extract_errors_on_non_pdf_bytes() {
     let err = pdf_extract_images(&file_input("notes.pdf", b"this is not a pdf".to_vec()))
         .expect_err("non-PDF bytes should fail");
     assert!(err.contains("could not open PDF"), "got {err:?}");
@@ -970,7 +972,7 @@ fn pdf_추출은_pdf가_아닌_바이트에_오류를_낸다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn pdf_추출은_image_to_pdf_산출물에서_이미지를_뽑는다() {
+fn pdf_extract_pulls_images_from_image_to_pdf_output() {
     // image_to_pdf (krilla) → PDF → pdf_extract_images (lopdf): a full
     // pure-Rust round trip with no PDFium in sight.
     let png = png_bytes(4, 4, [10, 20, 30, 255]);

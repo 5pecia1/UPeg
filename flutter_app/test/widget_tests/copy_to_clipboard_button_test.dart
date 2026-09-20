@@ -159,7 +159,9 @@ Widget _modalHarness({
 
 void main() {
   group('CopyToClipboardButton', () {
-    testWidgets('CopyToClipboardButton_탭은_writer에_텍스트를_전달한다', (tester) async {
+    testWidgets('a_CopyToClipboardButton_tap_passes_the_text_to_the_writer', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
         MaterialApp(
@@ -173,7 +175,9 @@ void main() {
       expect(writer.writes, ['hello']);
     });
 
-    testWidgets('CopyToClipboardButton은_빈_텍스트면_비활성화된다', (tester) async {
+    testWidgets('CopyToClipboardButton_is_disabled_on_empty_text', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
         MaterialApp(
@@ -189,7 +193,7 @@ void main() {
   });
 
   group('File structured output', () {
-    test('File copy 텍스트는 canonical base64가 아닌 raw byte 크기를 표시한다', () {
+    test('the_File_copy_text_shows_the_raw_byte_size_not_canonical_base64', () {
       const field = OutputFieldDto(
         key: 'file',
         label: 'File',
@@ -209,8 +213,10 @@ void main() {
     });
   });
 
-  group('ExpandedModalPage 텍스트 outcome', () {
-    testWidgets('ExpandedModalPage_텍스트_outcome은_copy_버튼을_노출한다', (tester) async {
+  group('ExpandedModalPage text outcome', () {
+    testWidgets('an_ExpandedModalPage_text_outcome_exposes_the_copy_button', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
         _modalHarness(
@@ -228,7 +234,7 @@ void main() {
     });
 
     testWidgets(
-      'ExpandedModalPage_텍스트_outcome의_copy_버튼은_stdout을_clipboard에_복사한다',
+      'the_copy_button_on_an_ExpandedModalPage_text_outcome_copies_stdout_to_the_clipboard',
       (tester) async {
         final writer = _RecordingClipboardWriter();
         await tester.pumpWidget(
@@ -251,7 +257,7 @@ void main() {
     );
 
     testWidgets(
-      'ExpandedModalPage_structured_content_outcome은_copy_버튼을_추가로_노출한다',
+      'an_ExpandedModalPage_structured_content_outcome_exposes_an_additional_copy_button',
       (tester) async {
         final writer = _RecordingClipboardWriter();
         await tester.pumpWidget(
@@ -280,173 +286,178 @@ void main() {
       },
     );
 
-    testWidgets('ExpandedModalPage_structured_content는_outputFields_라벨로_렌더한다', (
-      tester,
-    ) async {
-      final writer = _RecordingClipboardWriter();
-      final tool = fixtureToolDto(
-        id: 'fixture.hex',
-        toolkit: 'fixture',
-        label: 'hex',
-        inputFields: _fixtureTool.inputFields,
-        outputFields: const <OutputFieldDto>[
-          OutputFieldDto(
-            key: 'result',
-            label: 'Decimal',
-            fieldType: OutputFieldType_Number(),
-          ),
-        ],
-      );
-      await tester.pumpWidget(
-        _modalHarness(
-          tool: tool,
-          dispatch: ({required toolId, required args}) => _singleOutputSuccess(
-            value: const CanonicalOutputValue.number(value: 255),
-          ),
-          clipboardWriter: writer,
-        ),
-      );
-
-      await tester.enterText(find.byKey(const Key('field-value')), 'ff');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Decimal'), findsOneWidget);
-      expect(find.text('structured_content'), findsNothing);
-    });
-
-    testWidgets('ExpandedModalPage_multi_options_output은_쉼표로_구분해_렌더한다', (
-      tester,
-    ) async {
-      final writer = _RecordingClipboardWriter();
-      final tool = fixtureToolDto(
-        id: 'fixture.multi',
-        toolkit: 'fixture',
-        label: 'multi',
-        inputFields: _fixtureTool.inputFields,
-        outputFields: const <OutputFieldDto>[
-          OutputFieldDto(
-            key: 'choices',
-            label: 'Choices',
-            fieldType: OutputFieldType_MultiOptions(
-              options: <String>['alpha', 'beta'],
+    testWidgets(
+      'ExpandedModalPage_structured_content_renders_with_the_outputFields_labels',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        final tool = fixtureToolDto(
+          id: 'fixture.hex',
+          toolkit: 'fixture',
+          label: 'hex',
+          inputFields: _fixtureTool.inputFields,
+          outputFields: const <OutputFieldDto>[
+            OutputFieldDto(
+              key: 'result',
+              label: 'Decimal',
+              fieldType: OutputFieldType_Number(),
             ),
-          ),
-        ],
-      );
-      await tester.pumpWidget(
-        _modalHarness(
-          tool: tool,
-          dispatch: ({required toolId, required args}) => _singleOutputSuccess(
-            id: 'choices',
-            label: 'Choices',
-            kind: 'multi_options',
-            value: const CanonicalOutputValue.multiOptions(
-              value: <String>['alpha', 'beta'],
-            ),
-          ),
-          clipboardWriter: writer,
-        ),
-      );
-
-      await tester.enterText(find.byKey(const Key('field-value')), 'ff');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Choices'), findsOneWidget);
-      expect(find.text('alpha, beta'), findsOneWidget);
-    });
-
-    testWidgets('ExpandedModalPage_choice_boolean_output은_타입별_칩으로_렌더한다', (
-      tester,
-    ) async {
-      final writer = _RecordingClipboardWriter();
-      final tool = fixtureToolDto(
-        id: 'fixture.typed',
-        toolkit: 'fixture',
-        label: 'typed',
-        inputFields: _fixtureTool.inputFields,
-        outputFields: const <OutputFieldDto>[
-          OutputFieldDto(
-            key: 'mode',
-            label: 'Mode',
-            fieldType: OutputFieldType_Select(
-              options: <String>['fast', 'safe'],
-            ),
-          ),
-          OutputFieldDto(
-            key: 'flags',
-            label: 'Flags',
-            fieldType: OutputFieldType_MultiOptions(
-              options: <String>['alpha', 'beta', 'gamma'],
-            ),
-          ),
-          OutputFieldDto(
-            key: 'ok',
-            label: 'Accepted',
-            fieldType: OutputFieldType_Boolean(),
-          ),
-        ],
-      );
-      await tester.pumpWidget(
-        _modalHarness(
-          tool: tool,
-          dispatch: ({required toolId, required args}) => _multiOutputSuccess(
-            primaryOutputId: 'mode',
-            outputs: const [
-              CanonicalOutputEntry(
-                id: 'mode',
-                label: 'Mode',
-                kind: 'options',
-                value: CanonicalOutputValue.options(value: 'safe'),
-              ),
-              CanonicalOutputEntry(
-                id: 'flags',
-                label: 'Flags',
-                kind: 'multi_options',
-                value: CanonicalOutputValue.multiOptions(
-                  value: <String>['alpha', 'gamma'],
+          ],
+        );
+        await tester.pumpWidget(
+          _modalHarness(
+            tool: tool,
+            dispatch: ({required toolId, required args}) =>
+                _singleOutputSuccess(
+                  value: const CanonicalOutputValue.number(value: 255),
                 ),
-              ),
-              CanonicalOutputEntry(
-                id: 'ok',
-                label: 'Accepted',
-                kind: 'boolean',
-                value: CanonicalOutputValue.boolean(value: true),
-              ),
-            ],
+            clipboardWriter: writer,
           ),
-          clipboardWriter: writer,
-        ),
-      );
+        );
 
-      await tester.enterText(find.byKey(const Key('field-value')), 'ff');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(const Key('field-value')), 'ff');
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const Key('structured-output-select-safe')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('structured-output-multi-alpha')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('structured-output-multi-gamma')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('structured-output-boolean-true')),
-        findsOneWidget,
-      );
-    });
+        expect(find.text('Decimal'), findsOneWidget);
+        expect(find.text('structured_content'), findsNothing);
+      },
+    );
 
     testWidgets(
-      'ExpandedModalPage의 File, URL, EmbeddedView 결과는 host 플랫폼과 무관하게 전용 UI로 렌더링된다',
+      'ExpandedModalPage_multi_options_output_renders_comma_separated',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        final tool = fixtureToolDto(
+          id: 'fixture.multi',
+          toolkit: 'fixture',
+          label: 'multi',
+          inputFields: _fixtureTool.inputFields,
+          outputFields: const <OutputFieldDto>[
+            OutputFieldDto(
+              key: 'choices',
+              label: 'Choices',
+              fieldType: OutputFieldType_MultiOptions(
+                options: <String>['alpha', 'beta'],
+              ),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          _modalHarness(
+            tool: tool,
+            dispatch: ({required toolId, required args}) =>
+                _singleOutputSuccess(
+                  id: 'choices',
+                  label: 'Choices',
+                  kind: 'multi_options',
+                  value: const CanonicalOutputValue.multiOptions(
+                    value: <String>['alpha', 'beta'],
+                  ),
+                ),
+            clipboardWriter: writer,
+          ),
+        );
+
+        await tester.enterText(find.byKey(const Key('field-value')), 'ff');
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Choices'), findsOneWidget);
+        expect(find.text('alpha, beta'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'ExpandedModalPage_choice_boolean_output_renders_as_typed_chips',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        final tool = fixtureToolDto(
+          id: 'fixture.typed',
+          toolkit: 'fixture',
+          label: 'typed',
+          inputFields: _fixtureTool.inputFields,
+          outputFields: const <OutputFieldDto>[
+            OutputFieldDto(
+              key: 'mode',
+              label: 'Mode',
+              fieldType: OutputFieldType_Select(
+                options: <String>['fast', 'safe'],
+              ),
+            ),
+            OutputFieldDto(
+              key: 'flags',
+              label: 'Flags',
+              fieldType: OutputFieldType_MultiOptions(
+                options: <String>['alpha', 'beta', 'gamma'],
+              ),
+            ),
+            OutputFieldDto(
+              key: 'ok',
+              label: 'Accepted',
+              fieldType: OutputFieldType_Boolean(),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          _modalHarness(
+            tool: tool,
+            dispatch: ({required toolId, required args}) => _multiOutputSuccess(
+              primaryOutputId: 'mode',
+              outputs: const [
+                CanonicalOutputEntry(
+                  id: 'mode',
+                  label: 'Mode',
+                  kind: 'options',
+                  value: CanonicalOutputValue.options(value: 'safe'),
+                ),
+                CanonicalOutputEntry(
+                  id: 'flags',
+                  label: 'Flags',
+                  kind: 'multi_options',
+                  value: CanonicalOutputValue.multiOptions(
+                    value: <String>['alpha', 'gamma'],
+                  ),
+                ),
+                CanonicalOutputEntry(
+                  id: 'ok',
+                  label: 'Accepted',
+                  kind: 'boolean',
+                  value: CanonicalOutputValue.boolean(value: true),
+                ),
+              ],
+            ),
+            clipboardWriter: writer,
+          ),
+        );
+
+        await tester.enterText(find.byKey(const Key('field-value')), 'ff');
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('structured-output-select-safe')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('structured-output-multi-alpha')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('structured-output-multi-gamma')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('structured-output-boolean-true')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ExpandedModalPage_File_URL_and_EmbeddedView_results_render_dedicated_UI_regardless_of_the_host_platform',
       (tester) async {
         final writer = _RecordingClipboardWriter();
         final bridge = _RecordingFilePickerBridge()
@@ -582,7 +593,9 @@ void main() {
       },
     );
 
-    testWidgets('File 출력 렌더링은 typed 값에 codec을 적용하지 않는다', (tester) async {
+    testWidgets('File_output_rendering_applies_no_codec_to_the_typed_value', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       final tool = fixtureToolDto(
         id: 'fixture.directory',
@@ -639,7 +652,7 @@ void main() {
     });
 
     testWidgets(
-      'ExpandedModalPage_markdown_json_datetime_output은_전용_renderer로_렌더한다',
+      'ExpandedModalPage_markdown_json_datetime_output_renders_with_dedicated_renderers',
       (tester) async {
         final writer = _RecordingClipboardWriter();
         final tool = fixtureToolDto(

@@ -17,42 +17,45 @@ import '../test_helpers/tool_fixture.dart';
 
 void main() {
   group('GenericForm MultiOptions field', () {
-    testWidgets('GenericForm은_MultiOptions_필드를_FilterChip_set으로_렌더한다', (
+    testWidgets(
+      'GenericForm_renders_a_MultiOptions_field_as_a_FilterChip_set',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.tags',
+          inputFields: const [
+            InputFieldDto(
+              key: 'tags',
+              label: 'Tags',
+              fieldType: InputFieldType_MultiOptions(
+                options: <ChoiceOptionDto>[
+                  ChoiceOptionDto(value: 'opt1', label: 'opt1'),
+                  ChoiceOptionDto(value: 'opt2', label: 'opt2'),
+                  ChoiceOptionDto(value: 'opt3', label: 'opt3'),
+                ],
+              ),
+              required_: false,
+            ),
+          ],
+        );
+        final controller = GenericFormController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GenericFormWidget(tool: tool, controller: controller),
+            ),
+          ),
+        );
+        // One FilterChip is drawn per option.
+        expect(find.byType(FilterChip), findsNWidgets(3));
+        expect(find.text('opt1'), findsOneWidget);
+        expect(find.text('opt2'), findsOneWidget);
+        expect(find.text('opt3'), findsOneWidget);
+      },
+    );
+
+    testWidgets('GenericForm_MultiOptions_taps_update_the_selection', (
       tester,
     ) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.tags',
-        inputFields: const [
-          InputFieldDto(
-            key: 'tags',
-            label: 'Tags',
-            fieldType: InputFieldType_MultiOptions(
-              options: <ChoiceOptionDto>[
-                ChoiceOptionDto(value: 'opt1', label: 'opt1'),
-                ChoiceOptionDto(value: 'opt2', label: 'opt2'),
-                ChoiceOptionDto(value: 'opt3', label: 'opt3'),
-              ],
-            ),
-            required_: false,
-          ),
-        ],
-      );
-      final controller = GenericFormController();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: GenericFormWidget(tool: tool, controller: controller),
-          ),
-        ),
-      );
-      // 옵션 수만큼 FilterChip 이 한 개씩 그려진다.
-      expect(find.byType(FilterChip), findsNWidgets(3));
-      expect(find.text('opt1'), findsOneWidget);
-      expect(find.text('opt2'), findsOneWidget);
-      expect(find.text('opt3'), findsOneWidget);
-    });
-
-    testWidgets('GenericForm_MultiOptions_탭은_선택목록을_갱신한다', (tester) async {
       final tool = fixtureToolDto(
         id: 'fixture.tags',
         inputFields: const [
@@ -85,7 +88,7 @@ void main() {
       expect(stored, isA<MultiOptionValue>());
       expect((stored as MultiOptionValue).keys, contains('opt1'));
 
-      // 두 번째 탭은 토글: 선택목록에서 빠진다.
+      // The second tap toggles the option back out of the selection.
       await tester.tap(find.text('opt1'));
       await tester.pump();
       final afterToggle = controller.value('tags') as MultiOptionValue;

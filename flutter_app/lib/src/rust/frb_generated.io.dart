@@ -66,6 +66,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  ActionBindingResolutionDto dco_decode_action_binding_resolution_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ActionScopeDto dco_decode_action_scope_dto(dynamic raw);
+
+  @protected
+  ActionSuccessDto dco_decode_action_success_dto(dynamic raw);
+
+  @protected
   AppInitReport dco_decode_app_init_report(dynamic raw);
 
   @protected
@@ -76,6 +87,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BindingRoleDto dco_decode_binding_role_dto(dynamic raw);
+
+  @protected
+  BindingSourceDto dco_decode_binding_source_dto(dynamic raw);
 
   @protected
   BindingWaitConditionDto dco_decode_binding_wait_condition_dto(dynamic raw);
@@ -105,6 +119,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  ActionSuccessDto dco_decode_box_autoadd_action_success_dto(dynamic raw);
 
   @protected
   BindingWaitDto dco_decode_box_autoadd_binding_wait_dto(dynamic raw);
@@ -171,6 +188,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   StringConstraintsDto dco_decode_box_autoadd_string_constraints_dto(
     dynamic raw,
   );
+
+  @protected
+  ToolPresentationDto dco_decode_box_autoadd_tool_presentation_dto(dynamic raw);
 
   @protected
   TweaksDto dco_decode_box_autoadd_tweaks_dto(dynamic raw);
@@ -358,6 +378,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PlacementDto> dco_decode_list_placement_dto(dynamic raw);
 
   @protected
+  List<PresentationActionDto> dco_decode_list_presentation_action_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationBindingDto> dco_decode_list_presentation_binding_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationColumnDto> dco_decode_list_presentation_column_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationRowDto> dco_decode_list_presentation_row_dto(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -395,6 +433,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  ActionSuccessDto? dco_decode_opt_box_autoadd_action_success_dto(dynamic raw);
 
   @protected
   BindingWaitDto? dco_decode_opt_box_autoadd_binding_wait_dto(dynamic raw);
@@ -447,6 +488,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ToolPresentationDto? dco_decode_opt_box_autoadd_tool_presentation_dto(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -489,6 +535,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlacementDto dco_decode_placement_dto(dynamic raw);
 
   @protected
+  PresentationActionDto dco_decode_presentation_action_dto(dynamic raw);
+
+  @protected
+  PresentationBindingDto dco_decode_presentation_binding_dto(dynamic raw);
+
+  @protected
+  PresentationColumnDto dco_decode_presentation_column_dto(dynamic raw);
+
+  @protected
+  PresentationRowDto dco_decode_presentation_row_dto(dynamic raw);
+
+  @protected
+  PresentationRowsDto dco_decode_presentation_rows_dto(dynamic raw);
+
+  @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
 
   @protected
@@ -511,6 +572,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToolDto dco_decode_tool_dto(dynamic raw);
+
+  @protected
+  ToolEffectDto dco_decode_tool_effect_dto(dynamic raw);
+
+  @protected
+  ToolPresentationDto dco_decode_tool_presentation_dto(dynamic raw);
 
   @protected
   ToolkitDto dco_decode_toolkit_dto(dynamic raw);
@@ -583,6 +650,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  ActionBindingResolutionDto sse_decode_action_binding_resolution_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ActionScopeDto sse_decode_action_scope_dto(SseDeserializer deserializer);
+
+  @protected
+  ActionSuccessDto sse_decode_action_success_dto(SseDeserializer deserializer);
+
+  @protected
   AppInitReport sse_decode_app_init_report(SseDeserializer deserializer);
 
   @protected
@@ -595,6 +673,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BindingRoleDto sse_decode_binding_role_dto(SseDeserializer deserializer);
+
+  @protected
+  BindingSourceDto sse_decode_binding_source_dto(SseDeserializer deserializer);
 
   @protected
   BindingWaitConditionDto sse_decode_binding_wait_condition_dto(
@@ -632,6 +713,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  ActionSuccessDto sse_decode_box_autoadd_action_success_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BindingWaitDto sse_decode_box_autoadd_binding_wait_dto(
@@ -726,6 +812,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StringConstraintsDto sse_decode_box_autoadd_string_constraints_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ToolPresentationDto sse_decode_box_autoadd_tool_presentation_dto(
     SseDeserializer deserializer,
   );
 
@@ -965,6 +1056,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<PresentationActionDto> sse_decode_list_presentation_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationBindingDto> sse_decode_list_presentation_binding_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationColumnDto> sse_decode_list_presentation_column_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationRowDto> sse_decode_list_presentation_row_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -1014,6 +1125,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  ActionSuccessDto? sse_decode_opt_box_autoadd_action_success_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BindingWaitDto? sse_decode_opt_box_autoadd_binding_wait_dto(
@@ -1076,6 +1192,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ToolPresentationDto? sse_decode_opt_box_autoadd_tool_presentation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -1124,6 +1245,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlacementDto sse_decode_placement_dto(SseDeserializer deserializer);
 
   @protected
+  PresentationActionDto sse_decode_presentation_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationBindingDto sse_decode_presentation_binding_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationColumnDto sse_decode_presentation_column_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationRowDto sse_decode_presentation_row_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationRowsDto sse_decode_presentation_rows_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (String, String) sse_decode_record_string_string(
     SseDeserializer deserializer,
   );
@@ -1156,6 +1302,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToolDto sse_decode_tool_dto(SseDeserializer deserializer);
+
+  @protected
+  ToolEffectDto sse_decode_tool_effect_dto(SseDeserializer deserializer);
+
+  @protected
+  ToolPresentationDto sse_decode_tool_presentation_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ToolkitDto sse_decode_toolkit_dto(SseDeserializer deserializer);
@@ -1238,6 +1392,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_action_binding_resolution_dto(
+    ActionBindingResolutionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_action_scope_dto(
+    ActionScopeDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_action_success_dto(
+    ActionSuccessDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_app_init_report(AppInitReport self, SseSerializer serializer);
 
   @protected
@@ -1255,6 +1427,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_binding_role_dto(
     BindingRoleDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_binding_source_dto(
+    BindingSourceDto self,
     SseSerializer serializer,
   );
 
@@ -1305,6 +1483,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_action_success_dto(
+    ActionSuccessDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_binding_wait_dto(
@@ -1414,6 +1598,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_string_constraints_dto(
     StringConstraintsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_tool_presentation_dto(
+    ToolPresentationDto self,
     SseSerializer serializer,
   );
 
@@ -1721,6 +1911,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_presentation_action_dto(
+    List<PresentationActionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_binding_dto(
+    List<PresentationBindingDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_column_dto(
+    List<PresentationColumnDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_row_dto(
+    List<PresentationRowDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1785,6 +1999,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_action_success_dto(
+    ActionSuccessDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_binding_wait_dto(
@@ -1852,6 +2072,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_string_constraints_dto(
     StringConstraintsDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_tool_presentation_dto(
+    ToolPresentationDto? self,
     SseSerializer serializer,
   );
 
@@ -1925,6 +2151,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_placement_dto(PlacementDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_presentation_action_dto(
+    PresentationActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_binding_dto(
+    PresentationBindingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_column_dto(
+    PresentationColumnDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_row_dto(
+    PresentationRowDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_rows_dto(
+    PresentationRowsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_string_string(
     (String, String) self,
     SseSerializer serializer,
@@ -1965,6 +2221,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_tool_dto(ToolDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tool_effect_dto(ToolEffectDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tool_presentation_dto(
+    ToolPresentationDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_toolkit_dto(ToolkitDto self, SseSerializer serializer);

@@ -1,7 +1,7 @@
-# upeg 저장소 유지보수자가 매일 쓰는 명령을 upeg Tool로 태운 Project Manifest.
-# 저장소가 스스로를 dogfooding 한다: 이 파일은 예제가 아니라 실제로 쓰는
-# 도구 모음이고, 로더 계약이 깨지면 upeg-cli/tests/examples_validate.rs 의
-# dogfood 테스트가 먼저 붉어진다.
+# A Project Manifest that puts the commands upeg repo maintainers use every
+# day on the board as upeg Tools. The repo dogfoods itself: this file is not
+# an example but a real working toolset, and if the loader contract breaks,
+# the dogfood test in upeg-cli/tests/examples_validate.rs goes red first.
 #
 #   upeg tool validate upeg.toml
 #   upeg dev git_status
@@ -11,41 +11,46 @@
 #   upeg board upeg-dev pin dev.git_status --at 0,0
 #   upeg board upeg-dev list
 #
-# 자동 탐지 (cwd → $HOME 까지의 상위 → $HOME) 는 `UPEG_PROJECT_MANIFEST_PATH`
-# 로 끄거나(`off`) 절대 경로로 고정할 수 있다.
-# 자세한 규칙은 docs/architecture/project-manifest.md 참고. 저장소의 생성물
-# drift 게이트(interface-inventory / toolkit-schema)는 전부 `off` 를 켠 채
-# 돌아간다 — Justfile 의 `hermetic_sources` 참고.
+# Auto-detection (cwd → ancestors up to $HOME → $HOME) can be disabled
+# (`off`) or pinned to an absolute path via `UPEG_PROJECT_MANIFEST_PATH`.
+# See docs/architecture/project-manifest.md for the rules. All of the repo's
+# generated-artifact drift gates (interface-inventory / toolkit-schema) run
+# with `off` enabled — see `hermetic_sources` in the Justfile.
 #
-# 이 매니페스트를 쓰면서 아직 남아 있는 grammar 한계 (dogfooding 기록):
+# Remaining grammar limitation observed while dogfooding:
 #
-#  1. 종료코드/스트리밍 의미를 선언할 수 없다. 성공/실패 판정은 exit code 0
-#     하나뿐이고, 출력은 프로세스가 끝난 뒤에야 한꺼번에 온다 — 오래 걸리는
-#     `just verify` 의 진행 상황을 흘려보낼 방법이 없다. (실패한 명령의
-#     stdout/stderr 자체는 실패 봉투의 `details` 로 온전히 돌아온다.)
+#  1. Success/failure semantics cannot be declared. An External tool is
+#     judged solely by exit code 0, so a command that reports failure on
+#     stdout while exiting 0 cannot be marked failing. (Streaming is no
+#     longer a gap: a running tool's stdout/stderr are mirrored live to
+#     stderr on the CLI, to NDJSON on `POST /v1/tools/{id}/stream`, and to
+#     MCP `notifications/message`, and a failed command's captured
+#     stdout/stderr still arrive intact in the failure envelope's
+#     `details`.)
 
 id = "dev"
 display_label = "upeg dev"
-description = "upeg 저장소 유지보수 도구 모음 (build/test/lint/git/gh/flutter)."
+description = "upeg repo maintenance toolkit (build/test/lint/git/gh/flutter)."
 tags = ["dev", "upeg", "repo"]
 
-# 이 저장소 전용 board. 내장 `dev` 보드에 섞이지 않고, 이 매니페스트가
-# 탐지되는 동안에만 존재한다 — 저장소 밖에서 `upeg board list` 를 하면
-# 나오지 않는다. 핀은 매니페스트 경로로 네임스페이스된 행에 저장되므로
-# 다른 프로젝트의 같은 이름 board 와 섞이지 않는다.
-# 규칙: docs/architecture/project-manifest.md 의 "프로젝트 board".
+# A board private to this repo. It does not mix into the built-in `dev`
+# board and exists only while this manifest is detected — `upeg board list`
+# outside the repo won't show it. Pins are stored on rows namespaced by the
+# manifest path, so a same-named board in another project can't collide.
+# Rules: "Project board" in docs/architecture/project-manifest.md.
 [[boards]]
 id = "upeg-dev"
 label = "upeg dev"
-description = "UPeg 저장소의 개발 중 검사, PR 제출 전 확인, 릴리스 검증에 사용한다."
+description = "Checks during development, pre-PR verification, and release verification for the UPeg repository."
 instructions = """
-개발 중 특정 크레이트의 변경을 확인할 때는 dev.test_crate를 사용한다.
-PR 제출 전 기본 검증에는 dev.check, 릴리스 검증에는 dev.verify를 사용한다.
-Flutter 변경에는 dev.flutter_analyze도 포함한다.
+Use dev.test_crate to check a change to a specific crate during development.
+Use dev.check for the default pre-PR verification and dev.verify for release
+verification. Include dev.flutter_analyze for Flutter changes.
 
-dev.fmt와 dev.frb_codegen은 파일을 변경한다. 사용자가 요청한 작업 범위에 따라 실행한다.
-검증 결과에는 실행한 도구, 성공/실패와 실패 원인, 검사하지 못한 범위를 적는다.
-실행 환경이 없어 검사하지 못한 경우와 코드 검사 자체의 실패를 구분한다.
+dev.fmt and dev.frb_codegen modify files; run them according to the scope the
+user asked for. Report which tools ran, success/failure with failure reasons,
+and any unchecked scope. Distinguish "no run environment" from an actual
+check failure.
 """
 
 # ---------------------------------------------------------------- build/test
@@ -53,7 +58,7 @@ dev.fmt와 dev.frb_codegen은 파일을 변경한다. 사용자가 요청한 작
 [[tools]]
 id = "check"
 display_label = "just check"
-description = "fmt-check + clippy(전체 타깃) + workspace 테스트 + 생성물 drift 확인."
+description = "fmt-check + clippy (all targets) + workspace tests + generated-artifact drift checks."
 tags = ["build", "slow"]
 pegboard_units = "U2"
 invoker = "External"
@@ -64,7 +69,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "verify"
 display_label = "just verify"
-description = "릴리스 게이트: check 전체 + actionlint + file-size budget + lexicon."
+description = "Release gate: all of check plus actionlint + file-size budget + lexicon."
 tags = ["build", "slow"]
 pegboard_units = "U2"
 invoker = "External"
@@ -75,7 +80,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "test_crate"
 display_label = "cargo test -p"
-description = "workspace 멤버 하나만 테스트한다."
+description = "Test one workspace member."
 tags = ["test"]
 pegboard_units = "U1"
 invoker = "External"
@@ -87,7 +92,7 @@ boards = ["upeg-dev"]
 name = "crate"
 type = "options"
 label = "Crate"
-description = "테스트할 workspace 멤버."
+description = "Workspace member to test."
 required = true
 options = [
   { value = "upeg-cli", label = "upeg-cli" },
@@ -108,7 +113,7 @@ options = [
 [[tools]]
 id = "clippy"
 display_label = "cargo clippy"
-description = "native 타깃 clippy를 -D warnings로 돌린다."
+description = "Run clippy for the native target with -D warnings."
 tags = ["lint", "slow"]
 pegboard_units = "U2"
 invoker = "External"
@@ -119,7 +124,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "fmt"
 display_label = "cargo fmt --all"
-description = "workspace 전체를 rustfmt로 정렬한다 (파일을 수정함)."
+description = "Format the whole workspace with rustfmt (modifies files)."
 tags = ["lint", "mutating"]
 pegboard_units = "U1"
 invoker = "External"
@@ -130,7 +135,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "fmt_check"
 display_label = "cargo fmt --check"
-description = "rustfmt 위반이 있으면 실패한다 (파일을 수정하지 않음)."
+description = "Fails on any rustfmt violation (does not modify files)."
 tags = ["lint"]
 pegboard_units = "U1"
 invoker = "External"
@@ -143,7 +148,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "git_status"
 display_label = "git status"
-description = "작업 트리의 변경 파일을 짧은 형식으로 본다."
+description = "Show working-tree changed files in short form."
 tags = ["vcs"]
 pegboard_units = "U1"
 invoker = "External"
@@ -155,12 +160,12 @@ primary_output_id = "result"
 [[tools.outputs]]
 name = "result"
 type = "string"
-label = "변경 파일"
+label = "Changed files"
 
 [[tools]]
 id = "git_log"
 display_label = "git log"
-description = "최근 커밋을 한 줄씩 본다."
+description = "Show recent commits, one per line."
 tags = ["vcs"]
 pegboard_units = "U1"
 invoker = "External"
@@ -171,15 +176,15 @@ boards = ["upeg-dev"]
 [[tools.inputs]]
 name = "count"
 type = "integer"
-label = "커밋 수"
-description = "표시할 커밋 개수."
+label = "Commit count"
+description = "Number of commits to show."
 required = false
 default = 10
 
 [[tools]]
 id = "pr_list"
 display_label = "gh pr list"
-description = "열려 있는 pull request 목록."
+description = "List open pull requests."
 tags = ["vcs", "github"]
 pegboard_units = "U2"
 invoker = "External"
@@ -190,7 +195,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "pr_checks"
 display_label = "gh pr checks"
-description = "한 PR의 CI 체크 상태."
+description = "CI check status of one PR."
 tags = ["vcs", "github"]
 pegboard_units = "U2"
 invoker = "External"
@@ -201,7 +206,7 @@ boards = ["upeg-dev"]
 [[tools.inputs]]
 name = "pr"
 type = "integer"
-label = "PR 번호"
+label = "PR number"
 required = true
 
 # -------------------------------------------------------------- flutter/frb
@@ -209,7 +214,7 @@ required = true
 [[tools]]
 id = "frb_codegen"
 display_label = "just frb-codegen"
-description = "flutter_rust_bridge 바인딩을 재생성한다 (생성물을 수정함)."
+description = "Regenerate flutter_rust_bridge bindings (modifies generated files)."
 tags = ["frb", "codegen", "mutating"]
 pegboard_units = "U2"
 invoker = "External"
@@ -220,23 +225,23 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "flutter_analyze"
 display_label = "flutter analyze"
-description = "flutter_app/ 안에서 dart analyzer를 돌린다."
+description = "Run the dart analyzer inside flutter_app/."
 tags = ["flutter", "lint"]
 pegboard_units = "U2"
 invoker = "External"
 command = "flutter"
 args_template = ["analyze"]
-# 상대 경로는 이 매니페스트가 있는 디렉터리 기준이므로, 어디서 호출하든
-# 저장소의 flutter_app/ 에서 돈다.
+# A relative path resolves against the directory holding this manifest, so
+# it runs in the repo's flutter_app/ no matter where it is called from.
 cwd = "flutter_app"
 boards = ["upeg-dev"]
 
-# ---------------------------------------------------------------------- 잡무
+# ---------------------------------------------------------------------- misc
 
 [[tools]]
 id = "target_size"
 display_label = "du -sh target"
-description = "빌드 산출물 디렉터리 크기 (디스크가 빡빡할 때 제일 먼저 본다)."
+description = "Build artifact directory size (first thing to check when disk is tight)."
 tags = ["disk"]
 pegboard_units = "U1"
 invoker = "External"
@@ -249,7 +254,7 @@ boards = ["upeg-dev"]
 [[tools]]
 id = "precommit"
 display_label = "precommit"
-description = "fmt → fmt --check → git status. 첫 단계는 파일을 고치므로 승인이 필요하다."
+description = "fmt → fmt --check → git status. The first step modifies files, so it needs approval."
 tags = ["chain", "release"]
 pin = "Chain"
 pegboard_units = "U2"
@@ -276,13 +281,14 @@ tool = "dev.git_status"
 [[tools]]
 id = "env_probe"
 display_label = "env probe"
-description = "주입되는 _upeg 환경변수를 확인한다."
+description = "Check the injected _upeg environment variables."
 tags = ["debug"]
 pegboard_units = "U1"
 invoker = "External"
 command = "sh"
-# 셸의 `${VAR:-기본값}` 는 args_template 의 `{key}` 자리표시자와 중괄호를
-# 공유한다. 셸에 그대로 넘기려면 `{{` / `}}` 로 이스케이프해야 한다 —
-# 이스케이프하지 않으면 자리표시자로 해석되어 로드 시점에 거부된다.
+# The shell's `${VAR:-default}` shares braces with args_template's `{key}`
+# placeholders. Escape them as `{{` / `}}` to pass them to the shell
+# untouched — unescaped, they are parsed as placeholders and rejected at
+# load time.
 args_template = ["-c", 'echo "PWD=$PWD"; echo "UPEG_BOARD=${{UPEG_BOARD:-<unset>}}"; echo "UPEG_PROJECT_MANIFEST=${{UPEG_PROJECT_MANIFEST:-<unset>}}"']
 boards = ["upeg-dev"]

@@ -13,7 +13,7 @@ use upeg_core::{
     InputSpec, InputValue, InputValueError,
 };
 
-fn 정책(
+fn policy(
     max_count: u32,
     extensions: &[&str],
     max_file_bytes: Option<u64>,
@@ -28,10 +28,10 @@ fn 정책(
         max_file_bytes,
         max_total_bytes,
     })
-    .expect("유효한 파일 정책이어야 한다")
+    .expect("file policy must be valid")
 }
 
-fn 바이트_파일(name: &str, bytes: &[u8]) -> FileValue {
+fn bytes_file(name: &str, bytes: &[u8]) -> FileValue {
     FileValue {
         name: name.to_string(),
         mime: None,
@@ -39,7 +39,7 @@ fn 바이트_파일(name: &str, bytes: &[u8]) -> FileValue {
     }
 }
 
-fn 디렉터리(name: &str, entries: Vec<FileValue>) -> FileValue {
+fn directory(name: &str, entries: Vec<FileValue>) -> FileValue {
     FileValue {
         name: name.to_string(),
         mime: None,
@@ -47,28 +47,28 @@ fn 디렉터리(name: &str, entries: Vec<FileValue>) -> FileValue {
     }
 }
 
-fn 중첩_파일(depth: usize) -> FileValue {
-    let mut file = 바이트_파일("leaf.bin", &[1]);
+fn nested_file(depth: usize) -> FileValue {
+    let mut file = bytes_file("leaf.bin", &[1]);
     for level in 1..depth {
-        file = 디렉터리(&format!("level-{level}"), vec![file]);
+        file = directory(&format!("level-{level}"), vec![file]);
     }
     file
 }
 
-fn 파일_명세(policy: FileInputPolicy) -> InputSpec {
+fn file_spec(policy: FileInputPolicy) -> InputSpec {
     let field = InputFieldSpec::new(
-        InputName::new("upload").expect("유효한 입력 이름이어야 한다"),
+        InputName::new("upload").expect("input name must be valid"),
         None,
         None,
         true,
         InputKind::File(policy),
     )
-    .expect("유효한 파일 필드여야 한다");
-    InputSpec::new(vec![field]).expect("유효한 입력 명세여야 한다")
+    .expect("file field must be valid");
+    InputSpec::new(vec![field]).expect("input spec must be valid")
 }
 
-fn 파일_검증(policy: FileInputPolicy, file: FileValue) -> Result<(), InputValueError> {
-    let spec = 파일_명세(policy);
+fn validate_file(policy: FileInputPolicy, file: FileValue) -> Result<(), InputValueError> {
+    let spec = file_spec(policy);
     let mut args = serde_json::Map::new();
     args.insert(
         "upload".to_string(),
@@ -79,9 +79,9 @@ fn 파일_검증(policy: FileInputPolicy, file: FileValue) -> Result<(), InputVa
 }
 
 #[test]
-fn file_입력_종류는_정책을_소유한다() {
+fn file_input_kind_owns_the_policy() {
     // Given
-    let expected = 정책(2, &["png"], None, None);
+    let expected = policy(2, &["png"], None, None);
 
     // When
     let kind = InputKind::File(expected.clone());
@@ -91,7 +91,7 @@ fn file_입력_종류는_정책을_소유한다() {
 }
 
 #[test]
-fn 파일_정책은_max_count_1과_선택적인_크기_제한을_기본값으로_사용한다() {
+fn file_policy_defaults_to_max_count_1_and_no_size_limits() {
     // When
     let policy = FileInputPolicy::default();
 
@@ -103,9 +103,9 @@ fn 파일_정책은_max_count_1과_선택적인_크기_제한을_기본값으로
 }
 
 #[test]
-fn 파일_정책은_확장자를_소문자_무점_형태로_정규화한다() {
+fn file_policy_normalizes_extensions_to_lowercase_dotless_form() {
     // When
-    let policy = 정책(1, &[".PNG", "Tar.GZ"], None, None);
+    let policy = policy(1, &[".PNG", "Tar.GZ"], None, None);
 
     // Then
     assert_eq!(
@@ -115,9 +115,9 @@ fn 파일_정책은_확장자를_소문자_무점_형태로_정규화한다() {
 }
 
 #[test]
-fn 파일_정책은_선택적인_크기_제한을_보존한다() {
+fn file_policy_preserves_optional_size_limits() {
     // When
-    let policy = 정책(3, &[], Some(7), Some(11));
+    let policy = policy(3, &[], Some(7), Some(11));
 
     // Then
     assert_eq!(policy.max_file_bytes(), Some(7));
@@ -125,7 +125,7 @@ fn 파일_정책은_선택적인_크기_제한을_보존한다() {
 }
 
 #[test]
-fn 파일_정책은_0인_max_count를_거부한다() {
+fn file_policy_rejects_zero_max_count() {
     // Given
     let params = FileInputPolicyParams {
         max_count: 0,
@@ -140,7 +140,7 @@ fn 파일_정책은_0인_max_count를_거부한다() {
 }
 
 #[test]
-fn 파일_정책은_정규화후_중복된_확장자를_거부한다() {
+fn file_policy_rejects_extensions_duplicated_after_normalization() {
     // When
     let result = FileInputPolicy::try_from(FileInputPolicyParams {
         extensions: vec![".PNG".to_string(), "png".to_string()],
@@ -157,7 +157,7 @@ fn 파일_정책은_정규화후_중복된_확장자를_거부한다() {
 }
 
 #[test]
-fn 파일_정책은_잘못된_확장자를_거부한다() {
+fn file_policy_rejects_invalid_extensions() {
     // When
     let result = FileInputPolicy::try_from(FileInputPolicyParams {
         extensions: vec!["bad/path".to_string()],
@@ -174,21 +174,21 @@ fn 파일_정책은_잘못된_확장자를_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_재귀_bytes_leaf_개수를_센다() {
+fn file_input_counts_recursive_bytes_leaves() {
     // Given
-    let file = 디렉터리(
+    let file = directory(
         "root",
         vec![
-            바이트_파일("one.txt", &[1]),
-            디렉터리(
+            bytes_file("one.txt", &[1]),
+            directory(
                 "nested",
-                vec![바이트_파일("two.txt", &[2]), 바이트_파일("three.txt", &[3])],
+                vec![bytes_file("two.txt", &[2]), bytes_file("three.txt", &[3])],
             ),
         ],
     );
 
     // When
-    let result = 파일_검증(정책(2, &[], None, None), file);
+    let result = validate_file(policy(2, &[], None, None), file);
 
     // Then
     assert!(matches!(
@@ -202,30 +202,30 @@ fn 파일_입력은_재귀_bytes_leaf_개수를_센다() {
 }
 
 #[test]
-fn 파일_입력은_정확히_정책_경계인_값을_허용한다() {
+fn file_input_accepts_values_at_exact_policy_boundaries() {
     // Given
-    let file = 디렉터리(
+    let file = directory(
         "root",
         vec![
-            바이트_파일("one.png", &[1, 2]),
-            디렉터리("nested", vec![바이트_파일("two.PNG", &[3, 4, 5])]),
+            bytes_file("one.png", &[1, 2]),
+            directory("nested", vec![bytes_file("two.PNG", &[3, 4, 5])]),
         ],
     );
 
     // When
-    let result = 파일_검증(정책(2, &["png"], Some(3), Some(5)), file);
+    let result = validate_file(policy(2, &["png"], Some(3), Some(5)), file);
 
     // Then
     assert_eq!(result, Ok(()));
 }
 
 #[test]
-fn 파일_입력은_개별_파일_크기_제한을_초과하면_거부한다() {
+fn file_input_rejects_values_exceeding_the_per_file_size_limit() {
     // Given
-    let file = 바이트_파일("large.bin", &[1, 2, 3, 4]);
+    let file = bytes_file("large.bin", &[1, 2, 3, 4]);
 
     // When
-    let result = 파일_검증(정책(1, &[], Some(3), None), file);
+    let result = validate_file(policy(1, &[], Some(3), None), file);
 
     // Then
     assert!(matches!(
@@ -239,18 +239,18 @@ fn 파일_입력은_개별_파일_크기_제한을_초과하면_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_전체_크기_제한을_초과하면_거부한다() {
+fn file_input_rejects_values_exceeding_the_total_size_limit() {
     // Given
-    let file = 디렉터리(
+    let file = directory(
         "root",
         vec![
-            바이트_파일("one.bin", &[1, 2, 3]),
-            바이트_파일("two.bin", &[4, 5, 6]),
+            bytes_file("one.bin", &[1, 2, 3]),
+            bytes_file("two.bin", &[4, 5, 6]),
         ],
     );
 
     // When
-    let result = 파일_검증(정책(2, &[], None, Some(5)), file);
+    let result = validate_file(policy(2, &[], None, Some(5)), file);
 
     // Then
     assert!(matches!(
@@ -264,9 +264,9 @@ fn 파일_입력은_전체_크기_제한을_초과하면_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_빈_디렉터리를_거부한다() {
+fn file_input_rejects_empty_directories() {
     // When
-    let result = 파일_검증(FileInputPolicy::default(), 디렉터리("empty", vec![]));
+    let result = validate_file(FileInputPolicy::default(), directory("empty", vec![]));
 
     // Then
     assert!(matches!(
@@ -278,31 +278,31 @@ fn 파일_입력은_빈_디렉터리를_거부한다() {
 }
 
 #[test]
-fn 파일_입력_validator는_최대_중첩_깊이를_초과하면_거부한다() {
+fn file_input_validator_rejects_nesting_beyond_the_maximum_depth() {
     // Given
-    const 허용_중첩_깊이: usize = 64;
-    let file = 중첩_파일(허용_중첩_깊이 + 1);
+    const ALLOWED_NESTING_DEPTH: usize = 64;
+    let file = nested_file(ALLOWED_NESTING_DEPTH + 1);
 
     // When
-    let result = 파일_검증(FileInputPolicy::default(), file);
+    let result = validate_file(FileInputPolicy::default(), file);
 
     // Then
     assert!(matches!(
         result,
         Err(InputValueError::File(FileInputValueError::NestingTooDeep {
-            max: 허용_중첩_깊이,
+            max: ALLOWED_NESTING_DEPTH,
             ..
         }))
     ));
 }
 
 #[test]
-fn 파일_입력은_허용되지_않은_확장자를_거부한다() {
+fn file_input_rejects_disallowed_extensions() {
     // Given
-    let file = 바이트_파일("report.pdf", &[1]);
+    let file = bytes_file("report.pdf", &[1]);
 
     // When
-    let result = 파일_검증(정책(1, &["png"], None, None), file);
+    let result = validate_file(policy(1, &["png"], None, None), file);
 
     // Then
     assert!(matches!(
@@ -314,7 +314,7 @@ fn 파일_입력은_허용되지_않은_확장자를_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_재귀_자식의_is_dir_불일치를_거부한다() {
+fn file_input_rejects_is_dir_mismatch_in_recursive_children() {
     // Given
     let malformed = serde_json::json!({
         "name": "root",
@@ -328,7 +328,7 @@ fn 파일_입력은_재귀_자식의_is_dir_불일치를_거부한다() {
             }]
         }
     });
-    let spec = 파일_명세(FileInputPolicy::default());
+    let spec = file_spec(FileInputPolicy::default());
     let mut args = serde_json::Map::new();
     args.insert("upload".to_string(), malformed);
 
@@ -345,10 +345,10 @@ fn 파일_입력은_재귀_자식의_is_dir_불일치를_거부한다() {
 }
 
 #[test]
-fn 파일_정책은_json_schema에_노출되고_손실없이_가져온다() {
+fn file_policy_is_exposed_in_json_schema_and_imported_losslessly() {
     // Given
-    let expected = 정책(2, &[".PNG", "JPG"], Some(3), Some(5));
-    let spec = 파일_명세(expected.clone());
+    let expected = policy(2, &[".PNG", "JPG"], Some(3), Some(5));
+    let spec = file_spec(expected.clone());
 
     // When
     let schema = spec.to_json_schema_value();
@@ -363,14 +363,14 @@ fn 파일_정책은_json_schema에_노출되고_손실없이_가져온다() {
             "maxTotalBytes": 5,
         })
     );
-    let imported = InputSpec::try_from(&schema).expect("파일 정책 schema를 가져와야 한다");
+    let imported = InputSpec::try_from(&schema).expect("must import the file policy schema");
     assert!(matches!(&imported.fields[0].kind, InputKind::File(actual) if actual == &expected));
 }
 
 #[test]
-fn 기본_파일_정책_json_schema는_선택적_크기_제한을_생략한다() {
+fn default_file_policy_json_schema_omits_optional_size_limits() {
     // Given
-    let spec = 파일_명세(FileInputPolicy::default());
+    let spec = file_spec(FileInputPolicy::default());
 
     // When
     let schema = spec.to_json_schema_value();
@@ -384,7 +384,7 @@ fn 기본_파일_정책_json_schema는_선택적_크기_제한을_생략한다()
 }
 
 #[test]
-fn 파일_정책이_없는_json_schema는_기본_정책을_사용한다() {
+fn json_schema_without_a_file_policy_uses_the_default_policy() {
     // Given
     let schema = serde_json::json!({
         "type": "object",
@@ -397,7 +397,7 @@ fn 파일_정책이_없는_json_schema는_기본_정책을_사용한다() {
     });
 
     // When
-    let imported = InputSpec::try_from(&schema).expect("기본 파일 정책으로 가져와야 한다");
+    let imported = InputSpec::try_from(&schema).expect("must import with the default file policy");
 
     // Then
     assert!(matches!(
@@ -407,7 +407,7 @@ fn 파일_정책이_없는_json_schema는_기본_정책을_사용한다() {
 }
 
 #[test]
-fn 파일_정책_json_schema는_객체가_아닌_값을_거부한다() {
+fn file_policy_json_schema_rejects_non_object_values() {
     // Given
     let schema = serde_json::json!({
         "type": "object",
@@ -434,7 +434,7 @@ fn 파일_정책_json_schema는_객체가_아닌_값을_거부한다() {
 }
 
 #[test]
-fn 파일_정책_json_schema는_알수없는_키를_거부한다() {
+fn file_policy_json_schema_rejects_unknown_keys() {
     // Given
     let schema = serde_json::json!({
         "type": "object",

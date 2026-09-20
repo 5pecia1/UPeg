@@ -14,7 +14,7 @@ import 'package:upeg/src/popup/popup_selection_provider.dart';
 
 void main() {
   group('PopupSelectionNotifier', () {
-    test('초기값은_index_0이다', () {
+    test('the_initial_value_is_index_0', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -24,7 +24,7 @@ void main() {
       );
     });
 
-    test('next는_상한에서_랩한다', () {
+    test('next_wraps_at_the_upper_bound', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -35,7 +35,7 @@ void main() {
       expect(container.read(popupSelectionProvider).index, 0);
     });
 
-    test('next는_중간에서_index를_증가시킨다', () {
+    test('next_increments_the_index_in_the_middle', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -45,7 +45,7 @@ void main() {
       expect(container.read(popupSelectionProvider).index, 1);
     });
 
-    test('prev는_하한에서_상한으로_랩한다', () {
+    test('prev_wraps_from_the_lower_to_the_upper_bound', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -55,7 +55,7 @@ void main() {
       expect(container.read(popupSelectionProvider).index, 3);
     });
 
-    test('hitCount_0에서는_index가_바뀌지_않는다', () {
+    test('the_index_stays_put_when_hitcount_is_0', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

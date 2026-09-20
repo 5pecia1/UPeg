@@ -23,6 +23,8 @@ fn register_tui_picker_tool(
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -45,8 +47,9 @@ fn missing_recent_log_path(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn 도구추가키는_편집모드_없이도_선택기를_연다() {
-    // Modeless: 구체 보드가 선택돼 있으면 `a`는 곧바로 핀 선택기를 연다.
+fn add_tool_key_opens_picker_without_edit_mode() {
+    // Modeless: with a concrete board selected, `a` opens the pin
+    // picker directly.
     let mut s = fresh();
     s.filters.select_board("dev");
     let t = fixture_tools();
@@ -62,7 +65,7 @@ fn 도구추가키는_편집모드_없이도_선택기를_연다() {
 }
 
 #[test]
-fn 전체_필터이면_도구추가키는_아무_일도_하지_않는다() {
+fn add_tool_key_does_nothing_on_all_filter() {
     let mut s = fresh();
     let t = fixture_tools();
     let effect = handle_key(&mut s, Key::Char('a'), t.as_slice());
@@ -71,7 +74,7 @@ fn 전체_필터이면_도구추가키는_아무_일도_하지_않는다() {
 }
 
 #[test]
-fn 편집_모드에서_소문자_또는_대문자_a는_도구_선택기를_빈_검색어로_연다() {
+fn lowercase_or_uppercase_a_opens_tool_picker_with_empty_query() {
     for key in ['a', 'A'] {
         let mut s = fresh();
         s.filters.select_board("dev");
@@ -95,7 +98,7 @@ fn 편집_모드에서_소문자_또는_대문자_a는_도구_선택기를_빈_�
 }
 
 #[test]
-fn 도구_선택기에서_입력하면_검색어가_필터링된다() {
+fn typing_in_tool_picker_filters_by_query() {
     let mut s = fresh();
     s.filters.select_board("dev");
     let t = fixture_tools();
@@ -106,12 +109,12 @@ fn 도구_선택기에서_입력하면_검색어가_필터링된다() {
     if let View::ToolPicker { query, .. } = &s.view {
         assert_eq!(query, "hex");
     } else {
-        panic!("ToolPicker를 기대했다");
+        panic!("expected ToolPicker");
     }
 }
 
 #[test]
-fn 도구_선택기는_공유_검색으로_도구킷과_태그를_매칭한다() {
+fn tool_picker_matches_toolkit_and_tags_via_shared_search() {
     const TAGS: &[&str] = &["zz-tui-tag-only-needle"];
     let tool_id = "zz_tui_toolkit_match.alpha";
     let _tool = register_tui_picker_tool(
@@ -151,7 +154,7 @@ fn 도구_선택기는_공유_검색으로_도구킷과_태그를_매칭한다()
 }
 
 #[test]
-fn 도구_선택기는_활성_보드의_고정_도구를_먼저_정렬한다() {
+fn tool_picker_sorts_active_board_pinned_tools_first() {
     const TAGS: &[&str] = &["zz-tui-pinned-rank-tag"];
     let unpinned_id = "zz_tui_rank.first";
     let pinned_id = "zz_tui_rank.pinned";
@@ -180,7 +183,7 @@ fn 도구_선택기는_활성_보드의_고정_도구를_먼저_정렬한다() {
 }
 
 #[test]
-fn 도구_선택기는_아홉개를_넘는_검색_결과를_자르지_않는다() {
+fn tool_picker_does_not_truncate_search_results_over_nine() {
     const TAGS: &[&str] = &["zz-tui-no-cap-tag"];
     let mut guards = Vec::with_capacity(OVERFLOW_TOOL_COUNT);
     for index in 0..OVERFLOW_TOOL_COUNT {
@@ -212,16 +215,16 @@ fn 도구_선택기는_아홉개를_넘는_검색_결과를_자르지_않는다(
     assert_eq!(
         ids.len(),
         OVERFLOW_TOOL_COUNT,
-        "도구 선택기는 예전 9개 제한을 적용하지 않아야 한다: {ids:?}"
+        "the tool picker must not apply the old 9-item cap: {ids:?}"
     );
     assert!(
         ids.len() > OLD_NINE_RESULT_CAP,
-        "검색 결과는 9개를 넘어도 유지되어야 한다"
+        "search results must be kept beyond 9 items"
     );
 }
 
 #[test]
-fn 도구_선택기는_최근_로그가_없어도_열리고_검색한다() {
+fn tool_picker_opens_and_searches_without_recent_log() {
     const TAGS: &[&str] = &["zz-tui-missing-recent-tag"];
     let tool_id = "zz_tui_missing_recent.tool";
     let _tool = register_tui_picker_tool(
@@ -260,10 +263,10 @@ fn 도구_선택기는_최근_로그가_없어도_열리고_검색한다() {
 }
 
 #[test]
-fn 도구_선택기에서_엔터는_고정을_토글하고_보기를_열어_둔다() {
+fn enter_in_tool_picker_toggles_pin_and_keeps_view_open() {
     let mut s = fresh();
     s.filters.select_board("dev");
-    // 토글 결과를 관찰할 수 있도록 dev의 기본 레이아웃을 비운다.
+    // Empty dev's default layout so the toggle result is observable.
     s.layouts.insert("dev".into(), Vec::new());
     let t = fixture_tools();
     handle_key(&mut s, Key::Char('a'), t.as_slice());
@@ -271,27 +274,27 @@ fn 도구_선택기에서_엔터는_고정을_토글하고_보기를_열어_둔�
     for ch in needle.chars() {
         handle_key(&mut s, Key::Char(ch), t.as_slice());
     }
-    // 정확히 일치하는 검색어는 해당 도구를 커서 0에 둔다.
+    // An exact-match query puts that tool at cursor 0.
     let effect = handle_key(&mut s, Key::Enter, t.as_slice());
     assert_eq!(effect, Effect::SavePegboard);
     let pinned = layout_contains(&s, "dev", needle);
     assert!(
         pinned,
-        "선택기에서 커서가 있는 행에 Enter를 누르면 도구가 고정되어야 한다"
+        "Enter on the row under the picker cursor must pin the tool"
     );
     assert!(
         matches!(s.view, View::ToolPicker { .. }),
-        "여러 도구를 고정할 수 있도록 고정 후에도 선택기는 열려 있어야 한다"
+        "the picker must stay open after pinning so several tools can be pinned"
     );
 }
 
 #[test]
-fn 도구_선택기에서_이미_고정된_도구에_엔터를_누르면_고정이_해제된다() {
+fn enter_on_already_pinned_tool_in_picker_unpins_it() {
     let mut s = fresh();
     s.filters.select_board("dev");
     let t = fixture_tools();
     let needle = "num.hex_to_decimal";
-    // 도구가 정확히 한 번 고정된 상태로 시작하게 한다.
+    // Start with the tool pinned exactly once.
     s.layouts
         .insert("dev".into(), vec![Placement::new(needle, 0, 0)]);
     handle_key(&mut s, Key::Char('a'), t.as_slice());
@@ -303,12 +306,12 @@ fn 도구_선택기에서_이미_고정된_도구에_엔터를_누르면_고정�
     let still_pinned = layout_contains(&s, "dev", needle);
     assert!(
         !still_pinned,
-        "고정된 도구에서 Enter를 누르면 토글로 고정이 해제되어야 한다"
+        "Enter on a pinned tool must toggle the pin off"
     );
 }
 
 #[test]
-fn 도구_선택기에서_이스케이프는_오버레이를_닫는다() {
+fn esc_in_tool_picker_closes_overlay() {
     let mut s = fresh();
     s.filters.select_board("dev");
     let t = fixture_tools();
@@ -318,7 +321,7 @@ fn 도구_선택기에서_이스케이프는_오버레이를_닫는다() {
 }
 
 #[test]
-fn slash는_edit_mode_없이_search_picker를_연다() {
+fn slash_opens_search_picker_without_edit_mode() {
     let mut s = fresh();
     let t = fixture_tools();
 
@@ -342,7 +345,7 @@ fn slash는_edit_mode_없이_search_picker를_연다() {
 }
 
 #[test]
-fn 오른쪽_패널_focus에서_ctrl_k는_search_picker를_연다() {
+fn ctrl_k_from_right_pane_focus_opens_search_picker() {
     let mut s = fresh();
     s.view = View::Detail;
     s.focus = FocusArea::RightPane;
@@ -369,13 +372,13 @@ fn 오른쪽_패널_focus에서_ctrl_k는_search_picker를_연다() {
                 ..
             }
         ),
-        "Ctrl+K는 RightPane 스크롤로 소비되지 않고 search picker를 열어야 한다. got: {:?}",
+        "Ctrl+K must open the search picker, not be consumed by RightPane scroll. got: {:?}",
         s.view
     );
 }
 
 #[test]
-fn search_picker는_열릴_때_focus를_초기화해서_키입력을_picker로_보낸다() {
+fn search_picker_resets_focus_on_open_so_keys_reach_picker() {
     let mut s = fresh();
     s.view = View::Detail;
     s.focus = FocusArea::RightPane;
@@ -389,7 +392,7 @@ fn search_picker는_열릴_때_focus를_초기화해서_키입력을_picker로_�
         View::ToolPicker { cursor, .. } => {
             assert_eq!(
                 *cursor, 1,
-                "Down은 RightPane 스크롤이 아니라 picker cursor를 내려야 한다"
+                "Down must move the picker cursor, not RightPane scroll"
             );
         }
         other => panic!("expected search ToolPicker, got {other:?}"),
@@ -400,11 +403,11 @@ fn search_picker는_열릴_때_focus를_초기화해서_키입력을_picker로_�
         View::ToolPicker { query, cursor, .. } => {
             assert_eq!(
                 query, "j",
-                "j는 RightPane 스크롤이 아니라 picker 검색어여야 한다"
+                "j must go to the picker query, not RightPane scroll"
             );
             assert_eq!(
                 *cursor, 0,
-                "검색어 입력 후 picker cursor는 맨 위로 돌아가야 한다"
+                "after typing a query the picker cursor must return to the top"
             );
         }
         other => panic!("expected search ToolPicker, got {other:?}"),
@@ -412,7 +415,7 @@ fn search_picker는_열릴_때_focus를_초기화해서_키입력을_picker로_�
 }
 
 #[test]
-fn detail에서_연_search_picker는_esc로_detail에_돌아간다() {
+fn search_picker_opened_from_detail_returns_to_detail_on_esc() {
     let mut s = fresh();
     s.view = View::Detail;
     s.focus = FocusArea::RightPane;
@@ -428,7 +431,7 @@ fn detail에서_연_search_picker는_esc로_detail에_돌아간다() {
 }
 
 #[test]
-fn search_picker_enter는_핀을_바꾸지_않고_상세를_연다() {
+fn search_picker_enter_opens_detail_without_changing_pins() {
     let mut s = fresh();
     let t = fixture_tools();
     let before = s.layouts.clone();

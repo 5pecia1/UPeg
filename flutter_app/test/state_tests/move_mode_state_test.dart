@@ -22,14 +22,14 @@ final _devBoardKey = BoardKey.parse('dev');
 
 void main() {
   group('MoveModeState machine (F15)', () {
-    test('moveModeProvider는_초기값이_Idle이다', () {
+    test('moveModeProvider_initial_value_is_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('start는_Idle에서_Active로_전이한다', () {
+    test('start_transitions_from_Idle_to_Active', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -54,7 +54,7 @@ void main() {
       expect(active.currentY, 2);
     });
 
-    test('nudge는_Active일때_currentX_currentY만_갱신한다', () {
+    test('nudge_updates_only_currentX_currentY_when_Active', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -77,7 +77,7 @@ void main() {
       expect(state.currentY, 0);
     });
 
-    test('nudge는_Idle일때_no_op이다', () {
+    test('nudge_is_no_op_when_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -86,7 +86,7 @@ void main() {
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('cancel은_Active에서_Idle로_되돌린다', () {
+    test('cancel_returns_from_Active_to_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -105,7 +105,7 @@ void main() {
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('commit은_Active상태를_반환하면서_Idle로_되돌린다', () {
+    test('commit_returns_Active_state_while_reverting_to_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -128,7 +128,7 @@ void main() {
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('commit은_Idle일때_null을_반환한다', () {
+    test('commit_returns_null_when_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -136,7 +136,7 @@ void main() {
       expect(committed, isNull);
     });
 
-    test('nudge는_원점_미만으로_내려가지_않는다', () {
+    test('nudge_never_goes_below_origin', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 

@@ -1,10 +1,10 @@
 /// Pin-resize keyboard/mouse resize-mode state machine.
 ///
 /// Pressing `e` (with a focused pin) — or grabbing the SE-corner
-/// handle — flips into "resize mode": arrows/드래그가 span을 조절하고,
-/// Enter/pan-end가 commit, Esc가 cancel. 이 파일은 순수 state machine
-/// 계약만 고정한다 (move_mode_state_test.dart 미러); widget 테스트가
-/// BoardPage 키 배선과 canvas preview overlay를 커버한다.
+/// handle — flips into "resize mode": arrows/drag adjust the span,
+/// Enter/pan-end commits, Esc cancels. This file pins only the pure
+/// state-machine contract (mirrors move_mode_state_test.dart); widget
+/// tests cover the BoardPage key wiring and canvas preview overlay.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,34 +39,37 @@ void _startU1({
 
 void main() {
   group('ResizeModeState machine', () {
-    test('resizeModeProvider는_초기값이_Idle이다', () {
+    test('resizeModeProvider_initial_value_is_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
     });
 
-    test('start는_Idle에서_Active로_전이하며_base를_current로_seed한다', () {
-      final c = ProviderContainer();
-      addTearDown(c.dispose);
+    test(
+      'start_transitions_from_Idle_to_Active_and_seeds_base_into_current',
+      () {
+        final c = ProviderContainer();
+        addTearDown(c.dispose);
 
-      _startU1(container: c, baseCols: 2, baseRows: 1);
+        _startU1(container: c, baseCols: 2, baseRows: 1);
 
-      final state = c.read(resizeModeProvider);
-      expect(state, isA<ResizeModeActive>());
-      final active = state as ResizeModeActive;
-      expect(active.boardKey, _devBoardKey);
-      expect(active.toolId, ToolId.parse('num.hex_to_decimal'));
-      expect(active.baseCols, 2);
-      expect(active.baseRows, 1);
-      expect(active.currentCols, 2);
-      expect(active.currentRows, 1);
-      expect(active.maxCols, _fixedBoardCols);
-      expect(active.manifestCols, 1);
-      expect(active.manifestRows, 1);
-    });
+        final state = c.read(resizeModeProvider);
+        expect(state, isA<ResizeModeActive>());
+        final active = state as ResizeModeActive;
+        expect(active.boardKey, _devBoardKey);
+        expect(active.toolId, ToolId.parse('num.hex_to_decimal'));
+        expect(active.baseCols, 2);
+        expect(active.baseRows, 1);
+        expect(active.currentCols, 2);
+        expect(active.currentRows, 1);
+        expect(active.maxCols, _fixedBoardCols);
+        expect(active.manifestCols, 1);
+        expect(active.manifestRows, 1);
+      },
+    );
 
-    test('resizeBy는_Active일때_current만_갱신한다', () {
+    test('resizeBy_updates_only_current_when_Active', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -80,7 +83,7 @@ void main() {
       expect(state.currentRows, 3);
     });
 
-    test('resizeBy는_Idle일때_no_op이다', () {
+    test('resizeBy_is_no_op_when_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -89,7 +92,7 @@ void main() {
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
     });
 
-    test('resizeBy는_boardCols_6을_초과하는_확대를_무시한다', () {
+    test('resizeBy_ignores_growth_beyond_boardCols_6', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -100,7 +103,7 @@ void main() {
       expect(state.currentCols, _fixedBoardCols);
     });
 
-    test('resizeBy는_1_미만_축소를_무시한다', () {
+    test('resizeBy_ignores_shrink_below_1', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -112,7 +115,7 @@ void main() {
       expect(state.currentRows, 1);
     });
 
-    test('reset은_current를_manifest_크기로_되돌린다', () {
+    test('reset_returns_current_to_manifest_size', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -129,12 +132,12 @@ void main() {
       final state = c.read(resizeModeProvider) as ResizeModeActive;
       expect(state.currentCols, 2);
       expect(state.currentRows, 1);
-      // base는 진입 시 snapshot 그대로 남는다.
+      // base keeps the snapshot taken on entry.
       expect(state.baseCols, 3);
       expect(state.baseRows, 2);
     });
 
-    test('cancel은_Active에서_Idle로_되돌린다', () {
+    test('cancel_returns_from_Active_to_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -145,7 +148,7 @@ void main() {
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
     });
 
-    test('commit은_Active_snapshot을_반환하면서_Idle로_되돌린다', () {
+    test('commit_returns_Active_snapshot_while_reverting_to_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -160,7 +163,7 @@ void main() {
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
     });
 
-    test('commit은_Idle일때_null을_반환한다', () {
+    test('commit_returns_null_when_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 

@@ -143,7 +143,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 자격증명_맵은_기본_env_조회_전에_선언된_기본값을_재사용한다() {
+    fn credential_map_reuses_declared_default_before_default_env_lookup() {
         let name = format!("primary_reuse_{}", std::process::id());
         let credentials = [CredentialRefToml {
             name: name.clone(),

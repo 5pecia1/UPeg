@@ -82,7 +82,7 @@ mod tests {
     use syn::parse_str;
 
     #[test]
-    fn 러스트독_첫_줄을_추출한다() {
+    fn extracts_first_rustdoc_line() {
         let item_fn: ItemFn = parse_str(
             "
             /// Greet a person by name.
@@ -100,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn 러스트독이_없으면_none을_반환한다() {
+    fn returns_none_without_rustdoc() {
         let item_fn: ItemFn =
             parse_str("pub fn greet_hello(name: &str) -> String { String::new() }").unwrap();
 
@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn 슬러그는_구분자를_공백으로_바꾸고_단어_첫글자를_대문자로_바꾼다() {
+    fn slug_converts_separators_to_spaces_and_capitalizes_words() {
         assert_eq!(display_label_from_slug("hex_to_decimal"), "Hex To Decimal");
         assert_eq!(
             display_label_from_slug("num.hex_to_decimal"),
@@ -117,7 +117,7 @@ mod tests {
     }
 
     #[test]
-    fn 슬러그는_알려진_두문자어를_보존한다() {
+    fn slug_preserves_known_acronyms() {
         assert_eq!(display_label_from_slug("uuid_generate"), "UUID Generate");
         assert_eq!(display_label_from_slug("json_to_csv"), "JSON To CSV");
     }

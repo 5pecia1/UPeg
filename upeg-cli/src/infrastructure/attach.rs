@@ -452,7 +452,7 @@ mod tests {
 
     const FILE_OUTPUT_NODE_BUDGET_EXCESS_CHILD_COUNT: u64 = upeg_core::MAX_FILE_OUTPUT_NODES;
 
-    fn 노드_예산을_초과한_file_성공_응답() -> String {
+    fn file_success_response_over_node_budget() -> String {
         let entries = (0..FILE_OUTPUT_NODE_BUDGET_EXCESS_CHILD_COUNT)
             .map(|index| {
                 serde_json::json!({
@@ -485,7 +485,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_응답_200_매핑은_정규_성공을_반환한다() {
+    fn dispatch_response_200_mapping_returns_canonical_success() {
         let outcome = map_dispatch_response(
             200,
             r#"{"ok":true,"primary_output_id":"result","outputs":[{"id":"result","label":"Result","kind":"integer","value":255}]}"#,
@@ -495,34 +495,34 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_응답_200_매핑은_정규_성공이_아니면_오류를_낸다() {
+    fn dispatch_response_200_mapping_errors_on_non_canonical_success() {
         let err = map_dispatch_response(200, "{}").unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidData);
     }
 
     #[test]
-    fn dispatch_응답_200_매핑은_유효하지_않은_json에_오류를_낸다() {
+    fn dispatch_response_200_mapping_errors_on_invalid_json() {
         let err = map_dispatch_response(200, "garbage").unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidData);
     }
 
     #[test]
-    fn attach_file_출력은_aggregate_노드_예산을_decode_전에_검사한다() {
-        let error = map_dispatch_response(200, &노드_예산을_초과한_file_성공_응답())
-            .expect_err("attach File 출력은 aggregate 노드 예산 초과를 거부해야 한다");
+    fn attach_file_output_checks_aggregate_node_budget_before_decode() {
+        let error = map_dispatch_response(200, &file_success_response_over_node_budget())
+            .expect_err("attach File output must reject an aggregate node budget excess");
 
         assert_eq!(error.kind(), ErrorKind::InvalidData);
         assert!(error.to_string().contains("node count"), "{error}");
     }
 
     #[test]
-    fn dispatch_응답_404_매핑은_not_found를_반환한다() {
+    fn dispatch_response_404_mapping_returns_not_found() {
         let outcome = map_dispatch_response(404, r#"{"error":"no"}"#).unwrap();
         assert_eq!(outcome, Outcome::NotFound);
     }
 
     #[test]
-    fn dispatch_응답_422_매핑은_정규_오류를_반환한다() {
+    fn dispatch_response_422_mapping_returns_canonical_error() {
         let outcome = map_dispatch_response(
             422,
             r#"{"ok":false,"error":{"code":"tool_error","message":"bad hex"}}"#,
@@ -538,13 +538,13 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_응답_401_매핑은_권한_오류를_반환한다() {
+    fn dispatch_response_401_mapping_returns_permission_error() {
         let err = map_dispatch_response(401, r#"{"error":"paused"}"#).unwrap_err();
         assert_eq!(err.kind(), ErrorKind::PermissionDenied);
     }
 
     #[test]
-    fn dispatch_응답_매핑은_다른_상태_코드를_도구_오류로_떨어뜨린다() {
+    fn dispatch_response_mapping_falls_back_to_tool_error_for_other_status_codes() {
         let outcome = map_dispatch_response(503, r#"{"error":"down"}"#).unwrap();
         match outcome {
             Outcome::Failure(failure) => {
@@ -557,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn 오류가_없는_필드이면_맵_dispatch_응답은_원시_본문로_대체값한다() {
+    fn map_dispatch_response_falls_back_to_raw_body_without_error_field() {
         let outcome = map_dispatch_response(422, "raw text").unwrap();
         match outcome {
             Outcome::Failure(failure) => assert_eq!(failure.error.message, "raw text"),

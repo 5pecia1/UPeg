@@ -22,22 +22,25 @@ ProviderContainer _container({
 
 void main() {
   group('selectedTagProvider board change normalization', () {
-    test('selectedTagProvider는_새_board에_없는_tag만_all로_리셋한다', () {
-      final c = _container(
-        tagOptions: (boardKey) => boardKey == BoardKey.parse('side')
-            ? const ['all']
-            : const ['all', 'convert'],
-      );
+    test(
+      'selectedTagProvider_resets_only_tag_missing_from_new_board_to_all',
+      () {
+        final c = _container(
+          tagOptions: (boardKey) => boardKey == BoardKey.parse('side')
+              ? const ['all']
+              : const ['all', 'convert'],
+        );
 
-      c.read(selectedTagProvider.notifier).select('convert');
-      expect(c.read(selectedTagProvider), const TagSpecific('convert'));
+        c.read(selectedTagProvider.notifier).select('convert');
+        expect(c.read(selectedTagProvider), const TagSpecific('convert'));
 
-      c.read(currentBoardKeyProvider.notifier).select(BoardKey.parse('side'));
+        c.read(currentBoardKeyProvider.notifier).select(BoardKey.parse('side'));
 
-      expect(c.read(selectedTagProvider), const TagAll());
-    });
+        expect(c.read(selectedTagProvider), const TagAll());
+      },
+    );
 
-    test('selectedTagProvider는_새_board에도_유효한_tag를_유지한다', () {
+    test('selectedTagProvider_keeps_tag_still_valid_on_new_board', () {
       final c = _container(tagOptions: (_) => const ['all', 'convert']);
 
       c.read(currentBoardKeyProvider.notifier).select(BoardKey.parse('main'));

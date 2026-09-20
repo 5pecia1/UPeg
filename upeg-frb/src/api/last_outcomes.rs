@@ -208,16 +208,17 @@ mod tests {
     }
 
     #[test]
-    fn canonical_result는_store_행으로_변환_후_dto로_왕복한다() {
+    fn canonical_result_round_trips_through_store_row_to_dto() {
         let (dir, mut store) = temp_store();
         for (tool_id, result) in [("num.hex", ok_result()), ("net.ping", error_result())] {
-            let outcome = new_last_outcome_from(tool_id.to_string(), &result).expect("행 변환");
-            store.record_last_outcome("dev", &outcome).expect("기록");
+            let outcome =
+                new_last_outcome_from(tool_id.to_string(), &result).expect("row conversion");
+            store.record_last_outcome("dev", &outcome).expect("record");
         }
 
         let loaded: Vec<_> = store
             .load_last_outcomes("dev")
-            .expect("로드")
+            .expect("load")
             .into_iter()
             .filter_map(dto_from_record)
             .collect();
@@ -237,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn 손상된_outputs_json_행은_dto변환에서_걸러진다() {
+    fn corrupted_outputs_json_row_is_filtered_out_in_dto_conversion() {
         let record = upeg_sources::store::LastOutcomeRecord {
             tool_id: "num.hex".to_string(),
             ok: true,

@@ -2,17 +2,17 @@ use super::{FileInputPolicyDto, InputFieldType};
 use upeg_core::{FileInputPolicy, FileInputPolicyParams, InputKind};
 
 #[test]
-fn file_입력_dto는_코어_정책의_네_필드를_손실없이_노출한다() {
+fn file_input_dto_exposes_core_policys_four_fields_losslessly() {
     let policy = FileInputPolicy::try_from(FileInputPolicyParams {
         max_count: 7,
         extensions: vec!["png".to_string(), "jpeg".to_string()],
         max_file_bytes: Some(1_024),
         max_total_bytes: Some(4_096),
     })
-    .expect("테스트 파일 정책은 유효해야 한다");
+    .expect("test file policy must be valid");
 
     let InputFieldType::File { policy } = InputFieldType::from(&InputKind::File(policy)) else {
-        panic!("File 입력은 정책을 포함한 File DTO로 변환되어야 한다");
+        panic!("File input must convert to a File DTO carrying the policy");
     };
 
     assert_eq!(
@@ -27,11 +27,11 @@ fn file_입력_dto는_코어_정책의_네_필드를_손실없이_노출한다()
 }
 
 #[test]
-fn file_입력_dto는_기본_정책의_max_count_1을_노출한다() {
+fn file_input_dto_exposes_default_policy_max_count_1() {
     let InputFieldType::File { policy } =
         InputFieldType::from(&InputKind::File(FileInputPolicy::default()))
     else {
-        panic!("File 입력은 정책을 포함한 File DTO로 변환되어야 한다");
+        panic!("File input must convert to a File DTO carrying the policy");
     };
 
     assert_eq!(policy.max_count, 1);

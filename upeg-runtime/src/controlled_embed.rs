@@ -319,7 +319,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 브라우저_종류_라벨은_변형별로_고유하다() {
+    fn browser_kind_labels_are_unique_per_variant() {
         let labels = [
             BrowserKind::Chrome.label(),
             BrowserKind::Chromium.label(),
@@ -330,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_기반_종류_추측은_엣지를_식별한다() {
+    fn path_based_kind_guess_identifies_edge() {
         assert_eq!(
             guess_kind_from_path(Path::new("/usr/bin/microsoft-edge")),
             BrowserKind::Edge
@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_기반_종류_추측은_크로미움을_식별한다() {
+    fn path_based_kind_guess_identifies_chromium() {
         assert_eq!(
             guess_kind_from_path(Path::new("/usr/bin/chromium-browser")),
             BrowserKind::Chromium
@@ -350,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_기반_종류_추측은_기본을_크롬으로_둔다() {
+    fn path_based_kind_guess_defaults_to_chrome() {
         assert_eq!(
             guess_kind_from_path(Path::new("/usr/bin/google-chrome")),
             BrowserKind::Chrome
@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn noop_백엔드는_feature_disabled를_반환한다() {
+    fn noop_backend_returns_feature_disabled() {
         let backend = NoopControlledEmbedBackend;
         let bindings: &[upeg_core::SelectorBinding] = &[];
         let inputs: &[(&str, &str)] = &[];
@@ -377,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_request는_settings를_소유한_값으로_보존한다() {
+    fn controlled_embed_request_keeps_settings_as_owned_value() {
         let settings = upeg_core::ControlledEmbedSettings {
             user_agent: Some(upeg_core::ControlledEmbedUserAgent::Custom(
                 "Test UA".into(),
@@ -401,7 +401,7 @@ mod tests {
     }
 
     #[test]
-    fn 셀렉터_바인딩은_역할과_필드와_셀렉터를_보존한다() {
+    fn selector_binding_preserves_role_field_and_selector() {
         let binding = upeg_core::SelectorBinding {
             role: upeg_core::BindingRole::Input,
             field: "json".to_string(),
@@ -415,18 +415,19 @@ mod tests {
     }
 
     #[test]
-    fn 후보_경로_탐지는_플랫폼_경로_목록을_생성한다() {
-        // 호스트 플랫폼에 따라 후보 경로가 적어도 하나는 있어야 한다.
-        // (시스템에 브라우저가 실제로 설치돼 있는지는 CI 환경에 의존하지
-        // 않으므로 후보 *목록*만 확인한다.)
+    fn candidate_path_detection_produces_platform_path_list() {
+        // Depending on the host platform there must be at least one
+        // candidate path. (Whether a browser is actually installed on the
+        // system depends on the CI environment, so we only check the
+        // candidate *list*.)
         let candidates = candidate_paths();
         if cfg!(any(
             target_os = "linux",
             target_os = "macos",
             target_os = "windows"
         )) {
-            // CI 리눅스 컨테이너에서는 PATH에 브라우저가 없을 수도 있으니
-            // 빈 목록을 허용하되, 적어도 호출 자체가 패닉하지 않는 것을 보장.
+            // A CI Linux container may have no browser on PATH, so an
+            // empty list is allowed — but the call itself must not panic.
             assert!(
                 candidates
                     .iter()
@@ -439,9 +440,9 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn 실행권한_없는_파일은_브라우저로_받지_않는다() {
-        // 임시 디렉터리에 실행 비트를 끈 빈 파일을 만들고, `is_executable_file`이
-        // 이를 명확히 거절하는지 검증.
+    fn file_without_executable_permission_is_not_accepted_as_browser() {
+        // Create an empty file without the executable bit in a temp
+        // directory and verify `is_executable_file` clearly rejects it.
         use std::io::Write;
         use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!("upeg-exec-test-{}", std::process::id()));
@@ -457,14 +458,14 @@ mod tests {
             "executable bit absent: must be rejected"
         );
 
-        // 실행 비트를 켜면 통과해야 한다.
+        // Turning the executable bit on must make it pass.
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("set perms");
         assert!(
             is_executable_file(&path),
             "executable bit present: must accept"
         );
 
-        // 디렉터리는 어느 경우에도 거절.
+        // A directory is rejected either way.
         assert!(!is_executable_file(&dir), "directory must be rejected");
 
         let _ = std::fs::remove_file(&path);

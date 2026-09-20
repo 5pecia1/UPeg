@@ -22,13 +22,13 @@ ProviderContainer _makeContainer() {
 
 void main() {
   group('currentBoardKeyProvider', () {
-    test('currentBoardKeyProvider는_초기값이_null이다', () {
+    test('currentBoardKeyProvider_initial_value_is_null', () {
       final container = _makeContainer();
 
       expect(container.read(currentBoardKeyProvider), isNull);
     });
 
-    test('currentBoardKeyProvider는_select로_값을_갱신한다', () {
+    test('currentBoardKeyProvider_updates_value_via_select', () {
       final container = _makeContainer();
 
       container

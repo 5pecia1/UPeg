@@ -9,7 +9,7 @@ use upeg_core::{InputAdapterError, InputSpec};
 
 const FILE_WIRE_KEY: &str = "x-upeg-file-wire";
 
-fn 레거시_파일_schema() -> Value {
+fn legacy_file_schema() -> Value {
     json!({
         "type": "object",
         "properties": {
@@ -23,7 +23,7 @@ fn 레거시_파일_schema() -> Value {
     })
 }
 
-fn 지원되는_file_wire() -> Value {
+fn supported_file_wire() -> Value {
     json!({
         "version": 1,
         "bytesEncoding": "base64-rfc4648-padded",
@@ -34,34 +34,34 @@ fn 지원되는_file_wire() -> Value {
 }
 
 #[test]
-fn 파일_wire_확장은_schema_왕복에서_정확한_계약을_보존한다() {
-    let spec = InputSpec::try_from(&레거시_파일_schema())
-        .expect("확장이 없는 외부 레거시 schema를 가져와야 한다");
+fn file_wire_extension_preserves_the_exact_contract_across_a_schema_roundtrip() {
+    let spec = InputSpec::try_from(&legacy_file_schema())
+        .expect("must import the external legacy schema without the extension");
 
     let exported = spec.to_json_schema_value();
     assert_eq!(
         exported["properties"]["upload"][FILE_WIRE_KEY],
-        지원되는_file_wire()
+        supported_file_wire()
     );
 
     let imported =
-        InputSpec::try_from(&exported).expect("내보낸 파일 wire 확장을 다시 가져와야 한다");
+        InputSpec::try_from(&exported).expect("must re-import the exported file wire extension");
     assert_eq!(imported, spec);
 }
 
 #[test]
-fn 파일_wire_확장은_누락되면_레거시_schema를_허용한다() {
-    let imported = InputSpec::try_from(&레거시_파일_schema());
+fn file_wire_extension_absent_accepts_a_legacy_schema() {
+    let imported = InputSpec::try_from(&legacy_file_schema());
 
     assert!(imported.is_ok());
 }
 
 #[test]
-fn 파일_wire_확장은_알수없는_키와_지원하지_않는_값을_거부한다() {
+fn file_wire_extension_rejects_unknown_keys_and_unsupported_values() {
     let malformed = [
-        ("객체 아님", json!([])),
+        ("not an object", json!([])),
         (
-            "필수 키 누락",
+            "missing required key",
             json!({
                 "version": 1,
                 "bytesEncoding": "base64-rfc4648-padded",
@@ -70,7 +70,7 @@ fn 파일_wire_확장은_알수없는_키와_지원하지_않는_값을_거부�
             }),
         ),
         (
-            "알 수 없는 키",
+            "unknown key",
             json!({
                 "version": 1,
                 "bytesEncoding": "base64-rfc4648-padded",
@@ -80,35 +80,35 @@ fn 파일_wire_확장은_알수없는_키와_지원하지_않는_값을_거부�
                 "future": true
             }),
         ),
-        ("지원하지 않는 버전", {
-            let mut value = 지원되는_file_wire();
+        ("unsupported version", {
+            let mut value = supported_file_wire();
             value["version"] = json!(2);
             value
         }),
-        ("지원하지 않는 bytes 인코딩", {
-            let mut value = 지원되는_file_wire();
+        ("unsupported bytes encoding", {
+            let mut value = supported_file_wire();
             value["bytesEncoding"] = json!("base64url");
             value
         }),
-        ("숫자 배열 호환 활성화", {
-            let mut value = 지원되는_file_wire();
+        ("numeric array compatibility enabled", {
+            let mut value = supported_file_wire();
             value["legacyNumericArrays"] = json!(true);
             value
         }),
-        ("재귀 디렉터리 비활성화", {
-            let mut value = 지원되는_file_wire();
+        ("recursive directories disabled", {
+            let mut value = supported_file_wire();
             value["recursiveDirectories"] = json!(false);
             value
         }),
-        ("문서 경로 불일치", {
-            let mut value = 지원되는_file_wire();
+        ("documentation path mismatch", {
+            let mut value = supported_file_wire();
             value["documentation"] = json!("docs/private.md");
             value
         }),
     ];
 
     for (case, extension) in malformed {
-        let mut schema = 레거시_파일_schema();
+        let mut schema = legacy_file_schema();
         schema["properties"]["upload"][FILE_WIRE_KEY] = extension;
 
         assert!(
@@ -117,7 +117,7 @@ fn 파일_wire_확장은_알수없는_키와_지원하지_않는_값을_거부�
                 Err(InputAdapterError::JsonSchemaFileWire { property, .. })
                     if property == "upload"
             ),
-            "{case} 확장은 typed 오류로 거부해야 한다"
+            "the {case} extension must be rejected with a typed error"
         );
     }
 }

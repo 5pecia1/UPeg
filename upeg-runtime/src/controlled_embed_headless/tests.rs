@@ -108,7 +108,7 @@ fn noop_waker() -> Waker {
 }
 
 #[test]
-fn controlled_embed_operations는_input들_trigger_output들_순서로_각_wait를_붙인다() {
+fn headless_operations_order_inputs_trigger_outputs_and_attach_each_wait() {
     const INPUT_A_VALUE: &str = "alpha";
     const INPUT_B_VALUE: &str = "beta";
     const SHORT_WAIT_MS: u64 = 10;
@@ -208,12 +208,12 @@ fn controlled_embed_operations는_input들_trigger_output들_순서로_각_wait�
 }
 
 #[test]
-fn launch_args는_생략된_settings에서_override를_넣지_않는다() {
+fn launch_args_add_no_override_for_default_settings() {
     assert!(controlled_embed_launch_args(&ControlledEmbedSettings::default()).is_empty());
 }
 
 #[test]
-fn launch_args는_mobile_safari와_preset_viewport를_적용한다() {
+fn launch_args_apply_mobile_safari_and_preset_viewport() {
     let args = controlled_embed_launch_args(&ControlledEmbedSettings {
         user_agent: Some(upeg_core::ControlledEmbedUserAgent::MobileSafari),
         viewport: Some(upeg_core::ControlledEmbedViewport::Preset(
@@ -231,7 +231,7 @@ fn launch_args는_mobile_safari와_preset_viewport를_적용한다() {
 }
 
 #[test]
-fn launch_args는_custom_user_agent와_custom_viewport를_적용한다() {
+fn launch_args_apply_custom_user_agent_and_custom_viewport() {
     let args = controlled_embed_launch_args(&ControlledEmbedSettings {
         user_agent: Some(upeg_core::ControlledEmbedUserAgent::Custom(
             "Custom UA".into(),
@@ -251,8 +251,41 @@ fn launch_args는_custom_user_agent와_custom_viewport를_적용한다() {
     );
 }
 
+/// Security absolutes #14: embeds run sandboxed. chromiumoxide keeps
+/// Chrome's sandbox on by default, so the only way to lose it is a flag
+/// of our own — none of the launch flags may be one.
 #[test]
-fn 중첩_runtime_안에서는_별도_thread에서_block_on한다() {
+fn headless_launch_flags_never_disable_chromes_sandbox() {
+    for arg in HEADLESS_LAUNCH_ARGS {
+        assert!(
+            !arg.contains("sandbox"),
+            "launch flag `{arg}` must not touch Chrome's sandbox"
+        );
+    }
+    assert!(
+        HEADLESS_LAUNCH_ARGS.contains(&"--headless=new"),
+        "headless mode itself must still be requested"
+    );
+    assert!(
+        !HEADLESS_LAUNCH_ARGS.contains(&"--no-sandbox"),
+        "sandbox opt-out must come from the env var, never the flag list"
+    );
+}
+
+/// The escape hatch is deliberately narrow: only the literal `1`
+/// disables the sandbox, so a stray `0`, `true` or empty assignment can
+/// never weaken it.
+#[test]
+fn sandbox_opt_out_only_accepts_literal_1() {
+    assert!(!sandbox_opt_out(None));
+    assert!(!sandbox_opt_out(Some("0")));
+    assert!(!sandbox_opt_out(Some("true")));
+    assert!(!sandbox_opt_out(Some("")));
+    assert!(sandbox_opt_out(Some("1")));
+}
+
+#[test]
+fn nested_runtime_blocks_on_a_separate_thread() {
     let outer = Runtime::new().expect("outer runtime");
     let inner = Runtime::new().expect("inner runtime");
 
@@ -266,7 +299,7 @@ fn 중첩_runtime_안에서는_별도_thread에서_block_on한다() {
 }
 
 #[test]
-fn controlled_embed_대기_성공은_요소_등장_후_읽기를_수행한다() {
+fn wait_success_reads_after_the_element_appears() {
     let binding = binding_with_wait(
         BindingRole::Output,
         "result",
@@ -299,7 +332,7 @@ fn controlled_embed_대기_성공은_요소_등장_후_읽기를_수행한다() 
 }
 
 #[test]
-fn controlled_embed_대기_timeout_fail은_wait_timeout_오류를_반환한다() {
+fn wait_timeout_with_fail_policy_returns_wait_timeout_error() {
     let binding = binding_with_wait(
         BindingRole::Input,
         "query",
@@ -335,7 +368,7 @@ fn controlled_embed_대기_timeout_fail은_wait_timeout_오류를_반환한다()
 }
 
 #[tokio::test]
-async fn controlled_embed_대기_timeout_ms_1은_즉시_실패하고_error에_1ms를_담는다() {
+async fn wait_timeout_of_one_ms_fails_immediately_and_reports_one_ms() {
     const ONE_MILLISECOND_TIMEOUT_MS: u64 = 1;
 
     let binding = binding_with_wait(
@@ -373,7 +406,7 @@ async fn controlled_embed_대기_timeout_ms_1은_즉시_실패하고_error에_1m
 }
 
 #[tokio::test]
-async fn controlled_embed_대기_timeout_ms가_poll_interval보다_길면_재시도후_성공한다() {
+async fn wait_timeout_longer_than_poll_interval_retries_then_succeeds() {
     const RETRY_TIMEOUT_MS: u64 = DEFAULT_CONTROLLED_EMBED_WAIT_POLL_MS * 10;
 
     let binding = binding_with_wait(
@@ -403,7 +436,7 @@ async fn controlled_embed_대기_timeout_ms가_poll_interval보다_길면_재시
 }
 
 #[test]
-fn controlled_embed_대기_timeout_continue는_기존_작업으로_진행한다() {
+fn wait_timeout_with_continue_policy_proceeds_with_the_operation() {
     let binding = binding_with_wait(
         BindingRole::Output,
         "result",
@@ -432,7 +465,7 @@ fn controlled_embed_대기_timeout_continue는_기존_작업으로_진행한다(
 }
 
 #[tokio::test]
-async fn controlled_embed_대기_timeout_continue는_settle_ms를_적용하지_않는다() {
+async fn wait_timeout_with_continue_policy_skips_settle_ms() {
     const IMMEDIATE_TIMEOUT_MS: u64 = 0;
     const SETTLE_MS_THAT_WOULD_BLOCK_IF_USED: u64 = 60_000;
 
@@ -467,7 +500,7 @@ async fn controlled_embed_대기_timeout_continue는_settle_ms를_적용하지_�
 }
 
 #[test]
-fn controlled_embed_visible_대기는_hidden_display_none_opacity_zero를_거부하는_script를_쓴다() {
+fn visible_wait_script_rejects_hidden_display_none_and_zero_opacity() {
     let binding = binding_with_wait(
         BindingRole::Trigger,
         "",
@@ -489,7 +522,7 @@ fn controlled_embed_visible_대기는_hidden_display_none_opacity_zero를_거부
 }
 
 #[test]
-fn controlled_embed_대기_성공후_settle_ms만큼_쉰다() {
+fn wait_success_sleeps_for_settle_ms() {
     const SETTLE_MS: u64 = 30;
     let binding = binding_with_wait(
         BindingRole::Input,
@@ -516,7 +549,7 @@ fn controlled_embed_대기_성공후_settle_ms만큼_쉰다() {
 }
 
 #[test]
-fn controlled_embed_timeout_ms_0은_즉시_한번만_확인한다() {
+fn wait_timeout_of_zero_checks_exactly_once() {
     let binding = binding_with_wait(
         BindingRole::Output,
         "result",
@@ -542,7 +575,7 @@ fn controlled_embed_timeout_ms_0은_즉시_한번만_확인한다() {
 }
 
 #[test]
-fn 트리거_settle_ms는_manifest_wait의_값을_우선하고_없으면_기본값을_쓴다() {
+fn trigger_settle_ms_prefers_manifest_wait_and_falls_back_to_default() {
     const TUNED_SETTLE_MS: u64 = 42;
     let tuned = binding_with_wait(
         BindingRole::Trigger,
@@ -578,7 +611,7 @@ fn 트리거_settle_ms는_manifest_wait의_값을_우선하고_없으면_기본�
 }
 
 #[tokio::test]
-async fn 트리거_settle은_navigation_완료후_dom이_정착하면_전체_대기를_건너뛴다() {
+async fn trigger_settle_skips_the_full_wait_once_dom_settles_after_navigation() {
     const SETTLE_MS_THAT_WOULD_BLOCK_IF_USED: u64 = 60_000;
     let mut evaluator = SequenceWaitEvaluator::new([true]);
     let start = std::time::Instant::now();
@@ -596,7 +629,7 @@ async fn 트리거_settle은_navigation_완료후_dom이_정착하면_전체_대
 }
 
 #[tokio::test]
-async fn 트리거_settle은_dom이_정착하지_않아도_settle_상한에서_멈춘다() {
+async fn trigger_settle_stops_at_the_settle_bound_even_if_dom_never_settles() {
     const BOUNDED_SETTLE_MS: u64 = 20;
     // Readiness queue empties to `false` forever — the DOM never settles.
     let mut evaluator = SequenceWaitEvaluator::new([false]);
@@ -616,7 +649,7 @@ async fn 트리거_settle은_dom이_정착하지_않아도_settle_상한에서_�
 }
 
 #[tokio::test]
-async fn 트리거_settle은_stale_context_evaluate_에러를_재시도후_성공으로_처리한다() {
+async fn trigger_settle_retries_stale_context_evaluate_errors_then_succeeds() {
     const SETTLE_MS_THAT_WOULD_BLOCK_IF_USED: u64 = 60_000;
     // Right after a navigation CDP rejects evaluates against the destroyed
     // execution context with -32000. That error must read as "still
@@ -642,7 +675,7 @@ async fn 트리거_settle은_stale_context_evaluate_에러를_재시도후_성�
 }
 
 #[tokio::test]
-async fn 트리거_settle은_에러가_계속되어도_settle_상한에서_멈춘다() {
+async fn trigger_settle_stops_at_the_settle_bound_even_if_errors_persist() {
     const BOUNDED_SETTLE_MS: u64 = 20;
     // Queue empties to Ok(false) after the first error, but seed errors to
     // prove a permanently broken context cannot hang or fail the settle.
@@ -662,7 +695,7 @@ async fn 트리거_settle은_에러가_계속되어도_settle_상한에서_멈�
 }
 
 #[tokio::test]
-async fn 트리거_settle은_navigation_미완료시_dom을_폴링하지_않고_상한만큼만_쉰다() {
+async fn trigger_settle_without_navigation_sleeps_the_bound_without_polling_dom() {
     const BOUNDED_SETTLE_MS: u64 = 20;
     // Even a ready DOM must not short-circuit the fallback constant wait.
     let mut evaluator = SequenceWaitEvaluator::new([true]);

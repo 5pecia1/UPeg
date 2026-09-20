@@ -53,7 +53,7 @@ Widget _harness({
 
 void main() {
   group('BoardCanvas push preview (F16)', () {
-    testWidgets('BoardCanvas_move_mode는_push_preview를_overlay로_표시한다', (
+    testWidgets('BoardCanvas_move_mode_shows_the_push_preview_as_an_overlay', (
       tester,
     ) async {
       // Seed two pins on the canvas; flip into MoveModeActive with the
@@ -133,55 +133,57 @@ void main() {
       );
     });
 
-    testWidgets('BoardCanvas는_다른_board의_move_mode_preview를_요청하지_않는다', (
-      tester,
-    ) async {
-      const snapshot = LayoutSnapshotDto(
-        boardKey: 'media',
-        boardCols: _fixedBoardCols,
-        placements: [
-          PlacementDto(toolId: 'fixture.media', x: 0, y: 0, w: 1, h: 1),
-        ],
-      );
-      var loaderCalled = false;
+    testWidgets(
+      'BoardCanvas_does_not_request_a_move_mode_preview_for_another_board',
+      (tester) async {
+        const snapshot = LayoutSnapshotDto(
+          boardKey: 'media',
+          boardCols: _fixedBoardCols,
+          placements: [
+            PlacementDto(toolId: 'fixture.media', x: 0, y: 0, w: 1, h: 1),
+          ],
+        );
+        var loaderCalled = false;
 
-      List<PlacementDto> previewLoader(
-        BoardKey boardKey,
-        ToolId toolId,
-        int x,
-        int y,
-      ) {
-        loaderCalled = true;
-        return const [
-          PlacementDto(toolId: 'fixture.other', x: 1, y: 0, w: 1, h: 1),
-        ];
-      }
+        List<PlacementDto> previewLoader(
+          BoardKey boardKey,
+          ToolId toolId,
+          int x,
+          int y,
+        ) {
+          loaderCalled = true;
+          return const [
+            PlacementDto(toolId: 'fixture.other', x: 1, y: 0, w: 1, h: 1),
+          ];
+        }
 
-      await tester.pumpWidget(
-        _harness(snapshot: snapshot, pushPreviewLoader: previewLoader),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _harness(snapshot: snapshot, pushPreviewLoader: previewLoader),
+        );
+        await tester.pumpAndSettle();
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      container
-          .read(moveModeProvider.notifier)
-          .start(
-            boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.dragged'),
-            originX: 0,
-            originY: 0,
-            maxX: _u1MaxStartX,
-          );
-      await tester.pumpAndSettle();
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        container
+            .read(moveModeProvider.notifier)
+            .start(
+              boardKey: _devBoardKey,
+              toolId: ToolId.parse('fixture.dragged'),
+              originX: 0,
+              originY: 0,
+              maxX: _u1MaxStartX,
+            );
+        await tester.pumpAndSettle();
 
-      expect(loaderCalled, isFalse);
-      expect(
-        find.byKey(const Key('board-canvas-push-preview')),
-        findsNothing,
-        reason: '다른 board에서 시작한 move preview는 현재 board에 표시하지 않는다',
-      );
-    });
+        expect(loaderCalled, isFalse);
+        expect(
+          find.byKey(const Key('board-canvas-push-preview')),
+          findsNothing,
+          reason:
+              'a move preview started on another board must not appear on the current board',
+        );
+      },
+    );
   });
 }

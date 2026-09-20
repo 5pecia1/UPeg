@@ -20,7 +20,7 @@ ProviderContainer _makeContainer({List<Override> extra = const []}) {
 
 void main() {
   group('tagOptionsProvider', () {
-    test('tagOptionsProvider는_loader_결과를_typed_변형으로_노출한다', () {
+    test('tagOptionsProvider_exposes_loader_result_as_typed_variants', () {
       // Loader still returns the raw Rust strings ('all' first, then
       // specific tags). The provider wraps each in the sealed type.
       final container = _makeContainer(
@@ -42,7 +42,7 @@ void main() {
 
   group('tagOptionsForBoardProvider', () {
     test(
-      'tagOptionsForBoardProvider는_board_key별_loader_결과를_typed_변형으로_노출한다',
+      'tagOptionsForBoardProvider_exposes_per_board_key_loader_result_as_typed_variants',
       () {
         final boardKey = BoardKey.parse('dev');
         BoardKey? observedBoard;
@@ -63,7 +63,7 @@ void main() {
       },
     );
 
-    test('countForBoardTagProvider는_board_key와_tag를_loader에_전달한다', () {
+    test('countForBoardTagProvider_passes_board_key_and_tag_to_loader', () {
       final boardKey = BoardKey.parse('dev');
       BoardKey? observedBoard;
       TagSelection? observedTag;
@@ -88,13 +88,13 @@ void main() {
   });
 
   group('selectedTagProvider', () {
-    test('selectedTagProvider는_초기값이_TagAll이다', () {
+    test('selectedTagProvider_initial_value_is_TagAll', () {
       final container = _makeContainer();
 
       expect(container.read(selectedTagProvider), const TagAll());
     });
 
-    test('selectedTagProvider는_select로_TagSpecific으로_변경한다', () {
+    test('selectedTagProvider_switches_to_TagSpecific_via_select', () {
       final container = _makeContainer();
 
       container.read(selectedTagProvider.notifier).select('convert');

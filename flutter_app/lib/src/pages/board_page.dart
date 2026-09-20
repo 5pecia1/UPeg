@@ -36,6 +36,7 @@ import 'package:upeg/src/rust/api/tools.dart'
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/features/memos/memo_roles.dart';
 import 'package:upeg/src/features/memos/memos_provider.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/inline_draft_provider.dart';
@@ -246,13 +247,15 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
           return;
         }
         // Honest state: an unconfigured live-http pin (eth.gas) cannot
-        // run — surface a clear "설정 필요" message instead of firing a
+        // run — surface a clear "needs setup" message instead of firing a
         // dispatch that would just fail generically.
         if (tool != null && toolNeedsProviderConfig(tool)) {
           final messenger = ScaffoldMessenger.maybeOf(context);
           messenger?.showSnackBar(
             SnackBar(
-              content: Text('$parsedToolId: $providerNotConfiguredMessage'),
+              content: Text(
+                '$parsedToolId: ${tRead(ref, providerNotConfiguredMessageKey)}',
+              ),
             ),
           );
           return;

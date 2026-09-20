@@ -11,7 +11,7 @@ import 'package:upeg/src/widgets/controlled_embed/debug.dart';
 
 void main() {
   group('ControlledEmbedDebugLevel', () {
-    test('디버그_레벨_순서가_올바르게_정의된다', () {
+    test('debug_levels_are_defined_in_the_correct_order', () {
       expect(ControlledEmbedDebugLevel.values.length, equals(4));
       expect(
         ControlledEmbedDebugLevel.info.index,
@@ -29,7 +29,7 @@ void main() {
   });
 
   group('ControlledEmbedDebugPhase', () {
-    test('디버그_단계가_모든_파이프라인_단계를_포함한다', () {
+    test('debug_phases_cover_every_pipeline_stage', () {
       expect(
         ControlledEmbedDebugPhase.values,
         contains(ControlledEmbedDebugPhase.setup),
@@ -63,7 +63,7 @@ void main() {
   });
 
   group('ControlledEmbedDebugTargetKind', () {
-    test('타겟_종류가_flutterWebView와_localBrowserCdp를_포함한다', () {
+    test('target_kinds_include_flutterWebView_and_localBrowserCdp', () {
       expect(
         ControlledEmbedDebugTargetKind.values,
         contains(ControlledEmbedDebugTargetKind.flutterWebView),
@@ -77,7 +77,7 @@ void main() {
   });
 
   group('ControlledEmbedDebugEvent', () {
-    test('디버그_이벤트가_모든_필드를_正しく_보존한다', () {
+    test('a_debug_event_preserves_all_fields', () {
       final event = ControlledEmbedDebugEvent(
         kind: 'test-kind',
         phase: ControlledEmbedDebugPhase.probe,
@@ -96,7 +96,7 @@ void main() {
       expect(event.sequence, equals(1));
     });
 
-    test('디버그_이벤트_순서_보존', () {
+    test('debug_event_order_is_preserved', () {
       final events = [
         ControlledEmbedDebugEvent(
           kind: 'setup',
@@ -132,7 +132,7 @@ void main() {
       expect(events[1].elapsedMs, lessThan(events[2].elapsedMs));
     });
 
-    test('null_details도_정상_처리된다', () {
+    test('null_details_are_supported', () {
       final event = ControlledEmbedDebugEvent(
         kind: 'test',
         phase: ControlledEmbedDebugPhase.console,
@@ -147,7 +147,7 @@ void main() {
   });
 
   group('ControlledEmbedDebugCapabilities', () {
-    test('Flutter_WebView_기본_기능이_올바르게_설정된다', () {
+    test('Flutter_WebView_default_capabilities_are_configured_correctly', () {
       final caps = ControlledEmbedDebugCapabilities.flutterWebView();
       expect(caps.visibleWebView, isTrue);
       expect(caps.consoleCapture, isFalse);
@@ -157,20 +157,23 @@ void main() {
       expect(caps.networkCapture, isFalse);
     });
 
-    test('localBrowserCdp_미구현_백엔드는_모든_기능이_비활성화된다', () {
-      // localBrowserCdp is a planned, not-yet-implemented backend. The
-      // capability report must not advertise features that have no code
-      // path behind them — every flag stays false until implemented.
-      final caps = ControlledEmbedDebugCapabilities.localBrowserCdp();
-      expect(caps.visibleWebView, isFalse);
-      expect(caps.consoleCapture, isFalse);
-      expect(caps.selectorProbe, isFalse);
-      expect(caps.screenshot, isFalse);
-      expect(caps.cdpAttach, isFalse);
-      expect(caps.networkCapture, isFalse);
-    });
+    test(
+      'the_unimplemented_localBrowserCdp_backend_disables_all_capabilities',
+      () {
+        // localBrowserCdp is a planned, not-yet-implemented backend. The
+        // capability report must not advertise features that have no code
+        // path behind them — every flag stays false until implemented.
+        final caps = ControlledEmbedDebugCapabilities.localBrowserCdp();
+        expect(caps.visibleWebView, isFalse);
+        expect(caps.consoleCapture, isFalse);
+        expect(caps.selectorProbe, isFalse);
+        expect(caps.screenshot, isFalse);
+        expect(caps.cdpAttach, isFalse);
+        expect(caps.networkCapture, isFalse);
+      },
+    );
 
-    test('빈_기본값_생성_가능', () {
+    test('the_default_constructor_disables_all_capabilities', () {
       final caps = ControlledEmbedDebugCapabilities();
       expect(caps.visibleWebView, isFalse);
       expect(caps.consoleCapture, isFalse);
@@ -182,7 +185,7 @@ void main() {
   });
 
   group('ControlledEmbedSelectorProbe', () {
-    test('셀렉터_프로브가_모든_필드를_보존한다', () {
+    test('a_selector_probe_preserves_all_fields', () {
       final probe = ControlledEmbedSelectorProbe(
         role: BindingRoleDto.output,
         field: 'result',
@@ -199,7 +202,7 @@ void main() {
       expect(probe.textPreview, equals('test text'));
     });
 
-    test('매칭되지_않은_셀렉터는_matched_false와_빈_미리보기를_반환한다', () {
+    test('an_unmatched_selector_returns_matched_false_and_empty_previews', () {
       final probe = ControlledEmbedSelectorProbe(
         role: BindingRoleDto.output,
         field: 'missing',
@@ -215,7 +218,7 @@ void main() {
   });
 
   group('ControlledEmbedDebugSession', () {
-    test('새_세션은_빈_이벤트_리스트로_초기화된다', () {
+    test('a_new_session_starts_with_an_empty_event_list', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,
         capabilities: ControlledEmbedDebugCapabilities.flutterWebView(),
@@ -225,7 +228,7 @@ void main() {
       expect(session.latestOutputs, isEmpty);
     });
 
-    test('세션에_이벤트를_추가할_수_있다', () {
+    test('events_can_be_added_to_a_session', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,
         capabilities: ControlledEmbedDebugCapabilities.flutterWebView(),
@@ -245,7 +248,7 @@ void main() {
       expect(session.events.first.message, equals('Started'));
     });
 
-    test('세션에_여러_이벤트를_추가하면_순서가_보존된다', () {
+    test('adding_multiple_events_to_a_session_preserves_their_order', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,
         capabilities: ControlledEmbedDebugCapabilities.flutterWebView(),
@@ -269,7 +272,7 @@ void main() {
       }
     });
 
-    test('latestProbes와_latestOutputs를_업데이트할_수_있다', () {
+    test('latestProbes_and_latestOutputs_can_be_updated', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,
         capabilities: ControlledEmbedDebugCapabilities.flutterWebView(),
@@ -291,7 +294,7 @@ void main() {
       expect(session.latestOutputs, equals(outputs));
     });
 
-    test('targetKind와_capabilities가_올바르게_저장된다', () {
+    test('targetKind_and_capabilities_are_stored_correctly', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.localBrowserCdp,
         capabilities: ControlledEmbedDebugCapabilities.localBrowserCdp(),
@@ -305,7 +308,7 @@ void main() {
       expect(session.capabilities.networkCapture, isFalse);
     });
 
-    test('flutterWebView_타겟은_cdpAttach가_false이다', () {
+    test('the_flutterWebView_target_has_cdpAttach_false', () {
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,
         capabilities: ControlledEmbedDebugCapabilities.flutterWebView(),
@@ -320,12 +323,12 @@ void main() {
   });
 
   group('buildControlledEmbedSelectorProbeScript', () {
-    test('빈_바인딩_리스트는_빈_배열_문자열을_반환한다', () {
+    test('an_empty_binding_list_returns_an_empty_array_string', () {
       final script = buildControlledEmbedSelectorProbeScript([]);
       expect(script, contains('[]'));
     });
 
-    test('단일_바인딩에_대한_스크립트를_생성한다', () {
+    test('generates_a_script_for_a_single_binding', () {
       final script = buildControlledEmbedSelectorProbeScript([
         const SelectorBindingDto(
           role: BindingRoleDto.output,
@@ -339,7 +342,7 @@ void main() {
       expect(script, contains('JSON.stringify'));
     });
 
-    test('여러_바인딩에_대한_스크립트를_생성한다', () {
+    test('generates_a_script_for_multiple_bindings', () {
       final script = buildControlledEmbedSelectorProbeScript([
         const SelectorBindingDto(
           role: BindingRoleDto.input,
@@ -367,7 +370,7 @@ void main() {
       expect(script, contains('JSON.stringify'));
     });
 
-    test('매칭된_output_role_바인딩은_role을_output으로_보고한다', () {
+    test('a_matched_output_binding_reports_its_role_as_output', () {
       // Regression: the matched branch previously derived role from
       // field-name suffix heuristics (__trigger/__output), so every
       // matched element reported role:"input". It must instead carry the
@@ -393,24 +396,27 @@ void main() {
       expect(script, isNot(contains('__output')));
     });
 
-    test('매칭된_trigger_role_바인딩은_field_이름과_무관하게_role을_trigger로_보고한다', () {
-      // 'submit' does not start with __trigger, so the retired heuristic
-      // would have mislabeled this matched element as "input".
-      final script = buildControlledEmbedSelectorProbeScript([
-        const SelectorBindingDto(
-          role: BindingRoleDto.trigger,
-          field: 'submit',
-          selector: '#go',
-          triggerAction: ControlledEmbedTriggerActionDto.click,
-        ),
-      ]);
-      expect(
-        script,
-        contains('role:"trigger",field:"submit",selector:"#go",matched:true'),
-      );
-    });
+    test(
+      'a_matched_trigger_binding_reports_the_trigger_role_regardless_of_field_name',
+      () {
+        // 'submit' does not start with __trigger, so the retired heuristic
+        // would have mislabeled this matched element as "input".
+        final script = buildControlledEmbedSelectorProbeScript([
+          const SelectorBindingDto(
+            role: BindingRoleDto.trigger,
+            field: 'submit',
+            selector: '#go',
+            triggerAction: ControlledEmbedTriggerActionDto.click,
+          ),
+        ]);
+        expect(
+          script,
+          contains('role:"trigger",field:"submit",selector:"#go",matched:true'),
+        );
+      },
+    );
 
-    test('selector가_escaped_되어_안전하게_生成된다', () {
+    test('selectors_are_escaped_for_safe_script_generation', () {
       // Test with a selector that needs JSON escaping
       final script = buildControlledEmbedSelectorProbeScript([
         const SelectorBindingDto(
@@ -428,22 +434,22 @@ void main() {
   });
 
   group('parseControlledEmbedSelectorProbes', () {
-    test('null_입력은_빈_리스트를_반환한다', () {
+    test('null_input_returns_an_empty_list', () {
       final probes = parseControlledEmbedSelectorProbes(null);
       expect(probes, isEmpty);
     });
 
-    test('빈_객체_입력은_빈_리스트를_반환한다', () {
+    test('an_empty_object_input_returns_an_empty_list', () {
       final probes = parseControlledEmbedSelectorProbes({});
       expect(probes, isEmpty);
     });
 
-    test('빈_배열_입력은_빈_리스트를_반환한다', () {
+    test('an_empty_array_input_returns_an_empty_list', () {
       final probes = parseControlledEmbedSelectorProbes([]);
       expect(probes, isEmpty);
     });
 
-    test('유효한_probe_배열을_파싱한다', () {
+    test('parses_a_valid_probe_array', () {
       final raw = jsonEncode([
         {
           'role': 'output',
@@ -472,7 +478,7 @@ void main() {
       expect(probes[1].matched, isFalse);
     });
 
-    test('매칭되지_않은_셀렉터는_matched_false를_반환한다', () {
+    test('an_unmatched_selector_returns_matched_false', () {
       final raw = jsonEncode([
         {
           'role': 'output',
@@ -491,7 +497,7 @@ void main() {
       expect(probes[0].textPreview, isEmpty);
     });
 
-    test('잘못된_형식_입력은_빈_리스트를_반환한다', () {
+    test('malformed_input_returns_an_empty_list', () {
       // Not a list
       final probes1 = parseControlledEmbedSelectorProbes('not a list');
       expect(probes1, isEmpty);
@@ -503,45 +509,45 @@ void main() {
   });
 
   group('previewDebugValue', () {
-    test('기본_160자_이내_문자열은_변환되지_않는다', () {
+    test('strings_within_the_default_160_character_limit_are_unchanged', () {
       final short = 'a' * 100;
       expect(previewDebugValue(short), equals(short));
     });
 
-    test('160자_초과_문자열은_자른다', () {
+    test('strings_longer_than_160_characters_are_truncated', () {
       final long = 'a' * 200;
       final result = previewDebugValue(long);
       expect(result.length, equals(160));
       expect(result.endsWith('…'), isTrue);
     });
 
-    test('줄바꿈_문자를_단일_공백으로_대체한다', () {
+    test('replaces_newline_characters_with_a_single_space', () {
       final withNewlines = 'line1\nline2\r\nline3';
       final result = previewDebugValue(withNewlines);
       expect(result.contains('\n'), isFalse);
       expect(result.contains('\r'), isFalse);
     });
 
-    test('여러_줄바꿈을_단일_공백으로_압축한다', () {
+    test('collapses_multiple_newlines_into_a_single_space', () {
       final withMultipleNewlines = 'a\n\n\n\n\nb';
       final result = previewDebugValue(withMultipleNewlines);
       expect(result.contains('\n'), isFalse);
       expect(result, equals('a b'));
     });
 
-    test('max_파라미터로_자르기_길이_변경', () {
+    test('the_max_parameter_changes_the_truncation_length', () {
       final value = 'a' * 100;
       expect(previewDebugValue(value, max: 50).length, equals(50));
       expect(previewDebugValue(value, max: 50).endsWith('…'), isTrue);
     });
 
-    test('빈_문자열은_빈_문자열로_반환', () {
+    test('an_empty_string_returns_an_empty_string', () {
       expect(previewDebugValue(''), isEmpty);
     });
   });
 
   group('Integration: Debug Session with Probes', () {
-    test('실제_사용_패턴을_시뮬레이션한다', () {
+    test('simulates_a_real_world_usage_pattern', () {
       // Create session
       final session = ControlledEmbedDebugSession(
         targetKind: ControlledEmbedDebugTargetKind.flutterWebView,

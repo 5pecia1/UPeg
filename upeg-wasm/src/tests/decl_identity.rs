@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 선언을_메타로_바꾸면_빈_id와_도구킷을_거부한다() {
+fn decl_to_meta_rejects_empty_id_and_toolkit() {
     // Iter 198: parallel to upeg-loader's iter 196 fix. Plugin
     // manifests with empty id/toolkit would silently register
     // unidentifiable / mis-grouped tools.
@@ -41,7 +41,7 @@ fn 선언을_메타로_바꾸면_빈_id와_도구킷을_거부한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_점_구분_도구킷과_점_구분_로컬_이름을_허용한다() {
+fn decl_to_meta_accepts_dotted_toolkit_and_dotted_local_name() {
     let meta = decl_to_meta(PluginToolDecl {
         id: "github.com.admin.tools.list".into(),
         toolkit: "github.com".into(),
@@ -62,7 +62,7 @@ fn 선언을_메타로_바꾸면_점_구분_도구킷과_점_구분_로컬_이�
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_공백_있는_태그를_거부한다() {
+fn decl_to_meta_rejects_padded_tags() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -86,7 +86,7 @@ fn 선언을_메타로_바꾸면_공백_있는_태그를_거부한다() {
 }
 
 #[test]
-fn id가_내장을_가리면_메시지가_이름변경_경로를_설명한다() {
+fn id_shadowing_builtin_message_explains_rename_path() {
     // Iter 249/252: parallel to upeg-loader iter-249 + mcp_import
     // iter-250 message-format pins. Plugin authors and TOML authors
     // must see equally clear guidance on the rename remedy.
@@ -111,7 +111,7 @@ fn id가_내장을_가리면_메시지가_이름변경_경로를_설명한다() 
 }
 
 #[test]
-fn 빈_id와_도구킷_메시지는_loader와_일치한다() {
+fn empty_id_and_toolkit_messages_match_loader() {
     // Iter 198: pin parity with upeg-loader's matching messages so
     // plugin authors and TOML authors see identical guidance.
     // Iter-136 set this same parity contract for the unknown-XXX
@@ -129,7 +129,7 @@ fn 빈_id와_도구킷_메시지는_loader와_일치한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_공백_있는_id와_도구킷을_거부한다() {
+fn decl_to_meta_rejects_padded_id_and_toolkit() {
     let decl = PluginToolDecl {
         id: "  iter241.padded_plugin_id  ".into(),
         toolkit: " iter241\t".into(),

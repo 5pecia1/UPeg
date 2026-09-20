@@ -20,7 +20,7 @@
 //! `notifications/initialized`; every fake stdio server in the suite
 //! answered anyway, while the official `@modelcontextprotocol`
 //! TypeScript SDK silently dropped the request and the import looked
-//! like a timeout (docs/architecture/mcp.md, "핸드셰이크 스펙 준수").
+//! like a timeout (docs/architecture/mcp.md, "handshake spec compliance").
 //!
 //! So this file talks to a server nobody here wrote:
 //! `@modelcontextprotocol/server-filesystem`, fetched through `npx`.
@@ -248,7 +248,7 @@ fn dispatch_text(id: &str, args: &serde_json::Value) -> String {
 /// real tool list.
 #[test]
 #[ignore = "needs `npx` + network; run via `just mcp-import-real-smoke`"]
-fn 실서버_filesystem은_핸드셰이크와_도구목록에_응답한다() {
+fn the_real_filesystem_server_answers_the_handshake_and_tool_list() {
     let sandbox = sandbox();
     if !reference_server_ready(sandbox.path()) {
         return;
@@ -283,7 +283,7 @@ fn 실서버_filesystem은_핸드셰이크와_도구목록에_응답한다() {
 /// registered dispatcher.
 #[test]
 #[ignore = "needs `npx` + network; run via `just mcp-import-real-smoke`"]
-fn 실서버_filesystem_도구는_네임스페이스로_등록되고_호출된다() {
+fn real_filesystem_server_tools_are_registered_under_a_namespace_and_called() {
     let sandbox = sandbox();
     if !reference_server_ready(sandbox.path()) {
         return;
@@ -436,7 +436,7 @@ impl Drop for ScratchHost {
 /// `/healthz` (docs/architecture/mcp.md, "importsPending").
 #[test]
 #[ignore = "needs `npx` + network; run via `just mcp-import-real-smoke`"]
-fn 실서버_임포트는_host를_통해_다른_프로세스에서_호출된다() {
+fn a_real_server_import_is_called_from_another_process_via_the_host() {
     let sandbox = sandbox();
     if !reference_server_ready(sandbox.path()) {
         return;

@@ -6,7 +6,7 @@ use crate::invoker_metadata::RUNTIME_INVOKERS;
 use crate::{LoadError, ToolEntryToml, ToolToml, ToolkitToml, model::chain_step_key};
 use upeg_core::{
     InputFieldSpec, InputSpec, Invoker, OutputFieldSpec, OutputSpec, PegboardUnits, PinKind,
-    Surface, ToolId, ToolIdError, ToolMeta, ToolkitMeta, validate_primary_output_id,
+    Surface, ToolEffect, ToolId, ToolIdError, ToolMeta, ToolkitMeta, validate_primary_output_id,
 };
 use upeg_runtime::manifest::{
     RuntimeToolManifest, lower_runtime_tool_manifest, validate_tool_identity,
@@ -16,6 +16,7 @@ use upeg_runtime::pegboard_project::ProjectBoardDecl;
 pub(crate) mod boards;
 pub(crate) mod chain;
 pub(crate) mod controlled_embed;
+pub(crate) mod presentation;
 pub(crate) mod templates;
 pub(crate) mod triggers;
 
@@ -313,6 +314,8 @@ fn resolve_tool(
         inputs: entry.inputs.clone(),
         outputs: entry.outputs.clone(),
         primary_output_id: entry.primary_output_id.clone(),
+        effect: entry.effect.clone(),
+        presentation: entry.presentation.clone(),
         pin: entry.pin.clone(),
         pegboard_units: entry.pegboard_units.clone(),
         invoker: entry
@@ -781,6 +784,11 @@ pub(crate) fn toml_to_meta(parsed: &ToolToml) -> Result<ToolMeta, LoadError> {
     validate_toml(parsed)?;
     let input_spec = resolve_input_spec(parsed)?;
     let output_spec = resolve_output_spec(parsed)?;
+    let presentation = parsed
+        .presentation
+        .as_ref()
+        .map(|presentation| presentation::resolve_presentation(presentation, &output_spec))
+        .transpose()?;
     let invoker = resolve_invoker(parsed.invoker.as_deref())?;
 
     lower_runtime_tool_manifest(RuntimeToolManifest {
@@ -792,6 +800,8 @@ pub(crate) fn toml_to_meta(parsed: &ToolToml) -> Result<ToolMeta, LoadError> {
         input_spec,
         output_spec,
         primary_output_id: parsed.primary_output_id.clone(),
+        effect: resolve_effect(parsed.effect.as_deref())?,
+        presentation,
         pin: resolve_pin(parsed.pin.as_deref())?,
         pegboard_units: resolve_pegboard_units(parsed.pegboard_units.as_deref())?,
         invoker,
@@ -799,6 +809,17 @@ pub(crate) fn toml_to_meta(parsed: &ToolToml) -> Result<ToolMeta, LoadError> {
         boards: parsed.boards.clone().unwrap_or_default(),
     })
     .map_err(LoadError::from)
+}
+
+fn resolve_effect(effect: Option<&str>) -> Result<ToolEffect, LoadError> {
+    match effect.unwrap_or("unknown") {
+        "read" => Ok(ToolEffect::Read),
+        "write" => Ok(ToolEffect::Write),
+        "unknown" => Ok(ToolEffect::Unknown),
+        value => Err(LoadError::InvalidPresentation(format!(
+            "unknown effect `{value}`"
+        ))),
+    }
 }
 
 fn resolve_input_spec(parsed: &ToolToml) -> Result<InputSpec, LoadError> {

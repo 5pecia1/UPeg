@@ -41,7 +41,7 @@ void main() {
       webViewTargetResolver = originalResolver;
     });
 
-    testWidgets('web_target이면_iframe_컨테이너가_렌더된다', (tester) async {
+    testWidgets('a_web_target_renders_the_iframe_container', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [...i18nTestOverrides],
@@ -62,7 +62,7 @@ void main() {
       expect(find.byKey(const Key('webview-panel-inappwebview')), findsNothing);
     });
 
-    testWidgets('inAppWebView_target이면_inappwebview_컨테이너가_렌더된다', (
+    testWidgets('an_inAppWebView_target_renders_the_inappwebview_container', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -87,7 +87,7 @@ void main() {
       expect(find.byKey(const Key('webview-panel-iframe')), findsNothing);
     });
 
-    testWidgets('userAgent_지정하면_해당_문자열이_전달된다', (tester) async {
+    testWidgets('a_given_userAgent_is_forwarded_verbatim', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [...i18nTestOverrides],
@@ -109,7 +109,7 @@ void main() {
       expect(find.textContaining('ua:$kMobileUserAgent'), findsOneWidget);
     });
 
-    testWidgets('userAgent_생략하면_userAgent가_null로_전달된다', (tester) async {
+    testWidgets('an_omitted_userAgent_is_forwarded_as_null', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [...i18nTestOverrides],
@@ -130,28 +130,33 @@ void main() {
       expect(find.textContaining('ua:default'), findsOneWidget);
     });
 
-    testWidgets('custom User-Agent 문자열이_builder에_그대로_전달된다', (tester) async {
-      const customUa = 'TestBot/42.0 (Linux x86_64) CustomEngine/9.9';
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/custom-ua',
+    testWidgets(
+      'a_custom_User_Agent_string_is_forwarded_to_the_builder_verbatim',
+      (tester) async {
+        const customUa = 'TestBot/42.0 (Linux x86_64) CustomEngine/9.9';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/custom-ua',
+                  ),
+                  userAgent: customUa,
+                  debugTargetOverride: const WebViewTarget.inAppWebView(),
                 ),
-                userAgent: customUa,
-                debugTargetOverride: const WebViewTarget.inAppWebView(),
               ),
             ),
           ),
-        ),
-      );
-      expect(find.textContaining('ua:$customUa'), findsOneWidget);
-    });
+        );
+        expect(find.textContaining('ua:$customUa'), findsOneWidget);
+      },
+    );
 
-    testWidgets('viewportSize_지정하면_renderer가_SizedBox로_감싸진다', (tester) async {
+    testWidgets('a_given_viewportSize_wraps_the_renderer_in_a_SizedBox', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [...i18nTestOverrides],
@@ -175,42 +180,47 @@ void main() {
       expect(sizedBox.height, 844);
     });
 
-    testWidgets('viewportSize_생략하면_SizedBox_래핑이_없다', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/desktop',
+    testWidgets(
+      'an_omitted_viewportSize_leaves_the_renderer_without_a_SizedBox_wrap',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/desktop',
+                  ),
+                  debugTargetOverride: const WebViewTarget.inAppWebView(),
                 ),
-                debugTargetOverride: const WebViewTarget.inAppWebView(),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      // Only the SizedBox.expand from the test builder exists
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final hasExactSize = sizedBoxes.any(
-        (sb) => sb.width == 390 && sb.height == 844,
-      );
-      expect(hasExactSize, isFalse);
-    });
+        // Only the SizedBox.expand from the test builder exists
+        final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
+        final hasExactSize = sizedBoxes.any(
+          (sb) => sb.width == 390 && sb.height == 844,
+        );
+        expect(hasExactSize, isFalse);
+      },
+    );
 
-    test('kMobileUserAgent는_iphone_safari_시그니처를_포함한다', () {
-      // Mobile-detection 서버 측 sniffer는 대부분 `iPhone` / `Mobile`
-      // 또는 `Safari` 키워드 매칭으로 동작. 상수가 그 세 핵심 토큰을
-      // 모두 갖고 있는지만 핀해두면 무심결 desktop UA로 회귀하는 변경을
-      // 잡을 수 있다.
+    test('kMobileUserAgent_contains_the_iphone_safari_signatures', () {
+      // Server-side mobile-detection sniffers mostly work by matching
+      // the `iPhone` / `Mobile` / `Safari` keywords. Pinning that the
+      // constant carries all three core tokens catches an accidental
+      // regression to a desktop UA.
       expect(kMobileUserAgent, contains('iPhone'));
       expect(kMobileUserAgent, contains('Mobile'));
       expect(kMobileUserAgent, contains('Safari'));
     });
 
-    testWidgets('URL이_바뀌면_inAppWebView에_새_URL이_전달된다', (tester) async {
+    testWidgets('a_URL_change_forwards_the_new_URL_to_inAppWebView', (
+      tester,
+    ) async {
       // WebViewPanel rebuilds _InAppWebView when the resolution URL changes.
       // The desktop builder records url/userAgent so we can assert the
       // rebuild forwarded the new values.
@@ -256,7 +266,9 @@ void main() {
       );
     });
 
-    testWidgets('Linux이면_외부_브라우저_열기_버튼이_렌더된다', (tester) async {
+    testWidgets('on_Linux_the_open_external_browser_button_is_rendered', (
+      tester,
+    ) async {
       webViewTargetResolver = () => const WebViewTarget.linux();
 
       await tester.pumpWidget(
@@ -283,7 +295,7 @@ void main() {
       expect(find.byKey(const Key('webview-panel-iframe')), findsNothing);
     });
 
-    testWidgets('URL이_바뀌면_iframe이_remount된다', (tester) async {
+    testWidgets('a_URL_change_remounts_the_iframe', (tester) async {
       // Build iframe with first URL
       await tester.pumpWidget(
         ProviderScope(
@@ -327,114 +339,116 @@ void main() {
       expect(find.byKey(const Key('webview-panel-iframe')), findsOneWidget);
     });
 
-    testWidgets('URL이_같은데_parent가_rebuild되어도_iframe은_reload되지_않는다', (
-      tester,
-    ) async {
-      // Build iframe with URL
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/same',
+    testWidgets(
+      'a_parent_rebuild_with_the_same_URL_does_not_reload_the_iframe',
+      (tester) async {
+        // Build iframe with URL
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/same',
+                  ),
+                  debugTargetOverride: const WebViewTarget.web(),
                 ),
-                debugTargetOverride: const WebViewTarget.web(),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
-      expect(find.byKey(const Key('webview-panel-iframe')), findsOneWidget);
-
-      // Parent rebuilds with SAME resolution URL
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/same',
-                ),
-                debugTargetOverride: const WebViewTarget.web(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      // Iframe container still there — no remount/reload
-      expect(find.byKey(const Key('webview-panel-iframe')), findsOneWidget);
-    });
-
-    testWidgets('URL이_바뀌면_inAppWebView_builder가_새_URL로_다시_호출된다', (
-      tester,
-    ) async {
-      int buildCount = 0;
-      Widget recordingBuilder(
-        String url,
-        String? userAgent,
-        void Function(WebViewController)? onControllerReady,
-      ) {
-        buildCount++;
-        return SizedBox.expand(
-          key: const Key('webview-panel-inappwebview'),
-          child: Text('webview|url:$url|ua:${userAgent ?? "default"}'),
         );
-      }
+        await tester.pump();
+        expect(find.byKey(const Key('webview-panel-iframe')), findsOneWidget);
 
-      desktopWebViewBuilder = recordingBuilder;
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/first',
+        // Parent rebuilds with SAME resolution URL
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/same',
+                  ),
+                  debugTargetOverride: const WebViewTarget.web(),
                 ),
-                debugTargetOverride: const WebViewTarget.inAppWebView(),
               ),
             ),
           ),
-        ),
-      );
-      expect(buildCount, 1);
-      expect(
-        find.textContaining('url:https://example.test/first'),
-        findsOneWidget,
-      );
+        );
+        await tester.pump();
 
-      // Parent rebuild with different URL
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [...i18nTestOverrides],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WebViewPanel(
-                resolution: const EmbedResolutionDto(
-                  url: 'https://example.test/second',
+        // Iframe container still there — no remount/reload
+        expect(find.byKey(const Key('webview-panel-iframe')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a_URL_change_recalls_the_inAppWebView_builder_with_the_new_URL',
+      (tester) async {
+        int buildCount = 0;
+        Widget recordingBuilder(
+          String url,
+          String? userAgent,
+          void Function(WebViewController)? onControllerReady,
+        ) {
+          buildCount++;
+          return SizedBox.expand(
+            key: const Key('webview-panel-inappwebview'),
+            child: Text('webview|url:$url|ua:${userAgent ?? "default"}'),
+          );
+        }
+
+        desktopWebViewBuilder = recordingBuilder;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/first',
+                  ),
+                  debugTargetOverride: const WebViewTarget.inAppWebView(),
                 ),
-                debugTargetOverride: const WebViewTarget.inAppWebView(),
               ),
             ),
           ),
-        ),
-      );
-      // didUpdateWidget URL change fires, then build fires
-      expect(buildCount, greaterThanOrEqualTo(2));
-      expect(
-        find.textContaining('url:https://example.test/second'),
-        findsOneWidget,
-      );
-    });
+        );
+        expect(buildCount, 1);
+        expect(
+          find.textContaining('url:https://example.test/first'),
+          findsOneWidget,
+        );
 
-    testWidgets('같은_URL로_parent가_rebuild되면_inAppWebView는_재로드하지_않는다', (
+        // Parent rebuild with different URL
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides],
+            child: MaterialApp(
+              home: Scaffold(
+                body: WebViewPanel(
+                  resolution: const EmbedResolutionDto(
+                    url: 'https://example.test/second',
+                  ),
+                  debugTargetOverride: const WebViewTarget.inAppWebView(),
+                ),
+              ),
+            ),
+          ),
+        );
+        // didUpdateWidget URL change fires, then build fires
+        expect(buildCount, greaterThanOrEqualTo(2));
+        expect(
+          find.textContaining('url:https://example.test/second'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('a_parent_rebuild_with_the_same_URL_does_not_reload_inAppWebView', (
       tester,
     ) async {
       int buildCount = 0;

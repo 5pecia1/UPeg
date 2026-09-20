@@ -91,21 +91,55 @@ final class FileSelectionFailure implements Exception {
   final String? fileName;
   final int? maximum;
 
+  /// Catalog key (upeg-pegboard-ui/src/i18n.rs) for the localized
+  /// presentation of this failure. Pair with [messageArgs] and render
+  /// via `tRead(ref, failure.messageKey, failure.messageArgs)`.
+  String get messageKey => switch (code) {
+    FileSelectionErrorCode.invalidPolicy => 'modal.file.error.invalid_policy',
+    FileSelectionErrorCode.emptySelection => 'modal.file.error.empty_selection',
+    FileSelectionErrorCode.directorySelected =>
+      'modal.file.error.directory_selected',
+    FileSelectionErrorCode.extensionNotAllowed =>
+      'modal.file.error.extension_not_allowed',
+    FileSelectionErrorCode.tooManyFiles => 'modal.file.error.too_many_files',
+    FileSelectionErrorCode.tooManyNodes => 'modal.file.error.too_many_nodes',
+    FileSelectionErrorCode.metadataTooLarge =>
+      'modal.file.error.metadata_too_large',
+    FileSelectionErrorCode.fileTooLarge => 'modal.file.error.file_too_large',
+    FileSelectionErrorCode.totalTooLarge => 'modal.file.error.total_too_large',
+    FileSelectionErrorCode.readFailed => 'modal.file.error.read_failed',
+  };
+
+  /// `{name}` args for [messageKey], drawn from the structured fields.
+  /// `null` when the code carries no interpolations.
+  Map<String, String>? get messageArgs {
+    final args = <String, String>{
+      'file': ?fileName,
+      'max': ?maximum?.toString(),
+    };
+    return args.isEmpty ? null : args;
+  }
+
+  /// Locale-independent diagnostic for logs and `toString()` — user-facing
+  /// copy comes from [messageKey], never from this getter.
   String get message => switch (code) {
-    FileSelectionErrorCode.invalidPolicy => '파일 선택 정책이 올바르지 않습니다.',
-    FileSelectionErrorCode.emptySelection => '선택된 파일이 없습니다.',
-    FileSelectionErrorCode.directorySelected => '폴더는 선택할 수 없습니다: $fileName',
-    FileSelectionErrorCode.extensionNotAllowed => '허용되지 않는 파일 형식입니다: $fileName',
-    FileSelectionErrorCode.tooManyFiles => '파일은 최대 $maximum개까지 선택할 수 있습니다.',
-    FileSelectionErrorCode.tooManyNodes => '파일 구조가 최대 $maximum개 노드를 초과했습니다.',
-    FileSelectionErrorCode.metadataTooLarge => '파일 이름과 MIME 정보가 너무 큽니다.',
-    FileSelectionErrorCode.fileTooLarge => '파일 크기 제한을 초과했습니다: $fileName',
-    FileSelectionErrorCode.totalTooLarge => '전체 파일 크기 제한을 초과했습니다.',
-    FileSelectionErrorCode.readFailed => '파일을 읽지 못했습니다: $fileName',
+    FileSelectionErrorCode.invalidPolicy => 'invalid file selection policy',
+    FileSelectionErrorCode.emptySelection => 'no files selected',
+    FileSelectionErrorCode.directorySelected => 'directory selected: $fileName',
+    FileSelectionErrorCode.extensionNotAllowed =>
+      'file type not allowed: $fileName',
+    FileSelectionErrorCode.tooManyFiles => 'too many files (limit $maximum)',
+    FileSelectionErrorCode.tooManyNodes =>
+      'file structure exceeds the $maximum-node limit',
+    FileSelectionErrorCode.metadataTooLarge => 'file metadata too large',
+    FileSelectionErrorCode.fileTooLarge =>
+      'file exceeds the size limit: $fileName',
+    FileSelectionErrorCode.totalTooLarge => 'total file size exceeds the limit',
+    FileSelectionErrorCode.readFailed => 'could not read file: $fileName',
   };
 
   @override
-  String toString() => message;
+  String toString() => 'FileSelectionFailure(${code.name}): $message';
 }
 
 final class FileSelectionAssembler {

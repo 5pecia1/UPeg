@@ -361,7 +361,7 @@ mod tests {
 
     /// Builds `root/home` (a stand-in `$HOME`) and returns `(root, home)`
     /// after clearing any leftovers from a previous run.
-    fn 임시_홈_트리(name: &str) -> (PathBuf, PathBuf) {
+    fn temp_home_tree(name: &str) -> (PathBuf, PathBuf) {
         let root = std::env::temp_dir().join(name);
         let home = root.join("home");
         let _ = std::fs::remove_dir_all(&root);
@@ -369,7 +369,7 @@ mod tests {
         (root, home)
     }
 
-    fn 매니페스트_쓰기(dir: &Path, id: &str) {
+    fn write_manifest(dir: &Path, id: &str) {
         std::fs::create_dir_all(dir).unwrap();
         std::fs::write(
             dir.join(PROJECT_MANIFEST_FILE),
@@ -382,28 +382,28 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn 프로젝트_manifest_탐지는_가장_가까운_상위_디렉터리까지_올라간다() {
-        let (root, home) = 임시_홈_트리("upeg_project_detect_parent");
+    fn project_manifest_detection_walks_up_to_nearest_ancestor() {
+        let (root, home) = temp_home_tree("upeg_project_detect_parent");
         let nested = home.join("a/b/c");
         std::fs::create_dir_all(&nested).unwrap();
-        매니페스트_쓰기(&home, "project");
+        write_manifest(&home, "project");
 
-        let got = detect_project_manifest_from(&nested, Some(&home)).expect("매니페스트");
+        let got = detect_project_manifest_from(&nested, Some(&home)).expect("manifest");
         assert_eq!(got, home.join(PROJECT_MANIFEST_FILE));
 
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn 프로젝트_manifest_탐지는_홈으로_대체된다() {
+    fn project_manifest_detection_falls_back_to_home() {
         let root = std::env::temp_dir().join("upeg_project_detect_home_root");
         let cwd = root.join("work/outside");
         let home = root.join("home");
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&cwd).unwrap();
-        매니페스트_쓰기(&home, "home");
+        write_manifest(&home, "home");
 
-        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("매니페스트");
+        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("manifest");
         assert_eq!(got, home.join(PROJECT_MANIFEST_FILE));
 
         let _ = std::fs::remove_dir_all(&root);
@@ -415,18 +415,18 @@ tools = [{{ id = "echo" }}]"#
     /// `/tmp/evilroot/upeg.toml` when `$HOME` is somewhere else
     /// entirely.
     #[test]
-    fn 홈_밖의_cwd는_상위_디렉터리_manifest를_로드하지_않는다() {
-        let (root, home) = 임시_홈_트리("upeg_project_detect_outside_home");
+    fn cwd_outside_home_does_not_load_ancestor_manifest() {
+        let (root, home) = temp_home_tree("upeg_project_detect_outside_home");
         let evil_root = root.join("evilroot");
         let cwd = evil_root.join("sub");
         std::fs::create_dir_all(&cwd).unwrap();
-        매니페스트_쓰기(&evil_root, "evil"); // ancestor of cwd, outside $HOME
+        write_manifest(&evil_root, "evil"); // ancestor of cwd, outside $HOME
         // $HOME has no manifest of its own.
 
         let got = detect_project_manifest_from(&cwd, Some(&home));
         assert_eq!(
             got, None,
-            "홈 밖 조상 디렉터리의 upeg.toml은 무시되어야 한다"
+            "upeg.toml in an ancestor directory outside home must be ignored"
         );
 
         let _ = std::fs::remove_dir_all(&root);
@@ -435,12 +435,12 @@ tools = [{{ id = "echo" }}]"#
     /// Sibling to the outside-$HOME case: cwd itself is still always
     /// checked even when it sits outside $HOME.
     #[test]
-    fn 홈_밖이어도_cwd_자체의_manifest는_로드된다() {
-        let (root, home) = 임시_홈_트리("upeg_project_detect_outside_home_cwd_itself");
+    fn cwd_manifest_is_loaded_even_outside_home() {
+        let (root, home) = temp_home_tree("upeg_project_detect_outside_home_cwd_itself");
         let cwd = root.join("elsewhere");
-        매니페스트_쓰기(&cwd, "elsewhere");
+        write_manifest(&cwd, "elsewhere");
 
-        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("매니페스트");
+        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("manifest");
         assert_eq!(got, cwd.join(PROJECT_MANIFEST_FILE));
 
         let _ = std::fs::remove_dir_all(&root);
@@ -453,18 +453,18 @@ tools = [{{ id = "echo" }}]"#
     /// ancestor walk. A relative `HOME` is unusable for the same
     /// reason. All three must behave exactly like "no home".
     #[test]
-    fn 퇴화된_home_값은_home이_없는_것으로_취급된다() {
-        let (root, _home) = 임시_홈_트리("upeg_project_detect_degenerate_home");
+    fn degenerate_home_value_is_treated_as_no_home() {
+        let (root, _home) = temp_home_tree("upeg_project_detect_degenerate_home");
         let evil_root = root.join("evilroot");
         let cwd = evil_root.join("sub");
         std::fs::create_dir_all(&cwd).unwrap();
-        매니페스트_쓰기(&evil_root, "evil"); // ancestor of cwd
+        write_manifest(&evil_root, "evil"); // ancestor of cwd
 
         for degenerate in ["", "/", "relative/home"] {
             let got = detect_project_manifest_from(&cwd, Some(Path::new(degenerate)));
             assert_eq!(
                 got, None,
-                "퇴화된 HOME({degenerate:?})은 상위 디렉터리 걷기를 열어주면 안 된다"
+                "degenerate HOME ({degenerate:?}) must not unlock the ancestor walk"
             );
         }
 
@@ -472,8 +472,8 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn 퇴화된_home_값은_홈_대체_탐색도_하지_않는다() {
-        let (root, _home) = 임시_홈_트리("upeg_project_detect_degenerate_home_fallback");
+    fn degenerate_home_value_does_not_get_home_fallback_either() {
+        let (root, _home) = temp_home_tree("upeg_project_detect_degenerate_home_fallback");
         let cwd = root.join("elsewhere");
         std::fs::create_dir_all(&cwd).unwrap();
 
@@ -482,17 +482,20 @@ tools = [{{ id = "echo" }}]"#
             assert_eq!(
                 scope.home_fallback(),
                 None,
-                "퇴화된 HOME({degenerate:?})은 폴백 후보가 될 수 없다"
+                "degenerate HOME ({degenerate:?}) cannot be a fallback candidate"
             );
-            assert!(!scope.in_walk(&cwd), "퇴화된 HOME은 걷기를 열면 안 된다");
+            assert!(
+                !scope.in_walk(&cwd),
+                "degenerate HOME must not unlock walking"
+            );
         }
 
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn 정상적인_절대_home은_그대로_사용된다() {
-        let (root, home) = 임시_홈_트리("upeg_project_usable_home");
+    fn normal_absolute_home_is_used_verbatim() {
+        let (root, home) = temp_home_tree("upeg_project_usable_home");
         assert_eq!(usable_home(Some(&home)), Some(home.as_path()));
         assert_eq!(usable_home(None), None);
 
@@ -500,24 +503,24 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn 홈이_없으면_상위_디렉터리로_올라가지_않는다() {
+    fn without_home_does_not_walk_ancestors() {
         let root = std::env::temp_dir().join("upeg_project_detect_no_home");
         let nested = root.join("a/b");
         let _ = std::fs::remove_dir_all(&root);
-        매니페스트_쓰기(&root, "root_only");
+        write_manifest(&root, "root_only");
         std::fs::create_dir_all(&nested).unwrap();
 
         let got = detect_project_manifest_from(&nested, None);
         assert_eq!(
             got, None,
-            "home이 없으면 조상 디렉터리를 전혀 걷지 않아야 한다"
+            "without home it must not walk ancestor directories at all"
         );
 
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn override_파싱은_비어있으면_탐지로_취급한다() {
+    fn override_parsing_treats_empty_as_detect() {
         assert_eq!(
             parse_project_manifest_override(None),
             ProjectManifestOverride::Detect
@@ -533,7 +536,7 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn override_파싱은_off를_대소문자_무관하게_비활성화로_취급한다() {
+    fn override_parsing_treats_off_case_insensitively_as_disabled() {
         assert_eq!(
             parse_project_manifest_override(Some("off")),
             ProjectManifestOverride::Disabled
@@ -549,7 +552,7 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn override_파싱은_절대_경로를_explicit로_취급한다() {
+    fn override_parsing_treats_absolute_path_as_explicit() {
         let absolute = if cfg!(windows) {
             "C:\\proj\\upeg.toml"
         } else {
@@ -562,7 +565,7 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn override_파싱은_상대_경로를_탐지로_되돌리고_경고를_반환한다() {
+    fn override_parsing_falls_back_to_detect_for_relative_path_and_returns_warning() {
         assert_eq!(
             parse_project_manifest_override(Some("relative/upeg.toml")),
             ProjectManifestOverride::Detect
@@ -573,7 +576,7 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn 상대_경로가_아니면_경고가_없다() {
+    fn no_warning_for_non_relative_path() {
         assert_eq!(project_manifest_override_relative_path_warning(None), None);
         assert_eq!(
             project_manifest_override_relative_path_warning(Some("off")),
@@ -591,20 +594,20 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn explicit_절대_경로는_탐지_가능한_manifest보다_우선한다() {
-        let (root, home) = 임시_홈_트리("upeg_project_resolve_explicit_wins");
+    fn explicit_absolute_path_wins_over_detectable_manifest() {
+        let (root, home) = temp_home_tree("upeg_project_resolve_explicit_wins");
         let cwd = home.join("proj");
-        매니페스트_쓰기(&cwd, "detectable");
+        write_manifest(&cwd, "detectable");
         let explicit_dir = root.join("explicit");
-        매니페스트_쓰기(&explicit_dir, "explicit");
+        write_manifest(&explicit_dir, "explicit");
         let explicit_path = explicit_dir.join(PROJECT_MANIFEST_FILE);
 
         let over = ProjectManifestOverride::Explicit(explicit_path.clone());
-        let got = resolve_project_manifest(&over, &cwd, Some(&home)).expect("매니페스트");
+        let got = resolve_project_manifest(&over, &cwd, Some(&home)).expect("manifest");
 
         assert_eq!(
             got.path, explicit_path,
-            "detect가 아닌 explicit 경로여야 한다"
+            "must be the explicit path, not the detected one"
         );
         assert_eq!(got.origin, ProjectManifestOrigin::EnvOverride);
 
@@ -612,10 +615,10 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn explicit_경로가_존재하지_않으면_탐지로_대체되지_않는다() {
-        let (root, home) = 임시_홈_트리("upeg_project_resolve_explicit_missing");
+    fn missing_explicit_path_is_not_replaced_by_detection() {
+        let (root, home) = temp_home_tree("upeg_project_resolve_explicit_missing");
         let cwd = home.join("proj");
-        매니페스트_쓰기(&cwd, "detectable");
+        write_manifest(&cwd, "detectable");
         let missing = root.join("missing").join(PROJECT_MANIFEST_FILE);
 
         let over = ProjectManifestOverride::Explicit(missing);
@@ -623,17 +626,17 @@ tools = [{{ id = "echo" }}]"#
 
         assert_eq!(
             got, None,
-            "explicit 파일이 없으면 탐지로 폴백하지 않고 매니페스트 없음이어야 한다"
+            "missing explicit file must yield no manifest instead of falling back to detection"
         );
 
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn off는_탐지_가능한_manifest가_있어도_비활성화한다() {
-        let (root, home) = 임시_홈_트리("upeg_project_resolve_disabled");
+    fn off_disables_even_when_manifest_is_detectable() {
+        let (root, home) = temp_home_tree("upeg_project_resolve_disabled");
         let cwd = home.join("proj");
-        매니페스트_쓰기(&cwd, "detectable");
+        write_manifest(&cwd, "detectable");
 
         let got = resolve_project_manifest(&ProjectManifestOverride::Disabled, &cwd, Some(&home));
 
@@ -643,14 +646,14 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn detect_override는_기존_탐지_로직과_동일하게_동작한다() {
-        let (root, home) = 임시_홈_트리("upeg_project_resolve_detect");
+    fn detect_override_behaves_like_default_detection() {
+        let (root, home) = temp_home_tree("upeg_project_resolve_detect");
         let cwd = home.join("proj");
-        매니페스트_쓰기(&home, "home_level");
+        write_manifest(&home, "home_level");
         std::fs::create_dir_all(&cwd).unwrap();
 
         let got = resolve_project_manifest(&ProjectManifestOverride::Detect, &cwd, Some(&home))
-            .expect("매니페스트");
+            .expect("manifest");
 
         assert_eq!(got.path, home.join(PROJECT_MANIFEST_FILE));
         assert_eq!(got.origin, ProjectManifestOrigin::Detected);
@@ -659,7 +662,7 @@ tools = [{{ id = "echo" }}]"#
     }
 
     #[test]
-    fn override_레이블은_세_상태를_모두_구분한다() {
+    fn override_labels_distinguish_all_three_states() {
         assert_eq!(
             project_manifest_override_label(&ProjectManifestOverride::Detect),
             "detect"

@@ -489,13 +489,13 @@ mod tests {
     };
 
     #[test]
-    fn selector_bindings_for는_미등록_도구에_대해_빈_벡터를_반환한다() {
+    fn selector_bindings_for_returns_empty_for_unregistered_tool() {
         let bindings = selector_bindings_for("frb.test.selector_bindings.empty".into());
         assert!(bindings.is_empty());
     }
 
     #[test]
-    fn set_selector_bindings는_저장한_값을_round_trip한다() {
+    fn set_selector_bindings_round_trips_saved_values() {
         let id = "frb.test.selector_bindings.roundtrip";
         let value = vec![SelectorBindingDto {
             role: super::BindingRoleDto::Input,
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_bindings_for는_enter_trigger_action을_round_trip한다() {
+    fn selector_bindings_for_round_trips_enter_trigger_action() {
         let id = "frb.test.selector_bindings.enter";
         let value = vec![SelectorBindingDto {
             role: super::BindingRoleDto::Trigger,
@@ -537,10 +537,10 @@ mod tests {
         );
     }
 
-    // ─── 대기옵션 (BindingWait) round-trip ───────────────────────
+    // ─── Wait options (BindingWait) round-trip ────────────────────
 
     #[test]
-    fn wait_controlled_embed_대기옵션은_input_바인딩에서_round_trip한다() {
+    fn wait_controlled_embed_wait_options_round_trip_on_input_binding() {
         let id = "frb.test.wait.input_roundtrip";
         let wait_dto = BindingWaitDto {
             for_selector: Some("#loading-spinner".into()),
@@ -568,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_controlled_embed_대기옵션은_visible_조건을_round_trip한다() {
+    fn wait_controlled_embed_wait_options_round_trip_visible_condition() {
         let id = "frb.test.wait.visible_condition";
         let wait_dto = BindingWaitDto {
             for_selector: Some(".result-card".into()),
@@ -593,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_controlled_embed_대기옵션이_없으면_none을_반환한다() {
+    fn wait_controlled_embed_returns_none_without_wait_options() {
         let id = "frb.test.wait.no_wait";
         let value = vec![SelectorBindingDto {
             role: super::BindingRoleDto::Output,
@@ -609,7 +609,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_build_binding_wait_script는_단일_대기스크립트를_생성한다() {
+    fn wait_build_binding_wait_script_builds_single_wait_script() {
         let script = build_binding_wait_script(SelectorBindingDto {
             role: super::BindingRoleDto::Input,
             field: "q".into(),
@@ -629,7 +629,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_build_binding_wait_script는_대기옵션이_없으면_빈_스크립트를_반환한다() {
+    fn wait_build_binding_wait_script_returns_empty_without_wait_options() {
         let script = build_binding_wait_script(SelectorBindingDto {
             role: super::BindingRoleDto::Input,
             field: "q".into(),
@@ -642,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_build_binding_wait_script는_for_selector를_우선한다() {
+    fn wait_build_binding_wait_script_prefers_for_selector() {
         let script = build_binding_wait_script(SelectorBindingDto {
             role: super::BindingRoleDto::Input,
             field: "q".into(),
@@ -662,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_build_binding_wait_script는_for_selector가_없으면_binding_selector를_쓴다() {
+    fn wait_build_binding_wait_script_falls_back_to_binding_selector() {
         let script = build_binding_wait_script(SelectorBindingDto {
             role: super::BindingRoleDto::Output,
             field: "result".into(),
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn wait_build_binding_wait_script는_selector의_따옴표와_백슬래시를_이스케이프한다() {
+    fn wait_build_binding_wait_script_escapes_selector_quotes_and_backslashes() {
         let script = build_binding_wait_script(SelectorBindingDto {
             role: super::BindingRoleDto::Input,
             field: "q".into(),
@@ -702,7 +702,7 @@ mod tests {
     // ─── Controlled Embed settings tests ─────────────────────────
 
     #[test]
-    fn controlled_embed_settings는_미등록_도구에서_빈_dto를_반환한다() {
+    fn controlled_embed_settings_returns_empty_dto_for_unregistered_tool() {
         let settings = controlled_embed_settings_for("frb.test.settings.empty".into());
 
         assert_eq!(settings.user_agent, None);
@@ -710,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_settings는_explicit_default_user_agent를_생략과_구분한다() {
+    fn controlled_embed_settings_distinguishes_explicit_default_user_agent_from_omitted() {
         let id = "frb.test.settings.default_user_agent";
         let settings = ControlledEmbedSettingsDto {
             user_agent: Some(ControlledEmbedUserAgentDto::Default),
@@ -728,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_settings는_mobile_user_agent와_preset_viewport를_round_trip한다() {
+    fn controlled_embed_settings_round_trips_mobile_user_agent_and_preset_viewport() {
         let id = "frb.test.settings.mobile_preset";
         let settings = ControlledEmbedSettingsDto {
             user_agent: Some(ControlledEmbedUserAgentDto::MobileSafari),
@@ -753,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn controlled_embed_settings는_custom_user_agent와_custom_viewport를_round_trip한다() {
+    fn controlled_embed_settings_round_trips_custom_user_agent_and_custom_viewport() {
         let id = "frb.test.settings.custom_viewport";
         let settings = ControlledEmbedSettingsDto {
             user_agent: Some(ControlledEmbedUserAgentDto::Custom {

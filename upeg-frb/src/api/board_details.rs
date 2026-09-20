@@ -207,7 +207,7 @@ mod tests {
     use crate::api::test_support::run_with_storage_backup;
 
     #[test]
-    fn 프로젝트_원본이_변경되면_이전_지침을_불러오지_않는다() {
+    fn changed_project_source_does_not_load_previous_guidance() {
         run_with_storage_backup(|| {
             use upeg_runtime::pegboard_project::{
                 ProjectBoardDecl, ProjectBoardScope, set_project_board_scope,
@@ -234,13 +234,13 @@ mod tests {
             std::fs::remove_file(&path).expect("remove source fixture");
             assert!(
                 matches!(details, Err(FrbError::ProjectManifestChanged { .. })),
-                "변경된 원본의 이전 지침을 표시하면 안 된다"
+                "must not show the previous guidance of a changed source"
             );
         });
     }
 
     #[test]
-    fn 개인_보드_지침은_저장한_마크다운을_그대로_불러온다() {
+    fn personal_board_guidance_loads_saved_markdown_verbatim() {
         run_with_storage_backup(|| {
             let key = crate::api::pegboard::create_board("Guidance round trip".to_string())
                 .expect("board");
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_보드는_원본_경로를_표시하고_개인_저장을_거부한다() {
+    fn project_board_shows_source_path_and_rejects_personal_save() {
         run_with_storage_backup(|| {
             let _scope = ScopedProjectBoard::declare("guide-project", "Project guidance");
             let details = load_board_details("guide-project".to_string()).expect("details");

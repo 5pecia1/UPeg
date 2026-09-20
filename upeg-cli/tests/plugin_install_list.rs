@@ -105,7 +105,7 @@ fn assert_failure(output: &Output, context: &str) {
 }
 
 #[test]
-fn 유효한_플러그인은_검증_후_복사되고_도구_id를_출력한다() {
+fn a_valid_plugin_is_copied_after_validation_and_prints_its_tool_ids() {
     let fixture = Fixture::new("valid");
     let source = fixture.write_source_file("test_plugin.wasm", WASM_FIXTURE);
 
@@ -121,7 +121,7 @@ fn 유효한_플러그인은_검증_후_복사되고_도구_id를_출력한다()
 }
 
 #[test]
-fn 손상된_바이트는_검증에_실패하고_복사되지_않는다() {
+fn corrupted_bytes_fail_validation_and_are_not_copied() {
     let fixture = Fixture::new("invalid");
     let source = fixture.write_source_file("garbage.wasm", b"not a real wasm module");
 
@@ -139,7 +139,7 @@ fn 손상된_바이트는_검증에_실패하고_복사되지_않는다() {
 }
 
 #[test]
-fn 다른_내용의_기존_파일은_force_없이_거부된다() {
+fn an_existing_file_with_different_content_is_refused_without_force() {
     let fixture = Fixture::new("conflict");
     std::fs::write(
         fixture.wasm_dir.join("test_plugin.wasm"),
@@ -170,7 +170,7 @@ fn 다른_내용의_기존_파일은_force_없이_거부된다() {
 }
 
 #[test]
-fn 목록은_비어있으면_친절한_안내를_출력하고_설치_후에는_도구를_보여준다() {
+fn list_prints_a_friendly_note_when_empty_and_shows_tools_after_install() {
     let fixture = Fixture::new("list");
 
     let empty = fixture.run(&["plugin", "list"]);

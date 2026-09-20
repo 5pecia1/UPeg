@@ -47,50 +47,53 @@ class _Probe extends ConsumerWidget {
 }
 
 void main() {
-  testWidgets('t_helper는_localeProvider_변경시_영어_라벨에서_한국어로_바뀐다', (tester) async {
-    TweaksDto saved = _enDto;
-    final container = ProviderContainer(
-      overrides: [
-        tweaksLoaderProvider.overrideWith(
-          (ref) =>
-              () => _enDto,
-        ),
-        tweaksSaverProvider.overrideWith(
-          (ref) =>
-              (TweaksDto next) => saved = next,
-        ),
-        i18nTranslateOverride.overrideWithValue(_fakeTranslate),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: Scaffold(body: _Probe())),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('theme'), findsOneWidget);
-    expect(find.text('테마'), findsNothing);
-
-    // Flip locale to Ko via tweaks save — localeProvider re-derives.
-    await container
-        .read(tweaksProvider.notifier)
-        .save(
-          const TweaksDto(
-            theme: 'Light',
-            accent: 'Green',
-            showHoles: true,
-            locale: 'Ko',
-            localHttpHost: false,
+  testWidgets(
+    'the_t_helper_switches_from_english_to_korean_when_localeprovider_changes',
+    (tester) async {
+      TweaksDto saved = _enDto;
+      final container = ProviderContainer(
+        overrides: [
+          tweaksLoaderProvider.overrideWith(
+            (ref) =>
+                () => _enDto,
           ),
-        );
-    await tester.pumpAndSettle();
+          tweaksSaverProvider.overrideWith(
+            (ref) =>
+                (TweaksDto next) => saved = next,
+          ),
+          i18nTranslateOverride.overrideWithValue(_fakeTranslate),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    expect(saved.locale, 'Ko');
-    expect(find.text('theme'), findsNothing);
-    expect(find.text('테마'), findsOneWidget);
-  });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: _Probe())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('theme'), findsOneWidget);
+      expect(find.text('테마'), findsNothing);
+
+      // Flip locale to Ko via tweaks save — localeProvider re-derives.
+      await container
+          .read(tweaksProvider.notifier)
+          .save(
+            const TweaksDto(
+              theme: 'Light',
+              accent: 'Green',
+              showHoles: true,
+              locale: 'Ko',
+              localHttpHost: false,
+            ),
+          );
+      await tester.pumpAndSettle();
+
+      expect(saved.locale, 'Ko');
+      expect(find.text('theme'), findsNothing);
+      expect(find.text('테마'), findsOneWidget);
+    },
+  );
 }

@@ -12,17 +12,17 @@ import 'package:upeg/src/platform/tray.dart';
 
 void main() {
   group('TrayCommand.fromKey', () {
-    test('TrayCommand_fromKey는_미지의_키에_대해_null을_반환한다', () {
+    test('TrayCommand_fromKey_returns_null_for_an_unknown_key', () {
       expect(TrayCommand.fromKey('unknown'), isNull);
     });
 
-    test('TrayCommand_fromKey는_toggle_pause_키를_매핑한다', () {
+    test('TrayCommand_fromKey_maps_the_toggle_pause_key', () {
       expect(TrayCommand.fromKey('toggle_pause'), TrayCommand.togglePause);
     });
 
-    test('삭제된_service_제어_키는_더이상_매핑되지_않는다', () {
-      // service/source control plane 삭제: tray에 남은 host 제어는
-      // pause 하나뿐이다.
+    test('deleted_service_control_keys_are_no_longer_mapped', () {
+      // The service/source control plane was deleted: pause is the
+      // only host control left on the tray.
       expect(TrayCommand.fromKey('toggle_rest_api'), isNull);
       expect(TrayCommand.fromKey('load_mcp_imports'), isNull);
       expect(TrayCommand.fromKey('unload_mcp_imports'), isNull);
@@ -30,7 +30,7 @@ void main() {
   });
 
   group('buildTrayMenu', () {
-    test('Tray_menu는_모든_command_key를_한_번씩_포함한다', () {
+    test('the_tray_menu_contains_every_command_key_exactly_once', () {
       final menu = buildTrayMenu();
       final items = menu.items ?? const <MenuItem>[];
       final keys = [
@@ -47,7 +47,7 @@ void main() {
       ]);
     });
 
-    test('Tray_menu는_그룹_사이에_separator를_렌더한다', () {
+    test('the_tray_menu_renders_separators_between_groups', () {
       final items = buildTrayMenu().items ?? const <MenuItem>[];
       final separatorIndexes = <int>[
         for (var i = 0; i < items.length; i++)
@@ -60,7 +60,7 @@ void main() {
       }
     });
 
-    test('Tray_menu는_사용자에게_보이는_label을_고정한다', () {
+    test('the_tray_menu_pins_the_user_visible_labels', () {
       final items = buildTrayMenu().items ?? const <MenuItem>[];
       final labelsByKey = {
         for (final item in items)
@@ -76,7 +76,7 @@ void main() {
       });
     });
 
-    test('buildTrayMenu는_pauseControllable_false시_pause를_비활성한다', () {
+    test('buildTrayMenu_disables_pause_when_pauseControllable_is_false', () {
       // Pause is a process-local `AtomicBool` (WS4 PRD §5.9) — it
       // cannot reach a foreign daemon, so the menu item must grey out
       // whenever this process isn't the in-process (Embedded) host.

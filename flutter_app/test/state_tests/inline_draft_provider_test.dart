@@ -7,7 +7,7 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 void main() {
   group('InlineDraftStore', () {
-    test('같은 도구의 입력도 보드가 다르면 서로 격리한다', () {
+    test('isolates drafts for the same tool across different boards', () {
       final store = InlineDraftStore();
       final toolId = ToolId.parse('text.pair');
       final firstKey = (BoardKey.parse('first'), toolId);
@@ -22,7 +22,7 @@ void main() {
       expect(store.read(secondKey), isNull);
     });
 
-    test('핀 식별자로 저장한 입력을 정확히 지운다', () {
+    test('clears exactly the draft stored under a pin key', () {
       final store = InlineDraftStore();
       final PinKey pinKey = (BoardKey.parse('dev'), ToolId.parse('text.pair'));
       store.set(

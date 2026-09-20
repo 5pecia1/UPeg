@@ -1,17 +1,17 @@
 use super::*;
 
 #[test]
-fn 출력_preflight는_base64_decoder를_호출하지_않는다() {
+fn output_preflight_never_invokes_the_base64_decoder() {
     const JSON_PREFLIGHT_SOURCE: &str = include_str!("file_output_preflight/json.rs");
 
     assert!(
         !JSON_PREFLIGHT_SOURCE.contains(".decode("),
-        "출력 preflight는 decoded Vec를 할당하면 안 된다"
+        "output preflight must not allocate a decoded Vec"
     );
 }
 
 #[test]
-fn raw_누적_산술이_overflow하면_한도_초과로_거부한다() {
+fn raw_accumulation_overflow_is_rejected_as_over_limit() {
     let mut summary = FileOutputSummary {
         raw_bytes: u64::MAX,
         ..FileOutputSummary::default()
@@ -27,7 +27,7 @@ fn raw_누적_산술이_overflow하면_한도_초과로_거부한다() {
 }
 
 #[test]
-fn metadata_누적_산술이_overflow하면_한도_초과로_거부한다() {
+fn metadata_accumulation_overflow_is_rejected_as_over_limit() {
     let mut summary = FileOutputSummary {
         metadata_bytes: u64::MAX,
         ..FileOutputSummary::default()
@@ -43,7 +43,7 @@ fn metadata_누적_산술이_overflow하면_한도_초과로_거부한다() {
 }
 
 #[test]
-fn node_누적_산술이_overflow하면_한도_초과로_거부한다() {
+fn node_accumulation_overflow_is_rejected_as_over_limit() {
     let mut summary = FileOutputSummary {
         nodes: u64::MAX,
         ..FileOutputSummary::default()

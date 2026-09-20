@@ -20,7 +20,7 @@ void main() {
     await RustLib.init();
   });
 
-  testWidgets('Cmd_K_단축키는_PaletteOverlay를_연다', (tester) async {
+  testWidgets('Cmd_K_shortcut_opens_PaletteOverlay', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: UpegApp()));
     await tester.pumpAndSettle(const Duration(seconds: 3));
 

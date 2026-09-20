@@ -1,7 +1,7 @@
 /// Widget tests for the BoardPage keyboard wiring (G5).
 ///
 /// The keyboard FRB itself is exercised in upeg-frb Rust unit tests
-/// (`keyboard_command_for_가_*`). Here we verify that the Dart side
+/// (`keyboard_command_for_maps_*`). Here we verify that the Dart side
 /// translates Flutter `KeyEvent`s into the right FRB call, and that
 /// the resulting [`KeyboardCommandDto`] drives the right page-level
 /// side effect (open palette / open settings / cycle tag / …).
@@ -27,7 +27,7 @@ import '../test_helpers/board_page_harness.dart';
 
 void main() {
   group('BoardPage keyboard wiring', () {
-    testWidgets('BoardPage는_F1_누르면_Run_command를_dispatch한다', (tester) async {
+    testWidgets('BoardPage_dispatches_the_Run_command_on_F1', (tester) async {
       KeyboardCommandDto? received;
       await tester.pumpWidget(
         ProviderScope(
@@ -61,7 +61,7 @@ void main() {
       expect(received, const KeyboardCommandDto.run());
     });
 
-    testWidgets('BoardPage는_Cmd_K_누르면_Search_command를_dispatch한다', (
+    testWidgets('BoardPage_dispatches_the_Search_command_on_Cmd_K', (
       tester,
     ) async {
       KeyboardCommandDto? received;
@@ -102,7 +102,9 @@ void main() {
       expect(received, const KeyboardCommandDto.search());
     });
 
-    testWidgets('BoardPage는_Esc_누르면_Close_command를_dispatch한다', (tester) async {
+    testWidgets('BoardPage_dispatches_the_Close_command_on_Esc', (
+      tester,
+    ) async {
       KeyboardCommandDto? received;
       await tester.pumpWidget(
         ProviderScope(
@@ -138,7 +140,9 @@ void main() {
       expect(received, const KeyboardCommandDto.close());
     });
 
-    testWidgets('BoardPage는_Close_command로_popup_mode로_돌아간다', (tester) async {
+    testWidgets('BoardPage_returns_to_popup_mode_on_the_Close_command', (
+      tester,
+    ) async {
       WindowMode? observed;
       await tester.pumpWidget(
         boardPageHarness(
@@ -169,72 +173,77 @@ void main() {
       expect(observed, WindowMode.popup);
     });
 
-    testWidgets('q_누르면_quit_confirm_dialog가_열리고_즉시_종료하지_않는다', (tester) async {
-      var quitCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          quitApp: () async {
-            quitCalls += 1;
-          },
-          resolver: quitFlowResolver,
-        ),
-      );
+    testWidgets(
+      'pressing_q_opens_the_quit_confirm_dialog_without_quitting_immediately',
+      (tester) async {
+        var quitCalls = 0;
+        await tester.pumpWidget(
+          boardPageHarness(
+            quitApp: () async {
+              quitCalls += 1;
+            },
+            resolver: quitFlowResolver,
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(QuitConfirmDialog.dialogKey), findsOneWidget);
-      expect(quitCalls, 0);
-    });
+        expect(find.byKey(QuitConfirmDialog.dialogKey), findsOneWidget);
+        expect(quitCalls, 0);
+      },
+    );
 
-    testWidgets('quit_confirm에서_F1으로_확인하면_shutdown_경로가_한번_호출된다', (
-      tester,
-    ) async {
-      var quitCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          quitApp: () async {
-            quitCalls += 1;
-          },
-          resolver: quitFlowResolver,
-        ),
-      );
+    testWidgets(
+      'confirming_quit_confirm_with_F1_invokes_the_shutdown_path_once',
+      (tester) async {
+        var quitCalls = 0;
+        await tester.pumpWidget(
+          boardPageHarness(
+            quitApp: () async {
+              quitCalls += 1;
+            },
+            resolver: quitFlowResolver,
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.f1);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
-      expect(quitCalls, 1);
-    });
+        expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
+        expect(quitCalls, 1);
+      },
+    );
 
-    testWidgets('quit_confirm에서_Enter로_확인해도_shutdown_경로가_한번_호출된다', (
-      tester,
-    ) async {
-      var quitCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          quitApp: () async {
-            quitCalls += 1;
-          },
-          resolver: quitFlowResolver,
-        ),
-      );
+    testWidgets(
+      'confirming_quit_confirm_with_Enter_also_invokes_the_shutdown_path_once',
+      (tester) async {
+        var quitCalls = 0;
+        await tester.pumpWidget(
+          boardPageHarness(
+            quitApp: () async {
+              quitCalls += 1;
+            },
+            resolver: quitFlowResolver,
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
-      expect(quitCalls, 1);
-    });
+        expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
+        expect(quitCalls, 1);
+      },
+    );
 
-    testWidgets('quit_confirm에서_Esc는_취소하고_종료하지_않는다', (tester) async {
+    testWidgets('Esc_in_quit_confirm_cancels_without_quitting', (tester) async {
       var quitCalls = 0;
       await tester.pumpWidget(
         boardPageHarness(
@@ -255,30 +264,35 @@ void main() {
       expect(quitCalls, 0);
     });
 
-    testWidgets('quit_confirm이_열린_동안_q를_다시_눌러도_dialog는_하나만_뜬다', (tester) async {
-      var quitCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          quitApp: () async {
-            quitCalls += 1;
-          },
-          resolver: quitFlowResolver,
-        ),
-      );
+    testWidgets(
+      'pressing_q_again_while_quit_confirm_is_open_keeps_a_single_dialog',
+      (tester) async {
+        var quitCalls = 0;
+        await tester.pumpWidget(
+          boardPageHarness(
+            quitApp: () async {
+              quitCalls += 1;
+            },
+            resolver: quitFlowResolver,
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
-      await tester.pumpAndSettle();
-      // In the confirm scope `q` resolves to Cancel (shared confirm
-      // resolver) — never to a second Quit → no stacked dialog.
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pumpAndSettle();
+        // In the confirm scope `q` resolves to Cancel (shared confirm
+        // resolver) — never to a second Quit → no stacked dialog.
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
-      expect(quitCalls, 0);
-    });
+        expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
+        expect(quitCalls, 0);
+      },
+    );
 
-    testWidgets('move_mode에서_Enter는_moving_scope로_commit한다', (tester) async {
+    testWidgets('Enter_in_move_mode_commits_in_the_moving_scope', (
+      tester,
+    ) async {
       KeyboardScopeDto? enterScope;
       ToolId? observedTool;
       int? observedX;
@@ -355,7 +369,7 @@ void main() {
       expect(observedY, 0);
     });
 
-    testWidgets('move_mode에서_Escape는_popup_close가_아니라_cancel한다', (
+    testWidgets('Escape_in_move_mode_cancels_instead_of_closing_the_popup', (
       tester,
     ) async {
       KeyboardScopeDto? escapeScope;
@@ -428,137 +442,149 @@ void main() {
       expect(observedMode, isNull);
     });
 
-    testWidgets('BoardPage는_NewBoard_command로_create_board_dialog를_연다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        boardPageHarness(
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 'n') return const KeyboardCommandDto.newBoard();
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_opens_the_create_board_dialog_on_the_NewBoard_command',
+      (tester) async {
+        await tester.pumpWidget(
+          boardPageHarness(
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 'n') return const KeyboardCommandDto.newBoard();
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('create-board-dialog')), findsOneWidget);
-    });
+        expect(find.byKey(const Key('create-board-dialog')), findsOneWidget);
+      },
+    );
 
-    testWidgets('모드리스에서_e는_바인딩없는_자유키고_n은_토글없이_동작한다', (tester) async {
-      var newBoardRequested = false;
-      await tester.pumpWidget(
-        boardPageHarness(
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                // Modeless: 'e' no longer toggles edit mode — it resolves to
-                // nothing. Board-management keys stay live without any toggle.
-                if (key == 'n') {
-                  newBoardRequested = true;
-                  return const KeyboardCommandDto.newBoard();
-                }
-                return null;
-              },
-        ),
-      );
-      await tester.pump();
+    testWidgets(
+      'in_modeless_e_is_an_unbound_free_key_and_n_acts_without_a_toggle',
+      (tester) async {
+        var newBoardRequested = false;
+        await tester.pumpWidget(
+          boardPageHarness(
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  // Modeless: 'e' no longer toggles edit mode — it resolves to
+                  // nothing. Board-management keys stay live without any toggle.
+                  if (key == 'n') {
+                    newBoardRequested = true;
+                    return const KeyboardCommandDto.newBoard();
+                  }
+                  return null;
+                },
+          ),
+        );
+        await tester.pump();
 
-      // 'e' is a free, unbound key → the board ignores it.
-      expect(
-        dispatchBoardPageKey(
-          tester,
-          logicalKey: LogicalKeyboardKey.keyE,
-          physicalKey: PhysicalKeyboardKey.keyE,
-          character: 'e',
-        ),
-        KeyEventResult.ignored,
-      );
+        // 'e' is a free, unbound key → the board ignores it.
+        expect(
+          dispatchBoardPageKey(
+            tester,
+            logicalKey: LogicalKeyboardKey.keyE,
+            physicalKey: PhysicalKeyboardKey.keyE,
+            character: 'e',
+          ),
+          KeyEventResult.ignored,
+        );
 
-      // 'n' still opens the create-board dialog with no edit toggle first.
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
-      await tester.pumpAndSettle();
-      expect(newBoardRequested, isTrue);
-      expect(find.byKey(const Key('create-board-dialog')), findsOneWidget);
-    });
+        // 'n' still opens the create-board dialog with no edit toggle first.
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.pumpAndSettle();
+        expect(newBoardRequested, isTrue);
+        expect(find.byKey(const Key('create-board-dialog')), findsOneWidget);
+      },
+    );
 
-    testWidgets('BoardPage는_RenameBoard_command로_현재_board_rename_dialog를_연다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        boardPageHarness(
-          currentBoardKey: 'dev',
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 'r') return const KeyboardCommandDto.renameBoard();
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_opens_the_rename_dialog_for_the_current_board_on_the_RenameBoard_command',
+      (tester) async {
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: 'dev',
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 'r') return const KeyboardCommandDto.renameBoard();
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('rename-board-dialog-dev')), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('rename-board-dialog-dev')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('BoardPage는_DeleteBoard_command로_현재_board_delete_dialog를_연다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        boardPageHarness(
-          currentBoardKey: 'dev',
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 'd') return const KeyboardCommandDto.deleteBoard();
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_opens_the_delete_dialog_for_the_current_board_on_the_DeleteBoard_command',
+      (tester) async {
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: 'dev',
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 'd') return const KeyboardCommandDto.deleteBoard();
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('delete-board-dialog-dev')), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('delete-board-dialog-dev')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('BoardPage는_OpenToolPicker_command로_palette를_연다', (
+    testWidgets('BoardPage_opens_the_palette_on_the_OpenToolPicker_command', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -588,144 +614,147 @@ void main() {
       expect(find.byType(PaletteOverlay), findsOneWidget);
     });
 
-    testWidgets('BoardPage는_물음표로_cheatsheet_overlay를_열고_Esc로_닫는다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        boardPageHarness(
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (scope == KeyboardScopeDto.confirmDelete &&
-                    key == 'Escape') {
-                  return const KeyboardCommandDto.cancel();
-                }
-                if (scope == KeyboardScopeDto.board && key == '?') {
-                  return const KeyboardCommandDto.showCheatsheet();
-                }
-                return null;
-              },
-        ),
-      );
-      await tester.pump();
+    testWidgets(
+      'BoardPage_opens_the_cheatsheet_overlay_on_question_mark_and_closes_it_on_Esc',
+      (tester) async {
+        await tester.pumpWidget(
+          boardPageHarness(
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (scope == KeyboardScopeDto.confirmDelete &&
+                      key == 'Escape') {
+                    return const KeyboardCommandDto.cancel();
+                  }
+                  if (scope == KeyboardScopeDto.board && key == '?') {
+                    return const KeyboardCommandDto.showCheatsheet();
+                  }
+                  return null;
+                },
+          ),
+        );
+        await tester.pump();
 
-      // Shift+/ 는 character '?'로 도착한다 — label 파서가 그대로 넘긴다.
-      dispatchBoardPageKey(
-        tester,
-        logicalKey: LogicalKeyboardKey.slash,
-        physicalKey: PhysicalKeyboardKey.slash,
-        character: '?',
-      );
-      await tester.pumpAndSettle();
-      expect(find.byKey(CheatsheetOverlay.overlayKey), findsOneWidget);
+        // Shift+/ arrives as character '?' — the label parser passes it through.
+        dispatchBoardPageKey(
+          tester,
+          logicalKey: LogicalKeyboardKey.slash,
+          physicalKey: PhysicalKeyboardKey.slash,
+          character: '?',
+        );
+        await tester.pumpAndSettle();
+        expect(find.byKey(CheatsheetOverlay.overlayKey), findsOneWidget);
 
-      // 오버레이는 공유 confirm scope를 재사용해 Esc로 닫힌다.
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(find.byKey(CheatsheetOverlay.overlayKey), findsNothing);
-    });
+        // The overlay reuses the shared confirm scope and closes on Esc.
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(find.byKey(CheatsheetOverlay.overlayKey), findsNothing);
+      },
+    );
 
-    testWidgets('BoardPage는_ClearBoardFilter_command로_첫번째_board를_선택한다', (
-      tester,
-    ) async {
-      final loadedBoards = <String>[];
-      await tester.pumpWidget(
-        boardPageHarness(
-          boards: const <BoardDto>[
-            BoardDto(key: 'dev', title: 'Dev'),
-            BoardDto(key: 'media', title: 'Media'),
-          ],
-          currentBoardKey: 'media',
-          layoutLoader: (query) {
-            loadedBoards.add(query.boardKey.value);
-            return LayoutSnapshotDto(
-              boardKey: query.boardKey.value,
-              boardCols: 6,
-              placements: const <PlacementDto>[],
-            );
-          },
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == '0') {
-                  return const KeyboardCommandDto.clearBoardFilter();
-                }
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_selects_the_first_board_on_the_ClearBoardFilter_command',
+      (tester) async {
+        final loadedBoards = <String>[];
+        await tester.pumpWidget(
+          boardPageHarness(
+            boards: const <BoardDto>[
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'media', title: 'Media'),
+            ],
+            currentBoardKey: 'media',
+            layoutLoader: (query) {
+              loadedBoards.add(query.boardKey.value);
+              return LayoutSnapshotDto(
+                boardKey: query.boardKey.value,
+                boardCols: 6,
+                placements: const <PlacementDto>[],
+              );
+            },
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == '0') {
+                    return const KeyboardCommandDto.clearBoardFilter();
+                  }
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pumpAndSettle();
-      expect(loadedBoards, contains('media'));
+        await tester.pumpAndSettle();
+        expect(loadedBoards, contains('media'));
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+        await tester.pumpAndSettle();
 
-      expect(loadedBoards, contains('dev'));
-    });
+        expect(loadedBoards, contains('dev'));
+      },
+    );
 
-    testWidgets('BoardPage는_CycleBoardFilter_command로_다음_board를_선택한다', (
-      tester,
-    ) async {
-      final loadedBoards = <String>[];
-      await tester.pumpWidget(
-        boardPageHarness(
-          boards: const <BoardDto>[
-            BoardDto(key: 'dev', title: 'Dev'),
-            BoardDto(key: 'media', title: 'Media'),
-            BoardDto(key: 'ops', title: 'Ops'),
-          ],
-          currentBoardKey: 'media',
-          layoutLoader: (query) {
-            loadedBoards.add(query.boardKey.value);
-            return LayoutSnapshotDto(
-              boardKey: query.boardKey.value,
-              boardCols: 6,
-              placements: const <PlacementDto>[],
-            );
-          },
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 'b') {
-                  return const KeyboardCommandDto.cycleBoardFilter();
-                }
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_selects_the_next_board_on_the_CycleBoardFilter_command',
+      (tester) async {
+        final loadedBoards = <String>[];
+        await tester.pumpWidget(
+          boardPageHarness(
+            boards: const <BoardDto>[
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'media', title: 'Media'),
+              BoardDto(key: 'ops', title: 'Ops'),
+            ],
+            currentBoardKey: 'media',
+            layoutLoader: (query) {
+              loadedBoards.add(query.boardKey.value);
+              return LayoutSnapshotDto(
+                boardKey: query.boardKey.value,
+                boardCols: 6,
+                placements: const <PlacementDto>[],
+              );
+            },
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 'b') {
+                    return const KeyboardCommandDto.cycleBoardFilter();
+                  }
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pumpAndSettle();
-      expect(loadedBoards, contains('media'));
+        await tester.pumpAndSettle();
+        expect(loadedBoards, contains('media'));
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+        await tester.pumpAndSettle();
 
-      expect(loadedBoards, contains('ops'));
-    });
+        expect(loadedBoards, contains('ops'));
+      },
+    );
 
-    testWidgets('BoardPage는_SwitchBoard_command로_slot_board를_선택한다', (
+    testWidgets('BoardPage_selects_the_slot_board_on_the_SwitchBoard_command', (
       tester,
     ) async {
       final loadedBoards = <String>[];
@@ -772,41 +801,45 @@ void main() {
       expect(loadedBoards, contains('media'));
     });
 
-    testWidgets('BoardPage는_CycleTagFilter_command로_다음_tag를_선택한다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        boardPageHarness(
-          tagOptions: const <String>['all', 'convert', 'uuid'],
-          includeSelectedTagProbe: true,
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 't') {
-                  return const KeyboardCommandDto.cycleTagFilter();
-                }
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_selects_the_next_tag_on_the_CycleTagFilter_command',
+      (tester) async {
+        await tester.pumpWidget(
+          boardPageHarness(
+            tagOptions: const <String>['all', 'convert', 'uuid'],
+            includeSelectedTagProbe: true,
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 't') {
+                    return const KeyboardCommandDto.cycleTagFilter();
+                  }
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pumpAndSettle();
-      expect(tester.widget<Text>(find.byKey(selectedTagProbeKey)).data, 'all');
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<Text>(find.byKey(selectedTagProbeKey)).data,
+          'all',
+        );
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+        await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<Text>(find.byKey(selectedTagProbeKey)).data,
-        'convert',
-      );
-    });
+        expect(
+          tester.widget<Text>(find.byKey(selectedTagProbeKey)).data,
+          'convert',
+        );
+      },
+    );
   });
 }

@@ -1,10 +1,11 @@
-//! `input_tests` 모듈의 짝 — 필터 막대(보드/태그) 클릭·스크롤 회귀
-//! 테스트만 모은다. 워크스페이스 1000-LoC 파일 크기 예산 때문에 분리했다.
+//! Companion to the `input_tests` module — collects only filter-bar
+//! (board/tag) click/scroll regression tests. Split out for the
+//! workspace 1000-LoC file-size budget.
 
 use super::*;
 
 #[test]
-fn 보드_막대_클릭은_다음_필터가_아니라_클릭한_라벨을_선택한다() {
+fn board_bar_click_selects_clicked_label_not_next_filter() {
     let area = tui_layout(Rect::new(0, 0, 100, 30)).boards;
     let options = vec!["all".to_string(), "dev".to_string(), "ops".to_string()];
     let column = filter_option_column(area, BOARD_FILTER_PREFIX, &options, 2);
@@ -52,7 +53,7 @@ fn 보드_막대_클릭은_다음_필터가_아니라_클릭한_라벨을_선택
 }
 
 #[test]
-fn 태그_막대_클릭은_전체_라벨을_필터_없음으로_선택한다() {
+fn tag_bar_click_selects_all_label_as_no_filter() {
     let area = tui_layout(Rect::new(0, 0, 100, 30)).tags;
     let options = vec!["all".to_string(), "pure".to_string(), "text".to_string()];
     let column = filter_option_column(area, TAG_FILTER_PREFIX, &options, 0);
@@ -90,7 +91,7 @@ fn 태그_막대_클릭은_전체_라벨을_필터_없음으로_선택한다() {
 }
 
 #[test]
-fn 필터_막대_클릭은_라벨이_아닌_셀을_무시한다() {
+fn filter_bar_click_ignores_non_label_cells() {
     let area = tui_layout(Rect::new(0, 0, 100, 30)).boards;
     let options = vec!["all".to_string(), "dev".to_string()];
     let mut state = State {
@@ -125,7 +126,7 @@ fn 필터_막대_클릭은_라벨이_아닌_셀을_무시한다() {
 }
 
 #[test]
-fn 필터_막대_히트_테스트는_가로_스크롤_오프셋을_사용한다() {
+fn filter_bar_hit_test_uses_horizontal_scroll_offset() {
     let area = tui_layout(Rect::new(0, 0, 36, 20)).boards;
     let options = vec![
         "all".to_string(),
@@ -163,7 +164,7 @@ fn 필터_막대_히트_테스트는_가로_스크롤_오프셋을_사용한다(
 }
 
 #[test]
-fn 필터_막대_레이아웃은_스크롤바_행을_예약한다() {
+fn filter_bar_layout_reserves_scrollbar_row() {
     let layout = tui_layout(Rect::new(0, 0, 80, 24));
 
     assert_eq!(layout.boards.height, 4);
@@ -180,7 +181,7 @@ fn 필터_막대_레이아웃은_스크롤바_행을_예약한다() {
 }
 
 #[test]
-fn 필터_막대_휠은_선택된_막대를_스크롤하고_범위를_고정한다() {
+fn filter_bar_wheel_scrolls_selected_bar_and_clamps_range() {
     let area = tui_layout(Rect::new(0, 0, 36, 20)).boards;
     let options = vec![
         "all".to_string(),
@@ -228,7 +229,7 @@ fn 필터_막대_휠은_선택된_막대를_스크롤하고_범위를_고정한�
 }
 
 #[test]
-fn 필터_막대_스크롤바_행은_필터_옵션에_맞지_않는다() {
+fn filter_bar_scrollbar_row_does_not_hit_filter_options() {
     let area = tui_layout(Rect::new(0, 0, 36, 20)).boards;
     let options = vec![
         "all".to_string(),
@@ -237,8 +238,7 @@ fn 필터_막대_스크롤바_행은_필터_옵션에_맞지_않는다() {
         "cccccccc".to_string(),
         "dddddddd".to_string(),
     ];
-    let scrollbar =
-        filter_bar_scrollbar_area(area).expect("필터 막대에는 스크롤바 행이 있어야 한다");
+    let scrollbar = filter_bar_scrollbar_area(area).expect("filter bar must have a scrollbar row");
     let column = filter_option_column(area, BOARD_FILTER_PREFIX, &options, 1);
 
     assert_eq!(
@@ -255,10 +255,11 @@ fn 필터_막대_스크롤바_행은_필터_옵션에_맞지_않는다() {
 }
 
 #[test]
-fn 필터_막대_가로_휠은_세로_휠과_동일한_방향으로_스크롤된다() {
-    // 필터 막대 자체가 가로 스크롤 컨테이너이므로 ScrollLeft/Right는
-    // ScrollUp/Down과 같은 축에 매핑되어야 한다 — 그래야 가로 휠 단말을
-    // 가진 사용자도 동일한 mental model로 조작할 수 있다.
+fn filter_bar_horizontal_wheel_scrolls_same_direction_as_vertical() {
+    // The filter bar itself is a horizontal scroll container, so
+    // ScrollLeft/Right must map onto the same axis as ScrollUp/Down —
+    // that way users with horizontal-wheel terminals drive it with the
+    // same mental model.
     let area = tui_layout(Rect::new(0, 0, 36, 20)).boards;
     let options = vec![
         "all".to_string(),
@@ -280,10 +281,7 @@ fn 필터_막대_가로_휠은_세로_휠과_동일한_방향으로_스크롤된
         ScrollDelta::HORIZONTAL_FORWARD,
     );
     let after_right = state.board_scroll;
-    assert!(
-        after_right > 0,
-        "ScrollRight는 board_scroll을 증가시켜야 한다"
-    );
+    assert!(after_right > 0, "ScrollRight must increase board_scroll");
 
     apply_filter_scroll(
         &mut state,
@@ -295,14 +293,15 @@ fn 필터_막대_가로_휠은_세로_휠과_동일한_방향으로_스크롤된
     );
     assert!(
         state.board_scroll < after_right.get(),
-        "ScrollLeft는 board_scroll을 감소시켜야 한다"
+        "ScrollLeft must decrease board_scroll"
     );
 }
 
 #[test]
-fn 태그_막대도_가로_휠에_대칭으로_반응한다() {
-    // FilterBar::Tag 분기가 Board와 별도로 존재하므로 한쪽만 동작하는
-    // 회귀가 가능. board용 테스트와 대칭 형태로 핀.
+fn tag_bar_responds_symmetrically_to_horizontal_wheel() {
+    // The FilterBar::Tag branch exists separately from Board, so a
+    // regression where only one side works is possible. Pinned
+    // symmetrically with the board test.
     let area = tui_layout(Rect::new(0, 0, 36, 20)).tags;
     let options = vec![
         "all".to_string(),
@@ -324,11 +323,8 @@ fn 태그_막대도_가로_휠에_대칭으로_반응한다() {
         ScrollDelta::HORIZONTAL_FORWARD,
     );
     let after_right = state.tag_scroll;
-    assert!(
-        after_right > 0,
-        "ScrollRight는 tag_scroll을 증가시켜야 한다"
-    );
-    assert_eq!(state.board_scroll, 0, "다른 축은 변하면 안 된다");
+    assert!(after_right > 0, "ScrollRight must increase tag_scroll");
+    assert_eq!(state.board_scroll, 0, "the other axis must not change");
 
     apply_filter_scroll(
         &mut state,
@@ -340,6 +336,6 @@ fn 태그_막대도_가로_휠에_대칭으로_반응한다() {
     );
     assert!(
         state.tag_scroll < after_right.get(),
-        "ScrollLeft는 tag_scroll을 감소시켜야 한다"
+        "ScrollLeft must decrease tag_scroll"
     );
 }

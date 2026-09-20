@@ -77,77 +77,101 @@ ProviderContainer _container({
 
 void main() {
   group('PopupActivationController', () {
-    test('즉시_dispatch_도구는_popup_안에서_실행되어_결과와_lastOutcome에_기록된다', () async {
-      final toolId = ToolId.parse('id.uuid_v7');
-      final outcome = _okResult('0198-uuid');
-      final container = _container(
-        verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
-        dispatch: (_) async => outcome,
-      );
+    test(
+      'immediate_dispatch_tool_runs_inside_popup_and_records_result_and_lastOutcome',
+      () async {
+        final toolId = ToolId.parse('id.uuid_v7');
+        final outcome = _okResult('0198-uuid');
+        final container = _container(
+          verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
+          dispatch: (_) async => outcome,
+        );
 
-      await container.read(popupActivationControllerProvider).activate(toolId);
+        await container
+            .read(popupActivationControllerProvider)
+            .activate(toolId);
 
-      // Popup-local inline cache holds the outcome, marked as latest.
-      final inline = container.read(popupInlineOutcomeProvider);
-      expect(inline.byTool[toolId], outcome);
-      expect(inline.lastRun, toolId);
-      // Shared board cache got the same record (return-to-board parity),
-      // marked session-fresh (not restored-from-store).
-      final shared = container.read(lastOutcomeProvider)[toolId];
-      expect(shared, isA<FreshOutcome>());
-      expect(shared?.result, outcome);
-      // The popup stayed open: no mode flip, no pending handoff.
-      expect(container.read(windowModeProvider), WindowMode.popup);
-      expect(container.read(pendingActivationProvider), isNull);
-    });
+        // Popup-local inline cache holds the outcome, marked as latest.
+        final inline = container.read(popupInlineOutcomeProvider);
+        expect(inline.byTool[toolId], outcome);
+        expect(inline.lastRun, toolId);
+        // Shared board cache got the same record (return-to-board parity),
+        // marked session-fresh (not restored-from-store).
+        final shared = container.read(lastOutcomeProvider)[toolId];
+        expect(shared, isA<FreshOutcome>());
+        expect(shared?.result, outcome);
+        // The popup stayed open: no mode flip, no pending handoff.
+        expect(container.read(windowModeProvider), WindowMode.popup);
+        expect(container.read(pendingActivationProvider), isNull);
+      },
+    );
 
-    test('인라인_실행_실패는_popup_결과에만_기록되고_lastOutcome은_비어있다', () async {
-      final toolId = ToolId.parse('id.uuid_v7');
-      final container = _container(
-        verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
-        dispatch: (_) async => _errorResult,
-      );
+    test(
+      'inline_run_failure_is_recorded_in_popup_result_only_and_lastOutcome_stays_empty',
+      () async {
+        final toolId = ToolId.parse('id.uuid_v7');
+        final container = _container(
+          verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
+          dispatch: (_) async => _errorResult,
+        );
 
-      await container.read(popupActivationControllerProvider).activate(toolId);
+        await container
+            .read(popupActivationControllerProvider)
+            .activate(toolId);
 
-      expect(
-        container.read(popupInlineOutcomeProvider).byTool[toolId],
-        (_errorResult),
-      );
-      expect(container.read(lastOutcomeProvider), isEmpty);
-      expect(container.read(windowModeProvider), WindowMode.popup);
-    });
+        expect(
+          container.read(popupInlineOutcomeProvider).byTool[toolId],
+          (_errorResult),
+        );
+        expect(container.read(lastOutcomeProvider), isEmpty);
+        expect(container.read(windowModeProvider), WindowMode.popup);
+      },
+    );
 
-    test('폼_필요_도구는_full_전환과_pending_큐잉으로_넘긴다', () async {
-      final toolId = ToolId.parse('num.hex_to_decimal');
-      final dispatched = <String>[];
-      final container = _container(
-        verdict: (id) => PinActivationDto.openModal(toolId: id.value),
-        dispatch: (_) async => _errorResult,
-        dispatched: dispatched,
-      );
+    test(
+      'form_required_tool_hands_off_via_full_switch_and_pending_queue',
+      () async {
+        final toolId = ToolId.parse('num.hex_to_decimal');
+        final dispatched = <String>[];
+        final container = _container(
+          verdict: (id) => PinActivationDto.openModal(toolId: id.value),
+          dispatch: (_) async => _errorResult,
+          dispatched: dispatched,
+        );
 
-      await container.read(popupActivationControllerProvider).activate(toolId);
+        await container
+            .read(popupActivationControllerProvider)
+            .activate(toolId);
 
-      expect(container.read(windowModeProvider), WindowMode.full);
-      expect(container.read(pendingActivationProvider), toolId);
-      expect(dispatched, isEmpty, reason: '폼 필요 도구는 popup에서 dispatch하지 않는다');
-    });
+        expect(container.read(windowModeProvider), WindowMode.full);
+        expect(container.read(pendingActivationProvider), toolId);
+        expect(
+          dispatched,
+          isEmpty,
+          reason: 'form-required tools are not dispatched from the popup',
+        );
+      },
+    );
 
-    test('embed_도구도_full_전환과_pending_큐잉으로_넘긴다', () async {
-      final toolId = ToolId.parse('web.docs');
-      final container = _container(
-        verdict: (id) => PinActivationDto.openEmbed(toolId: id.value),
-        dispatch: (_) async => _errorResult,
-      );
+    test(
+      'embed_tool_also_hands_off_via_full_switch_and_pending_queue',
+      () async {
+        final toolId = ToolId.parse('web.docs');
+        final container = _container(
+          verdict: (id) => PinActivationDto.openEmbed(toolId: id.value),
+          dispatch: (_) async => _errorResult,
+        );
 
-      await container.read(popupActivationControllerProvider).activate(toolId);
+        await container
+            .read(popupActivationControllerProvider)
+            .activate(toolId);
 
-      expect(container.read(windowModeProvider), WindowMode.full);
-      expect(container.read(pendingActivationProvider), toolId);
-    });
+        expect(container.read(windowModeProvider), WindowMode.full);
+        expect(container.read(pendingActivationProvider), toolId);
+      },
+    );
 
-    test('실행_중_재활성화는_중복_dispatch를_막는다', () async {
+    test('reactivation_while_running_blocks_duplicate_dispatch', () async {
       final toolId = ToolId.parse('id.uuid_v7');
       final gate = Completer<CanonicalToolResult>();
       final dispatched = <String>[];
@@ -166,25 +190,30 @@ void main() {
       expect(dispatched, ['id.uuid_v7']);
     });
 
-    test('결과_표시_상태에서_같은_툴을_다시_실행하면_결과가_갱신된다', () async {
-      final toolId = ToolId.parse('id.uuid_v7');
-      var run = 0;
-      final container = _container(
-        verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
-        dispatch: (_) async => _okResult('run-${++run}'),
-      );
+    test(
+      'rerunning_same_tool_while_showing_result_refreshes_the_result',
+      () async {
+        final toolId = ToolId.parse('id.uuid_v7');
+        var run = 0;
+        final container = _container(
+          verdict: (id) => PinActivationDto.dispatchImmediate(toolId: id.value),
+          dispatch: (_) async => _okResult('run-${++run}'),
+        );
 
-      final controller = container.read(popupActivationControllerProvider);
-      await controller.activate(toolId);
-      await controller.activate(toolId);
+        final controller = container.read(popupActivationControllerProvider);
+        await controller.activate(toolId);
+        await controller.activate(toolId);
 
-      final outcome = container.read(popupInlineOutcomeProvider).byTool[toolId];
-      expect(outcome, isNotNull);
-      expect(outcome!.primaryOutputText, 'run-2');
-      expect(run, 2);
-    });
+        final outcome = container
+            .read(popupInlineOutcomeProvider)
+            .byTool[toolId];
+        expect(outcome, isNotNull);
+        expect(outcome!.primaryOutputText, 'run-2');
+        expect(run, 2);
+      },
+    );
 
-    test('F2_복사는_최근_인라인_결과의_출력을_클립보드에_쓴다', () async {
+    test('F2_copy_writes_latest_inline_result_output_to_clipboard', () async {
       final toolId = ToolId.parse('id.uuid_v7');
       final writer = _RecordingClipboardWriter();
       final container = ProviderContainer(
@@ -219,15 +248,15 @@ void main() {
   });
 
   group('popupCopyTextFor', () {
-    test('성공_결과는_primary_출력을_복사한다', () {
+    test('successful_result_copies_primary_output', () {
       expect(popupCopyTextFor(_okResult('abc')), 'abc');
     });
 
-    test('실패_결과는_에러_메시지를_복사한다', () {
+    test('failed_result_copies_error_message', () {
       expect(popupCopyTextFor(_errorResult), 'it broke');
     });
 
-    test('출력_없는_성공_결과는_복사할_내용이_없다', () {
+    test('successful_result_without_outputs_has_nothing_to_copy', () {
       const empty = CanonicalToolResult(ok: true, outputs: []);
       expect(popupCopyTextFor(empty), isNull);
     });

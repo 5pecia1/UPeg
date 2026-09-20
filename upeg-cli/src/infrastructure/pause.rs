@@ -44,7 +44,7 @@ mod tests {
     static SERIAL: Mutex<()> = Mutex::new(());
 
     #[test]
-    fn 일시정지는_초기값이_false다() {
+    fn pause_initially_defaults_to_false() {
         let _g = SERIAL
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -53,7 +53,7 @@ mod tests {
     }
 
     #[test]
-    fn 일시정지_토글은_상태를_뒤집고_새값을_반환한다() {
+    fn pause_toggle_flips_state_and_returns_the_new_value() {
         let _g = SERIAL
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -65,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn 일시정지_set_paused는_state를_강제로_설정한다() {
+    fn pause_set_paused_forces_the_state() {
         let _g = SERIAL
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -250,33 +250,33 @@ mod tests {
     }
 
     #[test]
-    fn native_호스트는_모든_surface_invoker_조합을_지원한다() {
+    fn native_host_supports_every_surface_invoker_combination() {
         for &surface in ALL_SURFACES {
             for &invoker in ALL_INVOKERS {
                 assert_eq!(
                     dispatch_capability(surface, invoker, RuntimeHost::Native),
                     DispatchCapability::Supported,
-                    "native 호스트에서 {surface:?}×{invoker:?} 는 지원되어야 한다",
+                    "{surface:?}×{invoker:?} must be supported on a native host",
                 );
             }
         }
     }
 
     #[test]
-    fn wasm_호스트_판정은_surface에_무관하게_invoker로만_결정된다() {
+    fn wasm_host_verdict_is_decided_by_invoker_regardless_of_surface() {
         for &surface in ALL_SURFACES {
             for &invoker in ALL_INVOKERS {
                 assert_eq!(
                     dispatch_capability(surface, invoker, RuntimeHost::Wasm),
                     expected_wasm_capability(invoker),
-                    "wasm 호스트에서 {surface:?}×{invoker:?} 판정이 고정 표와 다르다",
+                    "{surface:?}×{invoker:?} verdict on wasm differs from the fixed table",
                 );
             }
         }
     }
 
     #[test]
-    fn wasm에서_function과_static은_지원된다() {
+    fn function_and_static_invokers_are_supported_on_wasm() {
         assert!(
             dispatch_capability(Surface::Pwa, Invoker::Function, RuntimeHost::Wasm).is_supported()
         );
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn wasm에서_external은_프로세스_스폰_부재로_미지원이다() {
+    fn external_invoker_is_unsupported_on_wasm_without_process_spawn() {
         assert_eq!(
             dispatch_capability(Surface::Pwa, Invoker::External, RuntimeHost::Wasm).reason(),
             Some(UnsupportedReason::NoProcessSpawn),
@@ -294,18 +294,18 @@ mod tests {
     }
 
     #[test]
-    fn wasm에서_http_chain_llm_embed은_로더_부재로_미지원이다() {
+    fn http_chain_llm_and_embed_invokers_are_unsupported_on_wasm_without_a_loader() {
         for invoker in [Invoker::Http, Invoker::Chain, Invoker::Llm, Invoker::Embed] {
             assert_eq!(
                 dispatch_capability(Surface::Pwa, invoker, RuntimeHost::Wasm).reason(),
                 Some(UnsupportedReason::NoLoaderRuntime),
-                "{invoker:?} 는 wasm 로더 부재로 미지원이어야 한다",
+                "{invoker:?} must be unsupported on wasm due to the missing loader",
             );
         }
     }
 
     #[test]
-    fn wasm에서_wasm_invoker는_extism_호스트_부재로_미지원이다() {
+    fn wasm_invoker_is_unsupported_on_wasm_without_an_extism_host() {
         assert_eq!(
             dispatch_capability(Surface::Pwa, Invoker::Wasm, RuntimeHost::Wasm).reason(),
             Some(UnsupportedReason::NoWasmHost),
@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher_없는_function_타이머_도구는_wasm에서_native_only로_낮춰진다() {
+    fn function_timer_tool_without_dispatcher_is_lowered_to_native_only_on_wasm() {
         // net.status: Function invoker, Timer source, dispatcher compiled
         // out on wasm32. requires_dispatcher=true, dispatcher_present=false.
         let cap = dispatch_capability_for_tool(
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher_없는_function_런처_도구도_wasm에서_native_only다() {
+    fn function_launcher_tool_without_dispatcher_is_also_native_only_on_wasm() {
         // eth.gas: Function invoker, Launcher/UserInput source (NOT Timer),
         // native-gated JSON-RPC dispatcher absent on wasm32. The verdict
         // must not depend on the trigger source — a Function tool that
@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher_있는_function_타이머_도구는_wasm에서_지원된다() {
+    fn function_timer_tool_with_dispatcher_is_supported_on_wasm() {
         // time.epoch: Function + Timer, dispatcher IS present on wasm.
         let cap = dispatch_capability_for_tool(
             Surface::Pwa,
@@ -356,7 +356,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher_불필요한_function_도구는_없어도_wasm에서_지원된다() {
+    fn function_tool_needing_no_dispatcher_is_supported_on_wasm() {
         // memo.scratch: Function, user-edited (no dispatcher needed).
         let cap = dispatch_capability_for_tool(
             Surface::Pwa,
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn native에서는_dispatcher가_없어도_native_only로_낮추지_않는다() {
+    fn native_host_does_not_lower_to_native_only_when_dispatcher_is_absent() {
         let cap = dispatch_capability_for_tool(
             Surface::Desktop,
             Invoker::Function,
@@ -381,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn 로더_invoker의_미지원_판정은_dispatcher_probe로_덮이지_않는다() {
+    fn loader_invoker_unsupported_verdict_is_not_overridden_by_dispatcher_probe() {
         // Http on wasm stays NoLoaderRuntime even if a probe says
         // "no dispatcher" — the invoker-level reason wins.
         let cap = dispatch_capability_for_tool(
@@ -395,14 +395,14 @@ mod tests {
     }
 
     #[test]
-    fn runtime_host_라벨은_왕복_파싱한다() {
+    fn runtime_host_labels_round_trip_through_parse() {
         for host in [RuntimeHost::Native, RuntimeHost::Wasm] {
             assert_eq!(RuntimeHost::parse(host.label()), Some(host));
         }
     }
 
     #[test]
-    fn unsupported_reason_라벨은_왕복_파싱한다() {
+    fn unsupported_reason_labels_round_trip_through_parse() {
         for reason in [
             UnsupportedReason::NoProcessSpawn,
             UnsupportedReason::NoLoaderRuntime,
@@ -414,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn current_host는_컴파일_타깃과_일치한다() {
+    fn current_host_matches_the_compile_target() {
         let expected = if cfg!(target_arch = "wasm32") {
             RuntimeHost::Wasm
         } else {

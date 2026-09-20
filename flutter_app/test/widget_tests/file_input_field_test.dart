@@ -19,17 +19,19 @@ import 'package:upeg/src/widgets/expanded_modal/form_value.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
 
-/// 설명(description) 유무를 검증하는 케이스들이 공유하는 안내 문구.
-/// 표시되는 경우와 표시되지 않는 경우가 반드시 같은 문자열을 보도록
-/// 한 곳에 둔다.
+/// Guidance text shared by the description-presence cases — the shown
+/// and not-shown paths must see exactly the same string, so it lives
+/// in one place.
 const _sampleDescription = '10MB 이하의 이미지 파일만 첨부할 수 있습니다.';
 
-/// 설명이 렌더링될 때 필드가 추가로 그리는 `Text` 줄 수. 설명이 없는
-/// 트리와의 차이가 정확히 이만큼이어야 "표시하지 않는다"가 성립한다.
+/// The number of extra `Text` lines the field draws when a description
+/// renders. The tree without a description must differ by exactly this
+/// much for "not rendered" to hold.
 const _descriptionLineTextCount = 1;
 
-/// 필드 안에 그려진 `Text` 위젯 개수. 설명 줄이 빈 문자열이나 자리표시자로
-/// 남지 않고 아예 사라졌는지 세기 위한 것이다.
+/// The number of `Text` widgets drawn inside the field — used to prove
+/// the description line is actually gone rather than left as an empty
+/// string or placeholder.
 int _fieldTextCount(WidgetTester tester) => tester
     .widgetList<Text>(
       find.descendant(
@@ -229,14 +231,20 @@ final class _FileInputFieldRobot {
   }
 
   void expectSelectionSummary(int count, Iterable<String> names) {
-    expect(find.text('$count개 파일 선택됨'), findsOneWidget);
+    expect(
+      find.text(i18nEn('modal.file.selected_count', {'count': '$count'})),
+      findsOneWidget,
+    );
     for (final name in names) {
       expect(find.text(name), findsOneWidget);
     }
   }
 
   void expectSingleSelectionSummary(String name) {
-    expect(find.text('1개 파일 선택됨'), findsOneWidget);
+    expect(
+      find.text(i18nEn('modal.file.selected_count', {'count': '1'})),
+      findsOneWidget,
+    );
     expect(find.text(name), findsOneWidget);
   }
 
@@ -259,12 +267,12 @@ final class _FileInputFieldRobot {
   }
 
   void expectEmptyPromptUsesTwoSemanticLines() {
-    const expectedPrompt = '파일을 선택하거나\n여기로 끌어 놓으세요.';
+    final expectedPrompt = i18nEn('modal.file.empty_prompt');
     final promptFinder = find.text(expectedPrompt);
     final prompt = tester.widget<Text>(promptFinder);
 
     expect(prompt.data, expectedPrompt);
-    expect(prompt.data!.split('\n'), ['파일을 선택하거나', '여기로 끌어 놓으세요.']);
+    expect(prompt.data!.split('\n'), hasLength(2));
     expect(tester.getSemantics(promptFinder).label, expectedPrompt);
   }
 
@@ -334,22 +342,25 @@ Future<_FileInputFieldRobot> _pumpField(
 
 void main() {
   group('FileInputField', () {
-    testWidgets('빈 파일 안내는 좁은 증거 폭에서도 단어를 쪼개지 않고 의미 단위 두 줄로 표시한다', (
+    testWidgets(
+      'the_empty_prompt_wraps_to_two_semantic_lines_without_splitting_words_even_at_narrow_widths',
+      (tester) async {
+        final robot = await _pumpField(
+          tester,
+          controller: GenericFileValueController(),
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+          width: 240,
+        );
+
+        robot.expectEmptyPromptUsesTwoSemanticLines();
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('a_given_description_renders_as_a_note_under_the_label', (
       tester,
     ) async {
-      final robot = await _pumpField(
-        tester,
-        controller: GenericFileValueController(),
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-        width: 240,
-      );
-
-      robot.expectEmptyPromptUsesTwoSemanticLines();
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('설명이 주어지면 라벨 아래에 안내 문구를 표시한다', (tester) async {
       await _pumpField(
         tester,
         controller: GenericFileValueController(),
@@ -361,7 +372,7 @@ void main() {
       expect(find.text(_sampleDescription), findsOneWidget);
     });
 
-    testWidgets('설명이 없으면 안내 문구를 표시하지 않는다', (tester) async {
+    testWidgets('no_description_means_no_note_is_rendered', (tester) async {
       await _pumpField(
         tester,
         controller: GenericFileValueController(),
@@ -386,7 +397,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('compact 모드에서는 설명이 주어져도 표시하지 않는다', (tester) async {
+    testWidgets('compact_mode_never_renders_a_description', (tester) async {
       await _pumpField(
         tester,
         controller: GenericFileValueController(),
@@ -400,7 +411,9 @@ void main() {
       expect(find.text(_sampleDescription), findsNothing);
     });
 
-    testWidgets('picker로 여러 파일을 선택하면 개수와 이름을 표시한다', (tester) async {
+    testWidgets('picking_multiple_files_shows_the_count_and_names', (
+      tester,
+    ) async {
       final controller = GenericFileValueController();
       final picker = _PickerBridge(
         files: [
@@ -424,28 +437,33 @@ void main() {
       expect(controller.value!.value.isDir, isTrue);
     });
 
-    testWidgets('외부 파일이 들어오고 나가면 드롭 영역 강조가 바뀐다', (tester) async {
-      final robot = await _pumpField(
-        tester,
-        controller: GenericFileValueController(),
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 2),
-      );
+    testWidgets(
+      'an_external_file_entering_and_leaving_toggles_drop_highlighting',
+      (tester) async {
+        final robot = await _pumpField(
+          tester,
+          controller: GenericFileValueController(),
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 2),
+        );
 
-      final idleBorder = robot.dropTargetBorder();
-      final idleSize = tester.getSize(find.byKey(FileInputKeys.dropTarget));
-      await robot.enterDrag();
-      final activeBorder = robot.dropTargetBorder();
-      final activeSize = tester.getSize(find.byKey(FileInputKeys.dropTarget));
-      expect(activeBorder.top.color, isNot(idleBorder.top.color));
-      expect(activeBorder.top.width, idleBorder.top.width);
-      expect(activeSize, idleSize);
-      await robot.exitDrag();
+        final idleBorder = robot.dropTargetBorder();
+        final idleSize = tester.getSize(find.byKey(FileInputKeys.dropTarget));
+        await robot.enterDrag();
+        final activeBorder = robot.dropTargetBorder();
+        final activeSize = tester.getSize(find.byKey(FileInputKeys.dropTarget));
+        expect(activeBorder.top.color, isNot(idleBorder.top.color));
+        expect(activeBorder.top.width, idleBorder.top.width);
+        expect(activeSize, idleSize);
+        await robot.exitDrag();
 
-      expect(robot.dropTargetBorder().top.color, idleBorder.top.color);
-    });
+        expect(robot.dropTargetBorder().top.color, idleBorder.top.color);
+      },
+    );
 
-    testWidgets('외부 파일을 드롭하면 picker와 같은 조립 규칙을 사용한다', (tester) async {
+    testWidgets('dropped_files_use_the_same_assembly_rules_as_the_picker', (
+      tester,
+    ) async {
       final controller = GenericFileValueController();
       final robot = await _pumpField(
         tester,
@@ -462,27 +480,34 @@ void main() {
       expect(controller.value!.value.isDir, isTrue);
     });
 
-    testWidgets('새 선택이 검증에 실패하면 이전 값을 보존하고 한국어 오류를 표시한다', (tester) async {
-      final controller = GenericFileValueController(_existingValue('old.txt'));
-      final robot = await _pumpField(
-        tester,
-        controller: controller,
-        picker: _PickerBridge(
-          files: [
-            _picked('bad.pdf', [1]),
-          ],
-        ),
-        policy: const FileSelectionPolicy(extensions: ['txt'], maxCount: 1),
-      );
+    testWidgets(
+      'a_failed_new_selection_preserves_the_previous_value_and_shows_a_localized_error',
+      (tester) async {
+        final controller = GenericFileValueController(
+          _existingValue('old.txt'),
+        );
+        final robot = await _pumpField(
+          tester,
+          controller: controller,
+          picker: _PickerBridge(
+            files: [
+              _picked('bad.pdf', [1]),
+            ],
+          ),
+          policy: const FileSelectionPolicy(extensions: ['txt'], maxCount: 1),
+        );
 
-      await robot.tapPickButton();
+        await robot.tapPickButton();
 
-      robot.expectSingleSelectionSummary('old.txt');
-      robot.expectError('허용되지 않는 파일 형식입니다: bad.pdf');
-      expect(controller.value!.value.name, 'old.txt');
-    });
+        robot.expectSingleSelectionSummary('old.txt');
+        robot.expectError(
+          i18nEn('modal.file.error.extension_not_allowed', {'file': 'bad.pdf'}),
+        );
+        expect(controller.value!.value.name, 'old.txt');
+      },
+    );
 
-    testWidgets('지우기 동작은 canonical 값을 제거한다', (tester) async {
+    testWidgets('the_clear_action_removes_the_canonical_value', (tester) async {
       final controller = GenericFileValueController(_existingValue('old.txt'));
       final robot = await _pumpField(
         tester,
@@ -497,7 +522,9 @@ void main() {
       expect(controller.value, isNull);
     });
 
-    testWidgets('파일 선택 버튼은 semantics와 키보드 활성화를 제공한다', (tester) async {
+    testWidgets('the_pick_button_provides_semantics_and_keyboard_activation', (
+      tester,
+    ) async {
       final picker = _PickerBridge(
         files: [
           _picked('key.bin', [1]),
@@ -516,79 +543,97 @@ void main() {
       expect(picker.calls, 1);
     });
 
-    testWidgets('좁은 compact 폭에서는 선택과 지우기 동작이 줄바꿈되어 넘치지 않는다', (tester) async {
-      await _pumpField(
-        tester,
-        controller: GenericFileValueController(_existingValue('기존.txt')),
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-        compact: true,
-        width: 150,
-      );
+    testWidgets(
+      'at_narrow_compact_widths_pick_and_clear_wrap_without_overflowing',
+      (tester) async {
+        await _pumpField(
+          tester,
+          controller: GenericFileValueController(_existingValue('기존.txt')),
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+          compact: true,
+          width: 150,
+        );
 
-      expect(tester.takeException(), isNull);
-      expect(find.byKey(FileInputKeys.pickButton), findsOneWidget);
-      expect(find.byKey(FileInputKeys.clearButton), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(FileInputKeys.pickButton), findsOneWidget);
+        expect(find.byKey(FileInputKeys.clearButton), findsOneWidget);
+      },
+    );
 
-    testWidgets('긴 혼합 문자 파일 이름은 한 줄 말줄임으로 제한한다', (tester) async {
-      const longName = '매우-긴-보고서-final-version-with-many-segments.txt';
-      await _pumpField(
-        tester,
-        controller: GenericFileValueController(_existingValue(longName)),
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-        compact: true,
-        width: 150,
-      );
+    testWidgets(
+      'a_long_mixed_script_file_name_is_clamped_to_one_ellipsized_line',
+      (tester) async {
+        const longName = '매우-긴-보고서-final-version-with-many-segments.txt';
+        await _pumpField(
+          tester,
+          controller: GenericFileValueController(_existingValue(longName)),
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+          compact: true,
+          width: 150,
+        );
 
-      final name = tester.widget<Text>(find.text(longName));
-      expect(name.maxLines, 1);
-      expect(name.softWrap, isFalse);
-      expect(name.overflow, TextOverflow.ellipsis);
-      expect(tester.takeException(), isNull);
-    });
+        final name = tester.widget<Text>(find.text(longName));
+        expect(name.maxLines, 1);
+        expect(name.softWrap, isFalse);
+        expect(name.overflow, TextOverflow.ellipsis);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('picker 읽기 오류는 이전 값을 보존하고 한국어 오류를 표시한다', (tester) async {
-      final controller = GenericFileValueController(_existingValue('기존.txt'));
-      final robot = await _pumpField(
-        tester,
-        controller: controller,
-        picker: _PickerBridge(
-          errorToThrow: const FilePickerReadFailure('읽을수없음.txt'),
-        ),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-      );
-
-      await robot.tapPickButton();
-
-      robot.expectSingleSelectionSummary('기존.txt');
-      robot.expectError('파일을 읽지 못했습니다: 읽을수없음.txt');
-      expect(controller.value!.value.name, '기존.txt');
-    });
-
-    testWidgets('picker 확장자 검증 오류는 이전 값을 보존하고 기존 한국어 오류를 표시한다', (tester) async {
-      final controller = GenericFileValueController(_existingValue('기존.txt'));
-      final robot = await _pumpField(
-        tester,
-        controller: controller,
-        picker: _PickerBridge(
-          errorToThrow: const FilePickerSelectionFailure(
-            FilePickerSelectionErrorCode.extensionNotAllowed,
-            fileName: '거부됨.pdf',
+    testWidgets(
+      'a_picker_read_error_preserves_the_previous_value_and_shows_a_localized_error',
+      (tester) async {
+        final controller = GenericFileValueController(_existingValue('기존.txt'));
+        final robot = await _pumpField(
+          tester,
+          controller: controller,
+          picker: _PickerBridge(
+            errorToThrow: const FilePickerReadFailure('읽을수없음.txt'),
           ),
-        ),
-        policy: const FileSelectionPolicy(extensions: ['txt'], maxCount: 1),
-      );
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+        );
 
-      await robot.tapPickButton();
+        await robot.tapPickButton();
 
-      robot.expectSingleSelectionSummary('기존.txt');
-      robot.expectError('허용되지 않는 파일 형식입니다: 거부됨.pdf');
-      expect(controller.value!.value.name, '기존.txt');
-    });
+        robot.expectSingleSelectionSummary('기존.txt');
+        robot.expectError(
+          i18nEn('modal.file.error.read_failed', {'file': '읽을수없음.txt'}),
+        );
+        expect(controller.value!.value.name, '기존.txt');
+      },
+    );
 
-    testWidgets('picker가 파일을 읽는 동안 선택과 지우기 동작을 비활성화한다', (tester) async {
+    testWidgets(
+      'a_picker_extension_error_preserves_the_previous_value_and_shows_a_localized_error',
+      (tester) async {
+        final controller = GenericFileValueController(_existingValue('기존.txt'));
+        final robot = await _pumpField(
+          tester,
+          controller: controller,
+          picker: _PickerBridge(
+            errorToThrow: const FilePickerSelectionFailure(
+              FilePickerSelectionErrorCode.extensionNotAllowed,
+              fileName: '거부됨.pdf',
+            ),
+          ),
+          policy: const FileSelectionPolicy(extensions: ['txt'], maxCount: 1),
+        );
+
+        await robot.tapPickButton();
+
+        robot.expectSingleSelectionSummary('기존.txt');
+        robot.expectError(
+          i18nEn('modal.file.error.extension_not_allowed', {'file': '거부됨.pdf'}),
+        );
+        expect(controller.value!.value.name, '기존.txt');
+      },
+    );
+
+    testWidgets('pick_and_clear_are_disabled_while_the_picker_reads_files', (
+      tester,
+    ) async {
       final pending = Completer<List<PickedFileData>?>();
       await _pumpField(
         tester,
@@ -618,135 +663,154 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('picker의 programmer Error는 사용자 오류로 숨기지 않고 이전 값을 보존한다', (
-      tester,
-    ) async {
-      final controller = GenericFileValueController(_existingValue('기존.txt'));
-      final robot = await _pumpField(
-        tester,
-        controller: controller,
-        picker: _PickerBridge(errorToThrow: StateError('programmer bug')),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-      );
+    testWidgets(
+      'a_picker_programmer_error_propagates_instead_of_hiding_and_the_previous_value_survives',
+      (tester) async {
+        final controller = GenericFileValueController(_existingValue('기존.txt'));
+        final robot = await _pumpField(
+          tester,
+          controller: controller,
+          picker: _PickerBridge(errorToThrow: StateError('programmer bug')),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+        );
 
-      final error = await robot.tapPickButtonAndTakeException();
+        final error = await robot.tapPickButtonAndTakeException();
 
-      expect(error, isA<StateError>());
-      robot.expectSingleSelectionSummary('기존.txt');
-      expect(controller.value!.value.name, '기존.txt');
-    });
+        expect(error, isA<StateError>());
+        robot.expectSingleSelectionSummary('기존.txt');
+        expect(controller.value!.value.name, '기존.txt');
+      },
+    );
 
-    testWidgets('drop reader의 programmer Error는 사용자 오류로 숨기지 않고 이전 값을 보존한다', (
-      tester,
-    ) async {
-      final controller = GenericFileValueController(_existingValue('기존.txt'));
-      final robot = await _pumpField(
-        tester,
-        controller: controller,
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-      );
-      final candidate = FileSelectionCandidate.file(
-        name: 'broken.bin',
-        readBytes: (_) async => throw StateError('programmer bug'),
-      );
+    testWidgets(
+      'a_drop_reader_programmer_error_propagates_instead_of_hiding_and_the_previous_value_survives',
+      (tester) async {
+        final controller = GenericFileValueController(_existingValue('기존.txt'));
+        final robot = await _pumpField(
+          tester,
+          controller: controller,
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+        );
+        final candidate = FileSelectionCandidate.file(
+          name: 'broken.bin',
+          readBytes: (_) async => throw StateError('programmer bug'),
+        );
 
-      await robot.expectDropThrows([candidate], isA<StateError>());
+        await robot.expectDropThrows([candidate], isA<StateError>());
 
-      robot.expectSingleSelectionSummary('기존.txt');
-      expect(controller.value!.value.name, '기존.txt');
-    });
+        robot.expectSingleSelectionSummary('기존.txt');
+        expect(controller.value!.value.name, '기존.txt');
+      },
+    );
 
-    testWidgets('Tab으로 실제 action FocusNode가 이동하면 token focus ring이 표시된다', (
-      tester,
-    ) async {
-      final robot = await _pumpField(
-        tester,
-        controller: GenericFileValueController(_existingValue('기존.txt')),
-        picker: _PickerBridge(),
-        policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-      );
-      final focusRingColor = robot.focusRingToken(FileInputKeys.pickFocusRing);
+    testWidgets(
+      'tabbing_onto_a_real_action_focusnode_shows_the_token_focus_ring',
+      (tester) async {
+        final robot = await _pumpField(
+          tester,
+          controller: GenericFileValueController(_existingValue('기존.txt')),
+          picker: _PickerBridge(),
+          policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
+        );
+        final focusRingColor = robot.focusRingToken(
+          FileInputKeys.pickFocusRing,
+        );
 
-      robot.expectActionFocusRing(
-        FileInputKeys.pickFocusRing,
-        Colors.transparent,
-      );
-      await robot.focusNextAction();
-      robot.expectActionFocusRing(FileInputKeys.pickFocusRing, focusRingColor);
+        robot.expectActionFocusRing(
+          FileInputKeys.pickFocusRing,
+          Colors.transparent,
+        );
+        await robot.focusNextAction();
+        robot.expectActionFocusRing(
+          FileInputKeys.pickFocusRing,
+          focusRingColor,
+        );
 
-      await robot.focusNextAction();
-      robot.expectActionFocusRing(
-        FileInputKeys.pickFocusRing,
-        Colors.transparent,
-      );
-      robot.expectActionFocusRing(FileInputKeys.clearFocusRing, focusRingColor);
-    });
+        await robot.focusNextAction();
+        robot.expectActionFocusRing(
+          FileInputKeys.pickFocusRing,
+          Colors.transparent,
+        );
+        robot.expectActionFocusRing(
+          FileInputKeys.clearFocusRing,
+          focusRingColor,
+        );
+      },
+    );
 
-    testWidgets('선택/지우기 라벨은 i18n 카탈로그에서 오며 로케일을 바꾸면 다시 렌더된다', (tester) async {
-      TweaksDto tweaks(String locale) => TweaksDto(
-        theme: 'Dark',
-        accent: 'Green',
-        showHoles: true,
-        locale: locale,
-        localHttpHost: false,
-      );
-      final controller = GenericFileValueController(_existingValue('old.txt'));
-      final dropAdapter = _DropAdapter();
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => tweaks('En'),
-          ),
-          tweaksSaverProvider.overrideWith((ref) => (TweaksDto _) {}),
-        ],
-      );
-      addTearDown(container.dispose);
-      await container.read(tweaksProvider.future);
+    testWidgets(
+      'pick_and_clear_labels_come_from_the_i18n_catalog_and_rerender_on_locale_flip',
+      (tester) async {
+        TweaksDto tweaks(String locale) => TweaksDto(
+          theme: 'Dark',
+          accent: 'Green',
+          showHoles: true,
+          locale: locale,
+          localHttpHost: false,
+        );
+        final controller = GenericFileValueController(
+          _existingValue('old.txt'),
+        );
+        final dropAdapter = _DropAdapter();
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => tweaks('En'),
+            ),
+            tweaksSaverProvider.overrideWith((ref) => (TweaksDto _) {}),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(tweaksProvider.future);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.lightTheme(),
-            home: Scaffold(
-              body: FileInputField(
-                label: '첨부 파일',
-                value: controller.value,
-                policy: const FileSelectionPolicy(extensions: [], maxCount: 1),
-                pickerBridge: _PickerBridge(),
-                dropAdapter: dropAdapter,
-                onChanged: (value) => controller.value = value,
-                onCleared: () => controller.value = null,
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: UpegTheme.lightTheme(),
+              home: Scaffold(
+                body: FileInputField(
+                  label: '첨부 파일',
+                  value: controller.value,
+                  policy: const FileSelectionPolicy(
+                    extensions: [],
+                    maxCount: 1,
+                  ),
+                  pickerBridge: _PickerBridge(),
+                  dropAdapter: dropAdapter,
+                  onChanged: (value) => controller.value = value,
+                  onCleared: () => controller.value = null,
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text(i18nEn('modal.generic.file_pick')), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(find.byKey(FileInputKeys.clearButton))
-            .tooltip,
-        i18nEn('modal.generic.file_clear'),
-      );
-      expect(find.text(i18nKo('modal.generic.file_pick')), findsNothing);
+        expect(find.text(i18nEn('modal.generic.file_pick')), findsOneWidget);
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(FileInputKeys.clearButton))
+              .tooltip,
+          i18nEn('modal.generic.file_clear'),
+        );
+        expect(find.text(i18nKo('modal.generic.file_pick')), findsNothing);
 
-      await container.read(tweaksProvider.notifier).save(tweaks('Ko'));
-      await tester.pumpAndSettle();
+        await container.read(tweaksProvider.notifier).save(tweaks('Ko'));
+        await tester.pumpAndSettle();
 
-      expect(find.text(i18nKo('modal.generic.file_pick')), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(find.byKey(FileInputKeys.clearButton))
-            .tooltip,
-        i18nKo('modal.generic.file_clear'),
-      );
-      expect(find.text(i18nEn('modal.generic.file_pick')), findsNothing);
-    });
+        expect(find.text(i18nKo('modal.generic.file_pick')), findsOneWidget);
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(FileInputKeys.clearButton))
+              .tooltip,
+          i18nKo('modal.generic.file_clear'),
+        );
+        expect(find.text(i18nEn('modal.generic.file_pick')), findsNothing);
+      },
+    );
   });
 }

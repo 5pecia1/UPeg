@@ -9,7 +9,7 @@ const SCAN_CONTENT: &[u8] = b"q 595 0 0 842 0 0 cm /Im0 Do Q";
 const KOREAN_CONTENT: &[u8] =
     b"BT /F1 12 Tf 50 700 Td <0ce004d6043e0ce004d6043e0ce004d6043e> Tj ET";
 
-fn 문서(pages: &[&[u8]], korean: bool) -> FileValue {
+fn pdf_document(pages: &[&[u8]], korean: bool) -> FileValue {
     let mut doc = Document::with_version("1.7");
     let pages_id = doc.new_object_id();
     let font = if korean {
@@ -73,8 +73,8 @@ fn 문서(pages: &[&[u8]], korean: bool) -> FileValue {
 }
 
 #[test]
-fn 텍스트_문서를_마크다운으로_추출한다() {
-    let result = pdf_to_markdown(&문서(&[TEXT_CONTENT], false)).unwrap();
+fn text_document_extracts_to_markdown() {
+    let result = pdf_to_markdown(&pdf_document(&[TEXT_CONTENT], false)).unwrap();
     assert!(result.markdown.contains("readable PDF document"));
     assert_eq!(
         result.report.extraction_status,
@@ -84,8 +84,8 @@ fn 텍스트_문서를_마크다운으로_추출한다() {
 }
 
 #[test]
-fn 첫_스캔_뒤의_텍스트와_마지막_스캔까지_검사한다() {
-    let input = 문서(&[SCAN_CONTENT, TEXT_CONTENT, SCAN_CONTENT], false);
+fn mixed_document_reports_scan_pages_and_partial_extraction() {
+    let input = pdf_document(&[SCAN_CONTENT, TEXT_CONTENT, SCAN_CONTENT], false);
     let inspection: serde_json::Value =
         serde_json::from_str(&pdf_inspect(&input).unwrap()).unwrap();
     assert_eq!(inspection["pdf_type"], "mixed");
@@ -100,8 +100,8 @@ fn 첫_스캔_뒤의_텍스트와_마지막_스캔까지_검사한다() {
 }
 
 #[test]
-fn 스캔만_있는_문서는_추출_불가를_명시한다() {
-    let result = pdf_to_markdown(&문서(&[SCAN_CONTENT], false)).unwrap();
+fn scan_only_document_reports_extraction_unavailable() {
+    let result = pdf_to_markdown(&pdf_document(&[SCAN_CONTENT], false)).unwrap();
     assert!(result.markdown.is_empty());
     assert_eq!(
         result.report.extraction_status,
@@ -111,14 +111,14 @@ fn 스캔만_있는_문서는_추출_불가를_명시한다() {
 }
 
 #[test]
-fn 투유니코드가_없는_한글도_내장_씨맵으로_추출한다() {
-    let result = pdf_to_markdown(&문서(&[KOREAN_CONTENT], true)).unwrap();
+fn hangul_without_tounicode_extracts_via_bundled_cmap() {
+    let result = pdf_to_markdown(&pdf_document(&[KOREAN_CONTENT], true)).unwrap();
     assert!(result.markdown.contains("한글가"), "{}", result.markdown);
 }
 
 #[test]
-fn 잘못된_파일과_페이지_초과를_거부한다() {
-    let mut input = 문서(&[TEXT_CONTENT], false);
+fn invalid_file_and_page_overflow_are_rejected() {
+    let mut input = pdf_document(&[TEXT_CONTENT], false);
     input.content = FileContent::Bytes(b"not a PDF".to_vec());
     assert!(pdf_inspect(&input).is_err());
     input.content = FileContent::Bytes(vec![0; PDF_TEXT_MAX_INPUT_BYTES + 1]);
@@ -129,16 +129,16 @@ fn 잘못된_파일과_페이지_초과를_거부한다() {
     );
     let pages = vec![TEXT_CONTENT; PDF_TEXT_MAX_PAGES as usize + 1];
     assert!(
-        pdf_inspect(&문서(&pages, false))
+        pdf_inspect(&pdf_document(&pages, false))
             .unwrap_err()
             .contains("page limit")
     );
 }
 
 #[test]
-fn 디스패처는_마크다운과_검사_보고서를_정규_출력으로_반환한다() {
+fn dispatcher_returns_markdown_and_inspection_report_as_outputs() {
     crate::register_all();
-    let input = 문서(&[TEXT_CONTENT], false);
+    let input = pdf_document(&[TEXT_CONTENT], false);
     let args = serde_json::json!({"input": input});
     let Some(ToolResult::Success(result)) =
         upeg_runtime::try_runtime_dispatch(PDF_TO_MARKDOWN_TOOL_ID, &args)
@@ -166,12 +166,12 @@ fn 디스패처는_마크다운과_검사_보고서를_정규_출력으로_반�
 }
 
 #[test]
-fn 일본어_컬렉션의_대체_씨맵도_바이너리에서_읽는다() {
+fn japanese_collection_alt_cmap_reads_from_binary_asset() {
     // Adobe-Japan1 CIDs 34/35/36 map to A/B/C. Unlike Korea1's Rust table,
     // this path must decode the embedded Adobe-Japan1-UCS2.bcmap asset.
     const JAPAN_CONTENT: &[u8] =
         b"BT /F1 12 Tf 50 700 Td <002200230024002200230024002200230024> Tj ET";
-    let mut input = 문서(&[JAPAN_CONTENT], true);
+    let mut input = pdf_document(&[JAPAN_CONTENT], true);
     let FileContent::Bytes(bytes) = &mut input.content else {
         unreachable!()
     };

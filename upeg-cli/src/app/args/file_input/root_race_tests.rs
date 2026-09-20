@@ -11,23 +11,24 @@ use super::directory_value;
 
 #[cfg(unix)]
 #[test]
-fn 디렉터리_입력은_root_path가_교체되어도_검사한_디렉터리의_파일만_읽는다() {
-    let temp = tempdir().expect("테스트 디렉터리를 만들어야 한다");
+fn directory_input_reads_only_the_inspected_directory_when_root_path_is_swapped() {
+    let temp = tempdir().expect("must create the test directory");
     let root = temp.path().join("root");
     let replacement = temp.path().join("replacement");
     let archived = temp.path().join("archived");
-    fs::create_dir(&root).expect("검사 대상 디렉터리를 만들어야 한다");
-    fs::create_dir(&replacement).expect("교체 디렉터리를 만들어야 한다");
-    fs::write(root.join("original.png"), b"original").expect("원본 파일을 써야 한다");
-    fs::write(replacement.join("replacement.png"), b"replacement").expect("교체 파일을 써야 한다");
+    fs::create_dir(&root).expect("must create the directory under inspection");
+    fs::create_dir(&replacement).expect("must create the replacement directory");
+    fs::write(root.join("original.png"), b"original").expect("must write the original file");
+    fs::write(replacement.join("replacement.png"), b"replacement")
+        .expect("must write the replacement file");
     let policy = file_policy();
     let field = file_field(policy.clone());
-    let opened_root = open_directory_nofollow(&root).expect("root를 no-follow로 열어야 한다");
-    fs::rename(&root, &archived).expect("검사한 root를 보관해야 한다");
-    fs::rename(&replacement, &root).expect("root를 교체해야 한다");
+    let opened_root = open_directory_nofollow(&root).expect("must open root no-follow");
+    fs::rename(&root, &archived).expect("must set aside the inspected root");
+    fs::rename(&replacement, &root).expect("must swap out root");
 
     let value = directory_value(&field, &policy, &root, opened_root)
-        .expect("열어둔 디렉터리 입력을 읽어야 한다");
+        .expect("must read the already-opened directory input");
 
     assert_eq!(
         directory_files(value),
@@ -42,32 +43,32 @@ fn file_policy() -> FileInputPolicy {
         max_file_bytes: None,
         max_total_bytes: None,
     })
-    .expect("테스트 파일 정책은 유효해야 한다")
+    .expect("test file policy must be valid")
 }
 
 fn file_field(policy: FileInputPolicy) -> InputFieldSpec {
     InputFieldSpec::new(
-        InputName::new("images").expect("테스트 입력 이름은 유효해야 한다"),
+        InputName::new("images").expect("test input name must be valid"),
         None,
         None,
         true,
         InputKind::File(policy),
     )
-    .expect("테스트 입력 필드는 유효해야 한다")
+    .expect("test input field must be valid")
 }
 
 fn directory_files(value: InputValue) -> Vec<(String, Vec<u8>)> {
     let InputValue::File(file) = value else {
-        panic!("File 입력이어야 한다");
+        panic!("must be a File input");
     };
     let FileContent::Directory(entries) = file.content else {
-        panic!("Directory 입력이어야 한다");
+        panic!("must be a Directory input");
     };
     entries
         .into_iter()
         .map(|entry| {
             let FileContent::Bytes(bytes) = entry.content else {
-                panic!("자식 입력은 Bytes여야 한다");
+                panic!("a child input must be Bytes");
             };
             (entry.name, bytes)
         })

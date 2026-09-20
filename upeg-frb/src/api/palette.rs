@@ -63,7 +63,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn search_tools는_hit마다_pin_kind를_노출한다() {
+    fn search_tools_exposes_pin_kind_on_each_hit() {
         upeg_tools::register_all();
         let hits = search_tools("hex_to_decimal".to_string());
         let hex = hits
@@ -75,13 +75,13 @@ mod tests {
     }
 
     #[test]
-    fn search_tools는_빈_쿼리에서도_탐색용_도구를_반환한다() {
+    fn search_tools_returns_browsable_tools_for_empty_query() {
         upeg_tools::register_all();
         let hits = search_tools(String::new());
 
         assert!(
             hits.iter().any(|hit| hit.id == "num.hex_to_decimal"),
-            "빈 쿼리는 검색 전 browse 상태로 사용할 수 있는 도구 목록을 반환해야 한다"
+            "an empty query must return a browsable tool list for the pre-search browse state"
         );
     }
 }

@@ -18,7 +18,7 @@ import 'package:upeg/src/state/pause_provider.dart';
 
 void main() {
   group('UpegTray.onTrayMenuItemClick', () {
-    test('Tray_TogglePause는_embedded에서_togglePaused_프로바이더를_호출한다', () {
+    test('Tray_TogglePause_calls_the_togglePaused_provider_when_embedded', () {
       // Pause is a process-local `AtomicBool` (WS4 PRD §5.9) — the
       // dispatch only fires when THIS process hosts in-process
       // (`pauseControllableProvider == true`). Override it directly so
@@ -42,7 +42,7 @@ void main() {
       expect(calls, 1);
     });
 
-    test('dispatchTrayCommand_togglePause는_비embedded에서_no_op이다', () {
+    test('dispatchTrayCommand_togglePause_is_a_no_op_when_not_embedded', () {
       // Split-brain guard: when this process is attached to a separate
       // daemon (or has no host), pause cannot reach that foreign
       // process, so the dispatch must not call the mutator at all.
@@ -65,7 +65,7 @@ void main() {
       expect(calls, 0);
     });
 
-    test('Tray_TogglePin_콜백은_pinnedProvider를_토글한다', () {
+    test('the_Tray_TogglePin_callback_toggles_pinnedProvider', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

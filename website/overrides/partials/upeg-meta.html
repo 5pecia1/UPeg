@@ -1,0 +1,101 @@
+{#-
+  Landing page privacy / FAQ / support sections — rendered after the
+  Markdown body of docs/index.md on the homepage only (see main.html).
+  The section ids are the destinations of the /privacy/, /faq/ and
+  /support/ redirect routes configured in zensical.toml.
+-#}
+<section class="upeg-section" id="privacy" aria-labelledby="upeg-privacy-title" tabindex="-1">
+  <h2 id="upeg-privacy-title">Privacy</h2>
+  <p>
+    <strong>This site.</strong> No analytics, no tracking pixels, no remote
+    font or script requests — every asset is served from this site. Fonts
+    come from your system.
+  </p>
+  <p>
+    <strong>The product.</strong> UPeg is local-first: boards, presets, and
+    execution history live on your machine. Credentials are stored by name
+    in TOML and resolved through the OS keychain — plaintext values are
+    never written to manifests, state, logs, or network responses. The
+    execution log records metadata only (time, tool id, surface, status,
+    duration). Network listeners are explicit-start and loopback-first, and
+    every HTTP route except <code>/healthz</code> requires a bearer token.
+  </p>
+  <p>
+    Details:
+    <a href="{{ 'product/security-absolutes/' | url }}">security absolutes</a>.
+  </p>
+</section>
+
+<section class="upeg-section" id="faq" aria-labelledby="upeg-faq-title" tabindex="-1">
+  <h2 id="upeg-faq-title">FAQ</h2>
+  <details class="upeg-faq">
+    <summary>Is there a download or installer?</summary>
+    <p>
+      Not yet — UPeg is pre-release and built from source
+      (<code>cargo build --release -p upeg-cli --bin upeg</code>). Packaged
+      desktop downloads are planned once releases start. See the
+      <a href="{{ 'guides/installation/' | url }}">installation guide</a>.
+    </p>
+  </details>
+  <details class="upeg-faq">
+    <summary>Does UPeg send my data anywhere?</summary>
+    <p>
+      No. Everything runs locally by default; there is no telemetry.
+      Optional cloud sync is designed to be end-to-end encrypted, and
+      credential values never leave the OS keychain.
+    </p>
+  </details>
+  <details class="upeg-faq">
+    <summary>How do AI agents use my tools?</summary>
+    <p>
+      <code>upeg mcp</code> exposes a prepared board over MCP (stdio or
+      HTTP). The agent sees only the tools and guidance you pinned —
+      connecting a board does not execute anything by itself.
+      See
+      <a href="{{ 'product/board-agent-workflow/' | url }}">board and agent workflow</a>.
+    </p>
+  </details>
+  <details class="upeg-faq">
+    <summary>Do all seven surfaces support every tool?</summary>
+    <p>
+      No — and UPeg says so. Sandboxed surfaces (PWA, Chrome extension)
+      either pair with a local host or show an honest unsupported state.
+      See <a href="#upeg-boundaries-title">honest boundaries</a> above and
+      the
+      <a href="{{ 'ui-ux-surface-contract/' | url }}">surface contract</a>.
+    </p>
+  </details>
+  <details class="upeg-faq">
+    <summary>Is UPeg free and open source?</summary>
+    <p>
+      Yes — Apache-2.0, developed in the open at
+      <a href="https://github.com/5pecia1/UPeg" target="_blank" rel="noopener">github.com/5pecia1/UPeg</a>.
+      A Korean version of the README is
+      <a href="https://github.com/5pecia1/UPeg/blob/main/README.ko.md" target="_blank" rel="noopener">linked from the repository</a>;
+      the docs themselves are English-only.
+    </p>
+  </details>
+</section>
+
+<section class="upeg-section" id="support" aria-labelledby="upeg-support-title" tabindex="-1">
+  <h2 id="upeg-support-title">Support</h2>
+  <ul role="list">
+    <li>
+      <a href="{{ 'guides/troubleshooting/' | url }}">Troubleshooting guide</a>
+      — <code>upeg doctor</code>, hosts, tokens, and manifest detection.
+    </li>
+    <li>
+      <a href="https://github.com/5pecia1/UPeg/issues" target="_blank" rel="noopener">GitHub issues</a>
+      — bug reports and feature requests.
+    </li>
+    <li>
+      <a href="https://github.com/5pecia1/UPeg/security" target="_blank" rel="noopener">Security reports</a>
+      — private vulnerability reporting; please do not open public issues
+      for vulnerabilities.
+    </li>
+    <li>
+      <a href="https://github.com/5pecia1/UPeg/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+      — how to propose changes.
+    </li>
+  </ul>
+</section>

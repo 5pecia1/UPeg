@@ -107,31 +107,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn qr_인코딩은_짧은_문자열을_렌더링한다() {
+    fn qr_encode_renders_short_string() {
         let out = qr_encode("hello").unwrap();
         assert!(!out.is_empty());
     }
 
     #[test]
-    fn qr_인코딩은_빈_입력을_거부한다() {
+    fn qr_encode_rejects_empty_input() {
         assert!(qr_encode("").is_err());
     }
 
     #[test]
-    fn qr_인코딩은_과도하게_큰_입력을_거부한다() {
+    fn qr_encode_rejects_oversized_input() {
         let huge = "a".repeat(QR_ENCODE_MAX_INPUT_LEN + 1);
         assert!(qr_encode(&huge).is_err());
     }
 
     #[test]
-    fn qr_인코딩은_동일_입력에_대해_결정적이다() {
+    fn qr_encode_is_deterministic_for_same_input() {
         let a = qr_encode("upeg").unwrap();
         let b = qr_encode("upeg").unwrap();
         assert_eq!(a, b, "same input must render byte-identical output");
     }
 
     #[test]
-    fn qr_인코딩은_직사각형_격자와_여백을_만든다() {
+    fn qr_encode_produces_rectangular_grid_with_quiet_zone() {
         let out = qr_encode("https://example.com/upeg").unwrap();
         let lines: Vec<&str> = out.lines().collect();
         assert!(
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn qr_인코딩은_다른_입력에_대해_다른_출력을_만든다() {
+    fn qr_encode_produces_different_output_for_different_input() {
         let a = qr_encode("alpha").unwrap();
         let b = qr_encode("beta").unwrap();
         assert_ne!(a, b);
@@ -220,21 +220,21 @@ mod tests {
         }
 
         #[test]
-        fn qr_디코딩은_인코딩된_텍스트를_복원한다() {
+        fn qr_decode_restores_encoded_text() {
             let png = qr_png_bytes("upeg qr round trip");
             let decoded = qr_decode(&file_input("qr.png", png)).unwrap();
             assert_eq!(decoded, "upeg qr round trip");
         }
 
         #[test]
-        fn qr_디코딩은_이미지가_아닌_바이트를_거부한다() {
+        fn qr_decode_rejects_non_image_bytes() {
             let result = qr_decode(&file_input("qr.png", b"not an image".to_vec()));
             assert!(result.is_err());
             assert!(result.unwrap_err().contains("could not decode image"));
         }
 
         #[test]
-        fn qr_디코딩은_qr_코드가_없는_이미지를_거부한다() {
+        fn qr_decode_rejects_image_without_qr_code() {
             let blank = image::GrayImage::from_pixel(64, 64, image::Luma([255]));
             let mut bytes = Vec::new();
             blank
@@ -249,7 +249,7 @@ mod tests {
         }
 
         #[test]
-        fn qr_디코딩은_디렉터리_입력을_거부한다() {
+        fn qr_decode_rejects_directory_input() {
             let dir_input = FileValue {
                 name: "dir".to_string(),
                 content: FileContent::Directory(Vec::new()),

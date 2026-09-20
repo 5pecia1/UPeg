@@ -40,21 +40,24 @@ Widget _harness({required ToolDto tool}) {
 
 void main() {
   group('ExpandedModalPage header chrome', () {
-    testWidgets('_ModalHeader는_tool_pinKind에_따라_KindBadge를_표시한다', (
+    testWidgets(
+      'the_modal_header_shows_a_kindbadge_matching_the_tool_pinkind',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.embed',
+          label: 'EmbedTool',
+          pinKind: PinKindDto.embed,
+        );
+        await tester.pumpWidget(_harness(tool: tool));
+        expect(find.byType(KindBadge), findsOneWidget);
+        // The label is the uppercased pinKind name.
+        expect(find.text('EMBED'), findsOneWidget);
+      },
+    );
+
+    testWidgets('the_modal_header_shows_the_icon_from_icon_for_tool', (
       tester,
     ) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.embed',
-        label: 'EmbedTool',
-        pinKind: PinKindDto.embed,
-      );
-      await tester.pumpWidget(_harness(tool: tool));
-      expect(find.byType(KindBadge), findsOneWidget);
-      // 라벨은 pinKind 이름의 대문자 변형.
-      expect(find.text('EMBED'), findsOneWidget);
-    });
-
-    testWidgets('_ModalHeader는_icon_for_tool을_사용한_icon을_표시한다', (tester) async {
       final inline = fixtureToolDto(
         id: 'inline.tool',
         label: 'inline',
@@ -63,13 +66,13 @@ void main() {
       await tester.pumpWidget(_harness(tool: inline));
       // inline → Icons.flash_on (per iconForTool mapping).
       expect(find.byIcon(iconForTool(inline)), findsOneWidget);
-      // 옛 하드코딩 아이콘은 제거된다.
+      // The old hard-coded icon is gone.
       expect(find.byIcon(Icons.crop_square_outlined), findsNothing);
     });
   });
 
   group('ExpandedModalPage footer chrome', () {
-    testWidgets('_ModalFooter는_invoker_label을_표시한다', (tester) async {
+    testWidgets('the_modal_footer_shows_the_invoker_label', (tester) async {
       final tool = fixtureToolDto(
         id: 'fixture.http',
         label: 'HttpTool',

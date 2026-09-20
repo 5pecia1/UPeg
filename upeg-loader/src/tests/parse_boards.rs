@@ -3,7 +3,7 @@
 use crate::LoadError;
 use crate::parse::parse_manifest;
 
-fn 매니페스트(boards: &str) -> String {
+fn manifest(boards: &str) -> String {
     format!(
         r#"id = "proj"
 {boards}
@@ -18,58 +18,61 @@ command = "echo"
 }
 
 #[test]
-fn 보드_설명과_마크다운_지침을_매니페스트에서_읽는다() {
-    let parsed = parse_manifest(&매니페스트(
+fn board_description_and_markdown_instructions_are_read_from_manifest() {
+    let parsed = parse_manifest(&manifest(
         r#"[[boards]]
 id = "upeg-dev"
-description = "개발 작업 공간"
+description = "development workspace"
 instructions = """
-# 작업 순서
-1. 변경을 확인한다.
-2. 테스트를 실행한다.
+# Work order
+1. Review the change.
+2. Run the tests.
 """"#,
     ));
 
-    let parsed = parsed.expect("보드 안내 파싱");
-    assert_eq!(parsed.boards[0].guidance.description, "개발 작업 공간");
+    let parsed = parsed.expect("parse board guidance");
+    assert_eq!(
+        parsed.boards[0].guidance.description,
+        "development workspace"
+    );
     assert_eq!(
         parsed.boards[0].guidance.instructions,
-        "# 작업 순서\n1. 변경을 확인한다.\n2. 테스트를 실행한다.\n"
+        "# Work order\n1. Review the change.\n2. Run the tests.\n"
     );
 }
 
 #[test]
-fn 보드_안내는_각각_생략할_수_있다() {
-    let parsed = parse_manifest(&매니페스트(
+fn board_guidance_fields_can_each_be_omitted() {
+    let parsed = parse_manifest(&manifest(
         r#"[[boards]]
 id = "empty"
 [[boards]]
 id = "described"
-description = "설명만"
+description = "description only"
 [[boards]]
 id = "instructed"
-instructions = "지침만""#,
+instructions = "instructions only""#,
     ))
-    .expect("파싱");
+    .expect("parse");
 
     assert_eq!(
         parsed.boards[0].guidance,
         upeg_core::BoardGuidance::default()
     );
-    assert_eq!(parsed.boards[1].guidance.description, "설명만");
+    assert_eq!(parsed.boards[1].guidance.description, "description only");
     assert!(parsed.boards[1].guidance.instructions.is_empty());
     assert!(parsed.boards[2].guidance.description.is_empty());
-    assert_eq!(parsed.boards[2].guidance.instructions, "지침만");
+    assert_eq!(parsed.boards[2].guidance.instructions, "instructions only");
 }
 
 #[test]
-fn boards_선언은_id와_라벨을_내린다() {
-    let parsed = parse_manifest(&매니페스트(
+fn boards_declaration_lowers_id_and_label() {
+    let parsed = parse_manifest(&manifest(
         r#"[[boards]]
 id = "upeg-dev"
 label = "upeg dev""#,
     ))
-    .expect("파싱");
+    .expect("parse");
 
     assert_eq!(parsed.boards.len(), 1);
     assert_eq!(parsed.boards[0].id.as_str(), "upeg-dev");
@@ -77,114 +80,114 @@ label = "upeg dev""#,
 }
 
 #[test]
-fn 라벨이_없으면_id를_그대로_쓴다() {
-    let parsed = parse_manifest(&매니페스트(
+fn missing_label_falls_back_to_id() {
+    let parsed = parse_manifest(&manifest(
         r#"[[boards]]
 id = "upeg-dev""#,
     ))
-    .expect("파싱");
+    .expect("parse");
 
     assert_eq!(parsed.boards[0].label, "upeg-dev");
 }
 
 #[test]
-fn boards_없는_매니페스트는_보드를_선언하지_않는다() {
-    let parsed = parse_manifest(&매니페스트("")).expect("파싱");
+fn manifest_without_boards_declares_none() {
+    let parsed = parse_manifest(&manifest("")).expect("parse");
     assert!(parsed.boards.is_empty());
 }
 
 #[test]
-fn 내장_보드_id는_거부된다() {
-    let error = parse_manifest(&매니페스트(
+fn builtin_board_id_is_rejected() {
+    let error = parse_manifest(&manifest(
         r#"[[boards]]
 id = "dev""#,
     ))
-    .expect_err("내장 보드 shadowing은 거부되어야 한다");
+    .expect_err("built-in board shadowing must be rejected");
 
     assert!(
         matches!(
             &error,
             LoadError::BuiltinProjectBoardId { position: 0, board } if board == "dev"
         ),
-        "예상 밖 오류: {error}"
+        "unexpected error: {error}"
     );
 }
 
 #[test]
-fn 중복_보드_id는_거부된다() {
-    let error = parse_manifest(&매니페스트(
+fn duplicate_board_id_is_rejected() {
+    let error = parse_manifest(&manifest(
         r#"[[boards]]
 id = "one"
 
 [[boards]]
 id = "one""#,
     ))
-    .expect_err("중복 선언은 거부되어야 한다");
+    .expect_err("duplicate declarations must be rejected");
 
     assert!(
         matches!(
             error,
             LoadError::DuplicateProjectBoardId { position: 1, .. }
         ),
-        "예상 밖 오류: {error}"
+        "unexpected error: {error}"
     );
 }
 
 #[test]
-fn 예약된_구분자를_품은_보드_id는_거부된다() {
-    let error = parse_manifest(&매니페스트(
+fn board_id_with_reserved_separator_is_rejected() {
+    let error = parse_manifest(&manifest(
         r#"[[boards]]
 id = "project:abc:dev""#,
     ))
-    .expect_err("`:` 는 store key 예약 문자다");
+    .expect_err("`:` is a reserved store key character");
 
     assert!(
         matches!(error, LoadError::InvalidProjectBoardId { position: 0, .. }),
-        "예상 밖 오류: {error}"
+        "unexpected error: {error}"
     );
 }
 
 #[test]
-fn 빈_보드_id는_거부된다() {
-    let error = parse_manifest(&매니페스트(
+fn empty_board_id_is_rejected() {
+    let error = parse_manifest(&manifest(
         r#"[[boards]]
 id = "  ""#,
     ))
-    .expect_err("빈 id는 거부되어야 한다");
+    .expect_err("empty ids must be rejected");
 
     assert!(
         matches!(error, LoadError::InvalidProjectBoardId { position: 0, .. }),
-        "예상 밖 오류: {error}"
+        "unexpected error: {error}"
     );
 }
 
 #[test]
-fn toolkit_디렉터리_매니페스트의_boards는_등록에서_거부된다() {
+fn boards_in_toolkit_directory_manifest_fail_registration() {
     let dir =
         std::env::temp_dir().join(format!("upeg-loader-boards-outside-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("디렉터리 생성");
+    std::fs::create_dir_all(&dir).expect("create directory");
     std::fs::write(
         dir.join("kit.toml"),
-        매니페스트(
+        manifest(
             r#"[[boards]]
 id = "kit-board""#,
         ),
     )
-    .expect("매니페스트 쓰기");
+    .expect("write manifest");
 
     let outcome = crate::load_and_register_dir_verbose(&dir);
 
     assert!(
         outcome.loaded.is_empty(),
-        "보드를 선언한 toolkit은 등록되면 안 된다"
+        "a toolkit declaring boards must not register"
     );
     assert!(
         outcome
             .failed
             .iter()
             .any(|(_, error)| matches!(error, LoadError::BoardsOutsideProjectManifest)),
-        "예상 밖 실패 목록: {:?}",
+        "unexpected failure list: {:?}",
         outcome.failed
     );
 

@@ -64,7 +64,7 @@ Future<void> _settle(ProviderContainer container, BoardKey boardKey) async {
 
 void main() {
   group('scopedHitsForPlacements', () {
-    test('배치_순서대로_핀된_hit만_남긴다', () {
+    test('keeps_only_pinned_hits_in_placement_order', () {
       final catalogue = [_hit('a.one'), _hit('b.two'), _hit('c.three')];
       final placements = [
         _placement('c.three', x: 0, y: 1),
@@ -77,7 +77,7 @@ void main() {
       expect(scoped.map((hit) => hit.id).toList(), ['a.one', 'c.three']);
     });
 
-    test('카탈로그에_없는_핀은_건너뛴다', () {
+    test('skips_pins_missing_from_catalogue', () {
       final scoped = scopedHitsForPlacements(
         [_hit('a.one')],
         [_placement('ghost.tool', x: 0, y: 0), _placement('a.one', x: 1, y: 0)],
@@ -88,7 +88,7 @@ void main() {
   });
 
   group('popupBoardScopeProvider', () {
-    test('보드가_선택되면_그리드를_보드의_핀으로_스코프한다', () async {
+    test('scopes_grid_to_board_pins_when_board_is_selected', () async {
       final boardKey = BoardKey.parse('dev');
       final container = _container(
         catalogue: [_hit('a.one'), _hit('b.two'), _hit('c.three')],
@@ -114,7 +114,7 @@ void main() {
       );
     });
 
-    test('검색어가_있으면_보드_스코프를_해제하고_전체를_검색한다', () async {
+    test('query_text_unscopes_board_and_searches_everything', () async {
       final boardKey = BoardKey.parse('dev');
       final container = _container(
         catalogue: [_hit('a.one'), _hit('b.two')],
@@ -128,7 +128,7 @@ void main() {
       expect(container.read(popupBoardScopeProvider), isA<PopupScopeAll>());
     });
 
-    test('핀이_없는_보드는_전체_카탈로그로_폴백한다', () async {
+    test('board_without_pins_falls_back_to_full_catalogue', () async {
       final boardKey = BoardKey.parse('dev');
       final container = _container(
         catalogue: [_hit('a.one'), _hit('b.two')],
@@ -141,7 +141,7 @@ void main() {
       expect(container.read(popupEffectiveHitsProvider).length, 2);
     });
 
-    test('보드_선택이_없으면_스코프하지_않는다', () async {
+    test('no_board_selected_means_no_scoping', () async {
       final container = _container(
         catalogue: [_hit('a.one')],
         placements: [_placement('a.one', x: 0, y: 0)],

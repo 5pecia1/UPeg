@@ -130,6 +130,8 @@ mod tests {
             input_spec,
             output_spec: OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: Source::UserInput,
             pin,
             pegboard_units: PegboardUnits::U1,
@@ -140,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_embed_도구를_open_embed로_보낸다() {
+    fn pin_activation_for_routes_embed_tool_to_open_embed() {
         let guard = toolbox_add_tool_managed(fixture_meta("embed_with_url", PinKind::Embed, false));
         register_embed_url(guard.id(), "https://example.com/embed");
         let result = pin_activation_for(
@@ -156,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_url_없는_embed를_open_modal로_낮춘다() {
+    fn pin_activation_for_demotes_embed_without_url_to_open_modal() {
         let _guard = toolbox_add_tool_managed(fixture_meta("embed_no_url", PinKind::Embed, false));
         let result = pin_activation_for(
             "frb_pin_activation_test.embed_no_url".to_string(),
@@ -171,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력없는_launcher를_dispatch_immediate로_보낸다() {
+    fn pin_activation_for_routes_inputless_launcher_to_dispatch_immediate() {
         let _guard =
             toolbox_add_tool_managed(fixture_meta("launcher_empty", PinKind::Launcher, false));
         let result = pin_activation_for(
@@ -187,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력있는_launcher를_open_modal로_보낸다() {
+    fn pin_activation_for_routes_launcher_with_input_to_open_modal() {
         let _guard =
             toolbox_add_tool_managed(fixture_meta("launcher_with_input", PinKind::Launcher, true));
         let result = pin_activation_for(
@@ -203,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력없는_live_도구를_dispatch_immediate로_보낸다() {
+    fn pin_activation_for_routes_inputless_live_tool_to_dispatch_immediate() {
         // Inline-first: a Live pin with no required inputs (e.g. a scratch
         // memo or a one-shot ticker) dispatches immediately and renders
         // its result inline instead of forcing the modal.
@@ -219,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력있는_live_도구를_open_modal로_보낸다() {
+    fn pin_activation_for_routes_live_tool_with_input_to_open_modal() {
         let _guard = toolbox_add_tool_managed(fixture_meta("live_with_input", PinKind::Live, true));
         let result = pin_activation_for(
             "frb_pin_activation_test.live_with_input".to_string(),
@@ -234,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력없는_action_도구를_dispatch_immediate로_보낸다() {
+    fn pin_activation_for_routes_inputless_action_tool_to_dispatch_immediate() {
         let _guard = toolbox_add_tool_managed(fixture_meta("action_one", PinKind::Action, false));
         let result = pin_activation_for(
             "frb_pin_activation_test.action_one".to_string(),
@@ -249,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_chain_도구를_open_modal로_보낸다() {
+    fn pin_activation_for_routes_chain_tool_to_open_modal() {
         // Chain drives a multi-step UI with no inline form — always modal.
         let _guard = toolbox_add_tool_managed(fixture_meta("chain_one", PinKind::Chain, false));
         let result =
@@ -263,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_llm_도구를_open_modal로_보낸다() {
+    fn pin_activation_for_routes_llm_tool_to_open_modal() {
         let _guard = toolbox_add_tool_managed(fixture_meta("llm_one", PinKind::Llm, false));
         let result = pin_activation_for("frb_pin_activation_test.llm_one".to_string(), "{}".into());
         assert_eq!(
@@ -275,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_controlled_embed_도구를_open_modal로_낮춘다() {
+    fn pin_activation_for_demotes_controlled_embed_tool_to_open_modal() {
         // ControlledEmbed pins render inline (bodyOverride) and never
         // navigate to a separate page — tapping them is effectively a
         // no-op or a fall-through to the standard expanded modal. The
@@ -311,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력없는_inline_도구를_dispatch_immediate로_보낸다() {
+    fn pin_activation_for_routes_inputless_inline_tool_to_dispatch_immediate() {
         let _guard = toolbox_add_tool_managed(fixture_meta("inline_one", PinKind::Inline, false));
         let result = pin_activation_for(
             "frb_pin_activation_test.inline_one".to_string(),
@@ -326,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_입력있는_inline_도구를_open_modal로_보낸다() {
+    fn pin_activation_for_routes_inline_tool_with_input_to_open_modal() {
         let _guard =
             toolbox_add_tool_managed(fixture_meta("inline_with_input", PinKind::Inline, true));
         let result = pin_activation_for(
@@ -342,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_activation_for_가_미등록_도구를_open_modal로_낮춘다() {
+    fn pin_activation_for_demotes_unregistered_tool_to_open_modal() {
         let result = pin_activation_for(
             "frb_pin_activation_test.not_registered".to_string(),
             "{}".into(),

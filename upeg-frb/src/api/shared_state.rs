@@ -79,7 +79,7 @@ mod tests {
     }
 
     #[test]
-    fn 파일_mtime은_epoch_millis_version으로_변환된다() {
+    fn file_mtime_converts_to_epoch_millis_version() {
         let path = temp_path("mtime");
         let _ = std::fs::remove_file(&path);
         std::fs::write(&path, "versioned").expect("write versioned file");
@@ -91,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn 공유_state_versions는_tweaks와_pegboard_version을_담는다() {
+    fn shared_state_versions_carry_tweaks_and_pegboard_versions() {
         let versions = load_shared_state_versions();
 
         assert!(versions.tweaks.is_none_or(|version| version > 0));

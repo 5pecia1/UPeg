@@ -76,51 +76,65 @@ fp.FilePicker _registeredFilePickerOrFallback() {
 }
 
 void main() {
-  test('복수 선택과 확장자 필터를 file_picker에 그대로 전달한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    final picker = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(name: 'a.txt', size: 1, readStream: Stream.value([1])),
-        fp.PlatformFile(name: 'b.txt', size: 1, readStream: Stream.value([2])),
-      ]),
-    );
-    fp.FilePicker.platform = picker;
+  test(
+    'passes_multi_select_and_extension_filter_verbatim_to_file_picker',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      final picker = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: 'a.txt',
+            size: 1,
+            readStream: Stream.value([1]),
+          ),
+          fp.PlatformFile(
+            name: 'b.txt',
+            size: 1,
+            readStream: Stream.value([2]),
+          ),
+        ]),
+      );
+      fp.FilePicker.platform = picker;
 
-    final picked = await const FilePickerPluginBridge().pickOpenFiles(
-      allowMultiple: true,
-      allowedExtensions: const ['txt'],
-    );
+      final picked = await const FilePickerPluginBridge().pickOpenFiles(
+        allowMultiple: true,
+        allowedExtensions: const ['txt'],
+      );
 
-    expect(picked?.map((file) => file.name), ['a.txt', 'b.txt']);
-    expect(picker.lastAllowMultiple, isTrue);
-    expect(picker.lastAllowedExtensions, ['txt']);
-    expect(picker.lastWithData, isFalse);
-    expect(picker.lastWithReadStream, isTrue);
-    expect(picked?.map((file) => file.bytes.single), [1, 2]);
-  });
+      expect(picked?.map((file) => file.name), ['a.txt', 'b.txt']);
+      expect(picker.lastAllowMultiple, isTrue);
+      expect(picker.lastAllowedExtensions, ['txt']);
+      expect(picker.lastWithData, isFalse);
+      expect(picker.lastWithReadStream, isTrue);
+      expect(picked?.map((file) => file.bytes.single), [1, 2]);
+    },
+  );
 
-  test('단일 선택은 복수 선택 구현을 allowMultiple false로 공유한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    final picker = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: 'one.bin',
-          size: 1,
-          readStream: Stream.value([1]),
-        ),
-      ]),
-    );
-    fp.FilePicker.platform = picker;
+  test(
+    'single_select_shares_the_multi_select_implementation_with_allowMultiple_false',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      final picker = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: 'one.bin',
+            size: 1,
+            readStream: Stream.value([1]),
+          ),
+        ]),
+      );
+      fp.FilePicker.platform = picker;
 
-    final picked = await const FilePickerPluginBridge().pickOpenFile();
+      final picked = await const FilePickerPluginBridge().pickOpenFile();
 
-    expect(picked?.name, 'one.bin');
-    expect(picker.lastAllowMultiple, isFalse);
-  });
+      expect(picked?.name, 'one.bin');
+      expect(picker.lastAllowMultiple, isFalse);
+    },
+  );
 
-  test('사용자가 복수 선택을 취소하면 null을 반환한다', () async {
+  test('returns_null_when_the_user_cancels_multi_select', () async {
     final originalFilePicker = _registeredFilePickerOrFallback();
     addTearDown(() => fp.FilePicker.platform = originalFilePicker);
     fp.FilePicker.platform = _ResultFilePicker(null);
@@ -132,7 +146,7 @@ void main() {
     expect(picked, isNull);
   });
 
-  test('file_picker 오류는 호출자에게 전달한다', () async {
+  test('propagates_file_picker_errors_to_the_caller', () async {
     final originalFilePicker = _registeredFilePickerOrFallback();
     addTearDown(() => fp.FilePicker.platform = originalFilePicker);
     fp.FilePicker.platform = _ResultFilePicker(
@@ -146,264 +160,289 @@ void main() {
     );
   });
 
-  test('metadata 파일 개수 초과는 어떤 stream도 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
+  test(
+    'metadata_file_count_overflow_is_rejected_before_any_stream_is_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1];
+      }
 
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(name: 'a.bin', size: 1, readStream: trackedStream()),
-        fp.PlatformFile(name: 'b.bin', size: 1, readStream: trackedStream()),
-      ]),
-    );
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(name: 'a.bin', size: 1, readStream: trackedStream()),
+          fp.PlatformFile(name: 'b.bin', size: 1, readStream: trackedStream()),
+        ]),
+      );
 
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(maxCount: 1),
-      throwsA(
-        isA<FilePickerSelectionFailure>().having(
-          (failure) => failure.code,
-          '오류 코드',
-          FilePickerSelectionErrorCode.tooManyFiles,
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(maxCount: 1),
+        throwsA(
+          isA<FilePickerSelectionFailure>().having(
+            (failure) => failure.code,
+            'error code',
+            FilePickerSelectionErrorCode.tooManyFiles,
+          ),
         ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
+      );
+      expect(listenCount, isZero);
+    },
+  );
 
-  test('고정 파일 개수 상한 초과는 어떤 stream도 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
+  test(
+    'fixed_file_count_cap_overflow_is_rejected_before_any_stream_is_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1];
+      }
 
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult(
-        List.generate(
-          maxFileInputCount + 1,
-          (index) => fp.PlatformFile(
-            name: '$index.bin',
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult(
+          List.generate(
+            maxFileInputCount + 1,
+            (index) => fp.PlatformFile(
+              name: '$index.bin',
+              size: 1,
+              readStream: trackedStream(),
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(
+          allowMultiple: true,
+          maxCount: maxFileInputCount + 1,
+        ),
+        throwsA(
+          isA<FilePickerSelectionFailure>()
+              .having(
+                (failure) => failure.code,
+                'error code',
+                FilePickerSelectionErrorCode.tooManyFiles,
+              )
+              .having(
+                (failure) => failure.maximum,
+                'fixed file count cap',
+                maxFileInputCount,
+              ),
+        ),
+      );
+      expect(listenCount, isZero);
+    },
+  );
+
+  test(
+    'UTF-8_metadata_cap_overflow_is_rejected_before_any_stream_is_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1];
+      }
+
+      final oversizedName = _utf8Metadata(maxFileInputMetadataBytes);
+
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: '$oversizedName.bin',
             size: 1,
             readStream: trackedStream(),
           ),
+        ]),
+      );
+
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(maxCount: 1),
+        throwsA(
+          isA<FilePickerSelectionFailure>()
+              .having(
+                (failure) => failure.code,
+                'error code',
+                FilePickerSelectionErrorCode.metadataTooLarge,
+              )
+              .having(
+                (failure) => failure.maximum,
+                'metadata byte cap',
+                maxFileInputMetadataBytes,
+              ),
         ),
-      ),
-    );
+      );
+      expect(listenCount, isZero);
+    },
+  );
 
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(
-        allowMultiple: true,
-        maxCount: maxFileInputCount + 1,
-      ),
-      throwsA(
-        isA<FilePickerSelectionFailure>()
-            .having(
-              (failure) => failure.code,
-              '오류 코드',
-              FilePickerSelectionErrorCode.tooManyFiles,
-            )
-            .having(
-              (failure) => failure.maximum,
-              '고정 파일 개수 상한',
-              maxFileInputCount,
-            ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
+  test(
+    'metadata_individual_size_overflow_is_rejected_before_the_stream_is_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1];
+      }
 
-  test('UTF-8 metadata 상한 초과는 어떤 stream도 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: 'large.bin',
+            size: 3,
+            readStream: trackedStream(),
+          ),
+        ]),
+      );
 
-    final oversizedName = _utf8Metadata(maxFileInputMetadataBytes);
-
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: '$oversizedName.bin',
-          size: 1,
-          readStream: trackedStream(),
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(maxFileBytes: 2),
+        throwsA(
+          isA<FilePickerSelectionFailure>().having(
+            (failure) => failure.code,
+            'error code',
+            FilePickerSelectionErrorCode.fileTooLarge,
+          ),
         ),
-      ]),
-    );
+      );
+      expect(listenCount, isZero);
+    },
+  );
 
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(maxCount: 1),
-      throwsA(
-        isA<FilePickerSelectionFailure>()
-            .having(
-              (failure) => failure.code,
-              '오류 코드',
-              FilePickerSelectionErrorCode.metadataTooLarge,
-            )
-            .having(
-              (failure) => failure.maximum,
-              'metadata byte 상한',
-              maxFileInputMetadataBytes,
-            ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
+  test(
+    'metadata_total_size_overflow_is_rejected_before_all_streams_are_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1, 2];
+      }
 
-  test('metadata 개별 크기 초과는 stream을 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(name: 'a.bin', size: 2, readStream: trackedStream()),
+          fp.PlatformFile(name: 'b.bin', size: 2, readStream: trackedStream()),
+        ]),
+      );
 
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: 'large.bin',
-          size: 3,
-          readStream: trackedStream(),
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(
+          allowMultiple: true,
+          maxCount: 2,
+          maxTotalBytes: 3,
         ),
-      ]),
-    );
-
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(maxFileBytes: 2),
-      throwsA(
-        isA<FilePickerSelectionFailure>().having(
-          (failure) => failure.code,
-          '오류 코드',
-          FilePickerSelectionErrorCode.fileTooLarge,
+        throwsA(
+          isA<FilePickerSelectionFailure>().having(
+            (failure) => failure.code,
+            'error code',
+            FilePickerSelectionErrorCode.totalTooLarge,
+          ),
         ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
+      );
+      expect(listenCount, isZero);
+    },
+  );
 
-  test('metadata 전체 크기 초과는 모든 stream을 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1, 2];
-    }
+  test(
+    'stream_stops_reading_as_soon_as_the_cap_overflow_is_detected_even_with_small_metadata',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var yieldedChunks = 0;
+      Stream<List<int>> growingStream() async* {
+        yieldedChunks += 1;
+        yield [1, 2];
+        yieldedChunks += 1;
+        yield [3];
+        yieldedChunks += 1;
+        yield [4];
+      }
 
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(name: 'a.bin', size: 2, readStream: trackedStream()),
-        fp.PlatformFile(name: 'b.bin', size: 2, readStream: trackedStream()),
-      ]),
-    );
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: 'growing.bin',
+            size: 1,
+            readStream: growingStream(),
+          ),
+        ]),
+      );
 
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(
-        allowMultiple: true,
-        maxCount: 2,
-        maxTotalBytes: 3,
-      ),
-      throwsA(
-        isA<FilePickerSelectionFailure>().having(
-          (failure) => failure.code,
-          '오류 코드',
-          FilePickerSelectionErrorCode.totalTooLarge,
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(maxFileBytes: 2),
+        throwsA(
+          isA<FilePickerSelectionFailure>().having(
+            (failure) => failure.code,
+            'error code',
+            FilePickerSelectionErrorCode.fileTooLarge,
+          ),
         ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
+      );
+      expect(yieldedChunks, 2);
+    },
+  );
 
-  test('metadata가 작아도 stream은 cap 초과를 확인한 즉시 읽기를 중단한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var yieldedChunks = 0;
-    Stream<List<int>> growingStream() async* {
-      yieldedChunks += 1;
-      yield [1, 2];
-      yieldedChunks += 1;
-      yield [3];
-      yieldedChunks += 1;
-      yield [4];
-    }
+  test(
+    'a_disallowed_compound_extension_returned_by_the_picker_is_rejected_before_any_stream_is_read',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      var listenCount = 0;
+      Stream<List<int>> trackedStream() async* {
+        listenCount += 1;
+        yield [1];
+      }
 
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: 'growing.bin',
-          size: 1,
-          readStream: growingStream(),
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: '허용됨.TAR.GZ',
+            size: 1,
+            readStream: trackedStream(),
+          ),
+          fp.PlatformFile(
+            name: '거부됨.tar.zip',
+            size: 1,
+            readStream: trackedStream(),
+          ),
+        ]),
+      );
+
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFiles(
+          allowMultiple: true,
+          allowedExtensions: ['tar.gz'],
+          maxCount: 2,
         ),
-      ]),
-    );
-
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(maxFileBytes: 2),
-      throwsA(
-        isA<FilePickerSelectionFailure>().having(
-          (failure) => failure.code,
-          '오류 코드',
-          FilePickerSelectionErrorCode.fileTooLarge,
+        throwsA(
+          isA<FilePickerSelectionFailure>()
+              .having(
+                (failure) => failure.code,
+                'error code',
+                FilePickerSelectionErrorCode.extensionNotAllowed,
+              )
+              .having(
+                (failure) => failure.fileName,
+                'file name',
+                '거부됨.tar.zip',
+              ),
         ),
-      ),
-    );
-    expect(yieldedChunks, 2);
-  });
+      );
+      expect(listenCount, isZero);
+    },
+  );
 
-  test('picker가 반환한 허용되지 않은 복합 확장자는 어떤 stream도 읽기 전에 거부한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
-
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: '허용됨.TAR.GZ',
-          size: 1,
-          readStream: trackedStream(),
-        ),
-        fp.PlatformFile(
-          name: '거부됨.tar.zip',
-          size: 1,
-          readStream: trackedStream(),
-        ),
-      ]),
-    );
-
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(
-        allowMultiple: true,
-        allowedExtensions: ['tar.gz'],
-        maxCount: 2,
-      ),
-      throwsA(
-        isA<FilePickerSelectionFailure>()
-            .having(
-              (failure) => failure.code,
-              '오류 코드',
-              FilePickerSelectionErrorCode.extensionNotAllowed,
-            )
-            .having((failure) => failure.fileName, '파일 이름', '거부됨.tar.zip'),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
-
-  test('빈 허용 확장자 목록은 모든 파일 이름을 허용한다', () async {
+  test('an_empty_allowed_extension_list_allows_all_file_names', () async {
     final originalFilePicker = _registeredFilePickerOrFallback();
     addTearDown(() => fp.FilePicker.platform = originalFilePicker);
     final picker = _ResultFilePicker(
@@ -425,59 +464,11 @@ void main() {
     expect(picker.lastAllowedExtensions, isNull);
   });
 
-  test('음수 metadata 크기는 aggregate 합계에서 다른 파일 크기를 상쇄하지 않는다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    var listenCount = 0;
-    Stream<List<int>> trackedStream() async* {
-      listenCount += 1;
-      yield [1];
-    }
-
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: 'unknown.bin',
-          size: -(maxFileInputAggregateTransportBytes ~/ 5),
-          readStream: trackedStream(),
-        ),
-        fp.PlatformFile(
-          name: 'first.bin',
-          size: maxFileInputAggregateTransportBytes * 3 ~/ 5,
-          readStream: trackedStream(),
-        ),
-        fp.PlatformFile(
-          name: 'second.bin',
-          size: maxFileInputAggregateTransportBytes * 3 ~/ 5,
-          readStream: trackedStream(),
-        ),
-      ]),
-    );
-
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFiles(
-        allowMultiple: true,
-        maxCount: 3,
-      ),
-      throwsA(
-        isA<FilePickerSelectionFailure>().having(
-          (failure) => failure.code,
-          '오류 코드',
-          FilePickerSelectionErrorCode.totalTooLarge,
-        ),
-      ),
-    );
-    expect(listenCount, isZero);
-  });
-
-  test('정책 전체 제한이 없거나 더 느슨해도 고정 aggregate cap은 읽기 전에 적용한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-
-    for (final policyMaximum in <int?>[
-      null,
-      maxFileInputAggregateTransportBytes + 1,
-    ]) {
+  test(
+    'a_negative_metadata_size_does_not_offset_other_file_sizes_in_the_aggregate_total',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
       var listenCount = 0;
       Stream<List<int>> trackedStream() async* {
         listenCount += 1;
@@ -487,13 +478,18 @@ void main() {
       fp.FilePicker.platform = _ResultFilePicker(
         fp.FilePickerResult([
           fp.PlatformFile(
+            name: 'unknown.bin',
+            size: -(maxFileInputAggregateTransportBytes ~/ 5),
+            readStream: trackedStream(),
+          ),
+          fp.PlatformFile(
             name: 'first.bin',
-            size: maxFileInputAggregateTransportBytes,
+            size: maxFileInputAggregateTransportBytes * 3 ~/ 5,
             readStream: trackedStream(),
           ),
           fp.PlatformFile(
             name: 'second.bin',
-            size: 1,
+            size: maxFileInputAggregateTransportBytes * 3 ~/ 5,
             readStream: trackedStream(),
           ),
         ]),
@@ -502,64 +498,121 @@ void main() {
       await expectLater(
         const FilePickerPluginBridge().pickOpenFiles(
           allowMultiple: true,
-          maxCount: 2,
-          maxTotalBytes: policyMaximum,
+          maxCount: 3,
         ),
         throwsA(
-          isA<FilePickerSelectionFailure>()
-              .having(
-                (failure) => failure.code,
-                '오류 코드',
-                FilePickerSelectionErrorCode.totalTooLarge,
-              )
-              .having(
-                (failure) => failure.maximum,
-                'aggregate 최대 크기',
-                maxFileInputAggregateTransportBytes,
-              ),
+          isA<FilePickerSelectionFailure>().having(
+            (failure) => failure.code,
+            'error code',
+            FilePickerSelectionErrorCode.totalTooLarge,
+          ),
         ),
       );
       expect(listenCount, isZero);
-    }
-  });
+    },
+  );
 
-  test('native byte fallback 읽기 실패는 typed 오류로 전달한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    fp.FilePicker.platform = _ResultFilePicker(
-      fp.FilePickerResult([
-        fp.PlatformFile(
-          name: 'missing-file.bin',
-          size: 0,
-          path: _missingNativeFilePath,
+  test(
+    'the_fixed_aggregate_cap_applies_before_reading_when_the_policy_total_limit_is_absent_or_looser',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+
+      for (final policyMaximum in <int?>[
+        null,
+        maxFileInputAggregateTransportBytes + 1,
+      ]) {
+        var listenCount = 0;
+        Stream<List<int>> trackedStream() async* {
+          listenCount += 1;
+          yield [1];
+        }
+
+        fp.FilePicker.platform = _ResultFilePicker(
+          fp.FilePickerResult([
+            fp.PlatformFile(
+              name: 'first.bin',
+              size: maxFileInputAggregateTransportBytes,
+              readStream: trackedStream(),
+            ),
+            fp.PlatformFile(
+              name: 'second.bin',
+              size: 1,
+              readStream: trackedStream(),
+            ),
+          ]),
+        );
+
+        await expectLater(
+          const FilePickerPluginBridge().pickOpenFiles(
+            allowMultiple: true,
+            maxCount: 2,
+            maxTotalBytes: policyMaximum,
+          ),
+          throwsA(
+            isA<FilePickerSelectionFailure>()
+                .having(
+                  (failure) => failure.code,
+                  'error code',
+                  FilePickerSelectionErrorCode.totalTooLarge,
+                )
+                .having(
+                  (failure) => failure.maximum,
+                  'aggregate maximum size',
+                  maxFileInputAggregateTransportBytes,
+                ),
+          ),
+        );
+        expect(listenCount, isZero);
+      }
+    },
+  );
+
+  test(
+    'native_byte_fallback_read_failure_is_propagated_as_a_typed_error',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      fp.FilePicker.platform = _ResultFilePicker(
+        fp.FilePickerResult([
+          fp.PlatformFile(
+            name: 'missing-file.bin',
+            size: 0,
+            path: _missingNativeFilePath,
+          ),
+        ]),
+      );
+
+      await expectLater(
+        const FilePickerPluginBridge().pickOpenFile(),
+        throwsA(
+          isA<FilePickerReadFailure>().having(
+            (failure) => failure.fileName,
+            'file name',
+            'missing-file.bin',
+          ),
         ),
-      ]),
-    );
+      );
+    },
+    skip: kIsWeb,
+  );
 
-    await expectLater(
-      const FilePickerPluginBridge().pickOpenFile(),
-      throwsA(
-        isA<FilePickerReadFailure>().having(
-          (failure) => failure.fileName,
-          '파일 이름',
-          'missing-file.bin',
-        ),
-      ),
-    );
-  }, skip: kIsWeb);
+  test(
+    'web_FilePath_selection_returns_null_without_evaluating_the_path_getter',
+    () async {
+      final originalFilePicker = _registeredFilePickerOrFallback();
+      addTearDown(() => fp.FilePicker.platform = originalFilePicker);
+      final picker = _ResultFilePicker(
+        null,
+        errorToThrow: const _UnexpectedPickFilesInvocation(),
+      );
+      fp.FilePicker.platform = picker;
 
-  test('Web FilePath 선택은 path getter를 평가하지 않고 null을 반환한다', () async {
-    final originalFilePicker = _registeredFilePickerOrFallback();
-    addTearDown(() => fp.FilePicker.platform = originalFilePicker);
-    final picker = _ResultFilePicker(
-      null,
-      errorToThrow: const _UnexpectedPickFilesInvocation(),
-    );
-    fp.FilePicker.platform = picker;
+      final picked = await const FilePickerPluginBridge().pickOpenPath();
 
-    final picked = await const FilePickerPluginBridge().pickOpenPath();
-
-    expect(picked, isNull);
-    expect(picker.pickFilesCallCount, isZero);
-  }, skip: !kIsWeb);
+      expect(picked, isNull);
+      expect(picker.pickFilesCallCount, isZero);
+    },
+    skip: !kIsWeb,
+  );
 }

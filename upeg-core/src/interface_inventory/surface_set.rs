@@ -141,7 +141,7 @@ mod tests {
     use crate::ALL_SURFACES;
 
     #[test]
-    fn surface_set은_rank_순서로_정렬하고_중복을_제거한다() {
+    fn surface_set_sorts_in_rank_order_and_deduplicates() {
         let set = SurfaceSet::new([
             Surface::Http,
             Surface::Cli,
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn surface_set의_rank는_가장_낮은_표면을_따른다() {
+    fn surface_set_rank_follows_the_lowest_surface() {
         assert_eq!(
             SurfaceSet::new([Surface::Http, Surface::Tui]).rank(),
             surface_rank(Surface::Tui)
@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn 빈_surface_set은_가장_뒤로_정렬된다() {
+    fn empty_surface_set_sorts_last() {
         let empty = SurfaceSet::default();
 
         assert!(empty.is_empty());
@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn surface_rank는_모든_표면에_고유하다() {
+    fn surface_rank_is_unique_for_every_surface() {
         let mut ranks = ALL_SURFACES
             .iter()
             .copied()

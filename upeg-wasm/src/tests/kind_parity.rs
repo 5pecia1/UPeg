@@ -124,7 +124,7 @@ fn plugin_output_kind_wire_name(kind: &PluginOutputKind) -> String {
 }
 
 #[test]
-fn 플러그인_입력_kind는_loader_input_kind와_일치한다() {
+fn plugin_input_kind_matches_loader_input_kind() {
     let plugin_names: BTreeSet<String> = plugin_input_kind_samples()
         .iter()
         .map(plugin_input_kind_wire_name)
@@ -145,7 +145,7 @@ fn 플러그인_입력_kind는_loader_input_kind와_일치한다() {
 }
 
 #[test]
-fn 플러그인_출력_kind는_loader_output_kind와_일치한다() {
+fn plugin_output_kind_matches_loader_output_kind() {
     let plugin_names: BTreeSet<String> = plugin_output_kind_samples()
         .iter()
         .map(plugin_output_kind_wire_name)

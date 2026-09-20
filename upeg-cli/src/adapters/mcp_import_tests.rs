@@ -60,7 +60,7 @@ fn unix_script_config(script: &std::path::Path) -> UpstreamConfig {
 }
 
 #[test]
-fn 서버_설정은_최소_toml을_파싱한다() {
+fn server_config_parses_minimal_toml() {
     let raw = r#"command = "echo""#;
     let cfg: UpstreamConfig = toml::from_str(raw).unwrap();
     assert_eq!(cfg.command, "echo");
@@ -68,7 +68,7 @@ fn 서버_설정은_최소_toml을_파싱한다() {
 }
 
 #[test]
-fn 서버_설정은_인자가_있는_경우도_파싱한다() {
+fn server_config_parses_args_when_present() {
     let raw = r#"
         command = "npx"
         args = ["-y", "@modelcontextprotocol/server-github"]
@@ -79,7 +79,7 @@ fn 서버_설정은_인자가_있는_경우도_파싱한다() {
 }
 
 #[test]
-fn 선언에서_메타로의_변환은_id에_네임스페이스를_붙인다() {
+fn decl_to_meta_namespaces_id() {
     let decl = RemoteToolDecl {
         id: "num.hex_to_decimal".into(),
         description: "from upstream".into(),
@@ -91,13 +91,13 @@ fn 선언에서_메타로의_변환은_id에_네임스페이스를_붙인다() {
     assert_eq!(meta.toolkit, "github");
     assert_eq!(meta.description, "from upstream");
     assert_eq!(meta.invoker, Invoker::External);
-    // 재노출 기본 차단: ALL_SURFACES에서 Mcp만 빠진다.
+    // Re-export blocked by default: only Mcp is dropped from ALL_SURFACES.
     assert_eq!(meta.surfaces, upeg_core::ALL_SURFACES_EXCEPT_MCP);
     assert!(!meta.surfaces.contains(&Surface::Mcp));
 }
 
 #[test]
-fn reexport_opt_in이면_임포트_도구가_mcp_표면에도_노출된다() {
+fn reexport_opt_in_exposes_imported_tool_on_mcp_surface() {
     let decl = RemoteToolDecl {
         id: "echo".into(),
         description: "from upstream".into(),
@@ -110,8 +110,8 @@ fn reexport_opt_in이면_임포트_도구가_mcp_표면에도_노출된다() {
 }
 
 #[test]
-fn upstream_config의_reexport_기본값은_차단이다() {
-    let cfg: UpstreamConfig = toml::from_str(r#"command = "echo""#).expect("최소 config");
+fn upstream_config_reexport_defaults_to_blocked() {
+    let cfg: UpstreamConfig = toml::from_str(r#"command = "echo""#).expect("minimal config");
     assert_eq!(cfg.reexport_policy(), McpReexport::Blocked);
 
     let cfg: UpstreamConfig =
@@ -120,7 +120,7 @@ fn upstream_config의_reexport_기본값은_차단이다() {
 }
 
 #[test]
-fn 선언에서_메타로의_변환은_점이_포함된_서버_네임스페이스와_도구_이름을_보존한다() {
+fn decl_to_meta_preserves_dotted_server_namespace_and_tool_name() {
     let decl = RemoteToolDecl {
         id: "admin.tools.list".into(),
         description: "from upstream".into(),
@@ -134,7 +134,7 @@ fn 선언에서_메타로의_변환은_점이_포함된_서버_네임스페이�
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_빈_이름을_스킵_사유와_함께_건너뛴다() {
+fn tools_list_entry_parsing_skips_empty_names_with_reason() {
     // A buggy upstream MCP server emitting `{"name": ""}` would
     // namespace as `<server>.` (server prefix + dot + empty) —
     // unidentifiable for CLI dispatch. Skip so other well-formed
@@ -164,7 +164,7 @@ fn 도구_목록_항목_파싱은_빈_이름을_스킵_사유와_함께_건너�
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_패딩된_이름을_거부한다() {
+fn tools_list_entry_parsing_rejects_padded_names() {
     // Upstream MCP names become upeg Tool ids. They must be canonical
     // instead of being silently normalized.
     use serde_json::json;
@@ -180,7 +180,7 @@ fn 도구_목록_항목_파싱은_패딩된_이름을_거부한다() {
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_변환_불가_입력_schema를_사유와_함께_스킵한다() {
+fn tools_list_entry_parsing_skips_unconvertible_input_schema_with_reason() {
     // Partial success: an inputSchema upeg's typed inputs cannot
     // express skips the ONE tool with a structured reason instead of
     // failing the whole server listing.
@@ -208,7 +208,7 @@ fn 도구_목록_항목_파싱은_변환_불가_입력_schema를_사유와_함�
 }
 
 #[test]
-fn 일부_tool의_schema_변환이_실패하면_성공분과_스킵을_함께_반환한다() {
+fn failed_schema_conversion_returns_successes_and_skips_together() {
     // The headline partial-success contract at the pure level: one
     // $ref tool + one good tool → good tool parses, $ref tool lands
     // in `skipped` with the unsupported keyword named in the reason.
@@ -237,7 +237,7 @@ fn 일부_tool의_schema_변환이_실패하면_성공분과_스킵을_함께_�
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_객체_입력_schema를_허용한다() {
+fn tools_list_entry_parsing_accepts_object_input_schema() {
     use serde_json::json;
     let raw = vec![json!({
         "name": "ok_schema",
@@ -252,7 +252,7 @@ fn 도구_목록_항목_파싱은_객체_입력_schema를_허용한다() {
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_output_schema를_출력_명세로_가져온다() {
+fn tools_list_entry_parsing_imports_output_schema_as_output_spec() {
     use serde_json::json;
     let raw = vec![json!({
         "name": "ok_output",
@@ -293,7 +293,7 @@ fn 도구_목록_항목_파싱은_output_schema를_출력_명세로_가져온다
 }
 
 #[test]
-fn 선언에서_메타로의_변환은_output_schema를_보존한다() {
+fn decl_to_meta_preserves_output_schema() {
     use serde_json::json;
     let raw = vec![json!({
         "name": "render_result",
@@ -329,7 +329,7 @@ fn 선언에서_메타로의_변환은_output_schema를_보존한다() {
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_x_upeg_kind_출력을_보존한다() {
+fn tools_list_entry_parsing_preserves_x_upeg_kind_outputs() {
     use serde_json::json;
     let raw = vec![json!({
         "name": "render_result",
@@ -376,7 +376,7 @@ fn 도구_목록_항목_파싱은_x_upeg_kind_출력을_보존한다() {
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_url이_없는_임베디드뷰_출력을_스킵한다() {
+fn tools_list_entry_parsing_skips_embedded_view_output_without_url() {
     use serde_json::json;
     let raw = vec![json!({
         "name": "render_result",
@@ -413,7 +413,7 @@ fn 도구_목록_항목_파싱은_url이_없는_임베디드뷰_출력을_스킵
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_변환_불가_output_schema를_사유와_함께_스킵한다() {
+fn tools_list_entry_parsing_skips_unconvertible_output_schema_with_reason() {
     use serde_json::json;
     for output_schema in [
         json!("not an object"),
@@ -441,7 +441,7 @@ fn 도구_목록_항목_파싱은_변환_불가_output_schema를_사유와_함�
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_이름이_누락되면_오류를_낸다() {
+fn tools_list_entry_parsing_errors_on_missing_name() {
     // Distinguish missing vs empty. Missing `name` is a spec
     // violation → loud-fail Protocol error (the upstream is broken).
     // Empty is just bad data → silently skip.
@@ -459,7 +459,7 @@ fn 도구_목록_항목_파싱은_이름이_누락되면_오류를_낸다() {
 }
 
 #[test]
-fn 등록_서버는_빈_이름을_거부한다() {
+fn register_server_rejects_empty_name() {
     // Validate at the namespace-prefix boundary. An empty name
     // would namespace tools as `.<original_id>` (leading dot) which
     // is usable but confusing. Direct callers of register_server
@@ -480,7 +480,7 @@ fn 등록_서버는_빈_이름을_거부한다() {
 }
 
 #[test]
-fn 등록_서버는_패딩된_이름을_거부한다() {
+fn register_server_rejects_padded_name() {
     let cfg = UpstreamConfig {
         command: "echo".into(),
         args: vec![],
@@ -495,7 +495,7 @@ fn 등록_서버는_패딩된_이름을_거부한다() {
 }
 
 #[test]
-fn 인벤토리가_없는_가림_확인은_충돌을_감지한다() {
+fn inventory_free_shadow_check_detects_collision() {
     // The extracted check is directly unit-testable. Pin the
     // contract: a decl whose namespaced id matches a built-in
     // inventory id surfaces as `IdShadowsBuiltIn` with both server
@@ -518,7 +518,7 @@ fn 인벤토리가_없는_가림_확인은_충돌을_감지한다() {
 }
 
 #[test]
-fn 충돌이_없으면_인벤토리가_없는_가림_확인은_통과한다() {
+fn inventory_free_shadow_check_passes_without_collision() {
     // Sanity: a non-colliding namespace passes the check.
     let decls = vec![
         RemoteToolDecl {
@@ -534,13 +534,13 @@ fn 충돌이_없으면_인벤토리가_없는_가림_확인은_통과한다() {
             output_spec: OutputSpec::empty(),
         },
     ];
-    // `iter262unique` server prefix can't collide with any built-in.
-    check_no_inventory_shadows("iter262unique", &decls).expect("non-colliding namespace must pass");
+    // `uniquesrv` server prefix can't collide with any built-in.
+    check_no_inventory_shadows("uniquesrv", &decls).expect("non-colliding namespace must pass");
 }
 
 #[test]
-fn 인벤토리가_없는_가림_확인은_runtime_도구킷_충돌을_거부한다() {
-    let id = "github.com.iter262.runtime_conflict";
+fn inventory_free_shadow_check_rejects_runtime_toolkit_collision() {
+    let id = "github.com.shadowtest.runtime_conflict";
     upeg_runtime::toolbox_add_tool(ToolMeta {
         id,
         toolkit: "github.com",
@@ -553,6 +553,8 @@ fn 인벤토리가_없는_가림_확인은_runtime_도구킷_충돌을_거부한
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -562,7 +564,7 @@ fn 인벤토리가_없는_가림_확인은_runtime_도구킷_충돌을_거부한
     });
 
     let decls = vec![RemoteToolDecl {
-        id: "com.iter262.runtime_conflict".into(),
+        id: "com.shadowtest.runtime_conflict".into(),
         description: "from upstream".into(),
         input_spec: InputSpec::empty(),
         output_spec: OutputSpec::empty(),
@@ -586,7 +588,7 @@ fn 인벤토리가_없는_가림_확인은_runtime_도구킷_충돌을_거부한
 }
 
 #[test]
-fn 인벤토리가_없는_가림_확인은_첫번째_충돌에서_중단한다() {
+fn inventory_free_shadow_check_aborts_on_first_collision() {
     // Atomic-per-server semantics: if any decl collides, the check
     // returns Err on the FIRST one. Subsequent decls aren't
     // examined (we'd return the first error). Pin this so a
@@ -621,15 +623,16 @@ fn 인벤토리가_없는_가림_확인은_첫번째_충돌에서_중단한다()
 }
 
 #[test]
-fn 인벤토리가_없는_확인은_빈_선언을_가린다() {
+fn inventory_free_check_passes_empty_decls() {
     // Empty decls list — degenerate case, must pass cleanly.
     let decls: Vec<RemoteToolDecl> = vec![];
     check_no_inventory_shadows("any_server_name", &decls).expect("empty decls must always pass");
 }
 
 #[test]
-fn id가_내장을_가리면_메시지는_이름변경_경로를_설명한다() {
-    // error message must name both the offending server    // and the colliding ns_id, and hint at the rename remedy.
+fn id_shadowing_builtin_message_explains_rename_remedy() {
+    // The error message must name both the offending server and the
+    // colliding ns_id, and hint at the rename remedy.
     let err = ImportError::IdShadowsBuiltIn {
         server: "convert".into(),
         ns_id: "num.hex_to_decimal".into(),
@@ -654,7 +657,7 @@ fn id가_내장을_가리면_메시지는_이름변경_경로를_설명한다() 
 }
 
 #[test]
-fn 빈_서버_이름_메시지는_네임스페이스의_역할을_설명한다() {
+fn empty_server_name_message_explains_namespace_role() {
     let msg = format!("{}", ImportError::EmptyServerName);
     assert!(
         msg.contains("non-empty"),
@@ -667,7 +670,7 @@ fn 빈_서버_이름_메시지는_네임스페이스의_역할을_설명한다()
 }
 
 #[test]
-fn 표시_값은_큰_json을_줄인다() {
+fn display_value_truncates_large_json() {
     // A pathological upstream entry (e.g., a multi-MB inputSchema)
     // must not bloat the error response. Pin both behaviours: small
     // values pass through, large values get truncated with marker +
@@ -701,7 +704,7 @@ fn 표시_값은_큰_json을_줄인다() {
 }
 
 #[test]
-fn 표시_값은_짧은_멀티바이트를_잘라낼_때_손상시키지_않는다() {
+fn display_value_truncation_does_not_corrupt_short_multibyte() {
     // Parallel multibyte safety to display_id. The byte-cheap
     // pre-filter must not over-trigger on multibyte input (e.g.,
     // 100 emojis = 400 bytes / 100 chars: byte check fires at
@@ -731,7 +734,7 @@ fn 표시_값은_짧은_멀티바이트를_잘라낼_때_손상시키지_않는�
 }
 
 #[test]
-fn 도구_배열_추출은_누락된_경우와_잘못된_타입을_처리한다() {
+fn extract_tools_array_handles_missing_and_wrong_type() {
     // array-level missing-vs-wrong-type disambiguation.
     // Missing → empty Vec (legitimate). Wrong type → Protocol error.
     use serde_json::json;
@@ -763,7 +766,7 @@ fn 도구_배열_추출은_누락된_경우와_잘못된_타입을_처리한다(
 }
 
 #[test]
-fn 도구_목록_항목_파싱은_잘못된_타입의_이름에_오류를_낸다() {
+fn tools_list_entry_parsing_errors_on_wrong_type_name() {
     // Missing-vs-wrong-type disambiguation: a `name: 42` entry
     // must not return "missing `name`" (that would mislead the
     // upstream server author). Present-but-wrong-type returns a
@@ -792,9 +795,9 @@ fn 도구_목록_항목_파싱은_잘못된_타입의_이름에_오류를_낸다
 }
 
 #[test]
-fn 스폰_알수없는_명령은_깨끗한_오류를_반환한다() {
+fn spawn_unknown_command_returns_clean_error() {
     let cfg = UpstreamConfig {
-        command: "definitely_not_a_real_program_iter50".into(),
+        command: "definitely_not_a_real_program_upeg_test".into(),
         args: vec![],
         reexport: false,
     };
@@ -810,7 +813,7 @@ fn 스폰_알수없는_명령은_깨끗한_오류를_반환한다() {
 
 #[cfg(unix)]
 #[test]
-fn 응답_없는_서버_스폰은_initialize_시간초과를_반환한다() {
+fn unresponsive_server_spawn_returns_initialize_timeout() {
     let cfg = UpstreamConfig {
         command: "sleep".into(),
         args: vec!["60".into()],
@@ -835,7 +838,7 @@ fn 응답_없는_서버_스폰은_initialize_시간초과를_반환한다() {
 
 #[cfg(unix)]
 #[test]
-fn 응답_없는_서버의_도구_목록_호출은_시간초과를_반환한다() {
+fn unresponsive_server_tools_list_returns_timeout() {
     let (root, script) = write_unix_script(
         "tools-list-timeout",
         r#"#!/bin/sh
@@ -869,7 +872,7 @@ sleep 60
 
 #[cfg(unix)]
 #[test]
-fn 응답_없는_서버의_도구_호출은_시간초과를_반환한다() {
+fn unresponsive_server_tools_call_returns_timeout() {
     use serde_json::json;
 
     let (root, script) = write_unix_script(

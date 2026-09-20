@@ -74,13 +74,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn translate는_settings_theme_을_영어로_반환한다() {
+    fn translate_returns_settings_theme_in_english() {
         let s = translate("settings.section.theme".to_string(), LocaleDto::En);
         assert_eq!(s, "theme");
     }
 
     #[test]
-    fn translate는_settings_theme_을_한국어로_반환한다() {
+    fn translate_returns_settings_theme_in_korean() {
         let s = translate("settings.section.theme".to_string(), LocaleDto::Ko);
         // A key echo would mean the KO catalog is missing the entry —
         // this asserts the catalog actually carries a Korean translation.
@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn translate_args는_placeholders를_치환한다() {
+    fn translate_args_substitutes_placeholders() {
         let s = translate_args(
             "empty.board.title".to_string(),
             LocaleDto::En,
@@ -103,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn locale_dto는_core_locale로_매핑된다() {
+    fn locale_dto_maps_to_core_locale() {
         assert_eq!(Locale::from(LocaleDto::En), Locale::En);
         assert_eq!(Locale::from(LocaleDto::Ko), Locale::Ko);
     }

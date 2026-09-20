@@ -54,24 +54,24 @@ class _RecordingSummonDriver extends WindowSummonDriver {
 
 void main() {
   group('decideSummonToggle', () {
-    test('보이는_창은_hide로_판정한다', () {
+    test('visible_window_decides_hide', () {
       const snapshot = WindowSnapshot(isVisible: true, isMinimized: false);
       expect(decideSummonToggle(snapshot), SummonToggleDecision.hideWindow);
     });
 
-    test('숨겨진_창은_popup_summon으로_판정한다', () {
+    test('hidden_window_decides_popup_summon', () {
       const snapshot = WindowSnapshot(isVisible: false, isMinimized: false);
       expect(decideSummonToggle(snapshot), SummonToggleDecision.summonPopup);
     });
 
-    test('최소화된_창은_visible이어도_popup_summon으로_판정한다', () {
+    test('minimized_window_decides_popup_summon_even_when_visible', () {
       const snapshot = WindowSnapshot(isVisible: true, isMinimized: true);
       expect(decideSummonToggle(snapshot), SummonToggleDecision.summonPopup);
     });
   });
 
   group('summonPlan', () {
-    test('최소화_상태면_restore_show_focus_순서로_전이한다', () {
+    test('minimized_transitions_through_restore_show_focus_order', () {
       expect(summonPlan(isMinimized: true), [
         SummonStep.restore,
         SummonStep.show,
@@ -79,7 +79,7 @@ void main() {
       ]);
     });
 
-    test('최소화가_아니면_show_focus만_수행한다', () {
+    test('not_minimized_runs_only_show_focus', () {
       expect(summonPlan(isMinimized: false), [
         SummonStep.show,
         SummonStep.focus,
@@ -88,7 +88,7 @@ void main() {
   });
 
   group('summonWindow', () {
-    test('숨겨진_창을_show하고_focus한다', () async {
+    test('shows_and_focuses_hidden_window', () async {
       final driver = _RecordingSummonDriver(visible: false, minimized: false);
 
       await summonWindow(driver: driver);
@@ -96,7 +96,7 @@ void main() {
       expect(driver.calls, ['isVisible', 'isMinimized', 'show', 'focus']);
     });
 
-    test('최소화된_창은_restore부터_수행한다', () async {
+    test('minimized_window_restores_first', () async {
       final driver = _RecordingSummonDriver(visible: false, minimized: true);
 
       await summonWindow(driver: driver);
@@ -112,7 +112,7 @@ void main() {
   });
 
   group('runSummonToggle', () {
-    test('보이는_창은_숨기고_window_mode는_바꾸지_않는다', () async {
+    test('visible_window_hides_without_changing_window_mode', () async {
       final container = ProviderContainer(
         overrides: [
           windowModeProvider.overrideWith(
@@ -130,7 +130,7 @@ void main() {
       expect(container.read(windowModeProvider), WindowMode.full);
     });
 
-    test('숨겨진_창은_popup_mode로_전환하고_summon한다', () async {
+    test('hidden_window_switches_to_popup_mode_and_summons', () async {
       final container = ProviderContainer(
         overrides: [
           windowModeProvider.overrideWith(
@@ -148,7 +148,7 @@ void main() {
       expect(driver.calls, isNot(contains('hide')));
     });
 
-    test('최소화된_창은_restore를_거쳐_popup으로_summon한다', () async {
+    test('minimized_window_summons_to_popup_via_restore', () async {
       final container = ProviderContainer(
         overrides: [
           windowModeProvider.overrideWith(

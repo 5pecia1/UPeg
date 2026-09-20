@@ -181,7 +181,7 @@ impl<'de> Deserialize<'de> for FileContent {
         // Internally-tagged *struct* variants round-trip cleanly (the newtype
         // form is what serde rejects), so decode through this shim and unwrap.
         // The tag/variant spellings must be literals — serde's attributes take
-        // no const paths — so `라운드트립하면_원래_값이_그대로_돌아온다` pins
+        // no const paths — so `roundtrip_returns_the_original_value` pins
         // them against the `FILE_CONTENT_*` consts the encoders use.
         #[derive(Deserialize)]
         #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

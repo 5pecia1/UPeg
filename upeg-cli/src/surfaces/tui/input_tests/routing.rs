@@ -1,15 +1,16 @@
-//! `input_tests` 모듈의 짝 — 키 라우팅(q-back, 폼 안 필터 단축키
-//! 무시, 결과 이동)과 crossterm 어댑터 회귀 테스트만 모은다.
-//! 워크스페이스 1000-LoC 파일 크기 예산 때문에 분리했다.
+//! Companion to the `input_tests` module — collects only key-routing
+//! (q-back, ignoring filter shortcuts inside forms, result navigation)
+//! and crossterm-adapter regression tests. Split out for the workspace
+//! 1000-LoC file-size budget.
 
 use super::super::msg::key_stroke_from_crossterm;
 use super::*;
 
 #[test]
-fn 상세_보기에서_큐는_목록으로_돌아간다() {
-    // 렌더 힌트는 "q back"을 안내했지만 핸들러에서는 q가 Action::None으로
-    // 흘러갔다. 이후 리팩터가 힌트를 다시 조용히 깨뜨리지 못하도록
-    // 새 동작을 고정한다.
+fn q_in_detail_view_returns_to_list() {
+    // The render hint advertised "q back" but the handler let q fall
+    // through as Action::None. Pinning the new behavior so a later
+    // refactor cannot silently break the hint again.
     let mut s = State {
         cursor: 0,
         view: View::Detail,
@@ -21,22 +22,26 @@ fn 상세_보기에서_큐는_목록으로_돌아간다() {
     assert_eq!(
         action,
         Action::None,
-        "Detail의 q는 Action이 아니라 이동이어야 한다"
+        "q in Detail must be navigation, not an Action"
     );
-    assert_eq!(s.view, View::List, "Detail의 q는 List 보기로 돌아가야 한다");
+    assert_eq!(
+        s.view,
+        View::List,
+        "q in Detail must return to the List view"
+    );
 
-    // 대문자 Q도 같다.
+    // Uppercase Q behaves the same.
     let mut s2 = State {
         cursor: 0,
         view: View::Detail,
         ..State::default()
     };
     handle_key(&mut s2, Key::Char('Q'), t);
-    assert_eq!(s2.view, View::List, "대문자 Q도 동일하게 뒤로 가야 한다");
+    assert_eq!(s2.view, View::List, "uppercase Q must go back the same way");
 }
 
 #[test]
-fn 폼_안의_큐는_사용자가_입력할_수_있도록_종료하지_않는다() {
+fn q_inside_form_does_not_quit_so_user_can_type() {
     let mut s = State {
         cursor: 1,
         view: View::Form {
@@ -53,15 +58,15 @@ fn 폼_안의_큐는_사용자가_입력할_수_있도록_종료하지_않는다
         assert_eq!(
             form.fields[0].draft,
             DraftInputValue::Text("q".into()),
-            "문자 `q`는 가로채이지 않고 필드에 들어가야 한다"
+            "the character `q` must enter the field unintercepted"
         );
     } else {
-        panic!("Form 보기에 머물러야 한다");
+        panic!("must stay in the Form view");
     }
 }
 
 #[test]
-fn 폼_안의_필터_단축키_문자는_그대로_텍스트로_남는다() {
+fn filter_shortcut_chars_inside_form_remain_literal_text() {
     let mut s = State {
         cursor: 1,
         view: View::Form {
@@ -80,15 +85,15 @@ fn 폼_안의_필터_단축키_문자는_그대로_텍스트로_남는다() {
         assert_eq!(
             form.fields[0].draft,
             DraftInputValue::Text("bt".into()),
-            "폼 편집 중에는 필터 단축키가 텍스트로 남아야 한다"
+            "while editing a form, filter shortcuts must remain text"
         );
     } else {
-        panic!("Form 보기에 머물러야 한다");
+        panic!("must stay in the Form view");
     }
 }
 
 #[test]
-fn 탭은_포커스된_필드를_순환하며_전진시킨다() {
+fn tab_advances_focused_field_cyclically() {
     let mut s = State {
         cursor: 0,
         view: View::Form {
@@ -109,12 +114,12 @@ fn 탭은_포커스된_필드를_순환하며_전진시킨다() {
     }
     handle_key(&mut s, Key::Tab, t);
     if let View::Form { form, .. } = &s.view {
-        assert_eq!(form.focused, 0, "첫 필드로 순환해야 한다");
+        assert_eq!(form.focused, 0, "must cycle back to the first field");
     }
 }
 
 #[test]
-fn 결과_적용은_결과_보기로_전이한다() {
+fn apply_outcome_transitions_to_result_view() {
     let mut s = State {
         cursor: 0,
         view: View::Form {
@@ -140,13 +145,13 @@ fn 결과_적용은_결과_보기로_전이한다() {
             assert_eq!(text, "");
             assert!(!is_error);
         }
-        _ => panic!("Result 보기를 기대했다"),
+        _ => panic!("expected the Result view"),
     }
     assert_eq!(s.focus, FocusArea::RightPane);
 }
 
 #[test]
-fn 도구_오류_결과는_오류로_표시된다() {
+fn tool_error_outcome_is_marked_as_error() {
     let mut s = State::default();
     apply_outcome(
         &mut s,
@@ -160,16 +165,17 @@ fn 도구_오류_결과는_오류로_표시된다() {
         assert!(*is_error);
         assert_eq!(text, "boom");
     } else {
-        panic!("Result를 기대했다");
+        panic!("expected Result");
     }
 }
 
 #[test]
-fn 결과_보기에서_소비되지_않는_키는_결과를_유지한다() {
-    // 예전 계약: 어떤 키를 눌러도 목록으로 돌아갔다. 새 계약에서는
-    // Enter/F1(재실행)과 Esc/q(닫기)만 의미가 있고, 그 외 키는 무시되어
-    // 결과가 그대로 남는다 (`upeg-cli/src/surfaces/tui/state_tests/navigation.rs`
-    // 의 재실행/닫기 테스트와 짝을 이룬다).
+fn unconsumed_key_in_result_view_keeps_result() {
+    // Old contract: any key returned to the list. Under the new contract
+    // only Enter/F1 (rerun) and Esc/q (close) mean anything; every other
+    // key is ignored and the result stays put (pairs with the
+    // rerun/close tests in
+    // `upeg-cli/src/surfaces/tui/state_tests/navigation.rs`).
     let mut s = State {
         cursor: 0,
         view: View::Result {
@@ -187,7 +193,7 @@ fn 결과_보기에서_소비되지_않는_키는_결과를_유지한다() {
 }
 
 #[test]
-fn 결과_보기에서_이스케이프는_목록으로_돌아간다() {
+fn esc_in_result_view_returns_to_list() {
     let mut s = State {
         cursor: 0,
         view: View::Result {
@@ -205,7 +211,7 @@ fn 결과_보기에서_이스케이프는_목록으로_돌아간다() {
 }
 
 #[test]
-fn crossterm_어댑터는_ctrl_k_수식어를_공통_resolver에_전달한다() {
+fn crossterm_adapter_passes_ctrl_k_modifier_to_common_resolver() {
     let event = crossterm::event::KeyEvent::new(
         crossterm::event::KeyCode::Char('k'),
         crossterm::event::KeyModifiers::CONTROL,
@@ -222,4 +228,4 @@ fn crossterm_어댑터는_ctrl_k_수식어를_공통_resolver에_전달한다() 
     );
 }
 
-// ─── 순수 헬퍼 ───────────────────────────────────────────
+// ─── Pure helpers ──────────────────────────────────────────

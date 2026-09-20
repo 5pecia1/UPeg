@@ -37,7 +37,7 @@ async fn body_to_value(body: Body) -> Value {
 }
 
 #[tokio::test]
-async fn 상태확인은_베어러와_오리진_검사를_우회한다() {
+async fn healthz_bypasses_bearer_and_origin_checks() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -51,7 +51,7 @@ async fn 상태확인은_베어러와_오리진_검사를_우회한다() {
 }
 
 #[tokio::test]
-async fn 누락된_토큰은_거부된다() {
+async fn missing_token_is_rejected() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -65,7 +65,7 @@ async fn 누락된_토큰은_거부된다() {
 }
 
 #[tokio::test]
-async fn 올바른_토큰은_성공한다() {
+async fn correct_token_succeeds() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -80,7 +80,7 @@ async fn 올바른_토큰은_성공한다() {
 }
 
 #[tokio::test]
-async fn 외부_오리진은_금지된다() {
+async fn external_origin_is_forbidden() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -96,7 +96,7 @@ async fn 외부_오리진은_금지된다() {
 }
 
 #[tokio::test]
-async fn 루프백_오리진은_허용된다() {
+async fn loopback_origin_is_allowed() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -129,7 +129,7 @@ async fn 루프백_오리진은_허용된다() {
 // on header presence/value, not status code, for the "refused" cases.
 
 #[tokio::test]
-async fn 확장_프로그램_오리진의_사전요청은_토큰_없이_성공한다() {
+async fn extension_origin_preflight_succeeds_without_a_token() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -153,7 +153,7 @@ async fn 확장_프로그램_오리진의_사전요청은_토큰_없이_성공�
 }
 
 #[tokio::test]
-async fn 허용되지_않은_웹_오리진의_사전요청은_에이씨에이오_헤더_없이_거부된다() {
+async fn disallowed_web_origin_preflight_is_refused_without_acao_header() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -175,7 +175,7 @@ async fn 허용되지_않은_웹_오리진의_사전요청은_에이씨에이오
 }
 
 #[tokio::test]
-async fn 허용된_오리진과_유효한_토큰의_실제_요청은_에이씨에이오_헤더를_포함한다() {
+async fn allowed_origin_with_valid_token_carries_acao_header() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -197,7 +197,7 @@ async fn 허용된_오리진과_유효한_토큰의_실제_요청은_에이씨�
 }
 
 #[tokio::test]
-async fn 설정된_cors_오리진_웹_클라이언트는_토큰이_있으면_허용된다() {
+async fn configured_cors_origin_web_client_is_allowed_with_a_token() {
     let app = auth_router_with_cors_origins(vec!["https://app.example.com".to_string()]);
 
     let resp = app
@@ -222,7 +222,7 @@ async fn 설정된_cors_오리진_웹_클라이언트는_토큰이_있으면_허
 }
 
 #[tokio::test]
-async fn 설정되지_않은_다른_웹_오리진은_cors_origin_설정과_무관하게_거부된다() {
+async fn unconfigured_web_origin_is_rejected_despite_cors_origin_setting() {
     let app = auth_router_with_cors_origins(vec!["https://app.example.com".to_string()]);
 
     let resp = app
@@ -250,7 +250,7 @@ async fn 설정되지_않은_다른_웹_오리진은_cors_origin_설정과_무�
 const HEALTHZ_MAX_FIELDS: usize = 4;
 
 #[tokio::test]
-async fn 상태확인_응답은_페어링_힌트_형태를_반환한다() {
+async fn healthz_response_returns_a_pairing_hint_shape() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -277,7 +277,7 @@ async fn 상태확인_응답은_페어링_힌트_형태를_반환한다() {
 }
 
 #[tokio::test]
-async fn chrome_extension_origin은_loopback에서_허용된다() {
+async fn chrome_extension_origin_is_allowed_on_loopback() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -293,7 +293,7 @@ async fn chrome_extension_origin은_loopback에서_허용된다() {
 }
 
 #[tokio::test]
-async fn chrome_extension_origin이어도_비루프백_호스트는_거부된다() {
+async fn chrome_extension_origin_with_non_loopback_host_is_rejected() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -310,7 +310,7 @@ async fn chrome_extension_origin이어도_비루프백_호스트는_거부된다
 }
 
 #[tokio::test]
-async fn mcp_경로는_json_알피시를_실행한다() {
+async fn mcp_route_executes_json_rpc() {
     let resp = auth_router()
         .oneshot(
             Request::builder()
@@ -331,25 +331,25 @@ async fn mcp_경로는_json_알피시를_실행한다() {
 }
 
 #[test]
-fn 일시정지된_상태에서_일시정지_결정은_상태확인을_허용한다() {
+fn pause_decision_allows_healthz_when_paused() {
     assert!(!pause_decision("/healthz", true));
 }
 
 #[test]
-fn 일시정지된_상태에서_일시정지_결정은_상태확인이_아닌_경로를_막는다() {
+fn pause_decision_blocks_non_healthz_paths_when_paused() {
     assert!(pause_decision("/v1/tools", true));
     assert!(pause_decision("/mcp", true));
     assert!(pause_decision("/v1/clients/heartbeat", true));
 }
 
 #[test]
-fn 일시정지되지_않은_상태에서_일시정지_결정은_그대로_통과시킨다() {
+fn pause_decision_passes_everything_when_not_paused() {
     assert!(!pause_decision("/healthz", false));
     assert!(!pause_decision("/v1/tools", false));
 }
 
 #[tokio::test]
-async fn 하트비트_기록은_클라이언트_목록에_나타난다() {
+async fn registered_heartbeat_appears_in_the_client_list() {
     let app = auth_router();
     let unique = format!("test-{}-{}", std::process::id(), line!());
     let body = format!(r#"{{"client_id":"{unique}","label":"test"}}"#);
@@ -387,7 +387,7 @@ async fn 하트비트_기록은_클라이언트_목록에_나타난다() {
 }
 
 #[tokio::test]
-async fn 하트비트는_잘못된_형식의_본문을_거부한다() {
+async fn heartbeat_rejects_malformed_body() {
     let resp = auth_router()
         .oneshot(
             Request::builder()

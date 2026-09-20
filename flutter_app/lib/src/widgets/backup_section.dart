@@ -16,8 +16,22 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/platform/file_picker_bridge.dart';
 import 'package:upeg/src/state/backup_provider.dart';
+
+/// Catalog keys (upeg-pegboard-ui/src/i18n.rs) — copy renders through
+/// `t()`/`tRead()` so the section follows the active locale. The button
+/// and failure keys predate this widget; the dialog/result keys were
+/// added alongside it.
+const String _exportButtonKey = 'settings.backup.export';
+const String _importButtonKey = 'settings.backup.import';
+const String _exportDialogTitleKey = 'settings.backup.export_dialog_title';
+const String _importDialogTitleKey = 'settings.backup.import_dialog_title';
+const String _exportedKey = 'settings.backup.exported';
+const String _exportFailedKey = 'settings.backup.export_failed';
+const String _importedKey = 'settings.backup.imported';
+const String _importFailedKey = 'settings.backup.import_failed';
 
 class BackupSection extends ConsumerStatefulWidget {
   const BackupSection({super.key});
@@ -41,7 +55,7 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
       final json = exporter();
       final path = await bridge.pickSavePath(
         defaultName: 'upeg-backup.json',
-        dialogTitle: 'Save backup',
+        dialogTitle: tRead(ref, _exportDialogTitleKey),
         allowedExtensions: const <String>['json'],
       );
       if (path == null) {
@@ -50,11 +64,11 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
       }
       await bridge.writeBytesTo(path, Uint8List.fromList(utf8.encode(json)));
       setState(() {
-        _statusMessage = 'Saved backup to $path';
+        _statusMessage = tRead(ref, _exportedKey, {'path': path});
       });
     } on Object catch (err) {
       setState(() {
-        _errorMessage = 'Export failed: $err';
+        _errorMessage = tRead(ref, _exportFailedKey, {'msg': '$err'});
       });
     }
   }
@@ -68,7 +82,7 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
       final bridge = ref.read(filePickerBridgeProvider);
       final importer = ref.read(backupImporterProvider);
       final selected = await bridge.pickOpenFile(
-        dialogTitle: 'Open backup',
+        dialogTitle: tRead(ref, _importDialogTitleKey),
         allowedExtensions: const <String>['json'],
       );
       if (selected == null) {
@@ -77,12 +91,15 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
       final json = utf8.decode(selected.bytes);
       final report = importer(json);
       setState(() {
-        _statusMessage =
-            'Restored ${report.boardCount} boards, ${report.layoutCount} layouts, ${report.memoCount} memos';
+        _statusMessage = tRead(ref, _importedKey, {
+          'boards': '${report.boardCount}',
+          'layouts': '${report.layoutCount}',
+          'memos': '${report.memoCount}',
+        });
       });
     } on Object catch (err) {
       setState(() {
-        _errorMessage = 'Import failed: $err';
+        _errorMessage = tRead(ref, _importFailedKey, {'msg': '$err'});
       });
     }
   }
@@ -97,13 +114,13 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
             OutlinedButton(
               key: const Key('backup-section-export-button'),
               onPressed: _onExport,
-              child: const Text('Export'),
+              child: Text(t(ref, _exportButtonKey)),
             ),
             const SizedBox(width: 8),
             OutlinedButton(
               key: const Key('backup-section-import-button'),
               onPressed: _onImport,
-              child: const Text('Import'),
+              child: Text(t(ref, _importButtonKey)),
             ),
           ],
         ),

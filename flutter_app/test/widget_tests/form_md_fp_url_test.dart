@@ -86,7 +86,9 @@ Widget _formHarness({
 
 void main() {
   group('GenericForm Markdown field', () {
-    testWidgets('GenericForm은_Markdown_필드를_TextArea로_렌더한다', (tester) async {
+    testWidgets('GenericForm_renders_a_markdown_field_as_a_textarea', (
+      tester,
+    ) async {
       final tool = fixtureToolDto(
         id: 'fixture.md',
         inputFields: const [
@@ -108,7 +110,7 @@ void main() {
           ),
         ),
       );
-      // Markdown 필드는 multiline TextField 로 렌더된다 (maxLines: null).
+      // The Markdown field renders as a multiline TextField (maxLines: null).
       final inner = tester.widget<TextField>(
         find.descendant(
           of: find.byKey(const Key('field-doc')),
@@ -120,7 +122,7 @@ void main() {
   });
 
   group('GenericForm FilePath field', () {
-    testWidgets('GenericForm은_FilePath_필드를_picker_button과_함께_렌더한다', (
+    testWidgets('GenericForm_renders_a_filepath_field_with_a_picker_button', (
       tester,
     ) async {
       final tool = fixtureToolDto(
@@ -151,43 +153,44 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('GenericForm_FilePath_picker는_선택파일을_form에_반영한다', (
-      tester,
-    ) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.fp',
-        inputFields: const [
-          InputFieldDto(
-            key: 'path',
-            label: 'Path',
-            fieldType: InputFieldType_FilePath(),
-            required_: false,
-          ),
-        ],
-      );
-      final controller = GenericFormController();
-      const String stubPath = '/tmp/picked.txt';
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            filePickerBridgeProvider.overrideWithValue(_FakeBridge(stubPath)),
+    testWidgets(
+      'GenericForm_filepath_picker_reflects_the_picked_file_into_the_form',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.fp',
+          inputFields: const [
+            InputFieldDto(
+              key: 'path',
+              label: 'Path',
+              fieldType: InputFieldType_FilePath(),
+              required_: false,
+            ),
           ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: GenericFormWidget(tool: tool, controller: controller),
+        );
+        final controller = GenericFormController();
+        const String stubPath = '/tmp/picked.txt';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              filePickerBridgeProvider.overrideWithValue(_FakeBridge(stubPath)),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(tool: tool, controller: controller),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.byIcon(Icons.folder_open));
-      await tester.pumpAndSettle();
-      final stored = controller.value('path');
-      expect(stored, isA<TextValue>());
-      expect((stored as TextValue).value, equals(stubPath));
-    });
+        );
+        await tester.tap(find.byIcon(Icons.folder_open));
+        await tester.pumpAndSettle();
+        final stored = controller.value('path');
+        expect(stored, isA<TextValue>());
+        expect((stored as TextValue).value, equals(stubPath));
+      },
+    );
 
-    testWidgets('GenericForm_FilePath는_rebuild에도_커서와_입력값을_유지한다', (
+    testWidgets('GenericForm_filepath_keeps_cursor_and_input_across_rebuilds', (
       tester,
     ) async {
       final tool = fixtureToolDto(
@@ -246,88 +249,91 @@ void main() {
   });
 
   group('GenericForm File field', () {
-    testWidgets('GenericForm File picker는 path가 아닌 이름과 bytes를 form에 반영한다', (
-      tester,
-    ) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.file',
-        inputFields: const [
-          InputFieldDto(
-            key: 'input_file',
-            label: 'Input file',
-            fieldType: InputFieldType_File(
-              policy: FileInputPolicyDto(
-                extensions: <String>[],
-                maxCount: 1,
-                maxFileBytes: null,
-                maxTotalBytes: null,
+    testWidgets(
+      'GenericForm_file_picker_reflects_name_and_bytes_not_the_path_into_the_form',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.file',
+          inputFields: const [
+            InputFieldDto(
+              key: 'input_file',
+              label: 'Input file',
+              fieldType: InputFieldType_File(
+                policy: FileInputPolicyDto(
+                  extensions: <String>[],
+                  maxCount: 1,
+                  maxFileBytes: null,
+                  maxTotalBytes: null,
+                ),
               ),
+              required_: true,
             ),
-            required_: true,
-          ),
-        ],
-      );
-      final controller = GenericFormController();
-      bool? isValid;
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            filePickerBridgeProvider.overrideWithValue(
-              _FakeBridge(
-                '/tmp/should-not-be-used.bin',
-                fileToReturn: (
-                  name: 'input.bin',
-                  bytes: Uint8List.fromList(const <int>[1, 2, 255]),
-                  mime: null,
+          ],
+        );
+        final controller = GenericFormController();
+        bool? isValid;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              filePickerBridgeProvider.overrideWithValue(
+                _FakeBridge(
+                  '/tmp/should-not-be-used.bin',
+                  fileToReturn: (
+                    name: 'input.bin',
+                    bytes: Uint8List.fromList(const <int>[1, 2, 255]),
+                    mime: null,
+                  ),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(
+                  tool: tool,
+                  controller: controller,
+                  onValidationChanged: (value) => isValid = value,
                 ),
               ),
             ),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: GenericFormWidget(
-                tool: tool,
-                controller: controller,
-                onValidationChanged: (value) => isValid = value,
-              ),
-            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(find.byKey(FileInputKeys.pickButton), findsOneWidget);
-      expect(find.text('파일을 선택하거나\n여기로 끌어 놓으세요.'), findsOneWidget);
-      expect(isValid, isFalse);
+        expect(find.byKey(FileInputKeys.pickButton), findsOneWidget);
+        expect(find.text(i18nEn('modal.file.empty_prompt')), findsOneWidget);
+        expect(isValid, isFalse);
 
-      await tester.tap(find.byIcon(Icons.attach_file));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.attach_file));
+        await tester.pumpAndSettle();
 
-      final stored = controller.value('input_file');
-      expect(stored, isA<FileFormValue>());
-      final file = (stored as FileFormValue).value;
-      expect(file.name, 'input.bin');
-      expect(file.isDir, isFalse);
-      expect(file.mime, isNull);
-      expect(
-        file.content,
-        CanonicalFileContent.bytes(
-          bytes: Uint8List.fromList(const <int>[1, 2, 255]),
-        ),
-      );
-      expect(controller.snapshot()['input_file'], <String, Object?>{
-        'name': 'input.bin',
-        'is_dir': false,
-        'content': <String, Object?>{'kind': 'bytes', 'bytes': 'AQL/'},
-      });
-      expect(find.text('input.bin'), findsOneWidget);
-      expect(isValid, isTrue);
-    });
+        final stored = controller.value('input_file');
+        expect(stored, isA<FileFormValue>());
+        final file = (stored as FileFormValue).value;
+        expect(file.name, 'input.bin');
+        expect(file.isDir, isFalse);
+        expect(file.mime, isNull);
+        expect(
+          file.content,
+          CanonicalFileContent.bytes(
+            bytes: Uint8List.fromList(const <int>[1, 2, 255]),
+          ),
+        );
+        expect(controller.snapshot()['input_file'], <String, Object?>{
+          'name': 'input.bin',
+          'is_dir': false,
+          'content': <String, Object?>{'kind': 'bytes', 'bytes': 'AQL/'},
+        });
+        expect(find.text('input.bin'), findsOneWidget);
+        expect(isValid, isTrue);
+      },
+    );
   });
 
   group('GenericForm Url field', () {
-    testWidgets('GenericForm은_Url_필드에서_잘못된_url시_에러를_표시한다', (tester) async {
+    testWidgets('GenericForm_shows_an_error_for_a_bad_url_in_a_url_field', (
+      tester,
+    ) async {
       final tool = fixtureToolDto(
         id: 'fixture.url',
         inputFields: const [
@@ -342,6 +348,7 @@ void main() {
       final controller = GenericFormController();
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [...i18nTestOverrides],
           child: MaterialApp(
             home: Scaffold(
               body: GenericFormWidget(tool: tool, controller: controller),

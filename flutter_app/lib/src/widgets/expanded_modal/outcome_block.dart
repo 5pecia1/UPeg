@@ -15,18 +15,27 @@ import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/error_details_block.dart';
 import 'package:upeg/src/widgets/expanded_modal/structured_output.dart';
+import 'package:upeg/src/widgets/expanded_modal/presentation_collection.dart';
+import 'package:upeg/src/widgets/expanded_modal/presentation_table.dart';
 
 class OutcomeBlock extends ConsumerWidget {
   const OutcomeBlock({
     required this.outcome,
     required this.outputFields,
+    required this.tool,
     required this.tokens,
+    required this.onRowAction,
+    required this.onResultAction,
     super.key,
   });
 
   final CanonicalToolResult outcome;
   final List<OutputFieldDto> outputFields;
+  final ToolDto tool;
   final UpegTokens tokens;
+  final void Function(PresentationActionDto action, PresentationTableRow row)
+  onRowAction;
+  final void Function(PresentationActionDto action) onResultAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,6 +117,13 @@ class OutcomeBlock extends ConsumerWidget {
                 tokens: tokens,
                 writer: writer,
               ),
+          PresentationCollection(
+            tool: tool,
+            outcome: outcome,
+            tokens: tokens,
+            onRowAction: onRowAction,
+            onResultAction: onResultAction,
+          ),
           if (!outcome.hasDisplayContent)
             Text(
               t(ref, 'modal.no_output'),

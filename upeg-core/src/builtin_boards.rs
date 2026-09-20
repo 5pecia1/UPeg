@@ -47,15 +47,16 @@ mod tests {
     use crate::board_key::BoardKey;
 
     #[test]
-    fn 내장_보드_키는_모두_유효한_board_key다() {
+    fn builtin_board_keys_are_all_valid_board_keys() {
         for board in BUILTIN_BOARDS {
-            BoardKey::parse(board.key).unwrap_or_else(|e| panic!("내장 보드 `{}`: {e}", board.key));
-            assert!(!board.title.trim().is_empty(), "제목이 비어 있다");
+            BoardKey::parse(board.key)
+                .unwrap_or_else(|e| panic!("builtin board `{}`: {e}", board.key));
+            assert!(!board.title.trim().is_empty(), "title is empty");
         }
     }
 
     #[test]
-    fn 내장_보드_키는_중복되지_않는다() {
+    fn builtin_board_keys_are_not_duplicated() {
         let mut keys: Vec<&str> = BUILTIN_BOARDS.iter().map(|board| board.key).collect();
         let before = keys.len();
         keys.sort_unstable();
@@ -64,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn is_builtin_board는_표를_그대로_반영한다() {
+    fn is_builtin_board_mirrors_the_table() {
         assert!(is_builtin_board("dev"));
         assert!(!is_builtin_board("upeg-dev"));
     }

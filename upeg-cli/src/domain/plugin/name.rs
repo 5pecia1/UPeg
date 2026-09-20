@@ -69,13 +69,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 소문자_스네이크_케이스_이름은_통과한다() {
+    fn lowercase_snake_case_names_pass() {
         assert!(validate_plugin_name("greet").is_ok());
         assert!(validate_plugin_name("my_plugin_2").is_ok());
     }
 
     #[test]
-    fn 빈_이름은_거부된다() {
+    fn empty_name_is_rejected() {
         assert!(matches!(
             validate_plugin_name(""),
             Err(PluginNameError::InvalidIdentifier(_))
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn 대문자나_하이픈이_섞인_이름은_거부된다() {
+    fn names_with_uppercase_or_hyphens_are_rejected() {
         assert!(matches!(
             validate_plugin_name("My-Plugin"),
             Err(PluginNameError::InvalidIdentifier(_))
@@ -91,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn 숫자로_시작하는_이름은_거부된다() {
+    fn names_starting_with_digit_are_rejected() {
         assert!(matches!(
             validate_plugin_name("1plugin"),
             Err(PluginNameError::InvalidIdentifier(_))
@@ -99,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn 공백을_포함한_이름은_거부된다() {
+    fn names_containing_whitespace_are_rejected() {
         assert!(matches!(
             validate_plugin_name("my plugin"),
             Err(PluginNameError::InvalidIdentifier(_))

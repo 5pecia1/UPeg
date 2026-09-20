@@ -1,11 +1,12 @@
 /// Keyboard dispatch for the pin-resize state machine
-/// (board_page_move_mode_test.dart 미러).
+/// (mirror of board_page_move_mode_test.dart).
 ///
-/// 순수 state machine 계약은 `state_tests/resize_mode_state_test.dart`가
-/// 커버한다. 여기서는 [handleResizeModeCommand] 배선을 고정한다:
-/// StartResize seed(placement 유효 크기 + manifest footprint + board
-/// cols), ResizeBy 적용, Commit의 setSpan/clearSpan/no-op 분기,
-/// Cancel의 무기록, 그리고 move-mode와의 상호 배타.
+/// The pure state machine contract is covered by
+/// `state_tests/resize_mode_state_test.dart`. Here we pin the
+/// [handleResizeModeCommand] wiring: StartResize seeding (placement
+/// effective size + manifest footprint + board cols), ResizeBy
+/// application, the Commit setSpan/clearSpan/no-op branches, Cancel
+/// recording nothing, and mutual exclusion with move-mode.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +50,7 @@ const _fixedBoardCols = 6;
 final _devBoardKey = BoardKey.parse('dev');
 final _mediaBoardKey = BoardKey.parse('media');
 
-/// 유효 크기 2x1 (span override) — manifest는 u1(1x1)인 tool.
+/// Effective size 2x1 (span override) — a tool whose manifest is u1(1x1).
 const _widePlacement = PlacementDto(
   toolId: 'fixture.wide',
   x: 1,
@@ -92,8 +93,8 @@ Future<ProviderContainer> _readyContainer({
   List<Override> extra = const [],
 }) async {
   final c = _container(extra: extra);
-  // toolByIdProvider가 동기적으로 manifest를 읽을 수 있게 catalog를 미리
-  // 로드해 둔다.
+  // Preload the catalog so toolByIdProvider can read the manifest
+  // synchronously.
   await c.read(toolsProvider.future);
   c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.wide'));
   return c;
@@ -101,29 +102,32 @@ Future<ProviderContainer> _readyContainer({
 
 void main() {
   group('Resize-mode keyboard dispatch', () {
-    test('StartResize는_focused_pin의_유효크기와_manifest로_Active를_seed한다', () async {
-      final c = await _readyContainer();
-      addTearDown(c.dispose);
+    test(
+      'StartResize_seeds_Active_from_the_focused_pin_effective_size_and_manifest',
+      () async {
+        final c = await _readyContainer();
+        addTearDown(c.dispose);
 
-      final handled = handleResizeModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.startResize(),
-      );
+        final handled = handleResizeModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.startResize(),
+        );
 
-      expect(handled, isTrue);
-      final active = c.read(resizeModeProvider) as ResizeModeActive;
-      expect(active.boardKey, _devBoardKey);
-      expect(active.toolId, ToolId.parse('fixture.wide'));
-      expect(active.baseCols, 2);
-      expect(active.baseRows, 1);
-      expect(active.currentCols, 2);
-      expect(active.currentRows, 1);
-      expect(active.maxCols, _fixedBoardCols);
-      expect(active.manifestCols, 1);
-      expect(active.manifestRows, 1);
-    });
+        expect(handled, isTrue);
+        final active = c.read(resizeModeProvider) as ResizeModeActive;
+        expect(active.boardKey, _devBoardKey);
+        expect(active.toolId, ToolId.parse('fixture.wide'));
+        expect(active.baseCols, 2);
+        expect(active.baseRows, 1);
+        expect(active.currentCols, 2);
+        expect(active.currentRows, 1);
+        expect(active.maxCols, _fixedBoardCols);
+        expect(active.manifestCols, 1);
+        expect(active.manifestRows, 1);
+      },
+    );
 
-    test('StartResize는_focused_pin_없으면_무시한다', () {
+    test('StartResize_is_ignored_without_a_focused_pin', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -136,7 +140,7 @@ void main() {
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
     });
 
-    test('ResizeBy는_Active일때_delta를_적용한다', () async {
+    test('ResizeBy_applies_the_delta_while_Active', () async {
       final c = await _readyContainer();
       addTearDown(c.dispose);
 
@@ -152,7 +156,7 @@ void main() {
       expect(active.currentRows, 2);
     });
 
-    test('ResizeBy는_Idle일때_무시한다', () {
+    test('ResizeBy_is_ignored_while_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -164,7 +168,7 @@ void main() {
       expect(handled, isFalse);
     });
 
-    test('ResetSpan은_current를_manifest_크기로_되돌린다', () async {
+    test('ResetSpan_returns_current_to_the_manifest_size', () async {
       final c = await _readyContainer();
       addTearDown(c.dispose);
 
@@ -180,11 +184,47 @@ void main() {
       expect(active.currentRows, 1);
     });
 
-    test('Commit은_변경된_span을_setSpan_액션으로_seam에_보낸다', () async {
-      ToolId? observedTool;
+    test(
+      'Commit_sends_a_changed_span_to_the_seam_as_a_setSpan_action',
+      () async {
+        ToolId? observedTool;
+        ResizeCommitAction? observedAction;
+        Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+          observedTool = toolId;
+          observedAction = action;
+        }
+
+        final c = await _readyContainer(
+          extra: [resizePinCommitFnProvider.overrideWithValue(recorder)],
+        );
+        addTearDown(c.dispose);
+
+        handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
+        handleResizeModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.resizeBy(cols: 1, rows: 0),
+        );
+        final handled = handleResizeModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.commit(),
+        );
+
+        expect(handled, isTrue);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
+        expect(observedTool, ToolId.parse('fixture.wide'));
+        final action = observedAction;
+        expect(action, isA<ResizeCommitSetSpan>());
+        final setSpan = action as ResizeCommitSetSpan;
+        expect(setSpan.cols, 3);
+        expect(setSpan.rows, 1);
+      },
+    );
+
+    test('Commit_sends_a_clearSpan_action_at_manifest_size', () async {
       ResizeCommitAction? observedAction;
       Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
-        observedTool = toolId;
         observedAction = action;
       }
 
@@ -194,40 +234,7 @@ void main() {
       addTearDown(c.dispose);
 
       handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
-      handleResizeModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.resizeBy(cols: 1, rows: 0),
-      );
-      final handled = handleResizeModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.commit(),
-      );
-
-      expect(handled, isTrue);
-      await Future<void>.delayed(Duration.zero);
-
-      expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
-      expect(observedTool, ToolId.parse('fixture.wide'));
-      final action = observedAction;
-      expect(action, isA<ResizeCommitSetSpan>());
-      final setSpan = action as ResizeCommitSetSpan;
-      expect(setSpan.cols, 3);
-      expect(setSpan.rows, 1);
-    });
-
-    test('Commit은_manifest_크기면_clearSpan_액션을_보낸다', () async {
-      ResizeCommitAction? observedAction;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
-        observedAction = action;
-      }
-
-      final c = await _readyContainer(
-        extra: [resizePinCommitFnProvider.overrideWithValue(recorder)],
-      );
-      addTearDown(c.dispose);
-
-      handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
-      // 2x1 → 1x1 == manifest footprint: override를 남기지 않는다.
+      // 2x1 → 1x1 == manifest footprint: no override is left behind.
       handleResizeModeCommand(
         c,
         cmd: const KeyboardCommandDto.resizeBy(cols: -1, rows: 0),
@@ -238,7 +245,7 @@ void main() {
       expect(observedAction, isA<ResizeCommitClearSpan>());
     });
 
-    test('Commit은_base_크기_그대로면_seam을_호출하지_않는다', () async {
+    test('Commit_skips_the_seam_when_the_base_size_is_unchanged', () async {
       var called = false;
       Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
         called = true;
@@ -261,31 +268,34 @@ void main() {
       expect(called, isFalse);
     });
 
-    test('commit은_시작한_board가_아니면_저장하지_않는다', () async {
-      var called = false;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
-        called = true;
-      }
+    test(
+      'commit_does_not_save_on_a_board_other_than_the_starting_one',
+      () async {
+        var called = false;
+        Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+          called = true;
+        }
 
-      final c = await _readyContainer(
-        extra: [resizePinCommitFnProvider.overrideWithValue(recorder)],
-      );
-      addTearDown(c.dispose);
+        final c = await _readyContainer(
+          extra: [resizePinCommitFnProvider.overrideWithValue(recorder)],
+        );
+        addTearDown(c.dispose);
 
-      handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
-      handleResizeModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.resizeBy(cols: 1, rows: 0),
-      );
-      c.read(currentBoardKeyProvider.notifier).select(_mediaBoardKey);
-      handleResizeModeCommand(c, cmd: const KeyboardCommandDto.commit());
-      await Future<void>.delayed(Duration.zero);
+        handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
+        handleResizeModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.resizeBy(cols: 1, rows: 0),
+        );
+        c.read(currentBoardKeyProvider.notifier).select(_mediaBoardKey);
+        handleResizeModeCommand(c, cmd: const KeyboardCommandDto.commit());
+        await Future<void>.delayed(Duration.zero);
 
-      expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
-      expect(called, isFalse);
-    });
+        expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
+        expect(called, isFalse);
+      },
+    );
 
-    test('Cancel은_아무것도_호출하지_않고_Idle로_돌아온다', () async {
+    test('Cancel_calls_nothing_and_returns_to_Idle', () async {
       var called = false;
       Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
         called = true;
@@ -312,7 +322,7 @@ void main() {
       expect(called, isFalse);
     });
 
-    test('StartResize는_활성_move_mode를_취소한다', () async {
+    test('StartResize_cancels_an_active_move_mode', () async {
       final c = await _readyContainer();
       addTearDown(c.dispose);
 
@@ -337,28 +347,31 @@ void main() {
       expect(c.read(resizeModeProvider), isA<ResizeModeActive>());
     });
 
-    test('StartMove는_활성_resize_mode를_취소하고_move_handler에_넘긴다', () async {
-      final c = await _readyContainer();
-      addTearDown(c.dispose);
+    test(
+      'StartMove_cancels_an_active_resize_mode_and_passes_to_the_move_handler',
+      () async {
+        final c = await _readyContainer();
+        addTearDown(c.dispose);
 
-      handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
-      expect(c.read(resizeModeProvider), isA<ResizeModeActive>());
+        handleResizeModeCommand(c, cmd: const KeyboardCommandDto.startResize());
+        expect(c.read(resizeModeProvider), isA<ResizeModeActive>());
 
-      // resize 핸들러는 StartMove를 소비하지 않는다(=false) — BoardPage의
-      // move 인터셉트가 이어서 move를 시작한다.
-      final handledByResize = handleResizeModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.startMove(),
-      );
-      expect(handledByResize, isFalse);
-      expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
+        // The resize handler does not consume StartMove (=false) — the
+        // BoardPage move intercept then starts the move.
+        final handledByResize = handleResizeModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.startMove(),
+        );
+        expect(handledByResize, isFalse);
+        expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
 
-      final handledByMove = handleMoveModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.startMove(),
-      );
-      expect(handledByMove, isTrue);
-      expect(c.read(moveModeProvider), isA<MoveModeActive>());
-    });
+        final handledByMove = handleMoveModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.startMove(),
+        );
+        expect(handledByMove, isTrue);
+        expect(c.read(moveModeProvider), isA<MoveModeActive>());
+      },
+    );
   });
 }

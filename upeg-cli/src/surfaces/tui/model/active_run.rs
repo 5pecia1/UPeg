@@ -68,13 +68,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 새_mint의_첫_token은_기본값과_다르다() {
+    fn fresh_mints_first_token_differs_from_default() {
         let mut mint = RunTokenMint::default();
         assert_ne!(mint.mint(), RunToken::default());
     }
 
     #[test]
-    fn 연속으로_민팅한_token은_서로_다르다() {
+    fn consecutively_minted_tokens_differ() {
         let mut mint = RunTokenMint::default();
         let first = mint.mint();
         let second = mint.mint();

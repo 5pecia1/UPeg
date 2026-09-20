@@ -1,5 +1,5 @@
-//! Proxy-lane tests: Project Manifest routing (D-1), `_upeg.cwd`
-//! stamping (D-2), and `tools/list` merging.
+//! Proxy-lane tests: Project Manifest routing, `_upeg.cwd`
+//! stamping, and `tools/list` merging.
 //!
 //! The host is scripted through [`proxy_line`]'s `forward` parameter
 //! rather than a real listener: a same-process HTTP host would answer
@@ -38,6 +38,8 @@ fn register_tool(id: &'static str) {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -97,10 +99,10 @@ fn host_tools_list_response() -> String {
     .to_string()
 }
 
-// ─── 라우팅 (순수) ─────────────────────────────────────
+// ─── Routing (pure) ──────────────────────────────────
 
 #[test]
-fn 라우팅은_tools_list를_병합_대상_tools_call을_cwd_각인으로_본다() {
+fn routing_sees_tools_list_as_merge_and_tools_call_as_cwd_stamp() {
     assert_eq!(
         proxy_route(&json!({ "method": "tools/list", "id": 1 })),
         ProxyRoute::ForwardAndMergeProjectTools
@@ -123,7 +125,7 @@ fn 라우팅은_tools_list를_병합_대상_tools_call을_cwd_각인으로_본�
 }
 
 #[test]
-fn 라우팅은_project_manifest_provenance_도구를_로컬_dispatch로_보낸다() {
+fn routing_sends_project_manifest_provenance_tools_to_local_dispatch() {
     let _fixture = ProjectManifestTool::install(PROJECT_TOOL_ROUTE_ID);
 
     assert_eq!(
@@ -135,10 +137,10 @@ fn 라우팅은_project_manifest_provenance_도구를_로컬_dispatch로_보낸�
     );
 }
 
-// ─── D-2: `_upeg.cwd` 각인 ─────────────────────────────
+// ─── `_upeg.cwd` stamping ────────────────────────────
 
 #[test]
-fn cwd_각인은_arguments가_없어도_객체로_승격해_넣는다() {
+fn cwd_stamp_promotes_missing_arguments_to_object() {
     let stamped = stamp_caller_cwd_on_call(json!({
         "method": "tools/call", "id": 5,
         "params": { "name": HOST_TOOL_ID },
@@ -147,12 +149,12 @@ fn cwd_각인은_arguments가_없어도_객체로_승격해_넣는다() {
     let cwd = stamped["params"]["arguments"][upeg_core::EXECUTION_CONTEXT_ARG]
         [EXECUTION_CONTEXT_CWD]
         .as_str()
-        .expect("호출자 cwd가 각인되어야 한다");
+        .expect("caller cwd must be stamped");
     assert!(!cwd.is_empty());
 }
 
 #[test]
-fn cwd_각인은_기존_인자를_보존한다() {
+fn cwd_stamp_preserves_existing_arguments() {
     let stamped = stamp_caller_cwd_on_call(json!({
         "method": "tools/call", "id": 6,
         "params": { "name": HOST_TOOL_ID, "arguments": { "input": "hi" } },
@@ -166,9 +168,9 @@ fn cwd_각인은_기존_인자를_보존한다() {
 }
 
 #[test]
-fn cwd_각인은_객체가_아닌_arguments를_건드리지_않는다() {
-    // 프로토콜 위반은 host가 그대로 보고해야 한다 — 여기서 고쳐 쓰면
-    // 클라이언트가 보는 오류가 달라진다.
+fn cwd_stamp_leaves_non_object_arguments_untouched() {
+    // Protocol violations are reported by the host verbatim —
+    // rewriting them here would change the error the client sees.
     let original = json!({
         "method": "tools/call", "id": 7,
         "params": { "name": HOST_TOOL_ID, "arguments": "not-an-object" },
@@ -177,10 +179,10 @@ fn cwd_각인은_객체가_아닌_arguments를_건드리지_않는다() {
     assert_eq!(stamp_caller_cwd_on_call(original.clone()), original);
 }
 
-// ─── tools/list 병합 ───────────────────────────────────
+// ─── tools/list merge ────────────────────────────────
 
 #[test]
-fn 병합은_중복_이름을_host_항목으로_유지하고_이름순을_지킨다() {
+fn merge_keeps_host_entry_on_name_collision_and_sorts_by_name() {
     let response = json!({
         "jsonrpc": "2.0", "id": 8,
         "result": { "tools": [{ "name": "b.tool", "from": "host" }] },
@@ -194,17 +196,17 @@ fn 병합은_중복_이름을_host_항목으로_유지하고_이름순을_지킨
         ],
     );
 
-    let tools = merged["result"]["tools"].as_array().expect("tools 배열");
+    let tools = merged["result"]["tools"].as_array().expect("tools array");
     let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
     assert_eq!(names, vec!["a.tool", "b.tool"]);
     assert_eq!(
         tools[1]["from"], "host",
-        "이름이 겹치면 host 항목이 남아야 한다"
+        "the host entry must win on a name collision"
     );
 }
 
 #[test]
-fn 병합은_결과가_없는_프레임을_그대로_둔다() {
+fn merge_leaves_frames_without_result_untouched() {
     let error_frame = json!({
         "jsonrpc": "2.0", "id": 9,
         "error": { "code": -32601, "message": "Method not found" },
@@ -216,10 +218,10 @@ fn 병합은_결과가_없는_프레임을_그대로_둔다() {
     );
 }
 
-// ─── proxy_line 통합 (스크립트된 host) ─────────────────
+// ─── proxy_line integration (scripted host) ──────────
 
 #[test]
-fn proxy_line은_host_소유_tools_call에_cwd를_실어_전달한다() {
+fn proxy_line_forwards_host_owned_tools_call_with_cwd() {
     let mut out = Vec::new();
     let mut seen = None;
     let canned = json!({ "jsonrpc": "2.0", "id": 10, "result": { "content": [] } }).to_string();
@@ -237,11 +239,11 @@ fn proxy_line은_host_소유_tools_call에_cwd를_실어_전달한다() {
 
     assert_eq!(outcome, LineOutcome::Proxied);
     let forwarded: Value =
-        serde_json::from_str(&seen.expect("host가 호출되어야 한다")).expect("전달된 프레임");
+        serde_json::from_str(&seen.expect("host must be called")).expect("forwarded frame");
     assert!(
         forwarded["params"]["arguments"][upeg_core::EXECUTION_CONTEXT_ARG][EXECUTION_CONTEXT_CWD]
             .is_string(),
-        "host로 나가는 프레임에 _upeg.cwd가 있어야 한다: {forwarded}"
+        "the frame sent to the host must carry _upeg.cwd: {forwarded}"
     );
     assert_eq!(
         String::from_utf8(out).expect("utf-8"),
@@ -250,7 +252,7 @@ fn proxy_line은_host_소유_tools_call에_cwd를_실어_전달한다() {
 }
 
 #[test]
-fn proxy_line은_project_manifest_도구를_host에_보내지_않고_직접_실행한다() {
+fn proxy_line_runs_project_manifest_tool_locally_without_host() {
     let _fixture = ProjectManifestTool::install(PROJECT_TOOL_DISPATCH_ID);
     let mut out = Vec::new();
     let mut seen = None;
@@ -267,9 +269,9 @@ fn proxy_line은_project_manifest_도구를_host에_보내지_않고_직접_실�
     );
 
     assert_eq!(outcome, LineOutcome::Proxied);
-    assert!(seen.is_none(), "host는 호출되지 않아야 한다 (D-1)");
+    assert!(seen.is_none(), "host must not be called");
     let response: Value =
-        serde_json::from_str(&String::from_utf8(out).expect("utf-8")).expect("응답 프레임");
+        serde_json::from_str(&String::from_utf8(out).expect("utf-8")).expect("response frame");
     assert_eq!(
         response["result"]["content"][0]["text"],
         PROJECT_TOOL_OUTPUT
@@ -277,7 +279,7 @@ fn proxy_line은_project_manifest_도구를_host에_보내지_않고_직접_실�
 }
 
 #[test]
-fn proxy_line은_host_tools_list에_project_manifest_도구를_합쳐준다() {
+fn proxy_line_merges_project_manifest_tools_into_host_tools_list() {
     let _fixture = ProjectManifestTool::install(PROJECT_TOOL_LIST_ID);
     let mut out = Vec::new();
     let mut seen = None;
@@ -291,22 +293,22 @@ fn proxy_line은_host_tools_list에_project_manifest_도구를_합쳐준다() {
 
     assert_eq!(outcome, LineOutcome::Proxied);
     let response: Value =
-        serde_json::from_str(&String::from_utf8(out).expect("utf-8")).expect("응답 프레임");
+        serde_json::from_str(&String::from_utf8(out).expect("utf-8")).expect("response frame");
     let names: Vec<&str> = response["result"]["tools"]
         .as_array()
-        .expect("tools 배열")
+        .expect("tools array")
         .iter()
         .filter_map(|tool| tool["name"].as_str())
         .collect();
     assert!(
         names.contains(&PROJECT_TOOL_LIST_ID),
-        "host가 모르는 project manifest 도구가 병합되어야 한다: {names:?}"
+        "a project manifest tool unknown to the host must be merged in: {names:?}"
     );
-    assert!(names.contains(&HOST_TOOL_ID), "host 항목은 유지된다");
+    assert!(names.contains(&HOST_TOOL_ID), "host entries are preserved");
 }
 
 #[test]
-fn proxy_line은_host_실패를_host_gone으로_보고한다() {
+fn proxy_line_reports_host_failure_as_host_gone() {
     let mut out = Vec::new();
     let mut seen = None;
 
@@ -318,11 +320,11 @@ fn proxy_line은_host_실패를_host_gone으로_보고한다() {
     );
 
     assert_eq!(outcome, LineOutcome::HostGone);
-    assert!(out.is_empty(), "실패한 프레임에는 아무것도 쓰지 않는다");
+    assert!(out.is_empty(), "nothing is written for a failed frame");
 }
 
 #[test]
-fn proxy_line은_파싱되지_않는_줄을_그대로_전달한다() {
+fn proxy_line_forwards_unparseable_line_verbatim() {
     let mut out = Vec::new();
     let mut seen = None;
     let canned = r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32700}}"#;

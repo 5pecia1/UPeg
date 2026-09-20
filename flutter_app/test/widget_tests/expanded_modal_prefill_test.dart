@@ -56,64 +56,69 @@ Widget _harness({ToolArgs? initialInput, ToolDto? tool}) {
 
 void main() {
   group('ExpandedModalPage initialInput prefill', () {
-    testWidgets('ExpandedModalPage는_initialInput이_있으면_text_field에_미리_채운다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _harness(
-          initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
-            'value': 'ff',
-          }),
-        ),
-      );
-      await tester.pump();
-      expect(find.text('ff'), findsOneWidget);
-    });
-
-    testWidgets('ExpandedModalPage는_initialInput이_없으면_field를_비워둔다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_harness());
-      await tester.pump();
-      // 빈 form: 입력 텍스트가 보이지 않는다.
-      expect(find.text('ff'), findsNothing);
-    });
-
-    testWidgets('URL과 Markdown initialInput을 첫 화면의 입력값으로 표시한다', (tester) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.prefill',
-        inputFields: const [
-          InputFieldDto(
-            key: 'url',
-            label: 'URL',
-            fieldType: InputFieldType_Url(),
-            required_: false,
+    testWidgets(
+      'ExpandedModalPage_prefills_the_text_field_when_initialInput_is_present',
+      (tester) async {
+        await tester.pumpWidget(
+          _harness(
+            initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
+              'value': 'ff',
+            }),
           ),
-          InputFieldDto(
-            key: 'markdown',
-            label: 'Markdown',
-            fieldType: InputFieldType_Markdown(),
-            required_: false,
+        );
+        await tester.pump();
+        expect(find.text('ff'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'ExpandedModalPage_leaves_the_field_empty_without_initialInput',
+      (tester) async {
+        await tester.pumpWidget(_harness());
+        await tester.pump();
+        // Empty form: no input text is visible.
+        expect(find.text('ff'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'URL_and_Markdown_initialInput_show_as_the_first_screen_field_values',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.prefill',
+          inputFields: const [
+            InputFieldDto(
+              key: 'url',
+              label: 'URL',
+              fieldType: InputFieldType_Url(),
+              required_: false,
+            ),
+            InputFieldDto(
+              key: 'markdown',
+              label: 'Markdown',
+              fieldType: InputFieldType_Markdown(),
+              required_: false,
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          _harness(
+            tool: tool,
+            initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
+              'url': 'https://example.com',
+              'markdown': '# seeded',
+            }),
           ),
-        ],
-      );
+        );
+        await tester.pump();
 
-      await tester.pumpWidget(
-        _harness(
-          tool: tool,
-          initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
-            'url': 'https://example.com',
-            'markdown': '# seeded',
-          }),
-        ),
-      );
-      await tester.pump();
+        expect(find.text('https://example.com'), findsOneWidget);
+        expect(find.text('# seeded'), findsOneWidget);
+      },
+    );
 
-      expect(find.text('https://example.com'), findsOneWidget);
-      expect(find.text('# seeded'), findsOneWidget);
-    });
-
-    testWidgets('Select와 DateTime initialInput을 typed field 값으로 표시한다', (
+    testWidgets('Select_and_DateTime_initialInput_show_as_typed_field_values', (
       tester,
     ) async {
       final tool = fixtureToolDto(

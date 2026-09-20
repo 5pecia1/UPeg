@@ -75,7 +75,7 @@ Widget _harness({
 
 void main() {
   group('TagChipRow tag counts (G05)', () {
-    testWidgets('TagChipRow는_각_태그에_count를_표시한다', (tester) async {
+    testWidgets('TagChipRow_shows_the_count_for_each_tag', (tester) async {
       await tester.pumpWidget(
         _harness(
           tags: const ['all', 'convert', 'id'],
@@ -84,13 +84,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 칩 라벨은 `'<tag> <n>'` 형식이다.
+      // Chip labels use the `'<tag> <n>'` format.
       expect(find.text('all 7'), findsOneWidget);
       expect(find.text('convert 3'), findsOneWidget);
       expect(find.text('id 2'), findsOneWidget);
     });
 
-    testWidgets('TagChipRow는_count가_0인_태그도_보여준다', (tester) async {
+    testWidgets('TagChipRow_still_shows_tags_with_a_zero_count', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _harness(
           tags: const ['all', 'empty'],

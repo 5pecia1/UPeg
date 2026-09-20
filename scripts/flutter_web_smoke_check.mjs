@@ -1,26 +1,29 @@
-// Flutter Web(PWA) 번들의 부팅 + service worker 캐시 계약 검사.
+// Boot + service worker cache contract check for the Flutter Web (PWA) bundle.
 //
-// `scripts/flutter_web_smoke.sh`가 전제 조건(빌드 산출물 · chromium · python3)을
-// 확인한 뒤 이 스크립트를 부른다. 여기서는 정적 서버와 헤드리스 Chromium의
-// 수명을 쥐고 계약을 단언한다 — 오프라인 단계에서 **서버를 실제로 내려야**
-// 하기 때문에 둘의 수명이 한 곳에 있어야 한다.
+// `scripts/flutter_web_smoke.sh` checks the prerequisites (build output,
+// chromium, python3) and then calls this script. Here we own the static
+// server and headless Chromium lifetimes and assert the contract — the
+// offline phase must actually bring the server **down**, so both lifetimes
+// live in one place.
 //
-// 단언하는 계약 (인벤토리의 `pwa.service-worker.cache`):
-//   1. 첫 로드에서 앱 셸이 뜬다 (flutter-view 1개, FRB 스크립트 1회 주입).
-//   2. `navigator.serviceWorker.ready`가 `upeg_service_worker.js`를 activated로
-//      돌려주고, 그 SW가 이 페이지를 제어한다.
-//   3. 캐시 스토리지에 app shell 캐시가 정확히 하나 있고 그 안에 오프라인
-//      부팅에 필요한 셸이 다 들어 있다.
-//   4. 새 빌드가 **그 로드에서** 산다. 서빙 중인 부트스트랩의 SW 버전 토큰을
-//      갈아 끼우고 한 번만 reload 하면, 새 토큰의 service worker가 그 로드에서
-//      페이지를 잡고 새 이름의 셸 캐시가 선다. 부트스트랩을
-//      stale-while-revalidate로 주던 시절에는 이 단언이 실패했다 — 새 빌드가
-//      한 로드 늦게 도착했다.
-//   5. 정적 서버를 내리고 브라우저를 오프라인으로 만든 뒤 reload 해도 앱이
-//      캐시에서 뜬다. 서버를 실제로 죽이므로 "네트워크가 답해 준" 가짜 통과가
-//      성립하지 않는다.
+// Asserted contract (`pwa.service-worker.cache` in the inventory):
+//   1. The app shell boots on first load (one flutter-view, the FRB script
+//      injected exactly once).
+//   2. `navigator.serviceWorker.ready` resolves to `upeg_service_worker.js`
+//      activated, and that SW controls this page.
+//   3. Cache storage holds exactly one app shell cache containing every
+//      entry needed to boot offline.
+//   4. A new build goes live **on that load**. Swap the SW version token in
+//      the served bootstrap and reload once: the service worker with the new
+//      token takes the page on that load and a differently named shell cache
+//      appears. This assertion used to fail when the bootstrap was served
+//      stale-while-revalidate — the new build arrived one load late.
+//   5. With the static server down and the browser offline, a reload still
+//      boots the app from cache. Because the server is really dead, a fake
+//      "the network answered" pass is impossible.
 //
-// npm 의존성 없음 — Node 22+의 전역 `fetch`/`WebSocket`과 builtin만 쓴다.
+// No npm dependencies — only Node 22+ globals `fetch`/`WebSocket` and
+// builtins.
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -37,8 +40,9 @@ const LOOPBACK_HOST = '127.0.0.1';
 const PORT_SCAN_ATTEMPTS = 50;
 const SERVICE_WORKER_FILE_NAME = 'upeg_service_worker.js';
 /**
- * 등록 URL은 빌드마다 달라지는 `?v=<version>`을 달고 다닌다(그 값이 셸 캐시
- * 이름이 된다). 그래서 스크립트 동일성은 경로로 본다.
+ * The registration URL carries a `?v=<version>` that changes per build (the
+ * value becomes the shell cache name). Script identity is therefore compared
+ * by path.
  */
 const serviceWorkerPath = (url) =>
   new URL(SERVICE_WORKER_FILE_NAME, url).pathname;
@@ -46,12 +50,12 @@ const scriptPathOf = (scriptUrl) =>
   scriptUrl ? new URL(scriptUrl).pathname : null;
 const APP_SHELL_CACHE_PREFIX = 'upeg-app-shell-';
 const ACTIVATED_STATE = 'activated';
-/** 등록 URL이 실어 오는 빌드 토큰. 셸 캐시 이름이 이 값에서 나온다. */
+/** Build token carried by the registration URL; the shell cache name derives from it. */
 const CACHE_VERSION_PARAM = 'v';
 const cacheVersionOf = (scriptUrl) =>
   scriptUrl ? new URL(scriptUrl).searchParams.get(CACHE_VERSION_PARAM) : null;
 const BOOTSTRAP_FILE_NAME = 'flutter_bootstrap.js';
-/** `web/flutter_bootstrap.js`가 토큰을 받는 자리. 우리가 쓴 선언이다. */
+/** Where `web/flutter_bootstrap.js` receives the token — our own declaration. */
 const SERVICE_WORKER_VERSION_DECL = 'const UPEG_SERVICE_WORKER_VERSION = ';
 const REBUILT_VERSION_SUFFIX = '-rebuilt';
 const FRB_SCRIPT_SELECTOR = 'script[src="pkg/upeg_frb.js"]';
@@ -63,7 +67,7 @@ const DOM_SNAPSHOT_FILE = 'dom.html';
 const CHROMIUM_LOG_FILE = 'chromium.log';
 const SERVER_LOG_FILE = 'server.log';
 
-/** 오프라인 부팅에 필요한 셸 — 경로가 고정된 것들. */
+/** The shell needed to boot offline — the fixed paths. */
 const REQUIRED_SHELL_PATHS = [
   '/',
   '/flutter_bootstrap.js',
@@ -73,13 +77,14 @@ const REQUIRED_SHELL_PATHS = [
   '/pkg/upeg_frb_bg.wasm',
 ];
 /**
- * CanvasKit은 브라우저마다 다른 하위 디렉터리에서 받는다
- * (`canvaskit/canvaskit.js` vs `canvaskit/chromium/canvaskit.js`). 렌더러가
- * 우리 origin에서 캐시되었는지만 본다 — CDN에서 받으면 오프라인에서 못 뜬다.
+ * CanvasKit is fetched from a different subdirectory per browser
+ * (`canvaskit/canvaskit.js` vs `canvaskit/chromium/canvaskit.js`). We only
+ * check that the renderer was cached from our origin — served from the CDN
+ * it cannot boot offline.
  */
 const REQUIRED_SHELL_SUFFIXES = ['/canvaskit.js', '/canvaskit.wasm'];
 
-/** 계약 위반. 배관 실패(`CdpError`)와 구분해서 보고한다. */
+/** Contract violation — reported separately from plumbing failures (`CdpError`). */
 class ContractViolation extends Error {}
 
 function requireEnv(name) {
@@ -101,8 +106,9 @@ function pass(message) {
 }
 
 /**
- * 계약이 참이 될 때까지 기다린다. 시간 초과는 배관 실패가 아니라 계약
- * 위반이다 — "SW가 60초 안에 activated 되지 않았다"는 계약이 깨진 것이다.
+ * Wait until the contract holds. A timeout is a contract violation, not a
+ * plumbing failure — "the SW did not reach activated within 60s" means the
+ * contract is broken.
  */
 async function awaitContract(label, timeoutMs, probe) {
   try {
@@ -206,18 +212,18 @@ async function assertBootedShell(session, phase) {
   const frbScripts = await session.evaluate(countSelector(FRB_SCRIPT_SELECTOR));
   assert(
     frbScripts === 1,
-    `${phase}: FRB 스크립트(${FRB_SCRIPT_SELECTOR})가 ${frbScripts}개 — 정확히 1개여야 한다`,
+    `${phase}: FRB script (${FRB_SCRIPT_SELECTOR}) count is ${frbScripts} — must be exactly 1`,
   );
   const title = await session.evaluate('document.title');
   assert(
     title === PAGE_TITLE,
-    `${phase}: document.title이 '${title}' — '${PAGE_TITLE}'이어야 한다`,
+    `${phase}: document.title is '${title}' — must be '${PAGE_TITLE}'`,
   );
 }
 
 async function assertServiceWorkerActivated(session, url, timeoutMs) {
   const { detail: registration } = await awaitContract(
-    'service worker 활성화',
+    'service worker activation',
     timeoutMs,
     async () => {
       try {
@@ -232,19 +238,19 @@ async function assertServiceWorkerActivated(session, url, timeoutMs) {
   const expectedPath = serviceWorkerPath(url);
   assert(
     scriptPathOf(registration.scriptUrl) === expectedPath,
-    `활성 service worker가 ${registration.scriptUrl} — ${expectedPath}이어야 한다`,
+    `active service worker is ${registration.scriptUrl} — must be ${expectedPath}`,
   );
   assert(
     registration.state === ACTIVATED_STATE,
-    `service worker 상태가 '${registration.state}' — '${ACTIVATED_STATE}'이어야 한다`,
+    `service worker state is '${registration.state}' — must be '${ACTIVATED_STATE}'`,
   );
   assert(
     registration.scope === url,
-    `service worker scope가 ${registration.scope} — ${url}이어야 한다`,
+    `service worker scope is ${registration.scope} — must be ${url}`,
   );
   assert(
     scriptPathOf(registration.controller) === expectedPath,
-    `첫 로드가 service worker의 제어를 받지 않는다 (controller=${registration.controller})`,
+    `first load is not controlled by the service worker (controller=${registration.controller})`,
   );
   return registration;
 }
@@ -260,7 +266,7 @@ function missingShellEntries(cachedUrls) {
 
 async function assertAppShellCached(session, timeoutMs) {
   const { detail: contents } = await awaitContract(
-    'app shell 캐시 채워짐',
+    'app shell cache populated',
     timeoutMs,
     async () => {
       try {
@@ -283,28 +289,31 @@ async function assertAppShellCached(session, timeoutMs) {
   );
 
   const names = Object.keys(contents);
-  assert(names.length > 0, '캐시 스토리지가 비어 있다');
+  assert(names.length > 0, 'cache storage is empty');
   const shellCaches = names.filter((name) =>
     name.startsWith(APP_SHELL_CACHE_PREFIX),
   );
   assert(
     shellCaches.length === 1,
-    `'${APP_SHELL_CACHE_PREFIX}*' 캐시가 ${shellCaches.length}개 — 정확히 1개여야 한다 (${names.join(', ')})`,
+    `'${APP_SHELL_CACHE_PREFIX}*' caches: ${shellCaches.length} — must be exactly 1 (${names.join(', ')})`,
   );
   return { cacheName: shellCaches[0], urls: contents[shellCaches[0]] };
 }
 
 /**
- * 새 빌드를 흉내 낸다: 서빙 중인 부트스트랩의 SW 버전 토큰만 갈아 끼운다.
+ * Simulate a new build: swap only the SW version token in the served
+ * bootstrap.
  *
- * 스모크 한가운데서 `flutter build web`을 한 번 더 도는 것은 분 단위라
- * 계약 검사가 감당할 비용이 아니다. 그리고 새 빌드가 이 파일에서 바꾸는
- * 것은 정확히 이 토큰 하나다 — Flutter는 `{{flutter_service_worker_version}}`에
- * 빌드마다 새로 뽑는 난수를 넣는다(`web/upeg_service_worker.js` 헤더 참고).
- * 그래서 토큰 치환이 곧 "새 빌드가 배포됐다"와 같은 상황이다.
+ * Re-running `flutter build web` mid-smoke costs minutes — more than a
+ * contract check can afford. And the token is exactly the one thing a new
+ * build changes in this file — Flutter fills
+ * `{{flutter_service_worker_version}}` with a fresh random value per build
+ * (see the `web/upeg_service_worker.js` header). So replacing the token *is*
+ * "a new build was deployed".
  *
- * 되돌리기는 호출자가 쥔다 — 스모크가 끝날 때까지 서버는 새 토큰을 서빙해야
- * 하고, 빌드 산출물은 스모크가 끝난 뒤 원래대로 남아야 한다.
+ * The caller owns the restore — the server must keep serving the new token
+ * until the smoke ends, and the build output must be back to normal
+ * afterwards.
  */
 function rebuildServedBootstrap(buildDir, currentVersion) {
   const path = join(buildDir, BOOTSTRAP_FILE_NAME);
@@ -312,8 +321,8 @@ function rebuildServedBootstrap(buildDir, currentVersion) {
   const wanted = `${SERVICE_WORKER_VERSION_DECL}"${currentVersion}"`;
   if (!original.includes(wanted)) {
     throw new ContractViolation(
-      `${BOOTSTRAP_FILE_NAME}에서 \`${wanted}\`를 찾지 못했다 — 빌드가 SW 버전 토큰을 채우지 않았다 ` +
-        '(`--pwa-strategy none`으로 빌드하면 이 값이 null이 되고 SW 등록 자체가 사라진다)',
+      `\`${wanted}\` not found in ${BOOTSTRAP_FILE_NAME} — the build did not fill the SW version token ` +
+        '(building with `--pwa-strategy none` makes it null and removes SW registration entirely)',
     );
   }
   const version = `${currentVersion}${REBUILT_VERSION_SUFFIX}`;
@@ -325,16 +334,17 @@ function rebuildServedBootstrap(buildDir, currentVersion) {
 }
 
 /**
- * 새 빌드가 **이 로드에서** 살아야 한다. reload는 딱 한 번이다 — 두 번
- * 허용하면 "한 로드 늦게 도착한다"는 바로 그 실패를 통과시킨다.
+ * The new build must go live **on this load**. Exactly one reload is
+ * allowed — permitting two would pass the very "arrives one load late"
+ * failure this asserts against.
  */
 async function assertRebuildActivatesOnThisLoad(session, version, timeoutMs) {
   await session.send('Page.reload');
-  await waitForAppShell(session, '새 빌드 reload 후 앱 셸', timeoutMs);
-  await assertBootedShell(session, '새 빌드 reload');
+  await waitForAppShell(session, 'app shell after new-build reload', timeoutMs);
+  await assertBootedShell(session, 'new-build reload');
 
   await awaitContract(
-    `새 빌드의 service worker(?${CACHE_VERSION_PARAM}=${version})가 이 로드에서 페이지를 잡음`,
+    `new build's service worker (?${CACHE_VERSION_PARAM}=${version}) takes the page on this load`,
     timeoutMs,
     async () => {
       try {
@@ -346,7 +356,7 @@ async function assertRebuildActivatesOnThisLoad(session, version, timeoutMs) {
           value.state === ACTIVATED_STATE &&
           cacheVersionOf(value.scriptUrl) === version &&
           cacheVersionOf(value.controller) === version;
-        // 실패했을 때 '무엇이 아직 옛 토큰인지'가 보여야 한다.
+        // On failure the detail must show *what is still on the old token*.
         return { ok, detail: JSON.stringify(value) };
       } catch (error) {
         return { ok: false, detail: error.message };
@@ -355,7 +365,7 @@ async function assertRebuildActivatesOnThisLoad(session, version, timeoutMs) {
   );
 
   const expectedCacheName = APP_SHELL_CACHE_PREFIX + version;
-  await awaitContract(`셸 캐시 '${expectedCacheName}'`, timeoutMs, async () => {
+  await awaitContract(`shell cache '${expectedCacheName}'`, timeoutMs, async () => {
     try {
       const names = await session.evaluate('caches.keys()');
       const shellCaches = names.filter((name) =>
@@ -374,20 +384,20 @@ async function assertOfflineReloadBoots(session, url, timeoutMs) {
   const reachability = await session.evaluate(offlineProbe(url));
   assert(
     reachability === 'unreachable',
-    `오프라인 단계인데 네트워크가 아직 살아 있다 (${url}${OFFLINE_PROBE_QUERY} → ${reachability})`,
+    `offline phase but the network is still alive (${url}${OFFLINE_PROBE_QUERY} → ${reachability})`,
   );
-  pass(`정적 서버가 내려갔고 브라우저도 오프라인이다 (${url}${OFFLINE_PROBE_QUERY} 도달 불가)`);
+  pass(`static server is down and the browser is offline (${url}${OFFLINE_PROBE_QUERY} unreachable)`);
 
   await session.send('Page.reload');
-  await waitForAppShell(session, '오프라인 reload 후 앱 셸', timeoutMs);
-  await assertBootedShell(session, '오프라인 reload');
+  await waitForAppShell(session, 'app shell after offline reload', timeoutMs);
+  await assertBootedShell(session, 'offline reload');
 
   const controller = await session.evaluate(
     'navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL',
   );
   assert(
     scriptPathOf(controller) === serviceWorkerPath(url),
-    `오프라인 reload된 문서를 service worker가 제어하지 않는다 (controller=${controller})`,
+    `offline-reloaded document is not controlled by the service worker (controller=${controller})`,
   );
 }
 
@@ -423,12 +433,12 @@ async function main() {
   let browser;
   let connection;
   let session;
-  // 스모크가 어디서 죽든 빌드 산출물은 원래대로 남아야 한다.
+  // Wherever the smoke dies, the build output must be left untouched.
   let restoreBootstrap = null;
 
   try {
-    // 브라우저를 띄우는 것까지 이 try 안이다 — 그래야 어디서 실패하든
-    // finally가 정적 서버와 Chromium을 반드시 거둔다.
+    // Browser launch is inside this try too — so wherever a failure occurs,
+    // finally always reaps the static server and Chromium.
     browser = await launchHeadlessChromium({
       executable: chromeExecutable,
       userDataDir: profileDir,
@@ -438,30 +448,30 @@ async function main() {
     ({ connection, session } = await openPageSession(browser.port));
     await waitForServer(url, timeoutMs);
 
-    // 1) 첫 로드 — 앱이 뜨는지.
+    // 1) First load — does the app come up.
     await session.send('Page.navigate', { url });
-    await waitForAppShell(session, '첫 로드 앱 셸', timeoutMs);
-    await assertBootedShell(session, '첫 로드');
-    pass(`첫 로드에서 앱 셸이 뜬다 (${APP_ROOT_SELECTOR} 1개, FRB 스크립트 1회 주입)`);
+    await waitForAppShell(session, 'first-load app shell', timeoutMs);
+    await assertBootedShell(session, 'first load');
+    pass(`app shell boots on first load (${APP_ROOT_SELECTOR} x1, FRB script injected once)`);
 
-    // 2) service worker 등록/활성화/제어.
+    // 2) service worker registration/activation/control.
     const registration = await assertServiceWorkerActivated(
       session,
       url,
       timeoutMs,
     );
     pass(
-      `service worker가 activated이고 페이지를 제어한다 (${registration.scriptUrl})`,
+      `service worker is activated and controls the page (${registration.scriptUrl})`,
     );
 
-    // 3) 캐시 스토리지에 app shell.
+    // 3) app shell in cache storage.
     const cache = await assertAppShellCached(session, timeoutMs);
     pass(
-      `'${cache.cacheName}' 캐시에 app shell ${cache.urls.length}개가 들어 있다 ` +
+      `'${cache.cacheName}' cache holds ${cache.urls.length} app shell entries ` +
         `(${REQUIRED_SHELL_PATHS.join(' · ')} · *${REQUIRED_SHELL_SUFFIXES.join(' · *')})`,
     );
 
-    // 4) 새 빌드가 배포되면 그 로드에서 산다 (한 로드 늦게가 아니라).
+    // 4) a deployed new build goes live on that load (not one load late).
     const rebuilt = rebuildServedBootstrap(
       buildDir,
       cacheVersionOf(registration.scriptUrl),
@@ -469,22 +479,23 @@ async function main() {
     restoreBootstrap = rebuilt.restore;
     await assertRebuildActivatesOnThisLoad(session, rebuilt.version, timeoutMs);
     pass(
-      `새 빌드가 한 번의 reload에서 활성화된다 ` +
-        `(?${CACHE_VERSION_PARAM}=${rebuilt.version}, 캐시 '${APP_SHELL_CACHE_PREFIX}${rebuilt.version}')`,
+      `new build activates on a single reload ` +
+        `(?${CACHE_VERSION_PARAM}=${rebuilt.version}, cache '${APP_SHELL_CACHE_PREFIX}${rebuilt.version}')`,
     );
 
-    // 5) 새 셸 캐시가 다시 찰 때까지 한 번 더 방문한다. 4)의 reload는 옛 SW의
-    //    제어 아래에서 시작해 새 SW가 도중에 이어받으므로, 그때 받아 둔 셸은
-    //    옛 캐시와 함께 지워진다. 오프라인 단계는 실제 재방문에서 채워진
-    //    캐시를 봐야 정직하다.
+    // 5) Revisit once more so the new shell cache refills. Step 4's reload
+    //    started under the old SW's control and the new SW took over
+    //    mid-load, so the shell fetched then is deleted along with the old
+    //    cache. The offline phase is only honest when it looks at a cache
+    //    filled by a real revisit.
     await session.send('Page.reload');
-    await waitForAppShell(session, '새 빌드 재방문 앱 셸', timeoutMs);
+    await waitForAppShell(session, 'app shell on new-build revisit', timeoutMs);
     const rebuiltCache = await assertAppShellCached(session, timeoutMs);
     pass(
-      `재방문에서 '${rebuiltCache.cacheName}' 캐시가 app shell ${rebuiltCache.urls.length}개로 다시 찼다`,
+      `on revisit, '${rebuiltCache.cacheName}' cache refilled with ${rebuiltCache.urls.length} app shell entries`,
     );
 
-    // 6) 서버를 내리고 오프라인에서 재방문.
+    // 6) Bring the server down and revisit offline.
     await stopStaticServer(server, url, timeoutMs);
     serverRunning = false;
     await session.send('Network.emulateNetworkConditions', {
@@ -494,16 +505,16 @@ async function main() {
       uploadThroughput: -1,
     });
     await assertOfflineReloadBoots(session, url, timeoutMs);
-    pass('오프라인 reload에서도 앱 셸이 캐시에서 뜬다');
+    pass('app shell still boots from cache on an offline reload');
 
     console.log(`flutter web smoke passed at ${url}`);
   } catch (error) {
     const snapshot = session ? await dumpDom(session, outDir) : null;
     const kind =
-      error instanceof ContractViolation ? 'PWA 계약 위반' : 'smoke 실패';
+      error instanceof ContractViolation ? 'PWA contract violation' : 'smoke failure';
     console.error(`error: ${kind} — ${error.message}`);
     if (snapshot) {
-      console.error(`DOM 스냅샷: ${snapshot}`);
+      console.error(`DOM snapshot: ${snapshot}`);
     }
     process.exitCode = 1;
   } finally {

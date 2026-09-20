@@ -13,7 +13,7 @@ fn ctrl_u() -> upeg_core::KeyStroke {
 // ─── Ctrl+U (ClearInput) ────────────────────────────────
 
 #[test]
-fn 폼에서_ctrl_u는_포커스된_필드를_지운다() {
+fn ctrl_u_in_form_clears_focused_field() {
     let mut s = State {
         cursor: 1,
         view: View::Form {
@@ -38,12 +38,12 @@ fn 폼에서_ctrl_u는_포커스된_필드를_지운다() {
     if let View::Form { form, .. } = &s.view {
         assert_eq!(form.fields[0].draft, DraftInputValue::Text(String::new()));
     } else {
-        panic!("Form 보기를 기대했지만 {:?}를 받았다", s.view);
+        panic!("expected Form view, got {:?}", s.view);
     }
 }
 
 #[test]
-fn 보드편집기에서_ctrl_u는_버퍼를_지운다() {
+fn ctrl_u_in_board_editor_clears_buffer() {
     use crate::surfaces::tui::model::BoardEditMode;
 
     let mut s = State {
@@ -69,7 +69,7 @@ fn 보드편집기에서_ctrl_u는_버퍼를_지운다() {
 }
 
 #[test]
-fn 도구선택기에서_ctrl_u는_검색어와_커서를_지운다() {
+fn ctrl_u_in_tool_picker_clears_query_and_cursor() {
     let mut s = State {
         view: View::ToolPicker {
             mode: ToolPickerMode::Search,
@@ -96,6 +96,6 @@ fn 도구선택기에서_ctrl_u는_검색어와_커서를_지운다() {
             assert!(query.is_empty());
             assert_eq!(*cursor, 0);
         }
-        other => panic!("ToolPicker 보기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected ToolPicker view, got {other:?}"),
     }
 }

@@ -51,26 +51,28 @@ MaterialApp _findApp(WidgetTester tester) =>
 
 void main() {
   group('themeModeFromTweakValue', () {
-    test('Light_을_ThemeMode_light로_매핑한다', () {
+    test('maps_Light_to_ThemeMode_light', () {
       expect(themeModeFromTweakValue('Light'), ThemeMode.light);
     });
 
-    test('Dark_를_ThemeMode_dark로_매핑한다', () {
+    test('maps_Dark_to_ThemeMode_dark', () {
       expect(themeModeFromTweakValue('Dark'), ThemeMode.dark);
     });
 
-    test('System_을_ThemeMode_system으로_매핑한다', () {
+    test('maps_System_to_ThemeMode_system', () {
       expect(themeModeFromTweakValue('System'), ThemeMode.system);
     });
 
-    test('알수없는_값은_기본_dark_모드로_떨어진다', () {
+    test('unknown_values_fall_back_to_default_dark_mode', () {
       expect(themeModeFromTweakValue('Magenta'), kDefaultThemeMode);
       expect(kDefaultThemeMode, ThemeMode.dark);
     });
   });
 
   group('themeModeProvider', () {
-    testWidgets('Light_트윅스에서_MaterialApp_themeMode가_light다', (tester) async {
+    testWidgets('MaterialApp_themeMode_is_light_for_Light_tweaks', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -86,7 +88,9 @@ void main() {
       expect(_findApp(tester).themeMode, ThemeMode.light);
     });
 
-    testWidgets('Dark_트윅스에서_MaterialApp_themeMode가_dark다', (tester) async {
+    testWidgets('MaterialApp_themeMode_is_dark_for_Dark_tweaks', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -102,7 +106,9 @@ void main() {
       expect(_findApp(tester).themeMode, ThemeMode.dark);
     });
 
-    testWidgets('save_후_themeModeProvider가_새_모드로_재발행한다', (tester) async {
+    testWidgets('themeModeProvider_reemits_new_mode_after_save', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           tweaksLoaderProvider.overrideWith(

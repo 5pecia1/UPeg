@@ -49,6 +49,8 @@ mod tests {
             input_spec: InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -59,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn search_toolbox_tools는_현재_runtime_toolbox와_신호를_사용한다() {
+    fn search_toolbox_tools_uses_current_runtime_toolbox_and_signals() {
         let first_id = "test.runtime_search_first";
         let second_id = "test.runtime_search_second";
         let _first = toolbox_add_tool_managed(meta(first_id, "Runtime search first"));

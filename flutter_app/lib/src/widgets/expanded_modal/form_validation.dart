@@ -13,13 +13,14 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:upeg/src/widgets/expanded_modal/form_value.dart';
 
-const String _requiredMessage = 'required';
-const String _invalidValueMessage = 'invalid value';
-const String _notNumberMessage = 'not a number';
-const String _notIntegerMessage = 'not an integer';
-const String _invalidFormatMessage = 'invalid format';
-const String _minimumMessagePrefix = 'min ';
-const String _maximumMessagePrefix = 'max ';
+const String _requiredKey = 'modal.validation.required';
+const String _invalidValueKey = 'modal.validation.invalid_value';
+const String _notNumberKey = 'modal.validation.not_a_number';
+const String _notIntegerKey = 'modal.validation.not_an_integer';
+const String _invalidFormatKey = 'modal.validation.invalid_format';
+const String _minimumKey = 'modal.validation.min';
+const String _maximumKey = 'modal.validation.max';
+const String _notUrlKey = 'modal.validation.not_a_url';
 
 /// Sealed result of a single field validation pass.
 @immutable
@@ -34,23 +35,34 @@ final class FieldValidationOk extends FieldValidation {
 }
 
 final class FieldValidationError extends FieldValidation {
-  const FieldValidationError(this.message);
-  final String message;
+  const FieldValidationError(this.messageKey, {this.messageArgs});
+
+  /// Catalog key (upeg-pegboard-ui/src/i18n.rs) for the localized
+  /// presentation. Pair with [messageArgs] and render via
+  /// `t(ref, error.messageKey, error.messageArgs)` — the validator
+  /// itself stays pure and never touches the widget layer.
+  final String messageKey;
+
+  /// `{name}` interpolation args for [messageKey]; `null` when the
+  /// message carries no placeholders.
+  final Map<String, String>? messageArgs;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FieldValidationError && other.message == message;
+      other is FieldValidationError &&
+          other.messageKey == messageKey &&
+          mapEquals(other.messageArgs, messageArgs);
 
   @override
-  int get hashCode => message.hashCode;
+  int get hashCode => messageKey.hashCode;
 }
 
 /// Required-empty check shared by every kind. Returning early keeps
 /// the per-kind validators short.
 FieldValidation? _requiredCheck(String raw, {required bool required}) {
   if (raw.isEmpty && required) {
-    return const FieldValidationError(_requiredMessage);
+    return const FieldValidationError(_requiredKey);
   }
   if (raw.isEmpty) {
     return const FieldValidationOk();
@@ -82,7 +94,7 @@ FieldValidation validateNumber(
   if (r != null) return r;
   final parsed = num.tryParse(raw);
   if (parsed == null || !parsed.isFinite) {
-    return const FieldValidationError(_notNumberMessage);
+    return const FieldValidationError(_notNumberKey);
   }
   return _rangeCheck(parsed.toDouble(), min, max) ?? const FieldValidationOk();
 }
@@ -100,17 +112,23 @@ FieldValidation validateInteger(
   if (r != null) return r;
   final parsed = int.tryParse(raw.trim());
   if (parsed == null) {
-    return const FieldValidationError(_notIntegerMessage);
+    return const FieldValidationError(_notIntegerKey);
   }
   return _rangeCheck(parsed.toDouble(), min, max) ?? const FieldValidationOk();
 }
 
 FieldValidation? _rangeCheck(double value, double? min, double? max) {
   if (min != null && value < min) {
-    return FieldValidationError('$_minimumMessagePrefix${formatBound(min)}');
+    return FieldValidationError(
+      _minimumKey,
+      messageArgs: {'value': formatBound(min)},
+    );
   }
   if (max != null && value > max) {
-    return FieldValidationError('$_maximumMessagePrefix${formatBound(max)}');
+    return FieldValidationError(
+      _maximumKey,
+      messageArgs: {'value': formatBound(max)},
+    );
   }
   return null;
 }
@@ -127,7 +145,7 @@ FieldValidation? _patternCheck(String raw, String? pattern) {
   }
   return compiled.hasMatch(raw)
       ? null
-      : const FieldValidationError(_invalidFormatMessage);
+      : const FieldValidationError(_invalidFormatKey);
 }
 
 /// Render a constraint bound for a message / helper text: a whole
@@ -143,7 +161,7 @@ FieldValidation validateUrl(String raw, {required bool required}) {
   if (r != null) return r;
   final uri = Uri.tryParse(raw);
   if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
-    return const FieldValidationError('not a url');
+    return const FieldValidationError(_notUrlKey);
   }
   return const FieldValidationOk();
 }
@@ -179,7 +197,7 @@ FieldValidation validateMultiOptionValue(
   final isEmpty = value is MultiOptionValue && value.keys.isEmpty;
   if (isEmpty) {
     return required
-        ? const FieldValidationError(_requiredMessage)
+        ? const FieldValidationError(_requiredKey)
         : const FieldValidationOk();
   }
   return _validateTypedValue(
@@ -217,10 +235,10 @@ FieldValidation _validateTypedValue(
 }) {
   if (value == null) {
     return required
-        ? const FieldValidationError(_requiredMessage)
+        ? const FieldValidationError(_requiredKey)
         : const FieldValidationOk();
   }
   return isValid
       ? const FieldValidationOk()
-      : const FieldValidationError(_invalidValueMessage);
+      : const FieldValidationError(_invalidValueKey);
 }

@@ -35,7 +35,7 @@ use upeg_runtime::{
 
 use crate::domain::execution::dispatch::{Outcome, dispatch_failure};
 
-use super::super::model::{RunToken, State};
+use super::super::model::{PresentationHost, RunToken, State};
 use super::super::msg::Msg;
 use super::super::update::update;
 
@@ -103,6 +103,7 @@ pub(super) struct RunningDispatch {
     worker: JoinHandle<()>,
     run: RunToken,
     tool_id: &'static str,
+    presentation_host: PresentationHost,
 }
 
 impl RunningDispatch {
@@ -116,8 +117,16 @@ impl RunningDispatch {
         board: Option<upeg_core::BoardKey>,
         preset: Option<upeg_core::ArgsPreset>,
     ) -> Self {
-        Self::spawn_with(run, tool_id, move || {
-            super::dispatch_through_host_or_local(tool_id, args, board, preset)
+        let attached_host = (!crate::domain::execution::context::requires_local_dispatch(tool_id))
+            .then(crate::infrastructure::attach::current_host)
+            .flatten();
+        let presentation_host = if attached_host.is_some() {
+            PresentationHost::AttachedUnverified
+        } else {
+            PresentationHost::LocalTui
+        };
+        Self::spawn_with_host(run, tool_id, presentation_host, move || {
+            super::dispatch_through_host_or_local(tool_id, args, board, preset, attached_host)
         })
     }
 
@@ -126,9 +135,10 @@ impl RunningDispatch {
     /// The two ambient scopes and the two channels are the part worth
     /// testing (cancellation acknowledgement, a dead worker); the body
     /// is what a test wants to replace.
-    fn spawn_with(
+    fn spawn_with_host(
         run: RunToken,
         tool_id: &'static str,
+        presentation_host: PresentationHost,
         body: impl FnOnce() -> Outcome + Send + 'static,
     ) -> Self {
         let (sink, progress) = progress_channel();
@@ -149,11 +159,29 @@ impl RunningDispatch {
             worker,
             run,
             tool_id,
+            presentation_host,
         }
+    }
+
+    #[cfg(test)]
+    fn spawn_with(
+        run: RunToken,
+        tool_id: &'static str,
+        body: impl FnOnce() -> Outcome + Send + 'static,
+    ) -> Self {
+        Self::spawn_with_host(run, tool_id, PresentationHost::LocalTui, body)
     }
 
     pub(super) const fn tool_id(&self) -> &'static str {
         self.tool_id
+    }
+
+    pub(super) const fn run(&self) -> RunToken {
+        self.run
+    }
+
+    pub(super) const fn presentation_host(&self) -> PresentationHost {
+        self.presentation_host
     }
 
     /// Ask the run to stop. Idempotent — cancellation is a request, and
@@ -230,8 +258,9 @@ fn worker_panicked_outcome() -> Outcome {
 
 #[cfg(test)]
 impl RunningDispatch {
-    /// 테스트가 워커의 종료를 결정적으로 기다리기 위한 창구. 프로덕션
-    /// 경로는 [`RunningDispatch::cancel_and_wait`]만 쓴다.
+    /// Window for a test to deterministically wait for the worker's
+    /// exit. The production path only uses
+    /// [`RunningDispatch::cancel_and_wait`].
     fn wait_for_worker_exit(&self) {
         while !self.worker.is_finished() {
             std::thread::sleep(WORKER_EXIT_POLL_INTERVAL);
@@ -247,19 +276,21 @@ mod tests {
     use super::*;
     use crate::surfaces::tui::model::{LiveTail, View};
 
-    /// 취소 토큰 폴링 주기. `External` invoker의 wait loop을 흉내 낸다.
+    /// Cancellation-token poll interval. Mimics the `External` invoker's
+    /// wait loop.
     const CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(5);
-    /// 취소가 끝내 오지 않아도 테스트가 영원히 매달리지 않도록 하는 상한.
+    /// Cap so the test never hangs forever even if cancellation never
+    /// arrives.
     const CANCEL_OBSERVE_LIMIT: Duration = Duration::from_secs(5);
-    /// 취소를 무시하는 워커를 기다리는 시간. 실패 경로에서도 테스트가
-    /// 이만큼만 지연되도록 짧게 잡는다.
+    /// How long to wait on a worker that ignores cancellation. Kept
+    /// short so the test delays only this much even on the failure path.
     const IGNORED_CANCEL_GRACE: Duration = Duration::from_millis(80);
 
     const TEST_TOOL_ID: &str = "tui.run.test";
     const CANCELLED_CODE: &str = "cancelled";
 
-    /// `start_run`이 만드는 것과 같은 모습: 모델이 이 run을 살아 있다고
-    /// 여기고, 오른쪽 pane이 그 run의 실행 화면이다.
+    /// The same shape `start_run` produces: the model considers this run
+    /// alive and the right pane is that run's running view.
     fn running_session(tool_id: &'static str) -> (State, RunToken) {
         let mut state = State::default();
         let run = state.start_active_run(tool_id);
@@ -271,9 +302,10 @@ mod tests {
         (state, run)
     }
 
-    /// 취소 토큰을 관측할 때까지 도는 tool 본문.
+    /// Tool body that spins until it observes the cancellation token.
     fn cancellable_body() -> Outcome {
-        let token = upeg_runtime::active_cancellation().expect("취소 범위가 설치되어야 한다");
+        let token =
+            upeg_runtime::active_cancellation().expect("cancellation scope must be installed");
         let deadline = std::time::Instant::now() + CANCEL_OBSERVE_LIMIT;
         while !token.is_cancelled() && std::time::Instant::now() < deadline {
             std::thread::sleep(CANCEL_POLL_INTERVAL);
@@ -282,23 +314,24 @@ mod tests {
     }
 
     #[test]
-    fn 종료_시_취소는_워커의_응답을_기다린다() {
+    fn cancel_on_exit_waits_for_worker_response() {
         let (_, run) = running_session(TEST_TOOL_ID);
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, cancellable_body);
 
         assert_eq!(
             dispatch.cancel_and_wait(CANCEL_OBSERVE_LIMIT),
             RunShutdown::Acknowledged,
-            "취소를 관측하는 워커는 유예 안에 응답한다"
+            "a worker observing cancellation responds within the grace period"
         );
     }
 
     #[test]
-    fn 취소를_무시하는_워커는_유예가_끝나면_포기한다() {
+    fn worker_ignoring_cancel_is_abandoned_after_grace() {
         let (_, run) = running_session(TEST_TOOL_ID);
         let (release_sender, release) = mpsc::channel::<()>();
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, move || {
-            // 취소를 절대 보지 않는 tool. 테스트가 끝날 때 풀어준다.
+            // A tool that never observes cancellation. Released when the
+            // test ends.
             let _ = release.recv();
             Outcome::NotFound
         });
@@ -310,25 +343,27 @@ mod tests {
     }
 
     #[test]
-    fn 죽은_워커는_실행을_영원히_매달아두지_않는다() {
+    fn dead_worker_does_not_leave_run_hanging_forever() {
         let (mut state, run) = running_session(TEST_TOOL_ID);
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, || {
-            std::panic::panic_any("워커가 죽는 상황을 흉내 낸다")
+            std::panic::panic_any("simulating a worker death")
         });
         dispatch.wait_for_worker_exit();
 
-        let outcome = dispatch.pump(&mut state).expect("죽은 워커도 결과를 낸다");
+        let outcome = dispatch
+            .pump(&mut state)
+            .expect("dead worker still yields an outcome");
 
         match outcome {
             Outcome::Failure(failure) => {
                 assert_eq!(failure.error.code, WORKER_PANICKED_ERROR_CODE);
             }
-            other => panic!("실패 봉투를 기대했지만 {other:?}를 받았다"),
+            other => panic!("expected Failure envelope, got {other:?}"),
         }
     }
 
     #[test]
-    fn 아직_끝나지_않은_실행은_결과를_내지_않는다() {
+    fn unfinished_run_produces_no_outcome() {
         let (mut state, run) = running_session(TEST_TOOL_ID);
         let (release_sender, release) = mpsc::channel::<()>();
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, move || {
@@ -343,14 +378,14 @@ mod tests {
     }
 
     #[test]
-    fn 워커가_보낸_출력은_그_run의_tail에_쌓인다() {
+    fn worker_output_accumulates_in_that_runs_tail() {
         let (mut state, run) = running_session(TEST_TOOL_ID);
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, || {
-            let reporter =
-                upeg_runtime::ProgressReporter::capture().expect("진행 범위가 설치되어야 한다");
+            let reporter = upeg_runtime::ProgressReporter::capture()
+                .expect("progress scope must be installed");
             reporter.report(
                 upeg_runtime::ProgressStream::Stdout,
-                "작업 중\n".to_string(),
+                "working\n".to_string(),
             );
             Outcome::NotFound
         });
@@ -358,27 +393,28 @@ mod tests {
 
         assert!(dispatch.pump(&mut state).is_some());
 
-        // pump 이후 view는 Result로 넘어가지 않는다(그건 update의 몫)이므로
-        // tail이 그대로 남아 있어야 한다.
+        // pump does not move the view to Result (that is update's job),
+        // so the tail must remain intact.
         match &state.view {
             View::Running { tail, .. } => {
-                assert_eq!(tail.lines().collect::<Vec<_>>(), ["작업 중"]);
+                assert_eq!(tail.lines().collect::<Vec<_>>(), ["working"]);
             }
-            other => panic!("Running 보기를 기대했지만 {other:?}를 받았다"),
+            other => panic!("expected Running view, got {other:?}"),
         }
     }
 
     #[test]
-    fn 모델이_더_이상_살아_있다고_보지_않는_run의_출력은_버려진다() {
+    fn output_for_run_model_no_longer_considers_alive_is_dropped() {
         let (mut state, run) = running_session(TEST_TOOL_ID);
-        // 최종 봉투가 이미 도착해 모델이 run을 놓아준 상황.
+        // The final envelope already arrived and the model released the
+        // run.
         state.active_run = None;
         let dispatch = RunningDispatch::spawn_with(run, TEST_TOOL_ID, || {
-            let reporter =
-                upeg_runtime::ProgressReporter::capture().expect("진행 범위가 설치되어야 한다");
+            let reporter = upeg_runtime::ProgressReporter::capture()
+                .expect("progress scope must be installed");
             reporter.report(
                 upeg_runtime::ProgressStream::Stdout,
-                "늦게 온 출력\n".to_string(),
+                "late output\n".to_string(),
             );
             Outcome::NotFound
         });
@@ -387,8 +423,8 @@ mod tests {
         let _ = dispatch.pump(&mut state);
 
         match &state.view {
-            View::Running { tail, .. } => assert!(tail.is_empty(), "지난 run의 출력은 버린다"),
-            other => panic!("Running 보기를 기대했지만 {other:?}를 받았다"),
+            View::Running { tail, .. } => assert!(tail.is_empty(), "stale run output is dropped"),
+            other => panic!("expected Running view, got {other:?}"),
         }
     }
 }

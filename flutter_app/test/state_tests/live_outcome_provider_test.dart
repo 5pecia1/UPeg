@@ -58,7 +58,7 @@ ProviderContainer _container({
 }
 
 void main() {
-  test('userinput_소스_핀은_pending_상태를_유지하고_dispatch하지_않는다', () {
+  test('userinput_source_pin_stays_pending_and_never_dispatches', () {
     final calls = <String>[];
     final tool = fixtureToolDto(id: 'test.userinput', pinKind: PinKindDto.live);
     final container = _container(
@@ -74,7 +74,7 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  test('타이머_소스_핀은_인터벌마다_dispatch한다', () {
+  test('timer_source_pin_dispatches_on_every_interval', () {
     fakeAsync((async) {
       var counter = 0;
       final tool = fixtureToolDto(
@@ -109,7 +109,7 @@ void main() {
     });
   });
 
-  test('dispatch_실패시_마지막_성공값을_유지하고_stale로_표시된다', () {
+  test('dispatch_failure_keeps_last_success_and_marks_stale', () {
     fakeAsync((async) {
       final outcomes = <CanonicalToolResult>[
         _ok('v1', structured: '{"v":1}'),
@@ -146,7 +146,7 @@ void main() {
     });
   });
 
-  test('첫_dispatch_실패시_pending을_유지한다', () {
+  test('first_dispatch_failure_stays_pending', () {
     fakeAsync((async) {
       final tool = fixtureToolDto(
         id: 'test.coldfail',
@@ -169,7 +169,7 @@ void main() {
     });
   });
 
-  test('provider_dispose시_timer가_취소되어_더이상_dispatch하지_않는다', () {
+  test('provider_dispose_cancels_timer_and_stops_dispatching', () {
     fakeAsync((async) {
       var counter = 0;
       final tool = fixtureToolDto(
@@ -208,7 +208,7 @@ void main() {
     });
   });
 
-  test('cold_timer_실행_전에_dispose되면_dispatch하지_않는다', () {
+  test('dispose_before_cold_timer_runs_never_dispatches', () {
     fakeAsync((async) {
       var counter = 0;
       final tool = fixtureToolDto(
@@ -239,7 +239,7 @@ void main() {
     });
   });
 
-  test('dispose_이후에_future가_완료되어도_상태를_갱신하지_않는다', () {
+  test('future_completing_after_dispose_does_not_update_state', () {
     fakeAsync((async) {
       var calls = 0;
       final completer = Completer<CanonicalToolResult>();
@@ -274,7 +274,7 @@ void main() {
     });
   });
 
-  test('이전_dispatch가_진행중이면_겹치는_tick을_건너뛴다', () {
+  test('skips_overlapping_ticks_while_previous_dispatch_is_in_flight', () {
     fakeAsync((async) {
       final completers = <Completer<CanonicalToolResult>>[];
       final tool = fixtureToolDto(

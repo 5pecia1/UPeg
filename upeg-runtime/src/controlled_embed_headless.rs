@@ -16,15 +16,21 @@
 //! `Browser::launch` already spins up a fresh chromium process anyway.
 //!
 //! ## Sandbox + flags
+//! Chrome's sandbox stays ON by default. This backend renders
+//! third-party pages, which is exactly what the sandbox exists for
+//! (security absolutes #14: embeds run in a separate sandbox);
+//! `chromiumoxide::BrowserConfig` defaults to `sandbox: true` and
+//! [`HEADLESS_LAUNCH_ARGS`] never opts out. The only override is
+//! [`CONTROLLED_EMBED_NO_SANDBOX_ENV`] set to `1`, reserved for
+//! environments where Chrome cannot sandbox itself at all — CI
+//! containers running as root. Never set it on a normal desktop. With
+//! it unset there is no weaker retry: a sandboxless environment fails
+//! the launch with Chrome's own error.
 //! - `--headless=new` — modern Chrome headless mode (paint, JS,
 //!   timers all behave like a real session, unlike `--headless=old`).
-//! - `--no-sandbox` — devcontainer/CI run as a non-root user inside an
-//!   already-isolated container, where chrome-sandbox's setuid model
-//!   adds zero security but a lot of failure modes. Users on a normal
-//!   desktop can override via `chromiumoxide::BrowserConfig` if we
-//!   ever expose configuration; today we keep it consistent across
-//!   surfaces.
 //! - `--disable-gpu` — headless renderers don't have a GPU context.
+//! - `--disable-dev-shm-usage` — write shared memory under `/tmp`, not
+//!   the often-tiny `/dev/shm` of a container.
 //!
 //! ## Settle window
 //! The page's "result is ready" signal is page-specific. Without a
@@ -59,6 +65,23 @@ use crate::selector_pipeline::ExecutionPlan;
 /// specific tuning would belong on the tool manifest if it becomes a
 /// real need; for now the fixed window matches the GUI runner.
 const DEFAULT_SETTLE_MS: u64 = 500;
+
+/// Flags every headless launch adds on top of chromiumoxide's defaults.
+/// Manifest-driven flags (`controlled_embed_launch_args`) come after
+/// these. Nothing in this list may weaken Chrome's sandbox — see the
+/// module doc.
+const HEADLESS_LAUNCH_ARGS: [&str; 3] =
+    ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage"];
+
+/// Opt-out env var for Chrome's sandbox. Only the literal `1` counts.
+/// Exists for environments where Chrome cannot sandbox itself (CI
+/// containers running as root); never set it on a normal desktop — see
+/// the module doc.
+pub const CONTROLLED_EMBED_NO_SANDBOX_ENV: &str = "UPEG_CONTROLLED_EMBED_NO_SANDBOX";
+
+fn sandbox_opt_out(value: Option<&str>) -> bool {
+    value == Some("1")
+}
 
 pub const CONTROLLED_EMBED_MOBILE_SAFARI_USER_AGENT: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) \
 AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 \
@@ -433,12 +456,17 @@ async fn run_headless_pipeline(
         launch_args,
         operations,
     } = pipeline;
-    let mut config_builder = BrowserConfig::builder()
-        .chrome_executable(executable)
-        .arg("--headless=new")
-        .arg("--no-sandbox")
-        .arg("--disable-gpu")
-        .arg("--disable-dev-shm-usage");
+    let mut config_builder = BrowserConfig::builder().chrome_executable(executable);
+    for arg in HEADLESS_LAUNCH_ARGS {
+        config_builder = config_builder.arg(arg);
+    }
+    if sandbox_opt_out(
+        std::env::var(CONTROLLED_EMBED_NO_SANDBOX_ENV)
+            .ok()
+            .as_deref(),
+    ) {
+        config_builder = config_builder.arg("--no-sandbox");
+    }
     for arg in launch_args {
         config_builder = config_builder.arg(arg);
     }

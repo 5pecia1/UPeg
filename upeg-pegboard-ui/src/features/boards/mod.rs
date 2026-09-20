@@ -172,11 +172,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 보드_안내는_유아이_변환과_직렬화에서_유지된다() {
+    fn board_guidance_survives_ui_conversion_and_serialization() {
         let json = r##"[{"key":"dev","title":"Dev","guidance":{"description":"개발 작업","instructions":"# 순서\n\n    cargo test\n"}}]"##;
-        let boards = deserialize_boards(json).expect("보드 읽기");
+        let boards = deserialize_boards(json).expect("read boards");
         let exported: serde_json::Value =
-            serde_json::from_str(&serialize_boards(&boards)).expect("제이슨 읽기");
+            serde_json::from_str(&serialize_boards(&boards)).expect("read json");
 
         assert_eq!(exported[0]["guidance"]["description"], "개발 작업");
         assert_eq!(
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn 기본은_세개_보드를_가진다() {
+    fn default_has_three_boards() {
         let b = default_boards();
         assert_eq!(b.len(), 3);
         let keys: Vec<&str> = b.iter().map(|b| b.key).collect();
@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn 왕복을_직렬화한다() {
+    fn serialization_round_trips() {
         let original = default_boards();
         let json = serialize_boards(&original);
         let back = deserialize_boards(&json).expect("parse");
@@ -202,13 +202,13 @@ mod tests {
     }
 
     #[test]
-    fn 역직렬화_쓰레기값은_없음을_반환한다() {
+    fn deserialize_boards_garbage_returns_none() {
         assert!(deserialize_boards("not json").is_none());
         assert!(deserialize_boards("42").is_none());
     }
 
     #[test]
-    fn 보드_추가는_제목을_slugify하고_중복을_제거한다() {
+    fn add_board_slugifies_title_and_dedupes() {
         let mut boards = default_boards();
         let key = add_board(&mut boards, "My Board!").expect("added");
         assert_eq!(key, "my-board");
@@ -221,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_추가는_빈_제목을_거부한다() {
+    fn add_board_rejects_empty_title() {
         let mut boards = default_boards();
         assert!(add_board(&mut boards, "").is_none());
         assert!(add_board(&mut boards, "   ").is_none());
@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_삭제는_키를_기준으로_동작한다() {
+    fn remove_board_operates_by_key() {
         let mut boards = default_boards();
         assert!(remove_board(&mut boards, "dev"));
         assert_eq!(boards.len(), 2);
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_이름변경은_제목만_바꾼다() {
+    fn rename_board_changes_only_the_title() {
         let mut boards = default_boards();
         assert!(rename_board(&mut boards, "dev", "Development"));
         let dev = boards.iter().find(|b| b.key == "dev").unwrap();
@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_이름변경은_빈_제목을_거부한다() {
+    fn rename_board_rejects_empty_title() {
         let mut boards = default_boards();
         assert!(!rename_board(&mut boards, "dev", ""));
         assert!(!rename_board(&mut boards, "dev", "  "));
@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[test]
-    fn slugify_다양한_입력들을_검증한다() {
+    fn slugify_handles_various_inputs() {
         assert_eq!(slugify(""), "board");
         assert_eq!(slugify("   "), "board");
         assert_eq!(slugify("Hello World"), "hello-world");
@@ -268,13 +268,13 @@ mod tests {
     }
 
     #[test]
-    fn 고유하면_중복제거_키는_기본값을_반환한다() {
+    fn dedupe_key_returns_base_when_unique() {
         let boards: Vec<Board> = vec![];
         assert_eq!(dedupe_key("foo", &boards), "foo");
     }
 
     #[test]
-    fn 중복제거_키는_충돌_시_접미사를_붙인다() {
+    fn dedupe_key_appends_suffix_on_collision() {
         let boards = default_boards();
         assert_eq!(dedupe_key("dev", &boards), "dev-2");
         assert_eq!(dedupe_key("trading", &boards), "trading-2");

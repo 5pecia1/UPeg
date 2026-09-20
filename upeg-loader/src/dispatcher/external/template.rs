@@ -154,13 +154,14 @@ fn unescape_closing_braces(text: &str) -> String {
 mod tests {
     use super::*;
 
-    /// Render `token` with `값` supplying every known key. Any other key
-    /// is an absent **optional** input, the only shape that may drop a
-    /// token.
-    fn 렌더(token: &str, 값: &[(&str, &str)]) -> Option<String> {
-        let 표 = 값.to_vec();
+    /// Render `token` with `values` supplying every known key. Any other
+    /// key is an absent **optional** input, the only shape that may drop
+    /// a token.
+    fn render(token: &str, values: &[(&str, &str)]) -> Option<String> {
+        let table = values.to_vec();
         ArgTemplate::parse(token).render(&|key| {
-            표.iter()
+            table
+                .iter()
                 .find(|(name, _)| *name == key)
                 .map_or(Substitution::AbsentOptional, |(_, value)| {
                     Substitution::Text((*value).to_string())
@@ -169,90 +170,93 @@ mod tests {
     }
 
     /// Same, but every unknown key is an absent **required** input.
-    fn 필수_렌더(token: &str) -> Option<String> {
+    fn render_required(token: &str) -> Option<String> {
         ArgTemplate::parse(token).render(&|_| Substitution::AbsentRequired)
     }
 
     #[test]
-    fn 자리표시자가_없는_토큰은_그대로_통과한다() {
-        assert_eq!(렌더("--all", &[]).as_deref(), Some("--all"));
-        assert_eq!(렌더("", &[]).as_deref(), Some(""));
+    fn token_without_placeholder_passes_through() {
+        assert_eq!(render("--all", &[]).as_deref(), Some("--all"));
+        assert_eq!(render("", &[]).as_deref(), Some(""));
     }
 
     #[test]
-    fn 토큰_중간의_자리표시자를_치환한다() {
+    fn placeholder_mid_token_is_substituted() {
         assert_eq!(
-            렌더("--manifest-path={path}", &[("path", "/repo/Cargo.toml")]).as_deref(),
+            render("--manifest-path={path}", &[("path", "/repo/Cargo.toml")]).as_deref(),
             Some("--manifest-path=/repo/Cargo.toml")
         );
         assert_eq!(
-            렌더("-p{crate}", &[("crate", "upeg-core")]).as_deref(),
+            render("-p{crate}", &[("crate", "upeg-core")]).as_deref(),
             Some("-pupeg-core")
         );
     }
 
     #[test]
-    fn 값이_없는_선택_입력의_단독_자리표시자만_버려진다() {
-        assert_eq!(렌더("{count}", &[]), None);
+    fn lone_placeholder_of_absent_optional_input_is_dropped() {
+        assert_eq!(render("{count}", &[]), None);
     }
 
     #[test]
-    fn 값이_없는_필수_입력의_단독_자리표시자는_자리를_지킨다() {
+    fn lone_placeholder_of_absent_required_input_keeps_position() {
         assert_eq!(
-            필수_렌더("{dir}").as_deref(),
+            render_required("{dir}").as_deref(),
             Some(""),
             "dropping it would shift every following argument"
         );
     }
 
     #[test]
-    fn 리터럴이_붙은_토큰은_값이_없어도_자리를_지킨다() {
+    fn token_with_literal_keeps_position_without_value() {
         assert_eq!(
-            렌더("--manifest-path={path}", &[]).as_deref(),
+            render("--manifest-path={path}", &[]).as_deref(),
             Some("--manifest-path=")
         );
         assert_eq!(
-            렌더("{dir}/build", &[]).as_deref(),
+            render("{dir}/build", &[]).as_deref(),
             Some("/build"),
             "`rm -rf {{dir}}/build` must not collapse to `rm -rf`"
         );
     }
 
     #[test]
-    fn 자리표시자가_둘_이상이면_비어도_토큰을_유지한다() {
-        assert_eq!(렌더("{a}{b}", &[]).as_deref(), Some(""));
+    fn token_with_multiple_placeholders_stays_even_when_empty() {
+        assert_eq!(render("{a}{b}", &[]).as_deref(), Some(""));
     }
 
     #[test]
-    fn 중괄호_이스케이프는_리터럴_중괄호가_된다() {
-        assert_eq!(렌더("{{literal}}", &[]).as_deref(), Some("{literal}"));
+    fn escaped_braces_become_literal_braces() {
+        assert_eq!(render("{{literal}}", &[]).as_deref(), Some("{literal}"));
         assert_eq!(
-            렌더("{{{key}}}", &[("key", "v")]).as_deref(),
+            render("{{{key}}}", &[("key", "v")]).as_deref(),
             Some("{v}"),
             "escaped braces around a real placeholder"
         );
     }
 
     #[test]
-    fn 중괄호_안의_공백은_잘라낸다() {
-        assert_eq!(렌더("{ input }", &[("input", "hi")]).as_deref(), Some("hi"));
-    }
-
-    #[test]
-    fn 닫히지_않은_중괄호는_리터럴로_남는다() {
-        assert_eq!(렌더("{unclosed", &[]).as_deref(), Some("{unclosed"));
-    }
-
-    #[test]
-    fn 여러_자리표시자를_한_토큰에서_이어붙인다() {
+    fn whitespace_inside_braces_is_trimmed() {
         assert_eq!(
-            렌더("{a}-{b}", &[("a", "x"), ("b", "y")]).as_deref(),
+            render("{ input }", &[("input", "hi")]).as_deref(),
+            Some("hi")
+        );
+    }
+
+    #[test]
+    fn unclosed_brace_stays_literal() {
+        assert_eq!(render("{unclosed", &[]).as_deref(), Some("{unclosed"));
+    }
+
+    #[test]
+    fn multiple_placeholders_concatenate_in_one_token() {
+        assert_eq!(
+            render("{a}-{b}", &[("a", "x"), ("b", "y")]).as_deref(),
             Some("x-y")
         );
     }
 
     #[test]
-    fn 자리표시자_목록은_선언_순서로_모든_키를_돌려준다() {
+    fn placeholders_returns_all_keys_in_declaration_order() {
         let template = ArgTemplate::parse("--from={a}/{ b }{{c}}");
 
         assert_eq!(template.placeholders().collect::<Vec<_>>(), vec!["a", "b"]);

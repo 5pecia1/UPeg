@@ -134,7 +134,7 @@ mod tests {
     // ─── SUCCESS_STATUS ─────────────────────────────────────────
 
     #[test]
-    fn 성공_상태_범위는_2xx만_포함한다() {
+    fn success_status_range_covers_only_2xx() {
         assert!(SUCCESS_STATUS.contains(&200));
         assert!(SUCCESS_STATUS.contains(&204));
         assert!(SUCCESS_STATUS.contains(&299));
@@ -146,7 +146,7 @@ mod tests {
     // ─── truncate_error_body ────────────────────────────────────
 
     #[test]
-    fn 짧은_에러_본문은_그대로_유지한다() {
+    fn short_error_body_is_kept_verbatim() {
         assert_eq!(
             truncate_error_body(r#"{"error":true,"reason":"bad value"}"#),
             r#"{"error":true,"reason":"bad value"}"#
@@ -154,12 +154,12 @@ mod tests {
     }
 
     #[test]
-    fn 에러_본문_주변_공백을_잘라낸다() {
+    fn error_body_surrounding_whitespace_is_trimmed() {
         assert_eq!(truncate_error_body("  boom \n"), "boom");
     }
 
     #[test]
-    fn 긴_에러_본문은_잘라내고_표시를_붙인다() {
+    fn long_error_body_is_truncated_with_marker() {
         let body = "x".repeat(ERROR_BODY_MAX_CHARS + 10);
         let truncated = truncate_error_body(&body);
         assert_eq!(
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn 에러_본문_절단은_문자_경계를_지킨다() {
+    fn error_body_truncation_respects_char_boundaries() {
         let body = "가".repeat(ERROR_BODY_MAX_CHARS + 1);
         let truncated = truncate_error_body(&body);
         assert!(truncated.starts_with('가'));
@@ -180,7 +180,7 @@ mod tests {
     // ─── HttpError Display ──────────────────────────────────────
 
     #[test]
-    fn 전송_실패는_단계를_밝혀_표시한다() {
+    fn transport_failure_display_names_the_stage() {
         assert_eq!(
             HttpError::Transport("connection refused".to_string()).to_string(),
             "request failed: connection refused"
@@ -188,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn 본문_읽기_실패는_단계를_밝혀_표시한다() {
+    fn body_read_failure_display_names_the_stage() {
         assert_eq!(
             HttpError::BodyRead("stream closed".to_string()).to_string(),
             "response read failed: stream closed"
@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn 상태_실패는_상태코드와_본문을_함께_표시한다() {
+    fn status_failure_display_includes_status_code_and_body() {
         assert_eq!(
             HttpError::Status {
                 status: 400,

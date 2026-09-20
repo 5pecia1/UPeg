@@ -11,7 +11,29 @@ import 'tools/input_field.dart';
 part 'tools.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dispatch_tool_impl`, `error`, `shape_approval_arg`, `strip_approved_steps`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+
+PresentationRowsDto resolveToolPresentationRows({
+  required String toolId,
+  required String outputsJson,
+}) => RustLib.instance.api.crateApiToolsResolveToolPresentationRows(
+  toolId: toolId,
+  outputsJson: outputsJson,
+);
+
+ActionBindingResolutionDto resolveToolActionBindings({
+  required String toolId,
+  required String actionId,
+  required String currentInputsJson,
+  String? selectedRowJson,
+  required String outputsJson,
+}) => RustLib.instance.api.crateApiToolsResolveToolActionBindings(
+  toolId: toolId,
+  actionId: actionId,
+  currentInputsJson: currentInputsJson,
+  selectedRowJson: selectedRowJson,
+  outputsJson: outputsJson,
+);
 
 /// All registered toolkits, sorted by `id`. The UI uses this to drive a
 /// toolkit selector / nav.
@@ -62,6 +84,39 @@ Future<CanonicalToolResult> dispatchToolAsync({
   boardKey: boardKey,
   approve: approve,
 );
+
+class ActionBindingResolutionDto {
+  final String valuesJson;
+  final List<String> diagnostics;
+  final List<String> unboundRequiredInputs;
+
+  const ActionBindingResolutionDto({
+    required this.valuesJson,
+    required this.diagnostics,
+    required this.unboundRequiredInputs,
+  });
+
+  @override
+  int get hashCode =>
+      valuesJson.hashCode ^
+      diagnostics.hashCode ^
+      unboundRequiredInputs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ActionBindingResolutionDto &&
+          runtimeType == other.runtimeType &&
+          valuesJson == other.valuesJson &&
+          diagnostics == other.diagnostics &&
+          unboundRequiredInputs == other.unboundRequiredInputs;
+}
+
+enum ActionScopeDto { row, result }
+
+enum ActionSuccessDto { refreshOrigin }
+
+enum BindingSourceDto { input, row, output, constant }
 
 @freezed
 sealed class CanonicalFileContent with _$CanonicalFileContent {
@@ -308,6 +363,140 @@ enum PinKindDto {
   llm,
 }
 
+class PresentationActionDto {
+  final String id;
+  final ActionScopeDto scope;
+  final String label;
+  final String targetTool;
+  final ActionSuccessDto? onSuccess;
+  final List<PresentationBindingDto> bindings;
+
+  const PresentationActionDto({
+    required this.id,
+    required this.scope,
+    required this.label,
+    required this.targetTool,
+    this.onSuccess,
+    required this.bindings,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      scope.hashCode ^
+      label.hashCode ^
+      targetTool.hashCode ^
+      onSuccess.hashCode ^
+      bindings.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PresentationActionDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          scope == other.scope &&
+          label == other.label &&
+          targetTool == other.targetTool &&
+          onSuccess == other.onSuccess &&
+          bindings == other.bindings;
+}
+
+class PresentationBindingDto {
+  final String target;
+  final BindingSourceDto source;
+  final String? pointer;
+  final String? valueJson;
+
+  const PresentationBindingDto({
+    required this.target,
+    required this.source,
+    this.pointer,
+    this.valueJson,
+  });
+
+  @override
+  int get hashCode =>
+      target.hashCode ^ source.hashCode ^ pointer.hashCode ^ valueJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PresentationBindingDto &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          source == other.source &&
+          pointer == other.pointer &&
+          valueJson == other.valueJson;
+}
+
+class PresentationColumnDto {
+  final String label;
+  final String pointer;
+
+  const PresentationColumnDto({required this.label, required this.pointer});
+
+  @override
+  int get hashCode => label.hashCode ^ pointer.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PresentationColumnDto &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          pointer == other.pointer;
+}
+
+class PresentationRowDto {
+  final String key;
+  final String valueJson;
+  final List<String> cellsJson;
+
+  const PresentationRowDto({
+    required this.key,
+    required this.valueJson,
+    required this.cellsJson,
+  });
+
+  @override
+  int get hashCode => key.hashCode ^ valueJson.hashCode ^ cellsJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PresentationRowDto &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          valueJson == other.valueJson &&
+          cellsJson == other.cellsJson;
+}
+
+class PresentationRowsDto {
+  final List<PresentationRowDto> rows;
+  final List<String> diagnostics;
+  final bool rowActionsEnabled;
+
+  const PresentationRowsDto({
+    required this.rows,
+    required this.diagnostics,
+    required this.rowActionsEnabled,
+  });
+
+  @override
+  int get hashCode =>
+      rows.hashCode ^ diagnostics.hashCode ^ rowActionsEnabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PresentationRowsDto &&
+          runtimeType == other.runtimeType &&
+          rows == other.rows &&
+          diagnostics == other.diagnostics &&
+          rowActionsEnabled == other.rowActionsEnabled;
+}
+
 @freezed
 sealed class SourceDto with _$SourceDto {
   const SourceDto._();
@@ -384,6 +573,8 @@ class ToolDto {
   /// label on the wire, so Dart compares its own surface label against
   /// this list and needs no second vocabulary to keep in sync.
   final List<String> approvalSurfaces;
+  final ToolEffectDto effect;
+  final ToolPresentationDto? presentation;
 
   const ToolDto({
     required this.id,
@@ -400,6 +591,8 @@ class ToolDto {
     this.credentialName,
     required this.requiresApproval,
     required this.approvalSurfaces,
+    required this.effect,
+    this.presentation,
   });
 
   @override
@@ -417,7 +610,9 @@ class ToolDto {
       source.hashCode ^
       credentialName.hashCode ^
       requiresApproval.hashCode ^
-      approvalSurfaces.hashCode;
+      approvalSurfaces.hashCode ^
+      effect.hashCode ^
+      presentation.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -437,7 +632,50 @@ class ToolDto {
           source == other.source &&
           credentialName == other.credentialName &&
           requiresApproval == other.requiresApproval &&
-          approvalSurfaces == other.approvalSurfaces;
+          approvalSurfaces == other.approvalSurfaces &&
+          effect == other.effect &&
+          presentation == other.presentation;
+}
+
+enum ToolEffectDto { read, write, unknown }
+
+class ToolPresentationDto {
+  final int version;
+  final String? output;
+  final String? rows;
+  final String? rowKey;
+  final List<PresentationColumnDto> columns;
+  final List<PresentationActionDto> actions;
+
+  const ToolPresentationDto({
+    required this.version,
+    this.output,
+    this.rows,
+    this.rowKey,
+    required this.columns,
+    required this.actions,
+  });
+
+  @override
+  int get hashCode =>
+      version.hashCode ^
+      output.hashCode ^
+      rows.hashCode ^
+      rowKey.hashCode ^
+      columns.hashCode ^
+      actions.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ToolPresentationDto &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          output == other.output &&
+          rows == other.rows &&
+          rowKey == other.rowKey &&
+          columns == other.columns &&
+          actions == other.actions;
 }
 
 /// Dart-mirrored view of [`upeg_core::ToolkitMeta`].

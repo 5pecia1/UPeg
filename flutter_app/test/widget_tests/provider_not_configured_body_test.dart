@@ -63,116 +63,140 @@ Widget _harness({
 
 void main() {
   group('ProviderNotConfiguredBody', () {
-    testWidgets('설정필요_상태는_CLI_명령과_복사_버튼을_렌더한다', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      await tester.pumpWidget(
-        _harness(credentialName: 'demo_api_key', writer: writer),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'the_needs_setup_state_renders_the_cli_command_and_copy_button',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        await tester.pumpWidget(
+          _harness(credentialName: 'demo_api_key', writer: writer),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('needs setup'), findsOneWidget);
-      expect(find.text('Set up a credential in the terminal:'), findsOneWidget);
-      expect(find.text(credentialAddCommand('demo_api_key')), findsOneWidget);
-      expect(find.byType(CopyToClipboardButton), findsOneWidget);
-    });
+        expect(find.text('needs setup'), findsOneWidget);
+        expect(
+          find.text('Set up a credential in the terminal:'),
+          findsOneWidget,
+        );
+        expect(find.text(credentialAddCommand('demo_api_key')), findsOneWidget);
+        expect(find.byType(CopyToClipboardButton), findsOneWidget);
+      },
+    );
 
-    testWidgets('credential_이름이_없으면_플레이스홀더가_들어간_명령을_렌더한다', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      await tester.pumpWidget(_harness(writer: writer));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'without_a_credential_name_the_command_renders_with_the_placeholder',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        await tester.pumpWidget(_harness(writer: writer));
+        await tester.pumpAndSettle();
 
-      final command = credentialAddCommand();
-      expect(command, contains(credentialNamePlaceholder));
-      expect(find.text(command), findsOneWidget);
-    });
+        final command = credentialAddCommand();
+        expect(command, contains(credentialNamePlaceholder));
+        expect(find.text(command), findsOneWidget);
+      },
+    );
 
-    testWidgets('복사_버튼_탭은_CLI_명령을_클립보드에_복사한다', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      await tester.pumpWidget(
-        _harness(credentialName: 'demo_api_key', writer: writer),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'tapping_the_copy_button_copies_the_cli_command_to_the_clipboard',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        await tester.pumpWidget(
+          _harness(credentialName: 'demo_api_key', writer: writer),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(CopyToClipboardButton));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byType(CopyToClipboardButton));
+        await tester.pumpAndSettle();
 
-      expect(writer.writes, [credentialAddCommand('demo_api_key')]);
-    });
+        expect(writer.writes, [credentialAddCommand('demo_api_key')]);
+      },
+    );
 
-    testWidgets('로케일_전환시_설정필요_라벨이_한국어로_바뀐다', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          clipboardWriterProvider.overrideWithValue(writer),
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => _tweaks('En'),
+    testWidgets(
+      'switching_the_locale_renders_the_needs_setup_label_in_korean',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            clipboardWriterProvider.overrideWithValue(writer),
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => _tweaks('En'),
+            ),
+            tweaksSaverProvider.overrideWith((ref) => (TweaksDto next) {}),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: UpegTheme.darkTheme(),
+              home: const Scaffold(body: ProviderNotConfiguredBody()),
+            ),
           ),
-          tweaksSaverProvider.overrideWith((ref) => (TweaksDto next) {}),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.darkTheme(),
-            home: const Scaffold(body: ProviderNotConfiguredBody()),
+        expect(find.text('needs setup'), findsOneWidget);
+        expect(find.text('설정 필요'), findsNothing);
+
+        await container.read(tweaksProvider.notifier).save(_tweaks('Ko'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('needs setup'), findsNothing);
+        expect(find.text('설정 필요'), findsOneWidget);
+        expect(find.text('터미널에서 credential을 설정하세요:'), findsOneWidget);
+        // CLI syntax stays locale-independent.
+        expect(find.text(credentialAddCommand()), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'switching_the_locale_renders_the_needs_setup_label_and_hint_in_korean',
+      (tester) async {
+        final writer = _RecordingClipboardWriter();
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            clipboardWriterProvider.overrideWithValue(writer),
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => _tweaks('En'),
+            ),
+            tweaksSaverProvider.overrideWith((ref) => (TweaksDto _) {}),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(tweaksProvider.future);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(body: ProviderNotConfiguredBody()),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('needs setup'), findsOneWidget);
-      expect(find.text('설정 필요'), findsNothing);
+        expect(
+          find.text(i18nEn(providerNotConfiguredLabelKey)),
+          findsOneWidget,
+        );
+        expect(find.text(i18nEn(providerNotConfiguredHintKey)), findsOneWidget);
 
-      await container.read(tweaksProvider.notifier).save(_tweaks('Ko'));
-      await tester.pumpAndSettle();
+        await container.read(tweaksProvider.notifier).save(_tweaks('Ko'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('needs setup'), findsNothing);
-      expect(find.text('설정 필요'), findsOneWidget);
-      expect(find.text('터미널에서 credential을 설정하세요:'), findsOneWidget);
-      // CLI syntax stays locale-independent.
-      expect(find.text(credentialAddCommand()), findsOneWidget);
-    });
-
-    testWidgets('로케일_전환시_설정_필요_상태의_라벨과_힌트가_한국어로_바뀐다', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          clipboardWriterProvider.overrideWithValue(writer),
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => _tweaks('En'),
-          ),
-          tweaksSaverProvider.overrideWith((ref) => (TweaksDto _) {}),
-        ],
-      );
-      addTearDown(container.dispose);
-      await container.read(tweaksProvider.future);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: ProviderNotConfiguredBody()),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text(i18nEn(providerNotConfiguredLabelKey)), findsOneWidget);
-      expect(find.text(i18nEn(providerNotConfiguredHintKey)), findsOneWidget);
-
-      await container.read(tweaksProvider.notifier).save(_tweaks('Ko'));
-      await tester.pumpAndSettle();
-
-      expect(find.text(i18nKo(providerNotConfiguredLabelKey)), findsOneWidget);
-      expect(find.text(i18nKo(providerNotConfiguredHintKey)), findsOneWidget);
-      expect(find.text(i18nEn(providerNotConfiguredLabelKey)), findsNothing);
-    });
+        expect(
+          find.text(i18nKo(providerNotConfiguredLabelKey)),
+          findsOneWidget,
+        );
+        expect(find.text(i18nKo(providerNotConfiguredHintKey)), findsOneWidget);
+        expect(find.text(i18nEn(providerNotConfiguredLabelKey)), findsNothing);
+      },
+    );
   });
 }

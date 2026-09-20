@@ -1,7 +1,7 @@
 ---
 type: Generated Reference
 title: External Tool Manifest Guide
-description: Rust 매니페스트 타입에서 생성된 Toolkit TOML 전체 필드 레퍼런스.
+description: Full Toolkit TOML field reference generated from the Rust manifest types.
 tags: [manifest, toml, reference, generated]
 status: stable
 generated: { by: process:upeg-interface-toolkit-schema }
@@ -128,6 +128,8 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `inputs` | no | array<InputFieldToml> | Typed input fields accepted by this tool. Omit for tools with no inputs. |
 | `outputs` | no | array<OutputFieldToml> | Typed output fields produced by this tool. Omit for action-only tools. |
 | `primary_output_id` | no | string or null | Canonical output field id used for the default CLI result, MCP text<br>fallback, and UI primary emphasis. Required when `outputs` is non-empty,<br>and omitted when `outputs` is empty. |
+| `effect` | no | string or null | Optional author-declared side-effect classification. |
+| `presentation` | no | PresentationToml or null | Optional structured result presentation metadata. |
 | `pin` | no | string or null | UI rendering hint only, such as `Inline`, `Modal`, or `Embed`; runtime<br>adapter selection is controlled by `invoker`. |
 | `pegboard_units` | no | string or null | Pegboard size class. Loader validation requires `U1`, `U2`, or `U2T`. |
 | `invoker` | no | string or null | Runtime adapter selector. `Embed` is the canonical runtime declaration<br>for embedded sidecars; `steps` can infer `Chain`, while other runtime<br>tools must set this explicitly. |
@@ -283,6 +285,43 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `label` | no | string or null | Tab title for GUI surfaces. Defaults to `id` when omitted. |
 | `description` | no | string | Short description of the board's purpose. Empty when omitted. |
 | `instructions` | no | string | Markdown guidance for people and agents using this board. |
+
+### PresentationToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `version` | yes | integer | Version of the presentation contract. Currently `1`. |
+| `output` | no | string or null | JSON output field containing the collection to render. Required with<br>`rows`, `row_key`, and `columns`; omit all four for action-only results. |
+| `rows` | no | string or null | JSON Pointer from `output` to the rows array. |
+| `row_key` | no | string or null | JSON Pointer from each row to its stable key. |
+| `columns` | no | array<PresentationColumnToml> | Ordered columns rendered for each row in the collection. |
+| `actions` | no | array<PresentationActionToml> | Follow-up actions available for the result or its rows. |
+
+### PresentationColumnToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `label` | yes | string | Human-readable column heading. |
+| `pointer` | yes | string | JSON Pointer from the current row to the displayed value. |
+
+### PresentationActionToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `id` | yes | string | Unique action id within this presentation. |
+| `scope` | yes | string | Action visibility: `result` or `row` for collection presentations. |
+| `label` | yes | string | Human-readable label shown to the user. |
+| `target_tool` | yes | string | Fully qualified id of the tool invoked by this action. |
+| `on_success` | no | string or null | Optional post-success behavior; currently `refresh_origin`. |
+| `bindings` | no | object | Map of target-tool input names to values resolved from this result. |
+
+### PresentationBindingToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `from` | yes | string | Value source: `input`, `output`, `row`, or `constant`. |
+| `pointer` | no | string or null | JSON Pointer used by non-constant sources. |
+| `value` | no | unknown | Literal JSON value used by a `constant` source. |
 
 ## Tool output contracts
 

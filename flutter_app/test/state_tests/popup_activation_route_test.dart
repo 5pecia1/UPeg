@@ -15,7 +15,7 @@ import '../test_helpers/tool_fixture.dart';
 
 void main() {
   group('decidePopupActivationRoute', () {
-    test('즉시_dispatch_판정은_인라인_실행으로_라우팅한다', () {
+    test('immediate_dispatch_verdict_routes_to_inline_run', () {
       final route = decidePopupActivationRoute(
         activation: const PinActivationDto.dispatchImmediate(
           toolId: 'id.uuid_v7',
@@ -27,7 +27,7 @@ void main() {
       expect(route.toolId, ToolId.parse('id.uuid_v7'));
     });
 
-    test('폼_필요_판정은_full_전환으로_라우팅한다', () {
+    test('form_required_verdict_routes_to_full_switch', () {
       final route = decidePopupActivationRoute(
         activation: const PinActivationDto.openModal(
           toolId: 'num.hex_to_decimal',
@@ -39,7 +39,7 @@ void main() {
       expect(route.toolId, ToolId.parse('num.hex_to_decimal'));
     });
 
-    test('embed_판정은_full_전환으로_라우팅한다', () {
+    test('embed_verdict_routes_to_full_switch', () {
       final route = decidePopupActivationRoute(
         activation: const PinActivationDto.openEmbed(toolId: 'web.docs'),
         tool: fixtureToolDto(id: 'web.docs', pinKind: PinKindDto.embed),
@@ -49,7 +49,7 @@ void main() {
       expect(route.toolId, ToolId.parse('web.docs'));
     });
 
-    test('메모_생성_액션은_인라인_대신_full로_라우팅한다', () {
+    test('memo_create_action_routes_to_full_instead_of_inline', () {
       // memo.create shape: Action pin with a keyboard-shortcut source —
       // no headless dispatcher, the board owns the side effect.
       final route = decidePopupActivationRoute(
@@ -66,7 +66,7 @@ void main() {
       expect(route, isA<PopupOpenFull>());
     });
 
-    test('프로바이더_미설정_도구는_인라인_대신_full로_라우팅한다', () {
+    test('tool_without_provider_routes_to_full_instead_of_inline', () {
       // eth.gas shape: Live pin, http invoker, static source — cannot
       // actually run, so the full surface renders the honest state.
       final route = decidePopupActivationRoute(
@@ -82,7 +82,7 @@ void main() {
       expect(route, isA<PopupOpenFull>());
     });
 
-    test('카탈로그_미해석_상태에서도_즉시_dispatch는_인라인으로_라우팅한다', () {
+    test('immediate_dispatch_routes_inline_even_when_catalog_unresolved', () {
       final route = decidePopupActivationRoute(
         activation: const PinActivationDto.dispatchImmediate(
           toolId: 'id.uuid_v7',

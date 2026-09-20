@@ -152,7 +152,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "flutter_app/lib/src/pages/board_page.dart",
         tests: TestDeclaration::Covered {
             path: BOARD_PAGE_WIDGET_TEST,
-            test_name: "보드에_핀된_embed는_인라인_핀으로_포커스된다",
+            test_name: "an_embed_pinned_on_the_board_is_focused_as_an_inline_pin",
         },
     },
     SurfaceInventoryDeclaration {
@@ -170,7 +170,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "flutter_app/lib/src/pages/expanded_modal_page.dart",
         tests: TestDeclaration::Covered {
             path: EXPANDED_MODAL_WIDGET_TEST,
-            test_name: "ExpandedModalPage_는_tool_헤더와_run_버튼을_표시한다",
+            test_name: "ExpandedModalPage_shows_the_tool_header_and_run_button",
         },
     },
     SurfaceInventoryDeclaration {
@@ -186,7 +186,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "flutter_app/lib/src/pages/board_page.dart",
         tests: TestDeclaration::Covered {
             path: BOARD_PAGE_WIDGET_TEST,
-            test_name: "보드에_핀된_embed는_인라인_핀으로_포커스된다",
+            test_name: "an_embed_pinned_on_the_board_is_focused_as_an_inline_pin",
         },
     },
     SurfaceInventoryDeclaration {
@@ -217,7 +217,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "chrome-ext/popup.html",
         tests: TestDeclaration::Covered {
             path: CHROME_EXT_INTEGRATION_TEST,
-            test_name: "popup_html은_desktop_딥_링크_진입점을_제공한다",
+            test_name: "popup_html_offers_the_desktop_deep_link_entry_point",
         },
     },
     // Was `ext.content.hex-tooltip`: the content script no longer carries
@@ -236,7 +236,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "chrome-ext/detectors.js",
         tests: TestDeclaration::Covered {
             path: CHROME_EXT_INTEGRATION_TEST,
-            test_name: "감지기_표가_이름한_도구_id와_인자는_toolbox에_실재한다",
+            test_name: "tool_ids_and_args_named_by_the_detector_table_exist_in_the_toolbox",
         },
     },
     // The extension's own Controlled Embed runner: Desktop drives a webview
@@ -271,7 +271,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "chrome-ext/site_access.js",
         tests: TestDeclaration::Covered {
             path: CHROME_EXT_INTEGRATION_TEST,
-            test_name: "사이트_접근_모듈은_동적_등록_api를_사용한다",
+            test_name: "the_site_access_module_uses_the_dynamic_registration_api",
         },
     },
     SurfaceInventoryDeclaration {
@@ -287,7 +287,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         source_path: "upeg-pegboard-ui/src/deep_link.rs",
         tests: TestDeclaration::Covered {
             path: DESKTOP_DEEP_LINK_SOURCE_TEST,
-            test_name: "desktop_딥_링크는_보드와_도구와_입력을_인코딩한다",
+            test_name: "desktop_deep_link_encodes_board_tool_and_input",
         },
     },
 ];
@@ -335,7 +335,7 @@ mod tests {
     use upeg_core::interface_inventory::{INTERFACE_INVENTORY_SCHEMA_VERSION, InterfaceInventory};
 
     #[test]
-    fn 인터페이스_인벤토리는_desktop_pwa_ext를_포함한다() {
+    fn interface_inventory_includes_desktop_pwa_ext() {
         let inventory = InterfaceInventory {
             schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
             entries: interface_inventory_entries(),
@@ -419,7 +419,7 @@ mod tests {
     }
 
     #[test]
-    fn 인터페이스_인벤토리_desktop_pwa는_각자_서로_다르다() {
+    fn interface_inventory_desktop_and_pwa_entries_differ() {
         let entries = interface_inventory_entries();
         let desktop = entries
             .iter()

@@ -132,7 +132,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -255,7 +255,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -378,7 +378,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -501,7 +501,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -624,7 +624,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -747,7 +747,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -870,7 +870,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -993,7 +993,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1116,7 +1116,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1245,7 +1245,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1368,7 +1368,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1491,7 +1491,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1614,7 +1614,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1737,7 +1737,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1860,7 +1860,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -1983,7 +1983,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2112,7 +2112,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2246,7 +2246,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2374,7 +2374,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2503,7 +2503,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2628,7 +2628,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2763,7 +2763,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -2890,7 +2890,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3017,7 +3017,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3140,7 +3140,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3263,7 +3263,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3386,7 +3386,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3509,7 +3509,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3632,7 +3632,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3748,7 +3748,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3864,7 +3864,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -3980,7 +3980,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4185,7 +4185,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4341,7 +4341,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4545,7 +4545,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4694,7 +4694,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4835,7 +4835,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -4995,7 +4995,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5142,7 +5142,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5291,7 +5291,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5420,7 +5420,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5543,7 +5543,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5666,7 +5666,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5795,7 +5795,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -5930,7 +5930,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6053,7 +6053,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6174,7 +6174,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6303,7 +6303,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6431,7 +6431,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6560,7 +6560,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6694,7 +6694,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6822,7 +6822,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -6949,7 +6949,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7078,7 +7078,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7201,7 +7201,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7335,7 +7335,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7462,7 +7462,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7595,7 +7595,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7718,7 +7718,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7841,7 +7841,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -7974,7 +7974,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8097,7 +8097,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8220,7 +8220,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8349,7 +8349,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8465,7 +8465,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8581,7 +8581,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8712,7 +8712,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8839,7 +8839,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8893,7 +8893,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -8947,7 +8947,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9001,7 +9001,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9053,7 +9053,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9107,7 +9107,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9161,7 +9161,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9215,7 +9215,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9269,7 +9269,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9323,7 +9323,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9377,7 +9377,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9431,7 +9431,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9485,7 +9485,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9539,7 +9539,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9591,7 +9591,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -9639,7 +9639,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9687,7 +9687,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9735,7 +9735,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9783,7 +9783,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9831,7 +9831,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9879,7 +9879,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9927,7 +9927,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -9975,7 +9975,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10023,7 +10023,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10071,7 +10071,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10119,7 +10119,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10167,7 +10167,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10215,7 +10215,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -10263,7 +10263,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10311,7 +10311,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10359,7 +10359,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10407,7 +10407,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10455,7 +10455,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10503,7 +10503,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10551,7 +10551,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/surfaces/tui/interface_tests.rs",
-        "testName": "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다"
+        "testName": "tui_interface_inventory_serializes_to_stable_shape"
       }
     },
     {
@@ -10672,7 +10672,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -10784,7 +10784,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -10904,7 +10904,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -11030,7 +11030,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -11154,7 +11154,7 @@
       },
       "tests": {
         "path": "upeg-runtime/src/interface_inventory.rs",
-        "testName": "인터페이스_인벤토리는_내장_도구를_포함한다"
+        "testName": "interface_inventory_includes_builtin_tools"
       }
     },
     {
@@ -11202,7 +11202,7 @@
       },
       "tests": {
         "path": "flutter_app/test/widget_tests/board_page_activation_test.dart",
-        "testName": "보드에_핀된_embed는_인라인_핀으로_포커스된다"
+        "testName": "an_embed_pinned_on_the_board_is_focused_as_an_inline_pin"
       }
     },
     {
@@ -11250,7 +11250,7 @@
       },
       "tests": {
         "path": "flutter_app/test/widget_tests/expanded_modal_page_test.dart",
-        "testName": "ExpandedModalPage_는_tool_헤더와_run_버튼을_표시한다"
+        "testName": "ExpandedModalPage_shows_the_tool_header_and_run_button"
       }
     },
     {
@@ -11298,7 +11298,7 @@
       },
       "tests": {
         "path": "flutter_app/test/widget_tests/board_page_activation_test.dart",
-        "testName": "보드에_핀된_embed는_인라인_핀으로_포커스된다"
+        "testName": "an_embed_pinned_on_the_board_is_focused_as_an_inline_pin"
       }
     },
     {
@@ -11394,7 +11394,7 @@
       },
       "tests": {
         "path": "upeg-cli/tests/chrome_ext.rs",
-        "testName": "감지기_표가_이름한_도구_id와_인자는_toolbox에_실재한다"
+        "testName": "tool_ids_and_args_named_by_the_detector_table_exist_in_the_toolbox"
       }
     },
     {
@@ -11490,7 +11490,7 @@
       },
       "tests": {
         "path": "upeg-pegboard-ui/src/deep_link.rs",
-        "testName": "desktop_딥_링크는_보드와_도구와_입력을_인코딩한다"
+        "testName": "desktop_deep_link_encodes_board_tool_and_input"
       }
     },
     {
@@ -11538,7 +11538,7 @@
       },
       "tests": {
         "path": "upeg-cli/tests/chrome_ext.rs",
-        "testName": "popup_html은_desktop_딥_링크_진입점을_제공한다"
+        "testName": "popup_html_offers_the_desktop_deep_link_entry_point"
       }
     },
     {
@@ -11586,7 +11586,7 @@
       },
       "tests": {
         "path": "upeg-cli/tests/chrome_ext.rs",
-        "testName": "사이트_접근_모듈은_동적_등록_api를_사용한다"
+        "testName": "the_site_access_module_uses_the_dynamic_registration_api"
       }
     },
     {
@@ -11634,7 +11634,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11682,7 +11682,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11730,7 +11730,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11778,7 +11778,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11826,7 +11826,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11874,7 +11874,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11922,7 +11922,7 @@
       },
       "tests": {
         "path": "upeg-cli/src/inventory/tests.rs",
-        "testName": "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다"
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     }
   ]
