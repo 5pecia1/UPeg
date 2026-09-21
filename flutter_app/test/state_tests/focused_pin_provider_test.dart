@@ -6,7 +6,7 @@ import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/state/focused_pin_provider.dart';
 
 void main() {
-  test('focusPlacement은_PlacementDto의_tool_id를_focused_pin으로_저장한다', () {
+  test('focusPlacement_stores_PlacementDto_tool_id_as_focused_pin', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 

@@ -118,7 +118,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp_import_도구_수는_import_provenance만_센다() {
+    fn mcp_import_tool_count_counts_only_import_provenance() {
         let _guard = lock_test_guard();
         let imported = "test.provenance.counted_import";
         let local = "test.provenance.counted_local";
@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn project_manifest_provenance는_경로를_라벨에_담고_스스로를_알린다() {
+    fn project_manifest_provenance_carries_path_in_label_and_identifies_itself() {
         let _guard = lock_test_guard();
         let id = "test.provenance.project_tool";
         let manifest = "/workspaces/upeg/upeg.toml";
@@ -156,16 +156,16 @@ mod tests {
         assert_eq!(provenance.label(), format!("project-manifest:{manifest}"));
         assert!(
             provenance.is_project_manifest(),
-            "project manifest 도구는 스스로를 project manifest 출신이라고 답해야 한다"
+            "a project manifest tool must identify itself as project-manifest sourced"
         );
         assert!(
             !ToolProvenance::Local.is_project_manifest(),
-            "local 도구는 project manifest 출신이 아니다"
+            "a local tool is not project-manifest sourced"
         );
         assert_eq!(
             mcp_import_tool_count(),
             imports_before,
-            "project manifest provenance는 mcp import 집계에 섞이지 않는다"
+            "project manifest provenance must not be mixed into the mcp import tally"
         );
 
         clear_tool_provenance(id);
@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn 미등록_도구의_provenance는_local이다() {
+    fn unregistered_tool_provenance_is_local() {
         let _guard = lock_test_guard();
         assert_eq!(
             tool_provenance("test.provenance.unregistered"),
@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn tools_list_json_객체는_source_필드로_provenance를_노출한다() {
+    fn tools_list_json_object_exposes_provenance_via_source_field() {
         let _guard = lock_test_guard();
         use crate::ToolMetaRuntimeExt as _;
 
@@ -198,6 +198,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -219,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp_import_provenance는_서버_이름을_라벨에_담는다() {
+    fn mcp_import_provenance_carries_server_name_in_label() {
         let _guard = lock_test_guard();
         let id = "test.provenance.imported";
         register_tool_provenance(

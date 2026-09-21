@@ -677,6 +677,8 @@ pub fn decl_to_meta(
         input_spec: decl.input_spec.clone(),
         output_spec: decl.output_spec.clone(),
         primary_output_id,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
         invoker: Invoker::External,

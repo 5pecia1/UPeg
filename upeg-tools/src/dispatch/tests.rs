@@ -70,7 +70,7 @@ fn failure_message(result: Option<ToolResult>) -> String {
 }
 
 #[test]
-fn 등록_전체는_멱등적이고_내장마다_단일_경로를_가진다() {
+fn register_all_is_idempotent_with_single_path_per_builtin() {
     // Two calls should be cheap and behaviorally equivalent.
     register_all();
     register_all();
@@ -80,7 +80,7 @@ fn 등록_전체는_멱등적이고_내장마다_단일_경로를_가진다() {
 }
 
 #[test]
-fn dispatch_registered는_미등록_tool_id에_not_found를_반환한다() {
+fn dispatch_registered_returns_not_found_for_unregistered_tool_id() {
     assert!(matches!(
         dispatch_registered("no.such.tool", &json!({})),
         RegisteredDispatch::NotFound
@@ -88,7 +88,7 @@ fn dispatch_registered는_미등록_tool_id에_not_found를_반환한다() {
 }
 
 #[test]
-fn dispatch_registered는_등록된_tool을_실행한다() {
+fn dispatch_registered_runs_registered_tool() {
     match dispatch_registered("num.hex_to_decimal", &json!({"input": "0xff"})) {
         RegisteredDispatch::Ran(result) => {
             assert_eq!(success_text(Some(result)), "255");
@@ -98,7 +98,7 @@ fn dispatch_registered는_등록된_tool을_실행한다() {
 }
 
 #[test]
-fn dispatch_registered는_dispatcher_없는_등록_tool에_unimplemented를_반환한다() {
+fn dispatch_registered_returns_unimplemented_for_tool_without_dispatcher() {
     // A tool present in the toolbox but without a paired runtime
     // dispatcher must surface as `Unimplemented`, not `NotFound`.
     let id = "test.dispatch_registered.no_handler";
@@ -114,6 +114,8 @@ fn dispatch_registered는_dispatcher_없는_등록_tool에_unimplemented를_반�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -128,7 +130,7 @@ fn dispatch_registered는_dispatcher_없는_등록_tool에_unimplemented를_반�
 }
 
 #[test]
-fn gui_전용_메타는_dispatcher_요구_대상에서_제외된다() {
+fn gui_only_meta_is_excluded_from_dispatcher_requirement() {
     // GUI-only tools should NOT require dispatchers
     register_all();
 
@@ -159,7 +161,7 @@ fn requires_builtin_dispatcher(meta: &upeg_core::StaticToolMeta) -> bool {
 }
 
 #[test]
-fn 모든_내장_도구_메타는_하나의_dispatcher를_가진다() {
+fn all_builtin_tool_metas_have_a_dispatcher() {
     register_all();
 
     let metas: Vec<_> = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>()
@@ -185,7 +187,7 @@ fn 모든_내장_도구_메타는_하나의_dispatcher를_가진다() {
 }
 
 #[test]
-fn 내장_dispatcher는_매크로가_생성한_id_상수를_사용한다() {
+fn builtin_dispatchers_use_macro_generated_id_constants() {
     let source = include_str!("../dispatch.rs");
     let raw_dispatch_literal = concat!("register_runtime_dispatcher", "(\"");
     assert!(
@@ -195,7 +197,7 @@ fn 내장_dispatcher는_매크로가_생성한_id_상수를_사용한다() {
 }
 
 #[test]
-fn file_입력_역직렬화는_json_value를_복제하지_않는다() {
+fn file_input_deserialization_does_not_clone_json_value() {
     let source = include_str!("../dispatch.rs");
     let read_file = source
         .split_once("fn read_file")
@@ -210,7 +212,7 @@ fn file_입력_역직렬화는_json_value를_복제하지_않는다() {
 }
 
 #[test]
-fn 단일_output_도구는_메타의_primary_output_id로_정규화된다() {
+fn single_output_tool_normalizes_to_meta_primary_output_id() {
     register_all();
 
     let meta = static_meta(crate::HEX_TO_DECIMAL_TOOL_ID);
@@ -236,7 +238,7 @@ fn 단일_output_도구는_메타의_primary_output_id로_정규화된다() {
 }
 
 #[test]
-fn json_단일_output_도구는_문자열이_아닌_json_entry를_반환한다() {
+fn json_single_output_tool_returns_json_entry_not_string() {
     register_all();
 
     let meta = static_meta(crate::REGEX_MATCH_TOOL_ID);
@@ -259,7 +261,7 @@ fn json_단일_output_도구는_문자열이_아닌_json_entry를_반환한다()
 }
 
 #[test]
-fn 등록_전체는_미디어_dispatcher를_연결한다() {
+fn register_all_wires_media_dispatchers() {
     register_all();
 
     let image_result = upeg_runtime::try_runtime_dispatch(
@@ -291,7 +293,7 @@ fn 등록_전체는_미디어_dispatcher를_연결한다() {
 }
 
 #[test]
-fn 이미지_일괄_변환_dispatcher는_zip_file_output을_반환한다() {
+fn images_convert_dispatcher_returns_zip_file_output() {
     register_all();
     let image = image::RgbaImage::from_pixel(1, 1, image::Rgba([1, 2, 3, u8::MAX]));
     let mut png = Vec::new();
@@ -333,7 +335,7 @@ fn 이미지_일괄_변환_dispatcher는_zip_file_output을_반환한다() {
 }
 
 #[test]
-fn eth_gas는_native에서_실제_dispatcher를_가진다() {
+fn eth_gas_has_real_dispatcher_on_native() {
     // eth.gas was promoted from a gui_meta.rs `Invoker::Http` placeholder
     // (no working dispatcher at all) to a real `Invoker::Function` tool
     // with a native JSON-RPC dispatcher — mirrors `net.status`: the
@@ -352,8 +354,8 @@ fn eth_gas는_native에서_실제_dispatcher를_가진다() {
 }
 
 #[test]
-fn timer_live_도구들은_dispatcher를_가진다() {
-    // Timer + Live 도구들은 runtime dispatcher가 등록되어 있어야 함.
+fn timer_live_tools_have_dispatchers() {
+    // Timer + Live tools must have a registered runtime dispatcher.
     register_all();
 
     // time.epoch - Timer source with dispatcher
@@ -377,7 +379,7 @@ fn timer_live_도구들은_dispatcher를_가진다() {
 }
 
 #[test]
-fn time_epoch_dispatcher는_epoch와_iso를_담은_json을_반환한다() {
+fn time_epoch_dispatcher_returns_json_with_epoch_and_iso() {
     register_all();
 
     let outcome =
@@ -406,7 +408,8 @@ fn time_epoch_dispatcher는_epoch와_iso를_담은_json을_반환한다() {
         })
         .expect("`iso` is a string");
 
-    // 시계는 1970년 이후, ISO 문자열은 'Z'로 끝나는 ISO-8601 UTC.
+    // The clock must be post-1970 and the ISO string must be ISO-8601
+    // UTC with a trailing 'Z'.
     assert!(epoch > 0, "epoch must be post-1970, got {epoch}");
     assert!(
         iso.ends_with('Z'),
@@ -417,13 +420,13 @@ fn time_epoch_dispatcher는_epoch와_iso를_담은_json을_반환한다() {
 // ─── read_str defensive helper pins ─────────────────────
 
 #[test]
-fn 읽기_str는_문자열_값_있는그대로를_반환한다() {
+fn read_str_returns_string_value_verbatim() {
     let args = json!({"input": "hello world"});
     assert_eq!(read_str_from_value(args, "input"), "hello world");
 }
 
 #[test]
-fn 읽기_str_누락된_키는_빈_문자열을_반환한다() {
+fn read_str_missing_key_returns_empty_string() {
     // Common path: dispatcher reads an unset field. Empty is
     // the "absent" signal that downstream tool functions handle
     // (e.g., `text.uppercase("")` → "" Ok).
@@ -432,14 +435,14 @@ fn 읽기_str_누락된_키는_빈_문자열을_반환한다() {
 }
 
 #[test]
-fn 읽기_str_명시적_널은_빈_문자열을_반환한다() {
+fn read_str_explicit_null_returns_empty_string() {
     // Same as missing — Null is "no value".
     let args = json!({"input": null});
     assert_eq!(read_str_from_value(args, "input"), "");
 }
 
 #[test]
-fn read_str은_문자열이_아닌_입력에_방어적으로_빈_문자열을_반환한다() {
+fn read_str_defensively_returns_empty_string_for_non_string_input() {
     assert_eq!(read_str_from_value(json!({"input": 5}), "input"), "");
     assert_eq!(read_str_from_value(json!({"input": true}), "input"), "");
     assert_eq!(
@@ -451,7 +454,7 @@ fn read_str은_문자열이_아닌_입력에_방어적으로_빈_문자열을_�
 // ─── read_f64 defensive helper pins ─────────────────────
 
 #[test]
-fn 키_없는_또는_널이면_read_f64는_기본을_사용한다() {
+fn read_f64_uses_default_for_missing_or_null_key() {
     assert_eq!(read_f64_from_value(json!({}), "dpi", 144.0), Ok(144.0));
     assert_eq!(
         read_f64_from_value(json!({"dpi": null}), "dpi", 144.0),
@@ -460,7 +463,7 @@ fn 키_없는_또는_널이면_read_f64는_기본을_사용한다() {
 }
 
 #[test]
-fn read_f64는_숫자_값을_읽는다() {
+fn read_f64_reads_numeric_values() {
     assert_eq!(
         read_f64_from_value(json!({"dpi": 72}), "dpi", 144.0),
         Ok(72.0)
@@ -472,7 +475,7 @@ fn read_f64는_숫자_값을_읽는다() {
 }
 
 #[test]
-fn read_f64는_숫자가_아닌_값을_거부한다() {
+fn read_f64_rejects_non_numeric_values() {
     assert_eq!(
         read_f64_from_value(json!({"dpi": "144"}), "dpi", 144.0),
         Err("dpi must be a number".to_string())
@@ -484,7 +487,7 @@ fn read_f64는_숫자가_아닌_값을_거부한다() {
 }
 
 #[test]
-fn 키가_없거나_널이면_read_usize는_기본값을_사용한다() {
+fn read_usize_uses_default_for_missing_or_null_key() {
     assert_eq!(
         read_usize_from_value(json!({}), "limit", TEST_USIZE_DEFAULT),
         Ok(TEST_USIZE_DEFAULT)
@@ -496,7 +499,7 @@ fn 키가_없거나_널이면_read_usize는_기본값을_사용한다() {
 }
 
 #[test]
-fn read_usize는_음수가_아닌_정수를_읽는다() {
+fn read_usize_reads_non_negative_integers() {
     assert_eq!(
         read_usize_from_value(json!({"limit": 0}), "limit", TEST_USIZE_DEFAULT),
         Ok(0)
@@ -512,7 +515,7 @@ fn read_usize는_음수가_아닌_정수를_읽는다() {
 }
 
 #[test]
-fn read_usize는_잘못된_값을_거부한다() {
+fn read_usize_rejects_invalid_values() {
     for invalid in [json!(-1), json!(1.5), json!("64"), json!(true)] {
         assert_eq!(
             read_usize_from_value(json!({"limit": invalid}), "limit", TEST_USIZE_DEFAULT),
@@ -528,7 +531,7 @@ fn read_usize는_잘못된_값을_거부한다() {
 // string contract propagates without collapsing that distinction.
 
 #[test]
-fn 구분자가_없으면_텍스트_결합은_공백을_기본으로_사용한다() {
+fn text_join_defaults_to_space_when_delim_absent() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch("text.join", &json!({"input": r#"["a","b","c"]"#}));
     assert_eq!(
@@ -539,7 +542,7 @@ fn 구분자가_없으면_텍스트_결합은_공백을_기본으로_사용한�
 }
 
 #[test]
-fn 명시적_빈_구분자_텍스트_결합은_이어붙인다() {
+fn text_join_concatenates_when_delim_explicitly_empty() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(
         "text.join",
@@ -553,7 +556,7 @@ fn 명시적_빈_구분자_텍스트_결합은_이어붙인다() {
 }
 
 #[test]
-fn 텍스트_결합_명시적_널_구분자는_기본을_사용한다() {
+fn text_join_explicit_null_delim_uses_default() {
     // Null is treated as absent (consistent with read_str's
     // null-carve-out), so the default " " still applies via
     // `as_str()` returning None.
@@ -570,7 +573,7 @@ fn 텍스트_결합_명시적_널_구분자는_기본을_사용한다() {
 }
 
 #[test]
-fn 텍스트_결합은_문자열_구분자를_그대로_사용한다() {
+fn text_join_uses_string_delim_verbatim() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(
         "text.join",
@@ -580,7 +583,7 @@ fn 텍스트_결합은_문자열_구분자를_그대로_사용한다() {
 }
 
 #[test]
-fn 텍스트_결합의_숫자_구분자는_schema_검증에서_거부된다() {
+fn text_join_number_delim_rejected_by_schema_validation() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(
         "text.join",
@@ -594,7 +597,7 @@ fn 텍스트_결합의_숫자_구분자는_schema_검증에서_거부된다() {
 }
 
 #[test]
-fn 텍스트_결합의_불리언_구분자는_schema_검증에서_거부된다() {
+fn text_join_bool_delim_rejected_by_schema_validation() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(
         "text.join",
@@ -608,7 +611,7 @@ fn 텍스트_결합의_불리언_구분자는_schema_검증에서_거부된다()
 }
 
 #[test]
-fn 문자열_schema는_문자열이_아닌_인자를_dispatcher_전에_거부한다() {
+fn string_schema_rejects_non_string_args_before_dispatch() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch("text.uppercase", &json!({"input": 5}));
     assert_eq!(
@@ -619,7 +622,7 @@ fn 문자열_schema는_문자열이_아닌_인자를_dispatcher_전에_거부한
 }
 
 #[test]
-fn 등록_전체는_랜덤_바이트의_기본_크기_dispatcher를_연결한다() {
+fn register_all_wires_random_bytes_default_size_dispatcher() {
     // count omitted → 16 bytes → 32 hex chars. Pinning here so the
     // built-in's default never silently changes.
     register_all();
@@ -633,7 +636,7 @@ fn 등록_전체는_랜덤_바이트의_기본_크기_dispatcher를_연결한다
 }
 
 #[test]
-fn 등록_전체는_nanoid_dispatcher를_연결한다() {
+fn register_all_wires_nanoid_dispatcher() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(crate::NANOID_TOOL_ID, &json!({}));
     let s = success_text(r);
@@ -646,7 +649,7 @@ fn 등록_전체는_nanoid_dispatcher를_연결한다() {
 }
 
 #[test]
-fn 등록_전체는_비밀번호_생성_기본값_dispatcher를_연결한다() {
+fn register_all_wires_password_generate_default_dispatcher() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch("security.password_generate", &json!({}));
     let s = success_text(r);
@@ -658,7 +661,7 @@ fn 등록_전체는_비밀번호_생성_기본값_dispatcher를_연결한다() {
 }
 
 #[test]
-fn 등록_전체는_비밀번호_강도_dispatcher를_연결한다() {
+fn register_all_wires_password_estimate_dispatcher() {
     register_all();
     let r = upeg_runtime::try_runtime_dispatch(
         "security.password_estimate",
@@ -669,7 +672,7 @@ fn 등록_전체는_비밀번호_강도_dispatcher를_연결한다() {
 }
 
 #[test]
-fn 모든_내장_도구의_입력_schema는_닫혀_있고_유효하다() {
+fn all_builtin_tool_input_schemas_are_closed_and_valid() {
     let mut bad = Vec::new();
     for meta in upeg_core::inventory::iter::<upeg_core::StaticToolMeta>() {
         if let Err(error) = upeg_core::ToolMeta::from_static(meta) {

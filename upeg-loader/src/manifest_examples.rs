@@ -66,14 +66,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 빠른_시작_예제_파일이_존재한다() {
+    fn quick_start_example_file_exists() {
         let body = QUICK_START_EXAMPLES[0].body;
         assert!(body.starts_with("# Minimal External invoker example"));
         assert!(body.contains("invoker = \"External\""));
     }
 
     #[test]
-    fn 체인_예제_파일이_존재한다() {
+    fn chain_example_file_exists() {
         let body = CHAIN_EXAMPLES[0].body;
         assert!(body.starts_with("# Chain Tool composing two built-ins"));
         assert!(body.contains("invoker = \"Chain\""));
@@ -81,14 +81,14 @@ mod tests {
     }
 
     #[test]
-    fn 입력_예제_파일이_존재한다() {
+    fn input_example_file_exists() {
         let body = INPUT_EXAMPLES[0].body;
         assert!(body.contains("invoker = \"Llm\""));
         assert!(body.contains("inputs"));
     }
 
     #[test]
-    fn 호출자_예제는_외부_실행_설정을_보여준다() {
+    fn invoker_example_shows_external_run_settings() {
         let body = INVOKER_EXAMPLES[0].body;
         assert!(body.contains("cwd = "));
         assert!(body.contains("timeout_ms = "));
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn 자격증명_예제_파일이_존재한다() {
+    fn credential_example_file_exists() {
         let body = CREDENTIAL_EXAMPLES[0].body;
         assert!(body.starts_with("# Http invoker example"));
         assert!(body.contains("store = \"env\""));
@@ -107,14 +107,14 @@ mod tests {
     }
 
     #[test]
-    fn 검증_예제는_배시_조각이다() {
+    fn validation_examples_are_bash_snippets() {
         for example in VALIDATION_EXAMPLES {
             assert_eq!(example.language, "bash");
         }
     }
 
     #[test]
-    fn 모든_toml_예제는_깔끔하게_파싱된다() {
+    fn all_toml_examples_parse_cleanly() {
         for (name, examples) in [
             ("quick_start", QUICK_START_EXAMPLES),
             ("chain", CHAIN_EXAMPLES),

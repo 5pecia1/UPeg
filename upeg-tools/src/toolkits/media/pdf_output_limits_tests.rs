@@ -79,7 +79,7 @@ fn dispatched_output_file(result: Option<ToolResult>) -> FileValue {
 }
 
 #[test]
-fn pdf_도구_메타는_최대_출력_바이트_계약을_노출한다() {
+fn pdf_tool_meta_exposes_max_output_bytes_contract() {
     for tool_id in ["media.image_to_pdf", "media.pdf_to_images"] {
         let meta = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>()
             .find(|meta| meta.id == tool_id)
@@ -104,7 +104,7 @@ fn pdf_도구_메타는_최대_출력_바이트_계약을_노출한다() {
 }
 
 #[test]
-fn 이미지_to_pdf는_유효하지_않은_최대_출력_바이트를_거부한다() {
+fn image_to_pdf_rejects_invalid_max_output_bytes() {
     let input = byte_file("images.zip", image_zip_bytes());
 
     for invalid in [0, MAX_MEDIA_OUTPUT_BYTES + 1] {
@@ -114,7 +114,7 @@ fn 이미지_to_pdf는_유효하지_않은_최대_출력_바이트를_거부한�
 }
 
 #[test]
-fn pdf_to_이미지는_유효하지_않은_최대_출력_바이트를_거부한다() {
+fn pdf_to_images_rejects_invalid_max_output_bytes() {
     let input = byte_file("document.pdf", tiny_pdf());
 
     for invalid in [0, MAX_MEDIA_OUTPUT_BYTES + 1] {
@@ -125,7 +125,7 @@ fn pdf_to_이미지는_유효하지_않은_최대_출력_바이트를_거부한�
 }
 
 #[test]
-fn 이미지_to_pdf는_작은_출력_상한을_실제_pdf에_적용한다() {
+fn image_to_pdf_applies_small_output_cap_to_real_pdf() {
     let input = byte_file("images.zip", image_zip_bytes());
 
     let error = image_to_pdf(&input, TINY_OUTPUT_CAP).expect_err("one-byte PDF cap should fail");
@@ -137,7 +137,7 @@ fn 이미지_to_pdf는_작은_출력_상한을_실제_pdf에_적용한다() {
 }
 
 #[test]
-fn pdf_to_이미지는_작은_출력_상한으로_페이지_인코딩을_일찍_중단한다() {
+fn pdf_to_images_stops_page_encoding_early_on_small_cap() {
     let input = byte_file("document.pdf", tiny_pdf());
 
     let error = pdf_to_images(&input, 72.0, TINY_OUTPUT_CAP)
@@ -150,7 +150,7 @@ fn pdf_to_이미지는_작은_출력_상한으로_페이지_인코딩을_일찍_
 }
 
 #[test]
-fn 이미지_to_pdf는_실제_pdf_크기와_같은_출력_상한을_허용한다() {
+fn image_to_pdf_allows_output_cap_equal_to_pdf_size() {
     let input = byte_file("images.zip", image_zip_bytes());
     let default_result =
         image_to_pdf(&input, MAX_MEDIA_OUTPUT_BYTES).expect("default cap should succeed");
@@ -163,7 +163,7 @@ fn 이미지_to_pdf는_실제_pdf_크기와_같은_출력_상한을_허용한다
 }
 
 #[test]
-fn pdf_to_이미지는_실제_zip_크기와_같은_출력_상한을_허용한다() {
+fn pdf_to_images_allows_output_cap_equal_to_zip_size() {
     let input = byte_file("document.pdf", tiny_pdf());
     let default_result =
         pdf_to_images(&input, 72.0, MAX_MEDIA_OUTPUT_BYTES).expect("default cap should succeed");
@@ -176,7 +176,7 @@ fn pdf_to_이미지는_실제_zip_크기와_같은_출력_상한을_허용한다
 }
 
 #[test]
-fn pdf_to_이미지는_페이지_합계보다_큰_상한도_zip이_넘으면_거부한다() {
+fn pdf_to_images_rejects_cap_above_page_sum_when_zip_exceeds_it() {
     let input = byte_file("document.pdf", tiny_pdf());
     let default_result =
         pdf_to_images(&input, 72.0, MAX_MEDIA_OUTPUT_BYTES).expect("default cap should succeed");
@@ -214,7 +214,7 @@ fn pdf_to_이미지는_페이지_합계보다_큰_상한도_zip이_넘으면_거
 }
 
 #[test]
-fn 이미지_to_pdf_dispatcher는_생략한_출력_상한에_기본값을_사용한다() {
+fn image_to_pdf_dispatcher_defaults_omitted_output_cap() {
     crate::register_all();
     let input = byte_file("images.zip", image_zip_bytes());
 
@@ -236,7 +236,7 @@ fn 이미지_to_pdf_dispatcher는_생략한_출력_상한에_기본값을_사용
 }
 
 #[test]
-fn pdf_to_이미지는_dispatcher에서_생략한_출력_상한에_기본값을_사용한다() {
+fn pdf_to_images_dispatcher_defaults_omitted_output_cap() {
     crate::register_all();
     let input = byte_file("document.pdf", tiny_pdf());
 

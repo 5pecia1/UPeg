@@ -178,19 +178,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hex_로_rgb는_와_없는_해시_있음을_허용한다() {
+    fn hex_to_rgb_allows_hash_present_and_absent() {
         assert_eq!(color_hex_to_rgb("#ff8800").unwrap(), "255,136,0");
         assert_eq!(color_hex_to_rgb("ff8800").unwrap(), "255,136,0");
     }
 
     #[test]
-    fn hex_로_rgb_대소문자_무시를_검증한다() {
+    fn hex_to_rgb_ignores_case() {
         assert_eq!(color_hex_to_rgb("#FF8800").unwrap(), "255,136,0");
         assert_eq!(color_hex_to_rgb("#Ff88AA").unwrap(), "255,136,170");
     }
 
     #[test]
-    fn hex_로_rgb는_bad_길이_와_문자들을_거부한다() {
+    fn hex_to_rgb_rejects_bad_lengths_and_chars() {
         assert!(color_hex_to_rgb("#fff").is_err(), "3-char form rejected");
         assert!(
             color_hex_to_rgb("#ff88000").is_err(),
@@ -201,19 +201,19 @@ mod tests {
     }
 
     #[test]
-    fn rgb_로_hex_왕복_왕복을_검증한다() {
+    fn rgb_to_hex_roundtrip() {
         assert_eq!(color_rgb_to_hex("255,136,0").unwrap(), "#ff8800");
         let rt = color_rgb_to_hex(&color_hex_to_rgb("#FF8800").unwrap()).unwrap();
         assert_eq!(rt, "#ff8800");
     }
 
     #[test]
-    fn rgb_로_hex는_공백_주변_구성요소들을_처리한다() {
+    fn rgb_to_hex_handles_whitespace_around_components() {
         assert_eq!(color_rgb_to_hex(" 255 , 136 , 0 ").unwrap(), "#ff8800");
     }
 
     #[test]
-    fn rgb_로_hex는_범위_와_잘못된_개수의_밖을_거부한다() {
+    fn rgb_to_hex_rejects_out_of_range_and_bad_counts() {
         assert!(color_rgb_to_hex("256,0,0").is_err(), "out of range");
         assert!(color_rgb_to_hex("-1,0,0").is_err(), "negative");
         assert!(color_rgb_to_hex("255,0").is_err(), "only 2 components");
@@ -228,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn 대비_검사는_흑백_최대_대비_21_대_1을_계산한다() {
+    fn contrast_check_computes_black_white_max_ratio_21_to_1() {
         let v = contrast_json("#000000", "#ffffff");
         assert!(
             (v["ratio"].as_f64().unwrap() - 21.0).abs() < 0.01,
@@ -241,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn 대비_검사는_동일색_최소_대비_1_대_1을_계산한다() {
+    fn contrast_check_computes_same_color_min_ratio_1_to_1() {
         let v = contrast_json("#336699", "#336699");
         assert!(
             (v["ratio"].as_f64().unwrap() - 1.0).abs() < 0.01,
@@ -252,14 +252,14 @@ mod tests {
     }
 
     #[test]
-    fn 대비_검사는_전경_배경_순서에_무관하다() {
+    fn contrast_check_is_foreground_background_order_independent() {
         let forward = contrast_json("#123456", "#fedcba");
         let backward = contrast_json("#fedcba", "#123456");
         assert_eq!(forward["ratio"], backward["ratio"]);
     }
 
     #[test]
-    fn 대비_검사는_aa_경계값_근처의_회색을_정확히_판정한다() {
+    fn contrast_check_scores_gray_near_aa_boundary_accurately() {
         // WebAIM reference pair: #767676 on white is the well-known
         // "just passes AA normal text" boundary (~4.54:1); #777777 is
         // one step darker (lighter gray text) and just fails (~4.48:1).
@@ -281,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    fn 대비_검사는_잘못된_hex_색을_거부한다() {
+    fn contrast_check_rejects_invalid_hex_colors() {
         assert!(color_contrast("#zzzzzz", "#ffffff").is_err());
         assert!(
             color_contrast("#fff", "#ffffff").is_err(),

@@ -7,22 +7,22 @@ use super::{epoch_ms_to_rfc3339_local, local_utc_offset_seconds_at};
 
 const KST_OFFSET_SECONDS: i32 = 9 * 3_600;
 const NEGATIVE_FIVE_OFFSET_SECONDS: i32 = -5 * 3_600;
-/// 2026-08-17T09:05:03Z — 오프셋 접미사 케이스들이 공유하는 기준 시각.
+/// 2026-08-17T09:05:03Z — the reference instant shared by the offset-suffix cases.
 const RENDERED_INSTANT_MS: i64 = 1_786_957_503_000;
 
 #[test]
-fn epoch_0은_1970년_1월_1일_자정_utc로_렌더링된다() {
+fn epoch_zero_renders_as_1970_01_01_midnight_utc() {
     assert_eq!(epoch_ms_to_rfc3339_local(0, 0), "1970-01-01T00:00:00Z");
 }
 
 #[test]
-fn epoch_이전_음수_ms도_1969년_마지막_초로_렌더링된다() {
+fn negative_ms_before_epoch_renders_as_last_second_of_1969() {
     // 1969-12-31T23:59:59Z
     assert_eq!(epoch_ms_to_rfc3339_local(-1_000, 0), "1969-12-31T23:59:59Z");
 }
 
 #[test]
-fn _400으로_나누어지는_윤년_2000년_2월_29일이_올바르게_렌더링된다() {
+fn year_2000_divisible_by_400_renders_feb_29_correctly() {
     // 2000-02-29T12:30:45Z
     assert_eq!(
         epoch_ms_to_rfc3339_local(951_827_445_000, 0),
@@ -31,7 +31,7 @@ fn _400으로_나누어지는_윤년_2000년_2월_29일이_올바르게_렌더�
 }
 
 #[test]
-fn _100으로만_나누어지는_1900년은_윤년이_아니라서_2월_28일이_마지막날이다() {
+fn year_1900_divisible_by_100_only_is_not_leap_so_feb_ends_on_28() {
     // 1900-02-28T00:00:00Z
     assert_eq!(
         epoch_ms_to_rfc3339_local(-2_203_977_600_000, 0),
@@ -45,7 +45,7 @@ fn _100으로만_나누어지는_1900년은_윤년이_아니라서_2월_28일이
 }
 
 #[test]
-fn 윤년_2024년_2월_29일_자정_직전이_올바르게_렌더링된다() {
+fn leap_year_2024_feb_29_just_before_midnight_renders_correctly() {
     // 2024-02-29T23:59:59Z
     assert_eq!(
         epoch_ms_to_rfc3339_local(1_709_251_199_000, 0),
@@ -54,14 +54,14 @@ fn 윤년_2024년_2월_29일_자정_직전이_올바르게_렌더링된다() {
 }
 
 #[test]
-fn 오프셋이_0이면_z_접미사를_사용한다() {
+fn zero_offset_uses_z_suffix() {
     let rendered = epoch_ms_to_rfc3339_local(RENDERED_INSTANT_MS, 0);
     assert!(rendered.ends_with('Z'), "got: {rendered}");
     assert_eq!(rendered, "2026-08-17T09:05:03Z");
 }
 
 #[test]
-fn 양수_utc_오프셋을_더하면_해당_지역_시간과_플러스_오프셋_문자열이_렌더링된다() {
+fn positive_utc_offset_renders_local_time_with_plus_suffix() {
     // 2026-08-17T09:05:03Z + 9h (KST) = 2026-08-17T18:05:03+09:00
     assert_eq!(
         epoch_ms_to_rfc3339_local(RENDERED_INSTANT_MS, KST_OFFSET_SECONDS),
@@ -70,7 +70,7 @@ fn 양수_utc_오프셋을_더하면_해당_지역_시간과_플러스_오프셋
 }
 
 #[test]
-fn 음수_utc_오프셋은_날짜_경계를_넘어_렌더링된다() {
+fn negative_utc_offset_renders_across_date_boundary() {
     // epoch 0 (1970-01-01T00:00:00Z) minus 5h = 1969-12-31T19:00:00-05:00
     assert_eq!(
         epoch_ms_to_rfc3339_local(0, NEGATIVE_FIVE_OFFSET_SECONDS),
@@ -90,7 +90,7 @@ fn 음수_utc_오프셋은_날짜_경계를_넘어_렌더링된다() {
 /// suffix otherwise — plus, either way, a well-formed
 /// `YYYY-MM-DDTHH:MM:SS` prefix.
 #[test]
-fn 실제_로컬_오프셋_경로는_z_또는_숫자_오프셋을_가진_rfc3339를_렌더링한다() {
+fn live_local_offset_path_renders_rfc3339_with_z_or_numeric_offset() {
     let offset = local_utc_offset_seconds_at(RENDERED_INSTANT_MS);
     let rendered = epoch_ms_to_rfc3339_local(RENDERED_INSTANT_MS, offset);
 

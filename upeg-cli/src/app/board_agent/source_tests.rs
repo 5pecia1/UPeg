@@ -10,7 +10,7 @@ impl SourceEnvironment {
         reason = "caller holds the pegboard home environment test lock"
     )]
     fn isolated() -> Self {
-        let root = upeg_core::paths::config_root().expect("테스트 설정 루트");
+        let root = upeg_core::paths::config_root().expect("test config root");
         let variables = [
             ("UPEG_TOOLKITS_DIR", root.join("toolkits").into_os_string()),
             (
@@ -55,29 +55,29 @@ impl Drop for SourceEnvironment {
 }
 
 #[test]
-fn 첫_미리보기_이전에_바뀐_도구킷은_재시작을_요청한다() {
+fn a_toolkit_changed_before_the_first_preview_requests_a_restart() {
     crate::test_support::with_seeded_pegboard_home(
         "board-source-before-preview",
         |_| {},
         || {
             let _environment = SourceEnvironment::isolated();
             let config = upeg_sources::RuntimeSourceConfig::from_env();
-            let directory = config.toolkits_dir.as_ref().expect("도구킷 경로");
-            std::fs::create_dir_all(directory).expect("도구킷 디렉터리");
+            let directory = config.toolkits_dir.as_ref().expect("toolkits path");
+            std::fs::create_dir_all(directory).expect("toolkits directory");
             let path = directory.join("before-preview.toml");
-            std::fs::write(&path, "id = 'before_preview'\n").expect("초기 선언");
+            std::fs::write(&path, "id = 'before_preview'\n").expect("initial declaration");
             upeg_sources::load_local_runtime_sources(&config);
-            std::fs::write(&path, "id = 'after_preview'\n").expect("선언 변경");
+            std::fs::write(&path, "id = 'after_preview'\n").expect("declaration change");
 
-            let error = board_connection_preview(&BoardKey::parse("dev").expect("보드"))
-                .expect_err("오래된 레지스트리로 연결 설정을 만들면 안 된다");
+            let error = board_connection_preview(&BoardKey::parse("dev").expect("board"))
+                .expect_err("must not build a connection setup from a stale registry");
             assert!(error.to_string().contains("restart"), "{error}");
         },
     );
 }
 
 #[test]
-fn 시작_이후_추가된_임포트_선언도_첫_미리보기에서_감지한다() {
+fn an_import_declaration_added_after_start_is_detected_at_first_preview() {
     crate::test_support::with_seeded_pegboard_home(
         "board-source-added-import",
         |_| {},
@@ -85,13 +85,13 @@ fn 시작_이후_추가된_임포트_선언도_첫_미리보기에서_감지한�
             let _environment = SourceEnvironment::isolated();
             let config = upeg_sources::RuntimeSourceConfig::from_env();
             upeg_sources::load_local_runtime_sources(&config);
-            let directory = config.mcp_import_dir.as_ref().expect("임포트 경로");
-            std::fs::create_dir_all(directory).expect("임포트 디렉터리");
+            let directory = config.mcp_import_dir.as_ref().expect("import path");
+            std::fs::create_dir_all(directory).expect("import directory");
             std::fs::write(directory.join("added.toml"), "command = 'never-run'\n")
-                .expect("임포트 추가");
+                .expect("add the import");
 
-            let error = board_connection_preview(&BoardKey::parse("dev").expect("보드"))
-                .expect_err("추가된 선언도 재시작이 필요하다");
+            let error = board_connection_preview(&BoardKey::parse("dev").expect("board"))
+                .expect_err("an added declaration also requires a restart");
             assert!(error.to_string().contains("restart"), "{error}");
         },
     );
@@ -102,14 +102,14 @@ fn 시작_이후_추가된_임포트_선언도_첫_미리보기에서_감지한�
     unsafe_code,
     reason = "caller holds the pegboard home environment test lock"
 )]
-fn 시작할_때_없던_프로젝트_매니페스트도_새로_생기면_감지한다() {
+fn a_project_manifest_absent_at_start_is_detected_once_created() {
     crate::test_support::with_seeded_pegboard_home(
         "board-source-new-project",
         |_| {},
         || {
             let _environment = SourceEnvironment::isolated();
             let path = upeg_core::paths::config_root()
-                .expect("설정 루트")
+                .expect("config root")
                 .join("upeg.toml");
             unsafe {
                 std::env::set_var("UPEG_PROJECT_MANIFEST_PATH", &path);
@@ -117,10 +117,10 @@ fn 시작할_때_없던_프로젝트_매니페스트도_새로_생기면_감지�
             let config = upeg_sources::RuntimeSourceConfig::from_env();
             assert!(config.project_manifest.is_none());
             upeg_sources::load_local_runtime_sources(&config);
-            std::fs::write(&path, "id = 'new_project'\n").expect("프로젝트 매니페스트 생성");
+            std::fs::write(&path, "id = 'new_project'\n").expect("create the project manifest");
 
-            let error = board_connection_preview(&BoardKey::parse("dev").expect("보드"))
-                .expect_err("새 매니페스트를 반영하기 전에 재시작해야 한다");
+            let error = board_connection_preview(&BoardKey::parse("dev").expect("board"))
+                .expect_err("must restart before honouring the new manifest");
             assert!(matches!(
                 error,
                 BoardAgentError::Sources(upeg_sources::LoadedSourcesError::Changed { .. })

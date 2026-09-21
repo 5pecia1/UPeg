@@ -5,7 +5,7 @@ use upeg_runtime::execution_requirements::{
 };
 
 #[test]
-fn 선언된_기본값만으로_필수_입력을_생략할_수는_없다() {
+fn a_declared_default_alone_cannot_omit_a_required_input() {
     let mut meta = upeg_runtime::toolbox_tool("num.hex_to_decimal")
         .unwrap()
         .clone();
@@ -31,7 +31,7 @@ fn 선언된_기본값만으로_필수_입력을_생략할_수는_없다() {
 }
 
 #[test]
-fn 잘못된_프리셋은_필수_입력을_유지하고_수정을_안내한다() {
+fn an_invalid_preset_keeps_the_required_input_and_guides_a_fix() {
     let meta = upeg_runtime::toolbox_tool("num.hex_to_decimal").unwrap();
     let preset = ArgsPreset::parse(r#"{"input":42}"#).unwrap();
     let schema = effective_tool_schema(meta, Some(&preset));
@@ -50,7 +50,7 @@ fn 잘못된_프리셋은_필수_입력을_유지하고_수정을_안내한다()
 }
 
 #[test]
-fn 외부_명령의_존재와_프로젝트_내_호출_디렉터리를_확인한다() {
+fn verifies_external_command_existence_and_in_project_call_directory() {
     const ID: &str = "test.board_preflight";
     const MISSING_COMMAND: &str = "__upeg_missing_executable_for_preflight__";
     let root = tempfile::tempdir().unwrap();

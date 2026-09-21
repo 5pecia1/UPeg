@@ -290,8 +290,8 @@ mod tests {
     /// source — so the boot summary's traversal can be asserted on any
     /// host, including the ones that never skip anything themselves.
     #[cfg(not(target_arch = "wasm32"))]
-    fn 건너뛴_도구만_있는_보고서() -> upeg_sources::RuntimeSourceReport {
-        fn 건너뜀(id: &str) -> upeg_loader::SkippedTool {
+    fn report_with_only_skipped_tools() -> upeg_sources::RuntimeSourceReport {
+        fn skipped(id: &str) -> upeg_loader::SkippedTool {
             upeg_loader::SkippedTool {
                 id: id.to_string(),
                 reason: upeg_loader::LoadError::PtyUnsupportedOnHost,
@@ -300,14 +300,14 @@ mod tests {
         upeg_sources::RuntimeSourceReport {
             toolkits: upeg_sources::DirectoryStatus::Unconfigured,
             toolkits_outcome: upeg_loader::LoadOutcome {
-                skipped: vec![건너뜀("t.terminal")],
+                skipped: vec![skipped("t.terminal")],
                 ..Default::default()
             },
             project_manifest: Some(upeg_sources::ProjectManifestLoad {
                 path: std::path::PathBuf::from("/w/upeg.toml"),
                 origin: upeg_sources::project::ProjectManifestOrigin::Detected,
                 outcome: upeg_loader::LoadOutcome {
-                    skipped: vec![건너뜀("p.shell")],
+                    skipped: vec![skipped("p.shell")],
                     ..Default::default()
                 },
             }),
@@ -319,37 +319,37 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn 부팅_요약은_모든_지역_소스의_건너뛴_도구를_출처와_함께_모은다() {
-        let notes = skipped_tool_notes(&건너뛴_도구만_있는_보고서());
+    fn boot_summary_collects_skipped_tools_from_all_local_sources_with_origin() {
+        let notes = skipped_tool_notes(&report_with_only_skipped_tools());
 
-        let 사유 = upeg_loader::LoadError::PtyUnsupportedOnHost.to_string();
+        let reason = upeg_loader::LoadError::PtyUnsupportedOnHost.to_string();
         assert_eq!(
             notes,
             vec![
                 SkippedToolNote {
                     source: TOOLKITS_DIR_SOURCE,
                     tool: "t.terminal".to_string(),
-                    reason: 사유.clone(),
+                    reason: reason.clone(),
                 },
                 SkippedToolNote {
                     source: PROJECT_MANIFEST_SOURCE,
                     tool: "p.shell".to_string(),
-                    reason: 사유,
+                    reason,
                 },
             ],
-            "두 소스 모두 훑어야 팔레트에서 사라진 도구에 이름이 붙는다"
+            "both sources must be swept so palette-missing tools get named"
         );
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
-    fn 건너뛴_도구가_없으면_부팅_요약은_한_줄도_남기지_않는다() {
-        let mut report = 건너뛴_도구만_있는_보고서();
+    fn boot_summary_leaves_no_lines_when_no_tools_skipped() {
+        let mut report = report_with_only_skipped_tools();
         report.toolkits_outcome.skipped.clear();
         report
             .project_manifest
             .as_mut()
-            .expect("고정 보고서에는 프로젝트 매니페스트가 있다")
+            .expect("the fixed report has a project manifest")
             .outcome
             .skipped
             .clear();
@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn host_state_dto는_세_변형을_모두_매핑한다() {
+    fn host_state_dto_maps_all_three_variants() {
         // A07/A08 — the FRB-facing DTO must cover all three native
         // bootstrap outcomes so the Dart side can pattern-match
         // exhaustively (sealed Dart class).
@@ -382,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_launch_dto는_owned_strings로_변환된다() {
+    fn desktop_launch_dto_converts_to_owned_strings() {
         // FRB cannot ship `&'static str` borrows over FFI; the DTO
         // owns every field so the Dart side sees concrete Strings.
         let launch = DesktopLaunch {
@@ -442,7 +442,7 @@ mod tests {
 
     #[cfg(feature = "wasm-plugin")]
     #[test]
-    fn wasm_플러그인_도구는_런타임_소스_로딩을_통해_등록되고_dispatch_tool로_실행된다() {
+    fn wasm_plugin_tool_registers_via_runtime_source_loading_and_runs_via_dispatch_tool() {
         let dir =
             std::env::temp_dir().join(format!("upeg_frb_boot_wasm_plugin_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -491,7 +491,7 @@ mod tests {
     /// Writes a declarative Toolkit whose sole tool uses the `Wasm`
     /// invoker + `wasm_path` pointing at the shared fixture, mirroring
     /// the pattern `upeg-loader`'s own dispatcher tests use
-    /// (`선언형_wasm_dispatcher는_모듈_도구를_로드하고_실행한다`).
+    /// (`declarative_wasm_dispatcher_loads_and_runs_module_tool`).
     ///
     /// The wrapping toolkit/tool ids (`test` / `wasm.echo`) are not
     /// arbitrary — they must match the ids the fixture's own `manifest`
@@ -541,7 +541,7 @@ wasm_path = "{}"
 
     #[cfg(feature = "wasm-plugin")]
     #[test]
-    fn toml_wasm_path_invoker는_wasm_plugin_기능에서_스텁_오류_대신_실제로_실행된다() {
+    fn toml_wasm_path_invoker_runs_for_real_under_wasm_plugin_feature() {
         // Enabling `upeg-sources/wasm-plugin` also flips `upeg-loader`'s
         // own `wasm` feature on (`upeg-sources/wasm-plugin` forwards to
         // `upeg-loader/wasm` — see upeg-sources/Cargo.toml), which swaps
@@ -585,7 +585,7 @@ wasm_path = "{}"
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    // A `toml_wasm_path_invoker는_wasm_plugin_기능_비활성시_스텁_오류를_반환한다`
+    // A `toml_wasm_path_invoker_returns_stub_error_when_wasm_plugin_off`
     // stub-path regression guard used to live here, gated
     // `#[cfg(not(feature = "wasm-plugin"))]`. It asserted that with
     // upeg-frb's own `wasm-plugin` feature off, the `Wasm` invoker's

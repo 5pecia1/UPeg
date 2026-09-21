@@ -157,7 +157,7 @@ fn surface_labels(meta: &ToolMeta) -> BTreeSet<&'static str> {
 }
 
 #[test]
-fn 토ml과_플러그인_manifest는_동일한_도구_메타로_수렴한다() {
+fn toml_and_plugin_manifests_converge_to_same_tool_meta() {
     let toml_meta = toml_side_meta();
     let plugin_meta = plugin_side_meta();
 
@@ -211,7 +211,7 @@ fn 토ml과_플러그인_manifest는_동일한_도구_메타로_수렴한다() {
         .map(|f| &f.kind);
     assert_eq!(doc_kind_toml, doc_kind_plugin);
     let Some(InputKind::File(policy)) = doc_kind_plugin else {
-        panic!("plugin doc 입력은 File 정책을 가져야 한다");
+        panic!("the plugin doc input must carry a File policy");
     };
     assert_eq!(policy.max_count(), 3);
     assert_eq!(policy.extensions().collect::<Vec<_>>(), ["png", "tar.gz"]);

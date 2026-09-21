@@ -68,7 +68,7 @@ Widget _harness({
 
 void main() {
   group('EmptyBoard suggestions', () {
-    testWidgets('EmptyBoard는_제안된_도구를_렌더한다', (tester) async {
+    testWidgets('EmptyBoard_renders_the_suggested_tools', (tester) async {
       await tester.pumpWidget(
         _harness(
           boardKey: 'dev',
@@ -88,7 +88,9 @@ void main() {
       );
     });
 
-    testWidgets('EmptyBoard_제안_탭하면_pinMutator를_호출한다', (tester) async {
+    testWidgets('tapping_an_EmptyBoard_suggestion_calls_the_pinMutator', (
+      tester,
+    ) async {
       BoardKey? gotBoard;
       ToolId? gotTool;
       final container = ProviderContainer(
@@ -131,7 +133,9 @@ void main() {
       expect(gotTool, ToolId.parse('num.hex_to_decimal'));
     });
 
-    testWidgets('EmptyBoard는_boardKey_없으면_제안을_숨긴다', (tester) async {
+    testWidgets('EmptyBoard_hides_suggestions_without_a_boardKey', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

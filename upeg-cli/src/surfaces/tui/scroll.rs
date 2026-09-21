@@ -105,7 +105,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_clamped는_max를_초과하지_않는다() {
+    fn add_clamped_never_exceeds_max() {
         let off: ScrollOffset<Vertical> = ScrollOffset::new(10);
         assert_eq!(off.add_clamped(50, 30).get(), 30);
         assert_eq!(off.add_clamped(5, 30).get(), 15);
@@ -113,21 +113,21 @@ mod tests {
     }
 
     #[test]
-    fn sub_saturating은_0을_바닥으로_한다() {
+    fn sub_saturating_floors_at_zero() {
         let off: ScrollOffset<Horizontal> = ScrollOffset::new(10);
         assert_eq!(off.sub_saturating(3).get(), 7);
         assert_eq!(off.sub_saturating(99).get(), 0);
     }
 
     #[test]
-    fn clamp_to는_max_이하는_그대로_둔다() {
+    fn clamp_to_leaves_values_at_or_below_max() {
         let off: ScrollOffset<Vertical> = ScrollOffset::new(20);
         assert_eq!(off.clamp_to(30).get(), 20);
         assert_eq!(off.clamp_to(10).get(), 10);
     }
 
     #[test]
-    fn default와_zero는_같다() {
+    fn default_equals_zero() {
         let v: ScrollOffset<Vertical> = ScrollOffset::default();
         let h: ScrollOffset<Horizontal> = ScrollOffset::default();
         assert_eq!(v, ScrollOffset::<Vertical>::ZERO);

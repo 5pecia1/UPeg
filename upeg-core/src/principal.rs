@@ -171,14 +171,14 @@ mod tests {
     use crate::types::ALL_SURFACES;
 
     #[test]
-    fn 역할_라벨은_왕복한다() {
+    fn role_labels_round_trip() {
         for role in ALL_PRINCIPAL_ROLES {
             assert_eq!(PrincipalRole::parse(role.label()), Some(*role));
         }
     }
 
     #[test]
-    fn 역할_파싱은_대소문자를_무시하고_공백은_거부한다() {
+    fn role_parse_ignores_case_but_rejects_whitespace() {
         assert_eq!(
             PrincipalRole::parse("OPERATOR"),
             Some(PrincipalRole::Operator)
@@ -188,10 +188,11 @@ mod tests {
     }
 
     #[test]
-    fn agent만_승인에서_배제된다() {
-        // 경계는 하나다: 이 호스트가 "너는 operator가 아니다"라고
-        // 인증한 호출자. local은 OS 사용자 경계 안이므로 여기서 막지
-        // 않고, 어디서 승인할 수 있는지는 surface 게이트가 정한다.
+    fn only_agent_is_excluded_from_approval() {
+        // There is a single boundary: a caller this host has
+        // authenticated as "not the operator". local stays inside the
+        // OS user boundary, so it is not blocked here; the surface
+        // gate decides where approval is allowed.
         for role in ALL_PRINCIPAL_ROLES {
             assert_eq!(
                 role.may_approve(),
@@ -203,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn 표면별_기본_주체는_모든_표면에_대해_전역이다() {
+    fn per_surface_default_principal_is_global_for_every_surface() {
         for surface in ALL_SURFACES {
             let principal = Principal::for_surface(*surface);
             assert_eq!(principal.surface, *surface);
@@ -211,11 +212,12 @@ mod tests {
     }
 
     #[test]
-    fn 리스너를_건너온_표면만_기본값으로_승인에서_배제된다() {
+    fn only_surfaces_crossing_a_listener_are_excluded_from_approval_by_default() {
         for surface in ALL_SURFACES {
-            // http/pwa/ext는 프로세스 경계를 건너온다 — 토큰이 말해 주기
-            // 전까지 이 호스트는 호출자를 식별하지 못하므로 바닥값은
-            // agent다. 나머지는 OS 사용자 경계 안이다.
+            // http/pwa/ext cross a process boundary — until a token
+            // says otherwise this host cannot identify the caller, so
+            // the floor is agent. The rest stay inside the OS user
+            // boundary.
             let crosses_a_listener = matches!(surface, Surface::Http | Surface::Pwa | Surface::Ext);
             assert_eq!(
                 Principal::for_surface(*surface).may_approve(),
@@ -227,12 +229,12 @@ mod tests {
         assert_eq!(
             Principal::for_surface(Surface::Mcp).role,
             PrincipalRole::Local,
-            "stdio MCP은 OS 사용자가 띄운 프로그램이지 사람이 앉은 표면이 아니다"
+            "stdio MCP is a program spawned by the OS user, not a surface a person sits at"
         );
     }
 
     #[test]
-    fn 주체는_json으로_왕복한다() {
+    fn principal_round_trips_through_json() {
         for surface in ALL_SURFACES {
             for role in ALL_PRINCIPAL_ROLES {
                 let principal = Principal::new(*role, *surface);
@@ -242,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn 절반만_적힌_주체_블록은_주체가_아니다() {
+    fn half_written_principal_blocks_are_not_principals() {
         for broken in [
             serde_json::json!({}),
             serde_json::json!({ PRINCIPAL_ROLE_KEY: "operator" }),

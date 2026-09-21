@@ -28,7 +28,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    '숨겨진 실제 웹뷰를 디버거로 옮겨도 입력과 페이지 상태와 뷰포트가 유지된다',
+    'moving_the_hidden_real_webview_to_the_debugger_preserves_input_page_state_and_viewport',
     (tester) async {
       final fixture = await ControlledEmbedBrowserFixture.start();
       final service = ControlledEmbedSessionService(

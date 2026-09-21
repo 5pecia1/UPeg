@@ -6,7 +6,9 @@ import 'package:upeg/src/boot/bootstrap.dart';
 
 void main() {
   group('bootstrapUpegApp', () {
-    testWidgets('bootstrapUpegApp은_RustLib_init_시작과_완료를_로그한다', (tester) async {
+    testWidgets('bootstrapUpegApp_logs_RustLib_init_start_and_completion', (
+      tester,
+    ) async {
       final logs = <String>[];
       Widget? launched;
       var flutterInitialized = false;
@@ -38,7 +40,7 @@ void main() {
       expect(scope.child, isA<UpegApp>());
     });
 
-    testWidgets('bootstrapUpegApp은_binding_다음_window_manager를_초기화한다', (
+    testWidgets('bootstrapUpegApp_initializes_window_manager_after_binding', (
       tester,
     ) async {
       final steps = <String>[];

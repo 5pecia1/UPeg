@@ -1,15 +1,11 @@
-//! `render_tests` 모듈의 짝 — Controlled Embed 런타임 디스패치와
-//! 렌더 계약 회귀 테스트만 모은다. 워크스페이스 1000-LoC 파일 크기
-//! 예산 때문에 분리했다.
+//! Companion to the `render_tests` module — collects only the
+//! Controlled Embed runtime-dispatch and render-contract regression
+//! tests. Split out for the workspace 1000-LoC file-size budget.
 
 use super::*;
 
 #[test]
-#[allow(
-    non_snake_case,
-    reason = "plan-required Korean test name uses TUI/Result technical terms"
-)]
-fn controlled_embed_runtime_성공은_TUI_Result_view에_정규_output을_전달한다() {
+fn controlled_embed_runtime_success_delivers_canonical_output_to_tui_result_view() {
     use ratatui::backend::TestBackend;
     use std::sync::Arc;
 
@@ -136,11 +132,7 @@ selector = "#summary"
 }
 
 #[test]
-#[allow(
-    non_snake_case,
-    reason = "plan-required Korean test name uses TUI/Result technical terms"
-)]
-fn controlled_embed_wait_timeout_dispatch는_TUI_Result_view에_error로_전달된다() {
+fn controlled_embed_wait_timeout_dispatch_reaches_tui_result_view_as_error() {
     use ratatui::backend::TestBackend;
     use std::sync::Arc;
 
@@ -277,10 +269,11 @@ selector = "#summary"
     assert!(buf.contains("125ms"), "rendered: {buf}");
 }
 
-/// Controlled Embed 성공 결과: 긴 unicode output을 오른쪽 pane에 렌더
+/// Controlled Embed success result: renders long unicode output in the
+/// right pane
 /// (Task 5: Direct canonical output rendering without fixture setup)
 #[test]
-fn controlled_embed_성공_결과는_긴_unicode_output을_오른쪽_pane에_렌더한다() {
+fn controlled_embed_success_result_renders_long_unicode_output_in_right_pane() {
     use ratatui::backend::TestBackend;
 
     // Build direct ToolSuccess with OutputEntry containing Unicode multiline
@@ -310,10 +303,10 @@ fn controlled_embed_성공_결과는_긴_unicode_output을_오른쪽_pane에_렌
     assert!(buf.contains("둘째 줄"), "rendered: {buf}");
 }
 
-/// Controlled Embed 실패 결과: error message만 렌더
+/// Controlled Embed failure result: renders only the error message
 /// (Task 5: Failure rendering without browser fallback)
 #[test]
-fn controlled_embed_실패_결과는_error_message만_렌더한다() {
+fn controlled_embed_failure_result_renders_only_error_message() {
     use ratatui::backend::TestBackend;
 
     // Build Outcome::Failure with controlled_embed_unavailable code
@@ -357,11 +350,7 @@ fn controlled_embed_실패_결과는_error_message만_렌더한다() {
 }
 
 #[test]
-#[allow(
-    non_snake_case,
-    reason = "plan-required Korean test name uses TUI technical term"
-)]
-fn controlled_embed_대기_timeout_TUI는_wait_timeout_error를_표준_message로_렌더한다() {
+fn controlled_embed_wait_timeout_tui_renders_wait_timeout_error_as_standard_message() {
     use ratatui::backend::TestBackend;
 
     const WAIT_TIMEOUT_CODE: &str = "wait-timeout";
@@ -404,11 +393,7 @@ fn controlled_embed_대기_timeout_TUI는_wait_timeout_error를_표준_message�
 }
 
 #[test]
-#[allow(
-    non_snake_case,
-    reason = "plan-required Korean test name uses TUI technical term"
-)]
-fn controlled_embed_대기_timeout_TUI는_성공한_대기_output_row를_렌더한다() {
+fn controlled_embed_wait_timeout_tui_renders_successful_wait_output_row() {
     use ratatui::backend::TestBackend;
 
     const OUTPUT_ID: &str = "waited_result";

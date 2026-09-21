@@ -68,12 +68,12 @@ const DETECTOR_TOOL_ID_PREFIX: &str = "id: '";
 const DETECTOR_TOOL_ARG_PREFIX: &str = "arg: '";
 
 #[test]
-fn manifest는_유효한_json으로_파싱된다() {
+fn manifest_parses_as_valid_json() {
     let _: Value = manifest();
 }
 
 #[test]
-fn manifest는_v3이다() {
+fn manifest_is_v3() {
     let v = manifest();
     assert_eq!(
         v["manifest_version"], 3,
@@ -82,7 +82,7 @@ fn manifest는_v3이다() {
 }
 
 #[test]
-fn manifest는_필수_필드를_가진다() {
+fn manifest_has_the_required_fields() {
     let v = manifest();
     for field in ["name", "version", "description"] {
         assert!(v[field].is_string(), "missing required field `{field}`");
@@ -94,7 +94,7 @@ fn manifest는_필수_필드를_가진다() {
 }
 
 #[test]
-fn manifest의_액션은_popup_html을_가리킨다() {
+fn manifest_action_points_at_popup_html() {
     let v = manifest();
     assert_eq!(
         v["action"]["default_popup"], POPUP_HTML,
@@ -117,7 +117,7 @@ fn string_array(value: &Value, field: &str) -> Vec<String> {
 }
 
 #[test]
-fn manifest_권한은_선언된_최소_집합을_유지한다() {
+fn manifest_permissions_stay_at_the_declared_minimum() {
     let v = manifest();
     assert_eq!(
         string_array(&v, "permissions"),
@@ -135,7 +135,7 @@ fn manifest_권한은_선언된_최소_집합을_유지한다() {
 }
 
 #[test]
-fn manifest는_다른_사이트_접근을_선택_권한으로만_요구한다() {
+fn manifest_asks_for_other_site_access_only_as_an_optional_permission() {
     // The whole point of per-site enablement: broad host access is granted
     // by the user per origin at runtime, never demanded at install time.
     let v = manifest();
@@ -153,7 +153,7 @@ fn manifest는_다른_사이트_접근을_선택_권한으로만_요구한다() 
 }
 
 #[test]
-fn manifest는_서비스_워커를_선언한다() {
+fn manifest_declares_the_service_worker() {
     let v = manifest();
     assert_eq!(
         v["background"]["service_worker"], BACKGROUND_JS,
@@ -162,7 +162,7 @@ fn manifest는_서비스_워커를_선언한다() {
 }
 
 #[test]
-fn popup_html은_desktop_딥_링크_진입점을_제공한다() {
+fn popup_html_offers_the_desktop_deep_link_entry_point() {
     let html = read(POPUP_HTML);
     assert!(
         html.contains(OPEN_UPEG_LINK),
@@ -175,7 +175,7 @@ fn popup_html은_desktop_딥_링크_진입점을_제공한다() {
 }
 
 #[test]
-fn 빌드_스크립트는_executable이다() {
+fn build_script_is_executable() {
     let path = ext_path(BUILD_SH);
     let meta = fs::metadata(&path).unwrap_or_else(|e| panic!("{} stat: {e}", path.display()));
     #[cfg(unix)]
@@ -192,7 +192,7 @@ fn 빌드_스크립트는_executable이다() {
 }
 
 #[test]
-fn 빌드_스크립트는_dioxus를_호출하지_않는다() {
+fn build_script_does_not_invoke_dioxus() {
     let raw = read(BUILD_SH);
     for marker in [
         DIOXUS_BUILD_COMMAND,
@@ -226,7 +226,7 @@ fn js_string_array_after(source: &str, decl: &str) -> Vec<String> {
 }
 
 #[test]
-fn manifest는_정적_content_scripts_블록을_더는_갖지_않는다() {
+fn manifest_no_longer_has_a_static_content_scripts_block() {
     // Per-site enablement replaced it: which sites get the content script
     // is stored state compiled into a `chrome.scripting` registration, not
     // a hard-coded match list that needs a release to change.
@@ -238,7 +238,7 @@ fn manifest는_정적_content_scripts_블록을_더는_갖지_않는다() {
 }
 
 #[test]
-fn 동적_등록은_content_js와_그_의존_모듈을_모두_싣는다() {
+fn dynamic_registration_loads_content_js_and_all_its_helper_modules() {
     let js = read(SITE_ACCESS_JS);
     let files = js_string_array_after(&js, CONTENT_SCRIPT_FILES_DECL);
     for required in [
@@ -261,7 +261,7 @@ fn 동적_등록은_content_js와_그_의존_모듈을_모두_싣는다() {
 }
 
 #[test]
-fn 시드된_사이트는_https에서만_일치한다() {
+fn seeded_sites_match_https_only() {
     let js = read(SITE_ACCESS_JS);
     let seeds = js_string_array_after(&js, SEED_PATTERNS_DECL);
     assert!(!seeds.is_empty(), "at least one seed pattern required");
@@ -281,7 +281,7 @@ fn 시드된_사이트는_https에서만_일치한다() {
 }
 
 #[test]
-fn 빌드_스크립트는_content_script가_등록하는_모든_파일을_스테이징한다() {
+fn build_script_stages_every_file_the_content_script_registers() {
     let build = read(BUILD_SH);
     let mut files = js_string_array_after(&read(SITE_ACCESS_JS), CONTENT_SCRIPT_FILES_DECL);
     files.push(BACKGROUND_JS.to_string());
@@ -296,7 +296,7 @@ fn 빌드_스크립트는_content_script가_등록하는_모든_파일을_스테
 }
 
 #[test]
-fn 콘텐츠_js는_감지_규칙을_직접_들고_있지_않는다() {
+fn content_js_does_not_carry_detection_rules_itself() {
     // Detection is DATA (detectors.js). A pattern literal creeping back into
     // content.js would mean the table stopped being the single source.
     let js = read(CONTENT_JS);
@@ -320,7 +320,7 @@ fn 콘텐츠_js는_감지_규칙을_직접_들고_있지_않는다() {
 }
 
 #[test]
-fn 콘텐츠_js는_한_프레임에_한_번만_사는_표식을_남긴다() {
+fn content_js_leaves_a_live_once_per_frame_sentinel() {
     // The script arrives by two paths — the dynamic
     // `registerContentScripts` registration (future loads) and the popup's
     // `executeScript` (the tab in front of the user). A second evaluation
@@ -355,7 +355,7 @@ fn 콘텐츠_js는_한_프레임에_한_번만_사는_표식을_남긴다() {
 }
 
 #[test]
-fn 콘텐츠_js의_건너뛸_문맥_판정은_한_곳에만_있다() {
+fn content_js_keeps_the_skipped_context_predicate_in_one_place() {
     // The tree walk and the MutationObserver both decide "may this text node
     // be rewritten?". When each carried its own answer the observer's
     // text-node path had none at all and rewrote inside <textarea>/<code>.
@@ -379,7 +379,7 @@ fn 콘텐츠_js의_건너뛸_문맥_판정은_한_곳에만_있다() {
 }
 
 #[test]
-fn popup_js는_이미_돌고_있는_content_script를_다시_주입하지_않는다() {
+fn popup_js_does_not_reinject_an_already_running_content_script() {
     // `executeScript` on a tab that already runs the content script is what
     // duplicates its listener/observer. The popup asks first.
     let js = read(POPUP_JS);
@@ -407,7 +407,7 @@ fn popup_js는_이미_돌고_있는_content_script를_다시_주입하지_않는
 }
 
 #[test]
-fn 감지기_표는_행마다_패턴과_라벨_키와_도구를_데이터로_선언한다() {
+fn the_detector_table_declares_pattern_label_key_and_tool_per_row_as_data() {
     let js = read(DETECTORS_JS);
     for marker in [
         "const DETECTORS = Object.freeze([",
@@ -430,7 +430,7 @@ fn 감지기_표는_행마다_패턴과_라벨_키와_도구를_데이터로_선
 }
 
 #[test]
-fn 감지기_표가_이름한_도구_id와_인자는_toolbox에_실재한다() {
+fn tool_ids_and_args_named_by_the_detector_table_exist_in_the_toolbox() {
     // The table's whole promise is "this match dispatches to that tool".
     // A renamed tool or a renamed input field must fail here, not silently
     // 404 in a tooltip on somebody's page.
@@ -473,7 +473,7 @@ fn 감지기_표가_이름한_도구_id와_인자는_toolbox에_실재한다() {
 }
 
 #[test]
-fn 콘텐츠_js의_감지_span은_키보드로_조작_가능하다() {
+fn content_js_detection_spans_are_keyboard_operable() {
     let js = read(CONTENT_JS);
     for marker in [
         "setAttribute('role', 'button')",
@@ -490,7 +490,7 @@ fn 콘텐츠_js의_감지_span은_키보드로_조작_가능하다() {
 }
 
 #[test]
-fn 콘텐츠_js는_호스트_결과를_툴팁에_넣고_없으면_딥_링크로_되돌아간다() {
+fn content_js_puts_host_results_in_the_tooltip_and_falls_back_to_the_deep_link() {
     let js = read(CONTENT_JS);
     for marker in [
         // Resolution goes through the worker, never a content-script fetch.
@@ -510,7 +510,7 @@ fn 콘텐츠_js는_호스트_결과를_툴팁에_넣고_없으면_딥_링크로_
 }
 
 #[test]
-fn 콘텐츠_js는_직접_호스트를_fetch하지_않는다() {
+fn content_js_does_not_fetch_the_host_directly() {
     // A content script's fetch is subject to the PAGE's CORS, and doing it
     // there would put the bearer token in a web page's world.
     let js = read(CONTENT_JS);
@@ -525,7 +525,7 @@ fn 콘텐츠_js는_직접_호스트를_fetch하지_않는다() {
 }
 
 #[test]
-fn 콘텐츠_js는_도구가_없는_감지_행에_클릭_어포던스를_주지_않는다() {
+fn content_js_gives_detector_rows_without_a_tool_no_click_affordance() {
     let js = read(CONTENT_JS);
     for marker in [
         "if (toolId === null) {",
@@ -539,7 +539,7 @@ fn 콘텐츠_js는_도구가_없는_감지_행에_클릭_어포던스를_주지_
 }
 
 #[test]
-fn 콘텐츠_js는_in_page_selector_어댑터를_노출한다() {
+fn content_js_exposes_the_in_page_selector_adapter() {
     let js = read(CONTENT_JS);
     for marker in [
         "RUNTIME_MESSAGE.APPLY_SELECTOR_BINDINGS",
@@ -555,7 +555,7 @@ fn 콘텐츠_js는_in_page_selector_어댑터를_노출한다() {
 }
 
 #[test]
-fn selector_어댑터는_desktop_러너와_같은_dom_의미를_유지한다() {
+fn the_selector_adapter_keeps_the_same_dom_semantics_as_the_desktop_runner() {
     // Mirrors `upeg_runtime::selector_pipeline`: write + input/change,
     // click-or-Enter trigger, `.value` else `.textContent` read.
     let js = read(SELECTOR_ADAPTER_JS);
@@ -574,7 +574,7 @@ fn selector_어댑터는_desktop_러너와_같은_dom_의미를_유지한다() {
 }
 
 #[test]
-fn 백그라운드_워커는_등록과_디스패치를_모두_담당한다() {
+fn the_background_worker_owns_registration_and_dispatch() {
     let js = read(BACKGROUND_JS);
     for marker in [
         "importScripts('wire.js', 'host_api.js', 'site_access.js');",
@@ -592,7 +592,7 @@ fn 백그라운드_워커는_등록과_디스패치를_모두_담당한다() {
 }
 
 #[test]
-fn 사이트_접근_모듈은_동적_등록_api를_사용한다() {
+fn the_site_access_module_uses_the_dynamic_registration_api() {
     let js = read(SITE_ACCESS_JS);
     for marker in [
         "scriptingApi.registerContentScripts(toRegister)",
@@ -619,7 +619,7 @@ fn 사이트_접근_모듈은_동적_등록_api를_사용한다() {
 // deep-link markers above are pinned.
 
 #[test]
-fn 활성화_경로는_세_갈래로_닫혀있다() {
+fn the_activation_route_is_closed_over_three_branches() {
     // The popup's whole dispatch policy, as a pure decision: in-page,
     // direct dispatch, or Desktop deep link — nothing else.
     let js = read(TOOL_ROUTING_JS);
@@ -640,7 +640,7 @@ fn 활성화_경로는_세_갈래로_닫혀있다() {
 }
 
 #[test]
-fn controlled_embed_핀은_사이트가_켜졌을_때만_in_page로_간다() {
+fn a_controlled_embed_pin_goes_in_page_only_when_the_site_is_enabled() {
     let js = read(TOOL_ROUTING_JS);
     assert!(
         js.contains(
@@ -651,7 +651,7 @@ fn controlled_embed_핀은_사이트가_켜졌을_때만_in_page로_간다() {
 }
 
 #[test]
-fn popup_js는_경로별_실행을_분기한다() {
+fn popup_js_branches_execution_per_route() {
     let js = read(POPUP_JS);
     for marker in [
         "const route = activationRouteFor(tool, { inPageAvailable: state.site.enabled });",
@@ -670,7 +670,7 @@ fn popup_js는_경로별_실행을_분기한다() {
 }
 
 #[test]
-fn popup_js는_임베드_계열_도구를_desktop_딥_링크로_유지한다() {
+fn popup_js_keeps_embed_family_tools_on_the_desktop_deep_link() {
     let js = read(POPUP_JS);
     assert!(
         js.contains("openDeepLink(board, tool[TOOL_ID_FIELD]);"),
@@ -683,7 +683,7 @@ fn popup_js는_임베드_계열_도구를_desktop_딥_링크로_유지한다() {
 }
 
 #[test]
-fn popup_js는_사이트별_활성화_토글을_구현한다() {
+fn popup_js_implements_the_per_site_enablement_toggle() {
     let js = read(POPUP_JS);
     for marker in [
         "requestSitePermission(chrome.permissions, pattern)",
@@ -705,7 +705,7 @@ fn popup_js는_사이트별_활성화_토글을_구현한다() {
 }
 
 #[test]
-fn host_api는_디스패치_폴백_매트릭스를_한_곳에서_분류한다() {
+fn host_api_classifies_the_dispatch_fallback_matrix_in_one_place() {
     let js = read(HOST_API_JS);
     for marker in [
         "const toolCallPath = (toolId) => `/v1/tools/${encodeURIComponent(toolId)}`;",
@@ -727,7 +727,7 @@ fn host_api는_디스패치_폴백_매트릭스를_한_곳에서_분류한다() 
 }
 
 #[test]
-fn popup_js의_디스패치_결과_처리는_폴백_매트릭스를_렌더한다() {
+fn popup_js_dispatch_result_handling_renders_the_fallback_matrix() {
     let js = read(POPUP_JS);
     for marker in [
         // 401/403 -> shared token-hint flow.
@@ -751,7 +751,7 @@ fn popup_js의_디스패치_결과_처리는_폴백_매트릭스를_렌더한다
 }
 
 #[test]
-fn popup_html은_디스패치_패널과_사이트_토글_마크업을_가진다() {
+fn popup_html_has_the_dispatch_panel_and_site_toggle_markup() {
     let html = read(POPUP_HTML);
     for marker in [
         "id=\"dispatch-panel\"",
@@ -772,7 +772,7 @@ fn popup_html은_디스패치_패널과_사이트_토글_마크업을_가진다(
 }
 
 #[test]
-fn popup_html은_공유_모듈을_popup_js_보다_먼저_읽는다() {
+fn popup_html_loads_the_shared_modules_before_popup_js() {
     let html = read(POPUP_HTML);
     let order: Vec<usize> = [
         "wire.js",
@@ -794,7 +794,7 @@ fn popup_html은_공유_모듈을_popup_js_보다_먼저_읽는다() {
 }
 
 #[test]
-fn manifest의_icon_참조는_실제_파일로_해석된다() {
+fn manifest_icon_refs_resolve_to_real_files() {
     let v = manifest();
     let mut refs: Vec<String> = Vec::new();
     if let Some(icons) = v.get("icons").and_then(|x| x.as_object()) {

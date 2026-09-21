@@ -1,0 +1,89 @@
+{#-
+  Landing page capability overview — rendered before the Markdown body of
+  docs/index.md on the homepage only (see main.html). Describes the seven
+  surfaces and the honest capability boundaries; keep claims aligned with
+  docs/product/identity-and-boundaries.md.
+-#}
+<section class="upeg-section" aria-labelledby="upeg-surfaces-title">
+  <h2 id="upeg-surfaces-title">One Tool, seven surfaces</h2>
+  <p>
+    A Tool is declared once — a Rust <code>#[upeg::tool]</code> macro, a TOML
+    toolkit entry, a WASM plugin, or an imported MCP server — and the same
+    inputs, outputs, and result envelope travel to every surface that can
+    run it:
+  </p>
+  <ul class="upeg-surface-grid" role="list">
+    <li><strong>CLI</strong><span>scriptable calls and shell completions</span></li>
+    <li><strong>TUI</strong><span>keyboard-driven board in the terminal</span></li>
+    <li><strong>Desktop</strong><span>native window with embed support</span></li>
+    <li><strong>PWA</strong><span>installable browser build, self-hosted</span></li>
+    <li><strong>Chrome ext</strong><span>in-page detectors and dispatch</span></li>
+    <li><strong>MCP</strong><span>serve a prepared board to AI agents</span></li>
+    <li><strong>HTTP</strong><span>local REST and MCP-over-HTTP API</span></li>
+  </ul>
+</section>
+
+<section class="upeg-section" aria-labelledby="upeg-how-title">
+  <h2 id="upeg-how-title">How it works</h2>
+  <ol class="upeg-steps" role="list">
+    <li>
+      <strong>Wrap or write a Tool.</strong>
+      Point a TOML toolkit at an existing command or HTTP endpoint — no code —
+      or scaffold a WASM plugin / Rust tool for typed logic.
+    </li>
+    <li>
+      <strong>Pin it to a board.</strong>
+      Boards group the tools, input presets, and written guidance for a task —
+      personal boards in your home directory, project boards in a repo's
+      <code>upeg.toml</code>.
+    </li>
+    <li>
+      <strong>Call it from anywhere.</strong>
+      Run it from the CLI or TUI, tap it on the desktop or PWA, drive it from
+      the browser extension, or let an AI agent call it over MCP — the result
+      contract is identical.
+    </li>
+  </ol>
+</section>
+
+<section class="upeg-section upeg-boundaries" aria-labelledby="upeg-boundaries-title">
+  <h2 id="upeg-boundaries-title">Honest boundaries</h2>
+  <p>
+    Seven surfaces does not mean universal parity. UPeg renders unsupported
+    states honestly instead of pretending:
+  </p>
+  <ul role="list">
+    <li>
+      <strong>PWA and Chrome extension are sandboxed.</strong>
+      Tools that need the native loader runtime run through a paired local
+      host, or show an honest unsupported state.
+    </li>
+    <li>
+      <strong>Controlled Embed selectors can break.</strong>
+      When a SaaS changes its UI, the mapping fails at call time and is
+      re-mapped by hand — there is no automatic selector tracking.
+    </li>
+    <li>
+      <strong>Some invokers need a network or a session.</strong>
+      <code>Invoker::Llm</code> needs an LLM API; <code>hotkey</code> triggers
+      need a graphical session. Missing dependencies surface as diagnostics,
+      not silent failures.
+    </li>
+    <li>
+      <strong>Local-first means the cloud is optional.</strong>
+      Credentials live in the OS keychain, execution logs record metadata
+      only, and the network interface starts on loopback with bearer auth.
+    </li>
+    <li>
+      <strong>Not a replacement for specialized apps.</strong>
+      UPeg wraps and orchestrates tools; it is not an IDE, password vault,
+      automation platform, or mobile-first product.
+    </li>
+  </ul>
+  <p>
+    Full scope rules:
+    <a href="{{ 'product/identity-and-boundaries/' | url }}">product identity and boundaries</a>
+    and
+    <a href="{{ 'product/security-absolutes/' | url }}">security absolutes</a>.
+  </p>
+</section>

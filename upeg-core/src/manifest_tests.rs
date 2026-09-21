@@ -21,6 +21,8 @@ fn meta(id: &'static str, surfaces: &'static [Surface]) -> ToolMeta {
         input_spec: InputSpec::empty(),
         output_spec: OutputSpec::empty(),
         primary_output_id: None,
+        effect: ToolEffect::Unknown,
+        presentation: None,
         source: Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -31,13 +33,13 @@ fn meta(id: &'static str, surfaces: &'static [Surface]) -> ToolMeta {
 }
 
 #[test]
-fn 전체_표면은_일곱_개이다() {
+fn all_surfaces_count_is_seven() {
     // PRD v2.1 §2.3 #5 + §6.2: there are exactly 7 surfaces.
     assert_eq!(ALL_SURFACES.len(), 7);
 }
 
 #[test]
-fn 전체_표면은_모든_변형을_중복_없이_포함한다() {
+fn all_surfaces_include_every_variant_without_duplicates() {
     let labels: std::collections::HashSet<_> = ALL_SURFACES.iter().map(|s| s.label()).collect();
     assert_eq!(
         labels.len(),
@@ -50,7 +52,7 @@ fn 전체_표면은_모든_변형을_중복_없이_포함한다() {
 }
 
 #[test]
-fn 페그보드_단위_파싱과_크기는_그리드_계약과_일치한다() {
+fn pegboard_units_parse_and_span_match_the_grid_contract() {
     assert_eq!(PegboardUnits::U1.grid_span(), (1, 1));
     assert_eq!(PegboardUnits::U2.grid_span(), (2, 1));
     assert_eq!(PegboardUnits::U2T.grid_span(), (1, 2));
@@ -62,7 +64,7 @@ fn 페그보드_단위_파싱과_크기는_그리드_계약과_일치한다() {
 }
 
 #[test]
-fn 도구_id_새타입은_동적_점_구분_id를_허용한다() {
+fn tool_id_newtype_accepts_dynamic_dot_separated_ids() {
     let id = ToolId::parse(" custom.tool.v2 ").expect("valid dynamic id");
     assert_eq!(id.as_str(), "custom.tool.v2");
     let identity =
@@ -76,7 +78,7 @@ fn 도구_id_새타입은_동적_점_구분_id를_허용한다() {
 }
 
 #[test]
-fn 도구_id_새타입은_정규_형식이_아닌_형태를_거부한다() {
+fn tool_id_newtype_rejects_noncanonical_shapes() {
     assert!(matches!(ToolId::parse(""), Err(ToolIdError::EmptyId)));
     assert!(matches!(
         ToolId::parse("tool_without_toolkit"),
@@ -97,7 +99,7 @@ fn 도구_id_새타입은_정규_형식이_아닌_형태를_거부한다() {
 }
 
 #[test]
-fn 도구_id_정규_파서는_공백_있는_식별자를_거부한다() {
+fn tool_id_canonical_parser_rejects_identifiers_with_whitespace() {
     assert!(matches!(
         ToolId::parse_canonical(" custom.tool "),
         Err(ToolIdError::NonCanonicalId { .. })
@@ -122,7 +124,7 @@ fn 도구_id_정규_파서는_공백_있는_식별자를_거부한다() {
 }
 
 #[test]
-fn 도구_식별자는_점_구분_도구킷과_점_구분_로컬_이름을_허용한다() {
+fn tool_id_accepts_dotted_toolkits_and_dotted_local_names() {
     let id = ToolId::parse_canonical_in_toolkit("github.com.admin.tools.list", "github.com")
         .expect("dotted toolkit and dotted local name should be unambiguous with explicit toolkit");
     assert_eq!(id.as_str(), "github.com.admin.tools.list");
@@ -133,7 +135,7 @@ fn 도구_식별자는_점_구분_도구킷과_점_구분_로컬_이름을_허�
 }
 
 #[test]
-fn 도구_키는_구조화되어_있고_점을_경계로_파싱하지_않는다() {
+fn tool_key_is_structured_and_does_not_parse_on_dot_boundaries() {
     let key = ToolKey::parse_canonical("github.com", "admin.tools.list")
         .expect("dotted structured key parts are valid");
     assert_eq!(key.toolkit(), "github.com");
@@ -157,7 +159,7 @@ fn 도구_키는_구조화되어_있고_점을_경계로_파싱하지_않는다(
 }
 
 #[test]
-fn embed_표면은_그래픽_사용자_인터페이스_전용이다() {
+fn embed_surfaces_are_gui_only() {
     // PRD §4.3 LIMITS — Embed cannot reach CLI/TUI/MCP/HTTP because there's
     // no UI thread for the WebView.
     let labels: Vec<_> = EMBED_SURFACES.iter().map(|s| s.label()).collect();
@@ -165,7 +167,7 @@ fn embed_표면은_그래픽_사용자_인터페이스_전용이다() {
 }
 
 #[test]
-fn 표면_라벨은_간결한_형식을_따른다() {
+fn surface_labels_follow_the_compact_format() {
     let m = meta("x", ALL_SURFACES);
     assert_eq!(
         m.surfaces_label(),
@@ -174,19 +176,19 @@ fn 표면_라벨은_간결한_형식을_따른다() {
 }
 
 #[test]
-fn 표면_라벨은_부분집합을_처리한다() {
+fn surface_labels_handle_subsets() {
     let m = meta("e", EMBED_SURFACES);
     assert_eq!(m.surfaces_label(), "desktop · pwa · ext");
 }
 
 #[test]
-fn 표면_라벨은_빈_목록을_처리한다() {
+fn surface_labels_handle_an_empty_list() {
     let m = meta("none", &[]);
     assert_eq!(m.surfaces_label(), "");
 }
 
 #[test]
-fn 표면_라벨은_각_표면을_문자열로_반환한다() {
+fn surface_labels_return_each_surface_as_a_string() {
     // vec form parallel to surfaces_label's joined string.
     // Used by HTTP /v1/tools, OpenAPI x-surfaces, CLI tool list/show
     // --json. Pin the round-trip with surfaces_label so the two
@@ -197,19 +199,19 @@ fn 표면_라벨은_각_표면을_문자열로_반환한다() {
 }
 
 #[test]
-fn 표면이_없으면_표면_라벨도_비어_있다() {
+fn without_surfaces_the_surface_labels_are_empty() {
     let m = meta("x", &[]);
     assert!(m.surface_labels().is_empty());
 }
 
 #[test]
-fn 사용자경험_결과_상태_라벨은_공유_표면_계약이다() {
+fn ux_result_status_labels_are_a_shared_surface_contract() {
     assert_eq!(ux::result_status_label(false), "OK");
     assert_eq!(ux::result_status_label(true), "ERROR");
 }
 
 #[test]
-fn 표면은_모든_라벨을_왕복_파싱한다() {
+fn surface_parses_every_label_roundtrip() {
     // every Surface variant's `label()` must round-trip
     // through `parse()`. Catches a variant added with a label but
     // not wired into parse (or vice-versa) — used to be a
@@ -225,14 +227,14 @@ fn 표면은_모든_라벨을_왕복_파싱한다() {
 }
 
 #[test]
-fn 표면_파싱은_알수없는_값에_없음을_반환한다() {
+fn surface_parse_returns_none_for_unknown_values() {
     assert_eq!(Surface::parse("not-a-surface"), None);
     assert_eq!(Surface::parse(""), None);
     assert_eq!(Surface::parse("nope"), None);
 }
 
 #[test]
-fn pin_종류는_모든_라벨을_왕복_파싱한다() {
+fn pin_kind_parses_every_label_roundtrip() {
     // Same round-trip contract for PinKind. Centralising the
     // match arms in upeg-core ensures any new variant is honoured by
     // upeg-loader and upeg-wasm without duplicated arms drifting.
@@ -256,7 +258,7 @@ fn pin_종류는_모든_라벨을_왕복_파싱한다() {
 }
 
 #[test]
-fn pin_종류_파싱은_알수없는_값에_없음을_반환한다() {
+fn pin_kind_parse_returns_none_for_unknown_values() {
     assert_eq!(PinKind::parse("Mauve"), None);
     assert_eq!(PinKind::parse(""), None);
     assert_eq!(
@@ -267,7 +269,7 @@ fn pin_종류_파싱은_알수없는_값에_없음을_반환한다() {
 }
 
 #[test]
-fn 호출자는_파스칼_케이스_형태를_왕복_파싱한다() {
+fn invoker_parses_pascal_case_forms_roundtrip() {
     // `Invoker::parse` accepts the TOML/loader convention
     // (PascalCase) — same round-trip pattern Surface and PinKind
     // already have. Note the deliberate label/parse asymmetry:
@@ -294,7 +296,7 @@ fn 호출자는_파스칼_케이스_형태를_왕복_파싱한다() {
 }
 
 #[test]
-fn 호출자_파싱은_알수없는_값에_없음을_반환한다() {
+fn invoker_parse_returns_none_for_unknown_values() {
     assert_eq!(Invoker::parse("NotAnInvoker"), None);
     assert_eq!(Invoker::parse(""), None);
     assert_eq!(
@@ -305,7 +307,7 @@ fn 호출자_파싱은_알수없는_값에_없음을_반환한다() {
 }
 
 #[test]
-fn 도구_메타_동등성은_구조화된_키를_사용한다() {
+fn tool_meta_equality_uses_the_structured_key() {
     let a = meta("same", ALL_SURFACES);
     let mut b = meta("same", &[]);
     b.pin = PinKind::Live;
@@ -316,7 +318,7 @@ fn 도구_메타_동등성은_구조화된_키를_사용한다() {
 }
 
 #[test]
-fn 고정_여부_검사는_동작한다() {
+fn board_membership_check_works() {
     let mut m = meta("t", ALL_SURFACES);
     m.boards = &["dev", "trading"];
     assert!(m.is_on_board("dev"));
@@ -325,7 +327,7 @@ fn 고정_여부_검사는_동작한다() {
 }
 
 #[test]
-fn 표면_여부_검사는_선언된_표면과_일치한다() {
+fn surface_membership_check_matches_declared_surfaces() {
     let mcp_only = meta("x", &[Surface::Mcp]);
     assert!(mcp_only.is_on_surface(Surface::Mcp));
     assert!(!mcp_only.is_on_surface(Surface::Cli));
@@ -342,7 +344,7 @@ fn 표면_여부_검사는_선언된_표면과_일치한다() {
 }
 
 #[test]
-fn pin_종류_라벨은_정규_파스칼_케이스이다() {
+fn pin_kind_labels_are_canonical_pascal_case() {
     // Lexicon §4 spells these in Pascal — they go on UI badges as-is.
     assert_eq!(PinKind::Inline.label(), "Inline");
     assert_eq!(PinKind::Launcher.label(), "Launcher");
@@ -355,7 +357,7 @@ fn pin_종류_라벨은_정규_파스칼_케이스이다() {
 }
 
 #[test]
-fn 호출자_라벨은_소문자이다() {
+fn invoker_labels_are_lowercase() {
     // Footer tag `invoker={x}` reads better lowercase.
     assert_eq!(Invoker::Function.label(), "function");
     assert_eq!(Invoker::External.label(), "external");
@@ -369,7 +371,7 @@ fn 호출자_라벨은_소문자이다() {
 
 #[cfg(feature = "serde")]
 #[test]
-fn pin_종류_직렬화_역직렬화_왕복을_검증한다() {
+fn pin_kind_serde_roundtrip_is_verified() {
     let json = serde_json::to_string(&PinKind::Live).unwrap();
     assert_eq!(json, "\"Live\"");
     let back: PinKind = serde_json::from_str(&json).unwrap();
@@ -377,7 +379,7 @@ fn pin_종류_직렬화_역직렬화_왕복을_검증한다() {
 }
 
 #[test]
-fn 입출력_타입_목록_상수는_닫힌_입출력_타입_배열과_일치한다() {
+fn io_type_list_constant_matches_the_closed_io_types_array() {
     let derived = CLOSED_IO_TYPES.join(", ");
     assert_eq!(
         IO_TYPE_LIST, derived,
@@ -387,7 +389,7 @@ fn 입출력_타입_목록_상수는_닫힌_입출력_타입_배열과_일치한
 
 #[cfg(feature = "serde")]
 #[test]
-fn placement_신규_필드가_none이면_기존_json_형태와_바이트_동일하다() {
+fn placement_with_none_new_fields_is_byte_identical_to_the_legacy_json() {
     let legacy_json = r#"{"tool_id":"clock.now","x":1,"y":2}"#;
     let placement = Placement::new("clock.now", 1, 2);
 
@@ -408,7 +410,7 @@ fn placement_신규_필드가_none이면_기존_json_형태와_바이트_동일�
 
 #[cfg(feature = "serde")]
 #[test]
-fn placement_span과_args_preset은_직렬화_왕복을_보존한다() {
+fn placement_span_and_args_preset_survive_a_serde_roundtrip() {
     let span = PinSpan::new(ColSpan::new(2).unwrap(), RowSpan::new(3).unwrap());
     let preset = ArgsPreset::parse(r#"{"city":"Seoul"}"#).unwrap();
     let placement = Placement::new("weather.now", 0, 1)
@@ -425,7 +427,7 @@ fn placement_span과_args_preset은_직렬화_왕복을_보존한다() {
 
 #[cfg(feature = "serde")]
 #[test]
-fn placement_역직렬화는_손상된_span과_예약_키_preset을_거부한다() {
+fn placement_deserialization_rejects_corrupted_span_and_reserved_key_preset() {
     let corrupted_span = r#"{"tool_id":"a.b","x":0,"y":0,"span":{"cols":0,"rows":1}}"#;
     assert!(serde_json::from_str::<Placement>(corrupted_span).is_err());
 

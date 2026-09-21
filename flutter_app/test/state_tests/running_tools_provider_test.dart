@@ -5,7 +5,7 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
 
 void main() {
-  test('같은 도구의 두 실행 중 하나만 끝나면 실행 중 상태를 유지한다', () {
+  test('keeps_running_state_when_only_one_of_two_runs_of_same_tool_ends', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
@@ -21,7 +21,7 @@ void main() {
     expect(container.read(runningToolsProvider), isNot(contains(toolId)));
   });
 
-  test('서로 다른 도구의 실행 상태는 각각 독립적으로 끝난다', () {
+  test('run_states_of_different_tools_end_independently', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final firstToolId = ToolId.parse('text.pair');
@@ -39,7 +39,7 @@ void main() {
     expect(container.read(runningToolsProvider), isEmpty);
   });
 
-  test('이미 끝난 실행을 다시 끝내도 다른 실행 상태는 유지한다', () {
+  test('ending_an_already_ended_run_keeps_other_run_states', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
@@ -56,7 +56,7 @@ void main() {
     expect(container.read(runningToolsProvider), isEmpty);
   });
 
-  test('초기화 이전의 늦은 종료는 새 실행 상태를 해제하지 않는다', () {
+  test('late_end_from_before_clear_does_not_release_new_run_state', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
@@ -73,7 +73,7 @@ void main() {
     expect(container.read(runningToolsProvider), isEmpty);
   });
 
-  test('공개된 실행 중 도구 목록은 외부에서 변경할 수 없다', () {
+  test('exposed_running_tools_list_cannot_be_mutated_from_outside', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
@@ -89,7 +89,7 @@ void main() {
     expect(container.read(runningToolsProvider), isEmpty);
   });
 
-  test('provider를 다시 빌드하면 이전 lease의 늦은 종료를 무시한다', () {
+  test('rebuilt_provider_ignores_late_end_of_previous_lease', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');

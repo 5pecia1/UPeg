@@ -4,7 +4,7 @@
 //! a `required` DSL field must map to a non-`Option` parameter, and an
 //! `optional` DSL field must map to an `Option<...>` parameter — giving
 //! the Rust type system a real job instead of only checking it at
-//! runtime (CLAUDE.md: "Rust의 타입 시스템을 적극 활용해야함").
+//! runtime (CLAUDE.md: "use the Rust type system actively").
 
 use syn::{ItemFn, Result};
 use upeg_tool_grammar::{InputRequirement, ToolInput, input_type_label};

@@ -352,14 +352,14 @@ mod tests {
     use super::LogLevel;
 
     #[test]
-    fn 심각도는_낮은_것부터_높은_것으로_정렬된다() {
+    fn severities_sort_from_low_to_high() {
         assert!(LogLevel::Debug < LogLevel::Info);
         assert!(LogLevel::Info < LogLevel::Warning);
         assert!(LogLevel::Warning < LogLevel::Emergency);
     }
 
     #[test]
-    fn 이름은_순위를_왕복한다() {
+    fn names_round_trip_through_rank() {
         for level in LogLevel::ALL.iter().copied() {
             assert_eq!(LogLevel::from_rank(level.rank()), level);
             assert_eq!(LogLevel::from_wire(level.wire_name()), Some(level));
@@ -367,19 +367,19 @@ mod tests {
     }
 
     #[test]
-    fn 목록에_없는_이름은_거절된다() {
+    fn unlisted_names_are_rejected() {
         assert_eq!(LogLevel::from_wire("verbose"), None);
         assert_eq!(LogLevel::from_wire("INFO"), None);
     }
 
     #[test]
-    fn 진행_출력은_info_심각도로_나간다() {
+    fn progress_output_goes_out_at_info_severity() {
         assert_eq!(LogLevel::PROGRESS, LogLevel::Info);
         assert_eq!(LogLevel::DEFAULT, LogLevel::Info);
     }
 
     #[test]
-    fn 허용값_안내는_여덟_이름을_모두_담는다() {
+    fn allowed_values_hint_lists_all_eight_names() {
         let names = LogLevel::wire_names();
         for level in LogLevel::ALL.iter().copied() {
             assert!(names.contains(level.wire_name()), "{names}");

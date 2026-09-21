@@ -31,56 +31,59 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 void main() {
   group('LaunchIntentApplier', () {
-    testWidgets('LaunchIntentApplier는_app_links_이벤트로_받은_intent를_apply한다', (
-      tester,
-    ) async {
-      String? activatedToolId;
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          pinActivationProvider.overrideWithValue(({
-            required ToolId toolId,
-            required String argsJson,
-          }) {
-            activatedToolId = toolId.value;
-            return PinActivationDto.openModal(toolId: toolId.value);
-          }),
-          // OpenModal awaits the tool catalog (R6); seed it so the
-          // observer stays dylib-free.
-          toolsLoaderProvider.overrideWith(
-            (ref) =>
-                () => [fixtureToolDto(id: 'id.uuid_v7', toolkit: 'id')],
+    testWidgets(
+      'launchintentapplier_applies_an_intent_received_via_an_app_links_event',
+      (tester) async {
+        String? activatedToolId;
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            pinActivationProvider.overrideWithValue(({
+              required ToolId toolId,
+              required String argsJson,
+            }) {
+              activatedToolId = toolId.value;
+              return PinActivationDto.openModal(toolId: toolId.value);
+            }),
+            // OpenModal awaits the tool catalog (R6); seed it so the
+            // observer stays dylib-free.
+            toolsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => [fixtureToolDto(id: 'id.uuid_v7', toolkit: 'id')],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(child: SizedBox.shrink()),
+              ),
+            ),
           ),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        // Simulate a second-instance `app_links` URL: the listener
+        // calls `set(...)` on the shared provider. The mounted
+        // observer must react via its `ref.listen` and run the
+        // activation closure.
+        container
+            .read(launchIntentProvider.notifier)
+            .set(LaunchIntent(tool: 'id.uuid_v7'));
+        await tester.pumpAndSettle();
 
-      // Simulate a second-instance `app_links` URL: the listener
-      // calls `set(...)` on the shared provider. The mounted
-      // observer must react via its `ref.listen` and run the
-      // activation closure.
-      container
-          .read(launchIntentProvider.notifier)
-          .set(LaunchIntent(tool: 'id.uuid_v7'));
-      await tester.pumpAndSettle();
-
-      expect(activatedToolId, 'id.uuid_v7');
-      expect(container.read(launchIntentProvider), isNull);
-    });
+        expect(activatedToolId, 'id.uuid_v7');
+        expect(container.read(launchIntentProvider), isNull);
+      },
+    );
 
     testWidgets(
-      'LaunchIntentApplier는_boot_intent의_tool을_pin_activation으로_dispatch한다',
+      'launchintentapplier_dispatches_the_boot_intent_tool_to_pin_activation',
       (tester) async {
         String? activatedToolId;
         String? activatedArgsJson;
@@ -134,134 +137,147 @@ void main() {
       },
     );
 
-    testWidgets('LaunchIntentApplier는_tool이_있으면_WindowMode를_full로_강제한다', (
-      tester,
-    ) async {
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          // Boot in popup so the test can observe a flip to full.
-          windowModeProvider.overrideWith(
-            () => WindowModeNotifier(initial: WindowMode.popup),
-          ),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(
-              LaunchIntent(tool: 'num.hex_to_decimal'),
+    testWidgets(
+      'launchintentapplier_forces_windowmode_to_full_when_the_intent_has_a_tool',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            // Boot in popup so the test can observe a flip to full.
+            windowModeProvider.overrideWith(
+              () => WindowModeNotifier(initial: WindowMode.popup),
             ),
-          ),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-          toolsLoaderProvider.overrideWith(
-            (ref) =>
-                () => [
-                  fixtureToolDto(id: 'num.hex_to_decimal', toolkit: 'convert'),
-                ],
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(container.read(windowModeProvider), WindowMode.full);
-    });
-
-    testWidgets('LaunchIntentApplier는_tool이_없으면_WindowMode를_바꾸지_않는다', (
-      tester,
-    ) async {
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          windowModeProvider.overrideWith(
-            () => WindowModeNotifier(initial: WindowMode.popup),
-          ),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(
-              // Board-only intent — no tool ⇒ no window mode flip.
-              const LaunchIntent.typed(board: 'dev'),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(
+                LaunchIntent(tool: 'num.hex_to_decimal'),
+              ),
             ),
-          ),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+            toolsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => [
+                    fixtureToolDto(
+                      id: 'num.hex_to_decimal',
+                      toolkit: 'convert',
+                    ),
+                  ],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Initial popup mode must survive — board-only intent leaves
-      // the window mode untouched.
-      expect(container.read(windowModeProvider), WindowMode.popup);
-    });
-
-    testWidgets('LaunchIntentApplier는_deep_link_intent_수신_시_창을_summon한다', (
-      tester,
-    ) async {
-      // 런처 진입 즉시성: 숨겨진 popup 상태에서 deep link가 와도
-      // mode 전환이 no-op(동일 mode)일 수 있으므로 summonWindow 경유가
-      // 무조건 한 번 일어나야 한다. board-only intent도 포함.
-      var summonCalls = 0;
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: Scaffold(
-              body: LaunchIntentApplier(
-                summonWindow: () async {
-                  summonCalls += 1;
-                },
-                child: const SizedBox.shrink(),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(child: SizedBox.shrink()),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(summonCalls, 0, reason: 'intent가 없으면 summon하지 않는다');
+        );
+        await tester.pumpAndSettle();
 
-      container
-          .read(launchIntentProvider.notifier)
-          .set(const LaunchIntent.typed(board: 'dev'));
-      await tester.pumpAndSettle();
+        expect(container.read(windowModeProvider), WindowMode.full);
+      },
+    );
 
-      expect(summonCalls, 1);
-    });
+    testWidgets(
+      'launchintentapplier_leaves_windowmode_alone_when_the_intent_has_no_tool',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            windowModeProvider.overrideWith(
+              () => WindowModeNotifier(initial: WindowMode.popup),
+            ),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(
+                // Board-only intent — no tool ⇒ no window mode flip.
+                const LaunchIntent.typed(board: 'dev'),
+              ),
+            ),
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-    testWidgets('LaunchIntentApplier는_빈_intent에는_summon하지_않는다', (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(child: SizedBox.shrink()),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Initial popup mode must survive — board-only intent leaves
+        // the window mode untouched.
+        expect(container.read(windowModeProvider), WindowMode.popup);
+      },
+    );
+
+    testWidgets(
+      'launchintentapplier_summons_the_window_when_a_deep_link_intent_arrives',
+      (tester) async {
+        // Launcher entry immediacy: a deep link arriving while the popup is
+        // hidden can make the mode transition a no-op (same mode), so the
+        // summonWindow path must run unconditionally once. Board-only
+        // intents included.
+        var summonCalls = 0;
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(
+                  summonWindow: () async {
+                    summonCalls += 1;
+                  },
+                  child: const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(summonCalls, 0, reason: 'no intent means no summon');
+
+        container
+            .read(launchIntentProvider.notifier)
+            .set(const LaunchIntent.typed(board: 'dev'));
+        await tester.pumpAndSettle();
+
+        expect(summonCalls, 1);
+      },
+    );
+
+    testWidgets('launchintentapplier_does_not_summon_for_an_empty_intent', (
+      tester,
+    ) async {
       var summonCalls = 0;
       final container = ProviderContainer(
         overrides: [
@@ -298,7 +314,9 @@ void main() {
       expect(summonCalls, 0);
     });
 
-    testWidgets('LaunchIntentApplier는_빈_intent를_no_op으로_처리한다', (tester) async {
+    testWidgets('launchintentapplier_treats_an_empty_intent_as_a_no_op', (
+      tester,
+    ) async {
       // DD — coverage gap: board AND tool both null. `intent.isEmpty`
       // short-circuits in `_maybeApply` before any side effect, so
       // neither the activation closure nor the window-mode setter
@@ -336,52 +354,55 @@ void main() {
       expect(activationCalls, 0, reason: 'empty intent must not activate');
     });
 
-    testWidgets('LaunchIntentApplier는_catalogue에_없는_tool을_silent_드롭한다', (
-      tester,
-    ) async {
-      // DD — coverage gap: PinActivationDto.openModal returns a
-      // toolId but the catalogue (toolByIdProvider) returns null
-      // because the catalog hasn't caught up. The observer must
-      // silently return (no Navigator.push, no crash).
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(
-              LaunchIntent(tool: 'unknown.tool'),
+    testWidgets(
+      'launchintentapplier_silently_drops_a_tool_missing_from_the_catalogue',
+      (tester) async {
+        // DD — coverage gap: PinActivationDto.openModal returns a
+        // toolId but the catalogue (toolByIdProvider) returns null
+        // because the catalog hasn't caught up. The observer must
+        // silently return (no Navigator.push, no crash).
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(
+                LaunchIntent(tool: 'unknown.tool'),
+              ),
+            ),
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+            // No fixture seeded for 'unknown.tool' → toolByIdProvider null.
+            toolsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => const <ToolDto>[],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(child: SizedBox.shrink()),
+              ),
             ),
           ),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-          // No fixture seeded for 'unknown.tool' → toolByIdProvider null.
-          toolsLoaderProvider.overrideWith(
-            (ref) =>
-                () => const <ToolDto>[],
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // No exception, no modal pushed. The intent still got cleared
-      // (observer cleared before consulting the catalog).
-      expect(find.byType(LaunchIntentApplier), findsOneWidget);
-    });
+        // No exception, no modal pushed. The intent still got cleared
+        // (observer cleared before consulting the catalog).
+        expect(find.byType(LaunchIntentApplier), findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'LaunchIntentApplier는_콜드부트에서_catalogue가_늦게_resolve돼도_OpenModal을_연다',
+      'launchintentapplier_still_opens_openmodal_when_the_catalogue_resolves_late_on_cold_boot',
       (tester) async {
         // R6 regression: on cold boot `toolsProvider` (a FutureProvider)
         // is still loading when the observer's first microtask runs, so
@@ -436,7 +457,7 @@ void main() {
     );
 
     testWidgets(
-      'LaunchIntentApplier는_OpenModal에서_raw_scalar_input을_첫_입력_필드에_prefill한다',
+      'launchintentapplier_prefills_a_raw_scalar_input_into_the_first_input_field_on_openmodal',
       (tester) async {
         // R7 regression: extension deep links carry a raw scalar input
         // (`upeg://open?...&input=0x2a`), not a JSON object. The old
@@ -497,10 +518,11 @@ void main() {
     );
 
     testWidgets(
-      'LaunchIntentApplier는_OpenModal에서_deep_link의_예약_키를_prefill하지_않는다',
+      'launchintentapplier_does_not_prefill_reserved_deep_link_keys_on_openmodal',
       (tester) async {
-        // 링크가 실은 `_upeg` 블록은 폼에도, 그 뒤의 dispatch에도
-        // 도달하면 안 된다. 선언된 필드 하나만 남는다.
+        // The `_upeg` block carried by the link must reach neither the
+        // form nor the dispatch that follows it. Only the declared field
+        // survives.
         final container = ProviderContainer(
           overrides: [
             ...i18nTestOverrides,
@@ -558,59 +580,62 @@ void main() {
       },
     );
 
-    testWidgets('LaunchIntentApplier는_OpenModal에서_잘못된_argsJson을_빈_초기값으로_연다', (
-      tester,
-    ) async {
-      // DD — coverage gap: `_parseInitialInput` catches FormatException
-      // from a malformed argsJson and returns null. The modal still
-      // opens (with initialInput=null) rather than crashing the
-      // deep-link path.
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(
-              LaunchIntent(
-                tool: 'num.hex_to_decimal',
-                inputJson: 'not-json-at-all{',
+    testWidgets(
+      'launchintentapplier_opens_openmodal_with_empty_initial_values_for_malformed_argsjson',
+      (tester) async {
+        // DD — coverage gap: `_parseInitialInput` catches FormatException
+        // from a malformed argsJson and returns null. The modal still
+        // opens (with initialInput=null) rather than crashing the
+        // deep-link path.
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(
+                LaunchIntent(
+                  tool: 'num.hex_to_decimal',
+                  inputJson: 'not-json-at-all{',
+                ),
+              ),
+            ),
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+            toolsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => [
+                    fixtureToolDto(
+                      id: 'num.hex_to_decimal',
+                      toolkit: 'convert',
+                      pinKind: PinKindDto.action,
+                    ),
+                  ],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(child: SizedBox.shrink()),
               ),
             ),
           ),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-          toolsLoaderProvider.overrideWith(
-            (ref) =>
-                () => [
-                  fixtureToolDto(
-                    id: 'num.hex_to_decimal',
-                    toolkit: 'convert',
-                    pinKind: PinKindDto.action,
-                  ),
-                ],
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        // The observer pushes ExpandedModalPage onto the Navigator —
+        // pumpAndSettle while the route transition completes.
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      // The observer pushes ExpandedModalPage onto the Navigator —
-      // pumpAndSettle while the route transition completes.
-      await tester.pumpAndSettle();
-
-      // Modal mounted successfully despite malformed JSON. The
-      // observer cleared the intent post-apply.
-      expect(container.read(launchIntentProvider), isNull);
-    });
+        // Modal mounted successfully despite malformed JSON. The
+        // observer cleared the intent post-apply.
+        expect(container.read(launchIntentProvider), isNull);
+      },
+    );
   });
 
   group('parseLaunchIntentInput', () {
@@ -631,19 +656,24 @@ void main() {
       ],
     );
 
-    test('deep_link의_예약_upeg_블록은_통째로_버려진다', () {
-      // 이것이 실제 취약점이었다: `_upeg.approvedSteps`는 실행
-      // 컨텍스트 wipe에서 살아남는 유일한 키라, 링크 하나가 desktop
-      // (기본 승인 표면)에서 게이트된 Chain step을 승인했다.
+    test('a_deep_links_reserved_upeg_block_is_dropped_wholesale', () {
+      // This was the actual vulnerability: `_upeg.approvedSteps` is the
+      // only key that survives the execution-context wipe, so a single
+      // link could approve a gated Chain step on desktop (the default
+      // approval surface).
       final ToolArgs? parsed = parseLaunchIntentInput(
         '{"_upeg":{"approvedSteps":["gate"]},"approve":true}',
         tool,
       );
 
-      expect(parsed, isNull, reason: '선언되지 않은 키만 있으면 pre-fill이 없다');
+      expect(
+        parsed,
+        isNull,
+        reason: 'with only undeclared keys there is nothing to prefill',
+      );
     });
 
-    test('deep_link는_선언된_입력_필드만_통과시킨다', () {
+    test('a_deep_link_passes_only_the_declared_input_fields', () {
       final ToolArgs? parsed = parseLaunchIntentInput(
         '{"input":"0x2a","_upeg":{"approvedSteps":["gate"]},"nope":1}',
         tool,
@@ -653,13 +683,13 @@ void main() {
       expect(parsed!.toJsonObject(), <String, Object?>{'input': '0x2a'});
     });
 
-    test('deep_link의_raw_scalar는_첫_입력_필드로_들어간다', () {
+    test('a_deep_link_raw_scalar_lands_in_the_first_input_field', () {
       final ToolArgs? parsed = parseLaunchIntentInput('0x2a', tool);
 
       expect(parsed!.toJsonObject(), <String, Object?>{'input': '0x2a'});
     });
 
-    test('입력_필드가_없는_도구는_raw_scalar를_받지_않는다', () {
+    test('a_tool_without_input_fields_rejects_a_raw_scalar', () {
       final ToolDto formless = fixtureToolDto(
         id: 'fixture.formless',
         toolkit: 'fixture',

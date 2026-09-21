@@ -80,6 +80,10 @@ const Map<String, Map<LocaleDto, String>> _fakeCatalog = {
     LocaleDto.en: 'serve the REST/MCP host from this app; restart to apply',
     LocaleDto.ko: '이 앱이 REST/MCP host가 된다. 적용하려면 재시작한다',
   },
+  // BackupSection mounts inside TweaksForm — the buttons must resolve
+  // to short labels or the key-as-marker fallback overflows the row.
+  'settings.backup.export': {LocaleDto.en: 'export', LocaleDto.ko: '보내기'},
+  'settings.backup.import': {LocaleDto.en: 'import', LocaleDto.ko: '가져오기'},
 };
 
 String _fakeTranslate(String key, LocaleDto locale) {
@@ -129,7 +133,9 @@ Widget _harness({
 
 void main() {
   group('TweaksForm', () {
-    testWidgets('TweaksForm_은_locale과_theme_라디오_옵션을_렌더한다', (tester) async {
+    testWidgets('TweaksForm_renders_locale_and_theme_radio_options', (
+      tester,
+    ) async {
       await tester.pumpWidget(_harness());
       await tester.pumpAndSettle();
 
@@ -148,7 +154,7 @@ void main() {
       expect(find.byKey(const Key('tweaks-locale-radio-Ko')), findsOneWidget);
     });
 
-    testWidgets('라디오_탭은_saveTweaks를_즉시_호출한다', (tester) async {
+    testWidgets('a_radio_tap_calls_saveTweaks_immediately', (tester) async {
       TweaksDto? saved;
       await tester.pumpWidget(_harness(onSave: (next) => saved = next));
       await tester.pumpAndSettle();
@@ -162,29 +168,30 @@ void main() {
       expect(saved!.theme, 'Light');
     });
 
-    testWidgets('TweaksForm은_locale_Ko로_바뀌면_LANGUAGE_섹션_헤더가_언어로_표시된다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_harness());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'TweaksForm_shows_the_LANGUAGE_section_header_in_Korean_when_locale_switches_to_Ko',
+      (tester) async {
+        await tester.pumpWidget(_harness());
+        await tester.pumpAndSettle();
 
-      // En locale: section headers render the catalog English values
-      // upper-cased. "language" → "LANGUAGE".
-      expect(find.text('LANGUAGE'), findsOneWidget);
-      expect(find.textContaining('언어'), findsNothing);
+        // En locale: section headers render the catalog English values
+        // upper-cased. "language" → "LANGUAGE".
+        expect(find.text('LANGUAGE'), findsOneWidget);
+        expect(find.textContaining('언어'), findsNothing);
 
-      // Flip locale → re-render via t() helper. The "Ko" chip key is
-      // generated from the serde variant name (see tweaks_form.dart).
-      await tester.tap(find.byKey(const Key('tweaks-locale-radio-Ko')));
-      await tester.pumpAndSettle();
+        // Flip locale → re-render via t() helper. The "Ko" chip key is
+        // generated from the serde variant name (see tweaks_form.dart).
+        await tester.tap(find.byKey(const Key('tweaks-locale-radio-Ko')));
+        await tester.pumpAndSettle();
 
-      expect(find.text('LANGUAGE'), findsNothing);
-      // KO catalog: "settings.section.language" → "언어" (Hangul is
-      // case-less so .toUpperCase() leaves it unchanged).
-      expect(find.textContaining('언어'), findsWidgets);
-    });
+        expect(find.text('LANGUAGE'), findsNothing);
+        // KO catalog: "settings.section.language" → "언어" (Hangul is
+        // case-less so .toUpperCase() leaves it unchanged).
+        expect(find.textContaining('언어'), findsWidgets);
+      },
+    );
 
-    testWidgets('peg_holes_토글은_즉시_저장된다', (tester) async {
+    testWidgets('the_peg_holes_toggle_saves_immediately', (tester) async {
       TweaksDto? saved;
       await tester.pumpWidget(_harness(onSave: (next) => saved = next));
       await tester.pumpAndSettle();
@@ -196,9 +203,10 @@ void main() {
       expect(saved!.showHoles, false);
     });
 
-    testWidgets('로컬_http_host_토글은_즉시_저장된다', (tester) async {
-      // service/source control plane을 대체한 단일 스위치. 상태 폴링이
-      // 없으므로 저장된 설정 자체가 유일한 상태다.
+    testWidgets('the_local_http_host_toggle_saves_immediately', (tester) async {
+      // The single switch that replaced the service/source control
+      // plane. With no state polling, the saved setting is the only
+      // state.
       TweaksDto? saved;
       await tester.pumpWidget(_harness(onSave: (next) => saved = next));
       await tester.pumpAndSettle();
@@ -215,11 +223,14 @@ void main() {
       expect(
         saved!.localHttpHost,
         true,
-        reason: '기본값 OFF에서 한 번 누르면 켜져야 한다 (FR-16 명시적 활성화)',
+        reason:
+            'one tap from the default OFF must turn it on (FR-16 explicit activation)',
       );
     });
 
-    testWidgets('로컬_http_host_행은_정적_설명을_함께_보여준다', (tester) async {
+    testWidgets('the_local_http_host_row_also_shows_the_static_help_text', (
+      tester,
+    ) async {
       await tester.pumpWidget(_harness());
       await tester.pumpAndSettle();
 

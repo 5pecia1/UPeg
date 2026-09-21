@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 기본값은_명시적_생성자와_일치한다() {
+fn defaults_match_explicit_constructor() {
     let t = Tweaks::default_const();
     assert_eq!(t.theme, Theme::Light);
     assert_eq!(t.accent, Accent::Green);
@@ -10,7 +10,7 @@ fn 기본값은_명시적_생성자와_일치한다() {
 }
 
 #[test]
-fn json_왕복은_전체_필드를_보존한다() {
+fn json_round_trip_preserves_every_field() {
     let original = Tweaks {
         theme: Theme::Dark,
         accent: Accent::Cyan,
@@ -24,14 +24,14 @@ fn json_왕복은_전체_필드를_보존한다() {
 }
 
 #[test]
-fn 조정값_파싱은_쓰레기값을_처리한다() {
+fn tweaks_parsing_handles_garbage() {
     assert!(parse_tweaks("not json").is_none());
     assert!(parse_tweaks("{}").is_none());
     assert!(parse_tweaks(r#"{"theme":"Mauve"}"#).is_none());
 }
 
 #[test]
-fn 조정값_파싱은_알려진_형태를_허용한다() {
+fn tweaks_parsing_accepts_known_shape() {
     let json = r#"{"theme":"Dark","accent":"Pink","show_holes":true,"locale":"En"}"#;
     let t = parse_tweaks(json).expect("parse");
     assert_eq!(t.theme, Theme::Dark);
@@ -41,13 +41,13 @@ fn 조정값_파싱은_알려진_형태를_허용한다() {
 }
 
 #[test]
-fn 저장소_키는_버전이다() {
+fn storage_key_is_versioned() {
     assert_eq!(crate::platform::storage::TWEAKS_KEY, "upeg.tweaks.v1");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 네이티브에서_저장_후_로드는_디스크를_거쳐_왕복된다() {
+fn native_save_then_load_round_trips_through_disk() {
     use upeg_runtime::persistence::io;
     let dir = std::env::temp_dir().join(format!(
         "upeg-tweaks-roundtrip-{}-{}",
@@ -79,13 +79,13 @@ fn 네이티브에서_저장_후_로드는_디스크를_거쳐_왕복된다() {
 }
 
 #[test]
-fn 테마_데이터_속성은_html과_호환된다() {
+fn theme_data_attribute_is_html_compatible() {
     assert_eq!(theme_data_attr(Theme::Dark), "dark");
     assert_eq!(theme_data_attr(Theme::Light), "light");
 }
 
 #[test]
-fn 강조색_색상_항상은_css를_반환한다() {
+fn accent_color_always_returns_css() {
     for accent in [Accent::Green, Accent::Amber, Accent::Cyan, Accent::Pink] {
         for theme in [Theme::Dark, Theme::Light] {
             let c = accent_color_for(accent, theme);
@@ -96,7 +96,7 @@ fn 강조색_색상_항상은_css를_반환한다() {
 }
 
 #[test]
-fn 표시_변수는_show_holes가_거짓이면_구멍을_숨긴다() {
+fn display_vars_hide_holes_when_show_holes_is_false() {
     let t = Tweaks {
         theme: Theme::Light,
         accent: Accent::Green,
@@ -110,7 +110,7 @@ fn 표시_변수는_show_holes가_거짓이면_구멍을_숨긴다() {
 }
 
 #[test]
-fn 어두운_테마에서_표시_변수는_어두운_palette의_구멍을_고른다() {
+fn display_vars_pick_dark_palette_holes_in_dark_theme() {
     let t = Tweaks {
         theme: Theme::Dark,
         accent: Accent::Cyan,
@@ -125,7 +125,7 @@ fn 어두운_테마에서_표시_변수는_어두운_palette의_구멍을_고른
 }
 
 #[test]
-fn 조정값_적용_스크립트는_세_개의_css_변수와_테마_속성을_모두_설정한다() {
+fn apply_tweaks_script_sets_all_three_css_vars_and_theme_attribute() {
     let t = Tweaks {
         theme: Theme::Dark,
         accent: Accent::Amber,

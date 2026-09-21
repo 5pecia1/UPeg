@@ -7,9 +7,6 @@
 //! shapes, invalid-params/request frames, and `serve_loop` EOF/cap
 //! behaviour.
 
-// Korean test names are intentional: AGENTS.md requires natural Korean names
-// for test functions, while English protocol terms (MCP, JSON-RPC) remain as-is.
-
 use crate::surfaces::mcp::*;
 use serde_json::{Value, json};
 
@@ -19,7 +16,7 @@ use serde_json::{Value, json};
 // pin each `LineReadOutcome` variant in isolation.
 
 #[test]
-fn 제한된_줄_읽기는_빈_입력에서_입력끝을_반환한다() {
+fn capped_line_read_returns_eof_on_empty_input() {
     use std::io::Cursor;
     let mut reader = Cursor::new(Vec::<u8>::new());
     let mut line = String::new();
@@ -33,7 +30,7 @@ fn 제한된_줄_읽기는_빈_입력에서_입력끝을_반환한다() {
 }
 
 #[test]
-fn 제한된_줄_읽기는_종료자가_있는_줄을_반환한다() {
+fn capped_line_read_returns_terminated_line() {
     use std::io::Cursor;
     let mut reader = Cursor::new(b"hello\n".to_vec());
     let mut line = String::new();
@@ -47,7 +44,7 @@ fn 제한된_줄_읽기는_종료자가_있는_줄을_반환한다() {
 }
 
 #[test]
-fn 제한된_줄_읽기는_종료자_없는_줄에서_입력끝을_반환한다() {
+fn capped_line_read_surfaces_unterminated_tail_then_eof() {
     // Partial line at EOF is treated as a (malformed) Line so the
     // caller can attempt to parse and reply with a graceful error.
     // A subsequent call returns Eof. Distinct from CapHit which
@@ -74,7 +71,7 @@ fn 제한된_줄_읽기는_종료자_없는_줄에서_입력끝을_반환한다(
 }
 
 #[test]
-fn 상한이_초과되면_제한된_줄_읽기는_상한도달을_반환한다() {
+fn capped_line_read_returns_cap_hit_when_limit_exceeded() {
     // The cornerstone DoS-resistance contract: payload > MAX_LINE_BYTES
     // without a `\n` must surface as CapHit. Without the cap this
     // would be unbounded buffer growth → OOM.
@@ -93,7 +90,7 @@ fn 상한이_초과되면_제한된_줄_읽기는_상한도달을_반환한다()
 }
 
 #[test]
-fn 제한된_줄_읽기의_연속_호출은_각각_독립적인_예산을_가진다() {
+fn consecutive_capped_line_reads_have_independent_budgets() {
     // Each call recreates the Take wrapper, so the budget resets.
     // A cap miss on call 1 must not poison call 2.
     use std::io::Cursor;
@@ -112,7 +109,7 @@ fn 제한된_줄_읽기의_연속_호출은_각각_독립적인_예산을_가진
 // ─── serve_loop request-line cap  ─────────────────
 
 #[test]
-fn 서빙_루프는_너무_큰_요청_줄에_상한을_둔다() {
+fn serve_loop_caps_oversized_request_lines() {
     // Parallel to the daemon's request-line cap. Reads from a
     // generic BufRead so we can inject a payload exceeding the
     // 1 MB cap without going through real stdin.
@@ -136,7 +133,7 @@ fn 서빙_루프는_너무_큰_요청_줄에_상한을_둔다() {
 }
 
 #[test]
-fn 서빙_루프는_일반_요청을_처리한다() {
+fn serve_loop_handles_normal_request() {
     // Sanity: a normal request (well under the cap) still flows
     // through. Sends a single tools/list request and reads the
     // response.
@@ -157,7 +154,7 @@ fn 서빙_루프는_일반_요청을_처리한다() {
 // ─── parse_error_response helper  ─────────────────
 
 #[test]
-fn 파싱_오류_응답은_프로토콜이_요구하는_형태를_가진다() {
+fn parse_error_response_has_protocol_required_shape() {
     // Pin the JSON-RPC 2.0 -32700 Parse error shape so the two
     // transports (mcp::serve stdio, daemon::handle_connection
     // socket) cannot drift on the response template; the shape is
@@ -190,7 +187,7 @@ fn 파싱_오류_응답은_프로토콜이_요구하는_형태를_가진다() {
 // ─── extract_text_content helper  ─────────────────
 
 #[test]
-fn 텍스트_콘텐츠_추출은_여러_텍스트_부분을_결합한다() {
+fn extract_text_content_joins_multiple_text_parts() {
     // Single helper, single contract: text parts joined with `\n`,
     // non-text parts skipped. Pin so a future edit (e.g., switching
     // to space separation, dropping parts past N, etc.) is a loud
@@ -206,7 +203,7 @@ fn 텍스트_콘텐츠_추출은_여러_텍스트_부분을_결합한다() {
 }
 
 #[test]
-fn 텍스트_콘텐츠_추출은_텍스트가_아닌_부분을_건너뛴다() {
+fn extract_text_content_skips_non_text_parts() {
     let result = json!({
         "content": [
             { "type": "image", "data": "<base64>" },
@@ -219,7 +216,7 @@ fn 텍스트_콘텐츠_추출은_텍스트가_아닌_부분을_건너뛴다() {
 }
 
 #[test]
-fn 콘텐츠가_없으면_텍스트_콘텐츠_추출은_빈_결과를_반환한다() {
+fn extract_text_content_returns_empty_without_content() {
     // `result.content` missing entirely → empty.
     assert_eq!(extract_text_content(&json!({})), "");
     // Empty array → empty.
@@ -234,7 +231,7 @@ fn 콘텐츠가_없으면_텍스트_콘텐츠_추출은_빈_결과를_반환한�
 }
 
 #[test]
-fn 텍스트_콘텐츠_추출은_빈_텍스트_부분을_건너뛴다() {
+fn extract_text_content_skips_empty_text_parts() {
     // Empty `text: ""` parts must not produce a dangling trailing
     // newline. If the join branch fires for empty parts,
     // `[hello, ""]` becomes `"hello\n"`. Pin both an interior-empty
@@ -278,7 +275,7 @@ fn 텍스트_콘텐츠_추출은_빈_텍스트_부분을_건너뛴다() {
 }
 
 #[test]
-fn 텍스트_콘텐츠_추출은_단일_부분을_처리한다() {
+fn extract_text_content_handles_single_part() {
     // Single-part happy path: pin it to ensure the loop continues
     // to handle the original single-`content[0].text` case.
     let result = json!({
@@ -288,7 +285,7 @@ fn 텍스트_콘텐츠_추출은_단일_부분을_처리한다() {
 }
 
 #[test]
-fn initialize는_프로토콜_핸드셰이크를_반환한다() {
+fn initialize_returns_protocol_handshake() {
     let resp = handle(json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -304,7 +301,7 @@ fn initialize는_프로토콜_핸드셰이크를_반환한다() {
 }
 
 #[test]
-fn 도구_목록은_등록된_도구를_정렬해서_반환한다() {
+fn tools_list_returns_registered_tools_sorted() {
     let resp = handle(json!({
         "jsonrpc": "2.0",
         "id": 2,
@@ -322,7 +319,7 @@ fn 도구_목록은_등록된_도구를_정렬해서_반환한다() {
 }
 
 #[test]
-fn 도구_목록_기준선은_내장_mcp_도구_형태를_포함한다() {
+fn tools_list_baseline_includes_builtin_mcp_tool_shape() {
     let resp = handle(
         json!({        "jsonrpc": "2.0", "id": 20260515, "method": "tools/list",
         }),
@@ -347,7 +344,7 @@ fn 도구_목록_기준선은_내장_mcp_도구_형태를_포함한다() {
 }
 
 #[test]
-fn 도구_목록의_각_항목은_입력_schema를_가진다() {
+fn tools_list_entries_have_input_schema() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 3, "method": "tools/list",
     }))
@@ -366,7 +363,7 @@ fn 도구_목록의_각_항목은_입력_schema를_가진다() {
 }
 
 #[test]
-fn 도구_목록의_각_항목은_전체_메타를_가진다() {
+fn tools_list_entries_carry_full_metadata() {
     // Cross-protocol parity: MCP tools/list must surface the same
     // 10-field shape HTTP /v1/tools does. Without the parity,
     // clients can't see pin kind, surfaces, pinned boards, embed
@@ -374,7 +371,7 @@ fn 도구_목록의_각_항목은_전체_메타를_가진다() {
     // surface (CLI `--json`, HTTP) surfaces them. Pin the contract
     // so a future MCP-shape edit that drops a field is a loud diff,
     // mirroring the HTTP test
-    // (`tools_list_each_entry_has_embed_url_and_bindings_iter128`).
+    // (`/v1/tools` entry-shape test).
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 161, "method": "tools/list",
     }))
@@ -408,7 +405,7 @@ fn 도구_목록의_각_항목은_전체_메타를_가진다() {
 }
 
 #[test]
-fn 도구_호출_hex_to_dec는_성공을_반환한다() {
+fn tools_call_hex_to_dec_returns_success() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 4, "method": "tools/call",
         "params": { "name": "num.hex_to_decimal", "arguments": { "input": "0xff" } },
@@ -420,7 +417,7 @@ fn 도구_호출_hex_to_dec는_성공을_반환한다() {
 }
 
 #[test]
-fn 도구_호출은_출력_명세가_있으면_structured_content를_반환한다() {
+fn tools_call_returns_structured_content_when_output_specified() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 265, "method": "tools/call",
         "params": { "name": "num.hex_to_decimal", "arguments": { "input": "0xff" } },
@@ -629,7 +626,7 @@ selector = "#summary"
     }
 
     #[test]
-    fn controlled_embed_mcp_success는_runtime_dispatch_output을_structured_content에_담는다() {
+    fn controlled_embed_mcp_success_puts_runtime_dispatch_output_in_structured_content() {
         let _guard = crate::test_support::controlled_embed_backend_test_lock()
             .lock()
             .unwrap();
@@ -645,7 +642,7 @@ selector = "#summary"
     }
 
     #[test]
-    fn controlled_embed_mcp_failure는_structured_content에_정식_error를_담는다() {
+    fn controlled_embed_mcp_failure_puts_canonical_error_in_structured_content() {
         let _guard = crate::test_support::controlled_embed_backend_test_lock()
             .lock()
             .unwrap();
@@ -661,7 +658,7 @@ selector = "#summary"
     }
 
     #[test]
-    fn controlled_embed_mcp_wait_timeout은_structured_content_error_code를_보존한다() {
+    fn controlled_embed_mcp_wait_timeout_preserves_structured_content_error_code() {
         let _guard = crate::test_support::controlled_embed_backend_test_lock()
             .lock()
             .unwrap();
@@ -677,7 +674,7 @@ selector = "#summary"
     }
 
     #[test]
-    fn controlled_embed_http_surface_success도_runtime_output을_공유한다() {
+    fn controlled_embed_http_surface_success_shares_runtime_output() {
         let _guard = crate::test_support::controlled_embed_backend_test_lock()
             .lock()
             .unwrap();
@@ -693,7 +690,7 @@ selector = "#summary"
     }
 
     #[test]
-    fn controlled_embed_http_surface_failure도_structured_content를_공유한다() {
+    fn controlled_embed_http_surface_failure_shares_structured_content() {
         let _guard = crate::test_support::controlled_embed_backend_test_lock()
             .lock()
             .unwrap();
@@ -710,7 +707,7 @@ selector = "#summary"
 }
 
 #[test]
-fn 도구_호출_hex_to_dec_오류는_오류상태를_표시한다() {
+fn tools_call_hex_to_dec_error_marks_is_error() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 5, "method": "tools/call",
         "params": { "name": "num.hex_to_decimal", "arguments": { "input": "0xZZ" } },
@@ -726,7 +723,7 @@ fn 도구_호출_hex_to_dec_오류는_오류상태를_표시한다() {
 }
 
 #[test]
-fn 도구_호출_uuid_v7는_정규_문자열을_반환한다() {
+fn tools_call_uuid_v7_returns_canonical_string() {
     let resp = handle(
         json!({        "jsonrpc": "2.0", "id": 6, "method": "tools/call",
             "params": { "name": "id.uuid_v7", "arguments": {} },
@@ -739,7 +736,7 @@ fn 도구_호출_uuid_v7는_정규_문자열을_반환한다() {
 }
 
 #[test]
-fn 알수없는_도구_호출은_method_not_found이다() {
+fn unknown_tool_call_is_method_not_found() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 7, "method": "tools/call",
         "params": { "name": "no.such.tool", "arguments": {} },
@@ -749,7 +746,7 @@ fn 알수없는_도구_호출은_method_not_found이다() {
 }
 
 #[test]
-fn 알수없는_메서드는_method_not_found이다() {
+fn unknown_method_is_method_not_found() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 8, "method": "definitely/not/a/method",
     }))
@@ -758,7 +755,7 @@ fn 알수없는_메서드는_method_not_found이다() {
 }
 
 #[test]
-fn 알림에는_응답이_없다() {
+fn notifications_get_no_response() {
     // Per JSON-RPC 2.0: no `id` → no response.
     let resp = handle(json!({
         "jsonrpc": "2.0",
@@ -768,7 +765,7 @@ fn 알림에는_응답이_없다() {
 }
 
 #[test]
-fn 초기화된_알림은_확인된_조용하다() {
+fn initialized_notification_is_silently_accepted() {
     let resp = handle(json!({
         "jsonrpc": "2.0",
         "method": "notifications/initialized",
@@ -777,7 +774,7 @@ fn 초기화된_알림은_확인된_조용하다() {
 }
 
 #[test]
-fn id는_있고_메서드가_없으면_요청은_유효하지않은_요청이_된다() {
+fn request_with_id_but_no_method_is_invalid_request() {
     // A request with `id` but missing `method` must not return
     // None silently — the client would hang waiting for a response.
     // JSON-RPC 2.0 §5: a request without method is malformed and
@@ -801,7 +798,7 @@ fn id는_있고_메서드가_없으면_요청은_유효하지않은_요청이_�
 }
 
 #[test]
-fn 메서드가_문자열이_아닌_요청은_유효하지_않은_요청이다() {
+fn request_with_non_string_method_is_invalid_request() {
     // Corollary: method must be a string. A request with method as
     // a number/bool/etc is also Invalid Request.
     let resp = handle(json!({
@@ -812,7 +809,7 @@ fn 메서드가_문자열이_아닌_요청은_유효하지_않은_요청이다()
 }
 
 #[test]
-fn 메서드가_없는_알림도_여전히_조용히_받아들여진다() {
+fn methodless_notification_is_still_silently_accepted() {
     // the notification path (no id) MUST stay silent
     // even when method is missing — JSON-RPC 2.0 says no response
     // for any notification, malformed or not. Don't accidentally
@@ -828,7 +825,7 @@ fn 메서드가_없는_알림도_여전히_조용히_받아들여진다() {
 }
 
 #[test]
-fn 알수없는_도구_호출은_did_you_mean을_포함한다() {
+fn unknown_tool_call_includes_did_you_mean() {
     // MCP tools/call NotFound now appends "did you mean    // ..." hints scoped to Mcp-surface tools, mirroring CLI/HTTP.
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 100, "method": "tools/call",
@@ -852,7 +849,7 @@ fn 알수없는_도구_호출은_did_you_mean을_포함한다() {
 }
 
 #[test]
-fn 너무_많이_벗어난_알수없는_도구_호출에는_힌트가_없다() {
+fn far_off_unknown_tool_call_has_no_hint() {
     // Sanity: nonsense id stays terse (no noise hints).
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 101, "method": "tools/call",
@@ -867,7 +864,7 @@ fn 너무_많이_벗어난_알수없는_도구_호출에는_힌트가_없다() {
 }
 
 #[test]
-fn 매개변수가_누락된_도구_호출은_유효하지_않은_매개변수를_반환한다() {
+fn tools_call_with_missing_params_returns_invalid_params() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 9, "method": "tools/call",
     }))
@@ -876,7 +873,7 @@ fn 매개변수가_누락된_도구_호출은_유효하지_않은_매개변수�
 }
 
 #[test]
-fn 도구_호출은_공백_패딩된_이름을_거부한다() {
+fn tools_call_rejects_whitespace_padded_name() {
     for padded_name in [" num.hex_to_decimal ", "\tnum.hex_to_decimal\n"] {
         let resp = handle(json!({
             "jsonrpc": "2.0", "id": 225, "method": "tools/call",
@@ -896,7 +893,7 @@ fn 도구_호출은_공백_패딩된_이름을_거부한다() {
 }
 
 #[test]
-fn 도구_호출은_잘못된_타입의_이름을_누락_또는_비문자열로_알린다() {
+fn tools_call_reports_wrong_type_name_as_missing_or_non_string() {
     // Align with the `"missing or non-string"` disambiguation used
     // for the top-level `method` field. A request with `name: 42`
     // must not return "missing `params.name`" — that would mislead
@@ -921,7 +918,7 @@ fn 도구_호출은_잘못된_타입의_이름을_누락_또는_비문자열로_
         let msg = resp["error"]["message"].as_str().expect("message");
         assert!(
             msg.contains("missing or non-string"),
-            "iter-182 disambiguating message must apply uniformly; got `{msg}`"
+            "the disambiguating message must apply uniformly; got `{msg}`"
         );
         assert!(
             msg.contains("params.name"),
@@ -931,7 +928,7 @@ fn 도구_호출은_잘못된_타입의_이름을_누락_또는_비문자열로_
 }
 
 #[test]
-fn 도구_호출은_객체가_아닌_인자들을_거부한다() {
+fn tools_call_rejects_non_object_arguments() {
     // The MCP spec says `params.arguments` is an object (or absent/
     // null for zero-arg tools). Accepting any JSON value would
     // route `arguments: "hello"` (a string) into the dispatcher
@@ -967,7 +964,7 @@ fn 도구_호출은_객체가_아닌_인자들을_거부한다() {
 }
 
 #[test]
-fn 도구_호출은_널_또는_없는_인자들을_허용한다() {
+fn tools_call_accepts_null_or_absent_arguments() {
     // zero-arg tools (uuid_v7, etc.) work whether
     // arguments is null, absent, or an empty object. All three
     // must produce successful results.

@@ -93,7 +93,7 @@ fn pdf_with_ccitt_parms(extent: i64, parms: lopdf::Dictionary, content: Vec<u8>)
 // ─── predictor stride: overflow + unbounded allocation ──────────────
 
 #[test]
-fn pdf_추출은_stride가_usize_최대가_되는_predictor를_패닉_없이_건너뛴다() {
+fn pdf_extract_skips_predictor_whose_stride_hits_usize_max() {
     // `/Colors 3 × /Columns 6148914691236517205` is exactly `usize::MAX`, so the
     // product passes `checked_mul`. The row length `stride + 1` then overflows
     // (debug) or wraps to zero and divides by zero (release) — this test must
@@ -111,7 +111,7 @@ fn pdf_추출은_stride가_usize_최대가_되는_predictor를_패닉_없이_건
 }
 
 #[test]
-fn pdf_추출은_거대한_predictor_columns에_행_버퍼를_할당하지_않는다() {
+fn pdf_extract_does_not_allocate_row_buffer_for_huge_predictor_columns() {
     // The predictor's scratch rows are allocated from `/Columns × /Colors`
     // before any input byte is read, so a ~300-byte PDF with an empty stream
     // asks for 3 GB.
@@ -125,7 +125,7 @@ fn pdf_추출은_거대한_predictor_columns에_행_버퍼를_할당하지_않�
 }
 
 #[test]
-fn pdf_추출은_colorspace와_어긋난_predictor_colors를_건너뛴다() {
+fn pdf_extract_skips_predictor_colors_mismatching_colorspace() {
     // `/Colors` that disagrees with the colourspace could only ever reconstruct
     // into a garbled raster, so it is refused rather than guessed at.
     let pdf = pdf_with_predictor_parms(1, RGB_PREDICTOR_COLORS + 1, 1);
@@ -140,7 +140,7 @@ fn pdf_추출은_colorspace와_어긋난_predictor_colors를_건너뛴다() {
 // ─── CCITT: pixel bombs and the coding we cannot follow ─────────────
 
 #[test]
-fn pdf_추출은_ccitt_rows_columns_폭탄을_건너뛴다() {
+fn pdf_extract_skips_ccitt_rows_columns_bomb() {
     let pdf = pdf_with_ccitt_parms(
         CCITT_BOMB_EXTENT,
         dictionary! {
@@ -169,7 +169,7 @@ fn pdf_추출은_ccitt_rows_columns_폭탄을_건너뛴다() {
 // rather than refused.
 
 #[test]
-fn pdf_추출은_디코드에_실패한_ccitt를_이미지로_쓰지_않는다() {
+fn pdf_extract_does_not_write_failed_ccitt_decode_as_image() {
     // A G4 stream truncated mid-line: the rows recovered so far are a guess, so
     // the run must skip rather than write "the rows we got".
     let (width, height) = (16_u32, 4_u32);
@@ -201,7 +201,7 @@ fn pdf_추출은_디코드에_실패한_ccitt를_이미지로_쓰지_않는다()
 // ─── dimensions: rejected, not truncated ────────────────────────────
 
 #[test]
-fn pdf_추출은_u32를_넘는_width를_절단하지_않고_거부한다() {
+fn pdf_extract_rejects_width_over_u32_instead_of_truncating() {
     let pdf = build_image_pdf_fixture(
         TRUNCATING_WIDTH,
         1,
@@ -221,7 +221,7 @@ fn pdf_추출은_u32를_넘는_width를_절단하지_않고_거부한다() {
 }
 
 #[test]
-fn pdf_추출은_픽셀_상한을_넘는_이미지를_건너뛴다() {
+fn pdf_extract_skips_image_over_pixel_limit() {
     let extent = CCITT_BOMB_EXTENT;
     let pdf = build_image_pdf_fixture(
         extent,
@@ -244,7 +244,7 @@ fn pdf_추출은_픽셀_상한을_넘는_이미지를_건너뛴다() {
 // ─── /Decode: honoured or skipped, never ignored ────────────────────
 
 #[test]
-fn pdf_추출은_반전된_decode_배열을_건너뛴다() {
+fn pdf_extract_skips_inverted_decode_array() {
     // `/Decode [1 0]` inverts DeviceGray. The reconstruction does not apply it,
     // so writing the image would hand back an inverted picture as if it were
     // the real one.
@@ -269,7 +269,7 @@ fn pdf_추출은_반전된_decode_배열을_건너뛴다() {
 }
 
 #[test]
-fn pdf_추출은_기본_decode_배열을_그대로_추출한다() {
+fn pdf_extract_extracts_default_decode_array_verbatim() {
     // The identity `/Decode [0 1]` says exactly what the samples already mean,
     // so it must not turn a perfectly good image into a skip.
     let raw = [0_u8, 128, 255, 64];
@@ -299,7 +299,7 @@ fn pdf_추출은_기본_decode_배열을_그대로_추출한다() {
 // ─── pdf_to_images: page raster budget ──────────────────────────────
 
 #[test]
-fn pdf_to_이미지는_거대한_mediabox_페이지를_거부한다() {
+fn pdf_to_images_rejects_huge_mediabox_page() {
     // The rasterizer sizes its pixmap from the page's own geometry and clamps
     // each axis into a u16, so an outsized /MediaBox quietly asks for
     // 65535×65535×4 = 17 GB.
@@ -326,7 +326,7 @@ fn pdf_to_이미지는_거대한_mediabox_페이지를_거부한다() {
 }
 
 #[test]
-fn 이미지_to_pdf는_개별_상한_안의_압축_이미지들이_누적_래스터_예산을_넘으면_거부한다() {
+fn image_to_pdf_rejects_when_compressed_images_exceed_cumulative_raster_budget() {
     // Given: three individually valid, highly compressible PNGs whose decoded
     // RGBA8 rasters need three pages while the test budget holds only two.
     let png = png_bytes(256, 256, [0, 0, 0, 0]);
@@ -354,14 +354,14 @@ fn 이미지_to_pdf는_개별_상한_안의_압축_이미지들이_누적_래스
     );
 }
 
-/// 예산 누적기를 zip 로더 밖으로 끌어낸 리팩터의 핵심 주장이 "세 입력 모양이
-/// 같은 상한을 받는다"는 것이므로, zip 말고 두 경로에도 회귀 가드를 둔다.
-/// 이 테스트가 없으면 누적기를 다시 한 경로 안으로 되돌려도 아무것도 깨지지
-/// 않는다.
+/// The refactor that pulled the budget accumulator out of the zip loader
+/// claims all three input shapes share the same limit, so the two non-zip
+/// paths get regression guards too. Without this test, folding the
+/// accumulator back into a single path would break nothing.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_디렉터리_입력에도_누적_래스터_예산을_적용한다() {
-    // Given: zip 판의 픽스처와 같은 이미지 셋을 디렉터리로 넘긴다.
+fn image_to_pdf_applies_cumulative_raster_budget_to_directory_input() {
+    // Given: the same image set as the zip fixture, passed as a directory.
     let png = png_bytes(256, 256, [0, 0, 0, 0]);
     let dir_input = FileValue {
         name: "compressed".to_string(),
@@ -393,8 +393,8 @@ fn 이미지_to_pdf는_디렉터리_입력에도_누적_래스터_예산을_적�
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_단일_이미지_입력에도_래스터_예산을_적용한다() {
-    // Given: 한 장만으로도 테스트 예산을 넘는 이미지.
+fn image_to_pdf_applies_raster_budget_to_single_image_input() {
+    // Given: a single image that alone exceeds the test budget.
     let png = png_bytes(512, 512, [0, 0, 0, 0]);
 
     // When
@@ -414,18 +414,19 @@ fn 이미지_to_pdf는_단일_이미지_입력에도_래스터_예산을_적용�
     );
 }
 
-/// zip의 중앙 디렉터리는 파일 **끝**에 있으므로, 앞에 임의의 데이터가 붙어
-/// 있어도 zip 리더는 아카이브를 연다. 매직 접두어로 판별하면 이런 아카이브를
-/// 조용히 이미지로 오인해 예전에 되던 변환을 멈추게 된다.
+/// A zip's central directory sits at the **end** of the file, so a zip
+/// reader still opens an archive with arbitrary leading data. Sniffing a
+/// magic prefix would silently mistake such an archive for an image and
+/// break conversions that used to work.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_선행_데이터가_붙은_zip도_아카이브로_읽는다() {
+fn image_to_pdf_reads_zip_with_leading_data_as_archive() {
     let png = png_bytes(3, 2, [255, 0, 0, 255]);
     let mut bytes = b"MZ\x90\x00self-extracting-stub".to_vec();
     bytes.extend_from_slice(&build_zip(&[("photo.png", &png)]));
     assert!(
         !bytes.starts_with(b"PK"),
-        "픽스처가 PK로 시작하면 이 테스트가 검증하려는 것을 놓친다"
+        "if the fixture starts with PK the test misses what it is checking"
     );
 
     let result = image_to_pdf(&file_input("sfx.zip", bytes), MAX_MEDIA_OUTPUT_BYTES)
@@ -434,16 +435,16 @@ fn 이미지_to_pdf는_선행_데이터가_붙은_zip도_아카이브로_읽는�
     assert!(file_bytes(&output_file(&result)).starts_with(b"%PDF-"));
 }
 
-/// 이름이 `.zip`이 아니어도 아카이브로 열린다 — 판별이 `ZipArchive::new`의 성공
-/// 여부이고 이름을 보지 않기 때문이다.
+/// An archive opens even when its name is not `.zip` — detection is whether
+/// `ZipArchive::new` succeeds and never looks at the name.
 ///
-/// 이 테스트는 도구 함수를 직접 부르므로 **선언된 정책을 지나지 않는다.** 즉
-/// `extensions`를 다시 선언해도 이 테스트는 초록이다. 정책이 비어 있다는 것을
-/// 지키는 것은 `fixtures/interface-inventory.json`과 CI이고, 여기서 고정하는
-/// 것은 그 위의 로더 동작이다.
+/// This test calls the tool function directly, so it **does not pass through
+/// the declared policy**: re-declaring `extensions` leaves this test green.
+/// Keeping the policy empty is the job of `fixtures/interface-inventory.json`
+/// and CI; what is pinned here is the loader behaviour beneath it.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_이름이_zip이_아닌_아카이브도_읽는다() {
+fn image_to_pdf_reads_archive_whose_name_is_not_zip() {
     let png = png_bytes(3, 2, [255, 0, 0, 255]);
     let zip = build_zip(&[("photo.png", &png)]);
 
@@ -453,11 +454,11 @@ fn 이미지_to_pdf는_이름이_zip이_아닌_아카이브도_읽는다() {
     assert!(file_bytes(&output_file(&result)).starts_with(b"%PDF-"));
 }
 
-/// 이름이 `.zip`인데 열리지 않으면 아카이브 오류를 보여 준다. 확장자는 오류
-/// 문구를 고르는 데만 쓰이고 어떤 로더가 도는지는 정하지 않는다.
+/// A `.zip` name that will not open surfaces the archive error. The
+/// extension only chooses the error wording, not which loader runs.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn 이미지_to_pdf는_열리지_않는_zip_이름에_아카이브_오류를_낸다() {
+fn image_to_pdf_reports_archive_error_for_unopenable_zip_name() {
     let error = image_to_pdf(
         &file_input("broken.zip", b"PK\x03\x04not-really-an-archive".to_vec()),
         MAX_MEDIA_OUTPUT_BYTES,
@@ -470,7 +471,7 @@ fn 이미지_to_pdf는_열리지_않는_zip_이름에_아카이브_오류를_낸
 // ─── the byte cap itself ────────────────────────────────────────────
 
 #[test]
-fn 상한_읽기는_상한을_넘는_입력을_거부한다() {
+fn read_capped_rejects_input_over_the_cap() {
     const CAP: usize = 4;
 
     let error = read_capped(&b"12345"[..], CAP, "test input")
@@ -483,7 +484,7 @@ fn 상한_읽기는_상한을_넘는_입력을_거부한다() {
 }
 
 #[test]
-fn 상한_읽기는_상한까지의_입력을_그대로_돌려준다() {
+fn read_capped_returns_input_up_to_the_cap() {
     const CAP: usize = 4;
 
     let read = read_capped(&b"1234"[..], CAP, "test input").expect("input at the cap is fine");

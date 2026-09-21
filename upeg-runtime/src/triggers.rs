@@ -360,15 +360,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn trigger_source는_문자열_왕복이_가능하다() {
+    fn trigger_source_round_trips_through_strings() {
         for source in TriggerSource::ALL {
             let round_tripped = TriggerSource::from_str(source.as_str());
-            assert_eq!(round_tripped, Ok(source), "{source:?}는 왕복해야 한다");
+            assert_eq!(round_tripped, Ok(source), "{source:?} must round-trip");
         }
     }
 
     #[test]
-    fn trigger_source_문자열_파싱은_공백을_허용한다() {
+    fn trigger_source_string_parsing_tolerates_whitespace() {
         assert_eq!(
             TriggerSource::from_str("  clipboard  "),
             Ok(TriggerSource::Clipboard)
@@ -376,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn 알_수_없는_trigger_source는_에러를_반환한다() {
+    fn unknown_trigger_source_returns_error() {
         let err = TriggerSource::from_str("mouse").unwrap_err();
         assert_eq!(err, UnknownTriggerSource("mouse".to_string()));
         assert!(!is_valid_trigger_source("mouse"));
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn 은퇴한_typing_소스는_더_이상_유효하지_않다() {
+    fn retired_typing_source_is_no_longer_valid() {
         // `typing` never had a runtime adapter (it needed an OS accessibility
         // API that was never built), so it is no longer a declarable source.
         assert!(!is_valid_trigger_source("typing"));
@@ -400,14 +400,14 @@ mod tests {
     }
 
     #[test]
-    fn 발화한_트리거_라벨은_소스와_조건을_모두_담는다() {
+    fn fired_trigger_label_carries_both_source_and_condition() {
         let label =
             FiredTrigger::new(TriggerSource::File, Some("/tmp/drop.txt".into())).to_string();
         assert_eq!(label, "file:/tmp/drop.txt");
     }
 
     #[test]
-    fn 조건이_없는_트리거_라벨은_소스만_담는다() {
+    fn trigger_label_without_condition_carries_only_source() {
         assert_eq!(
             FiredTrigger::new(TriggerSource::Clipboard, None).to_string(),
             "clipboard"
@@ -420,7 +420,7 @@ mod tests {
     }
 
     #[test]
-    fn 같은_도구의_두_트리거는_서로_다른_라벨을_갖는다() {
+    fn two_triggers_of_same_tool_have_distinct_labels() {
         // The tool id alone could not tell these apart — the whole point of the
         // label carrying the condition.
         let first = TriggerBinding {
@@ -433,15 +433,15 @@ mod tests {
             source: TriggerSource::File.as_str().to_string(),
             condition: Some("/tmp/two.txt".into()),
         };
-        let first = FiredTrigger::from_binding(&first).expect("file은 알려진 소스다");
-        let second = FiredTrigger::from_binding(&second).expect("file은 알려진 소스다");
+        let first = FiredTrigger::from_binding(&first).expect("file is a known source");
+        let second = FiredTrigger::from_binding(&second).expect("file is a known source");
         assert_ne!(first.to_string(), second.to_string());
         assert_eq!(first.source(), TriggerSource::File);
         assert_eq!(second.condition(), Some("/tmp/two.txt"));
     }
 
     #[test]
-    fn 조건이_콜론을_품어도_소스는_첫_구분자로_갈린다() {
+    fn condition_containing_colons_still_splits_source_at_first_separator() {
         let label =
             FiredTrigger::new(TriggerSource::Schedule, Some("every:30s".into())).to_string();
         assert_eq!(label, "schedule:every:30s");
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn 알_수_없는_소스의_바인딩은_라벨을_만들_수_없다() {
+    fn binding_with_unknown_source_cannot_make_a_label() {
         let binding = TriggerBinding {
             tool_id: "demo.tool",
             source: "typing".to_string(),
@@ -465,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    fn 모든_소스는_조건_요구사항을_선언한다() {
+    fn every_source_declares_its_condition_requirement() {
         use TriggerConditionRequirement as Requirement;
         assert_eq!(
             TriggerSource::Webhook.condition_requirement(),
@@ -486,13 +486,13 @@ mod tests {
         ] {
             assert!(
                 matches!(source.condition_requirement(), Requirement::Required { .. }),
-                "{source:?}는 조건이 필수여야 한다"
+                "{source:?} must require a condition"
             );
         }
     }
 
     #[test]
-    fn 수동_발화_라벨은_먼저_선언된_binding을_고른다() {
+    fn manual_fire_label_picks_first_declared_binding() {
         // `upeg trigger fire` names a tool, not a binding, so the rule must be
         // deterministic: declaration order decides.
         const TOOL_ID: &str = "manualfire.first";
@@ -519,14 +519,14 @@ mod tests {
     }
 
     #[test]
-    fn binding이_없는_도구는_수동_발화_라벨이_없다() {
+    fn tool_without_bindings_has_no_manual_fire_label() {
         // Nothing declared means no trigger fired; the field stays absent
         // rather than carrying a source no tool could declare.
         assert_eq!(manual_fire_trigger_label("manualfire.bare"), None);
     }
 
     #[test]
-    fn trigger_sources_상수는_enum과_동일한_순서다() {
+    fn trigger_sources_constant_matches_enum_order() {
         let from_enum: Vec<&str> = TriggerSource::ALL.iter().map(|s| s.as_str()).collect();
         assert_eq!(TRIGGER_SOURCES, from_enum.as_slice());
     }

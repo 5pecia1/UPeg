@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn 조건이_필수인_소스는_조건이_없으면_거부한다() {
+    fn condition_required_source_rejects_missing_condition() {
         for source in [
             TriggerSource::File,
             TriggerSource::Directory,
@@ -107,16 +107,19 @@ mod tests {
                     }) => {
                         assert_eq!(position, 0);
                         assert_eq!(reported, source.as_str());
-                        assert!(!expectation.is_empty(), "{source:?}는 기대값을 밝혀야 한다");
+                        assert!(
+                            !expectation.is_empty(),
+                            "{source:?} must state the expectation"
+                        );
                     }
-                    other => panic!("{source:?} {condition:?}는 거부되어야 한다, got {other:?}"),
+                    other => panic!("{source:?} {condition:?} must be rejected, got {other:?}"),
                 }
             }
         }
     }
 
     #[test]
-    fn 조건이_필수인_소스는_조건이_있으면_통과한다() {
+    fn condition_required_source_passes_with_condition() {
         for (source, condition) in [
             (TriggerSource::File, "/tmp/drop.txt"),
             (TriggerSource::Directory, "/tmp/inbox"),
@@ -125,13 +128,13 @@ mod tests {
             let tool = tool_with_trigger(source.as_str(), Some(condition));
             assert!(
                 validate_triggers(&tool).is_ok(),
-                "{source:?}는 조건이 있으면 통과해야 한다"
+                "{source:?} must pass with a condition"
             );
         }
     }
 
     #[test]
-    fn 조건을_받지_않는_소스는_조건을_거부한다() {
+    fn condition_free_source_rejects_condition() {
         for source in [TriggerSource::Clipboard, TriggerSource::Webhook] {
             let tool = tool_with_trigger(source.as_str(), Some("anything"));
             match validate_triggers(&tool) {
@@ -142,41 +145,41 @@ mod tests {
                     assert_eq!(position, 0);
                     assert_eq!(reported, source.as_str());
                 }
-                other => panic!("{source:?}의 조건은 거부되어야 한다, got {other:?}"),
+                other => panic!("{source:?} condition must be rejected, got {other:?}"),
             }
         }
     }
 
     #[test]
-    fn 조건을_받지_않는_소스는_조건이_없으면_통과한다() {
+    fn condition_free_source_passes_without_condition() {
         for source in [TriggerSource::Clipboard, TriggerSource::Webhook] {
             let tool = tool_with_trigger(source.as_str(), None);
             assert!(
                 validate_triggers(&tool).is_ok(),
-                "{source:?}는 조건 없이 통과해야 한다"
+                "{source:?} must pass without a condition"
             );
         }
     }
 
     #[test]
-    fn schedule_조건은_없으면_now로_통과한다() {
+    fn schedule_without_condition_passes_as_now() {
         assert!(validate_triggers(&tool_with_trigger("schedule", None)).is_ok());
         assert!(validate_triggers(&tool_with_trigger("schedule", Some("every:30s"))).is_ok());
     }
 
     #[test]
-    fn schedule_조건이_잘못되면_거부한다() {
+    fn schedule_rejects_unparsable_condition() {
         match validate_triggers(&tool_with_trigger("schedule", Some("every:soon"))) {
             Err(LoadError::InvalidScheduleCondition { position, error }) => {
                 assert_eq!(position, 0);
                 assert!(error.to_string().contains("every:soon"), "{error}");
             }
-            other => panic!("해석할 수 없는 주기는 거부되어야 한다, got {other:?}"),
+            other => panic!("an unparsable schedule must be rejected, got {other:?}"),
         }
     }
 
     #[test]
-    fn 빈_소스와_알_수_없는_소스는_거부한다() {
+    fn empty_and_unknown_sources_are_rejected() {
         assert!(matches!(
             validate_triggers(&tool_with_trigger("  ", None)),
             Err(LoadError::EmptyTriggerSource { position: 0 })
@@ -188,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn 트리거가_없는_도구는_통과한다() {
+    fn tool_without_triggers_passes() {
         assert!(validate_triggers(&ToolToml::default()).is_ok());
     }
 }

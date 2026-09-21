@@ -74,7 +74,7 @@ mod tests {
     }
 
     #[test]
-    fn 갓_만든_스토어는_빈_맵을_반환한다() {
+    fn fresh_store_returns_empty_map() {
         let dir = fresh_tempdir("fresh");
         let path = memos_path_from_root(&dir);
         let memos = load_memos_from_path(&path).expect("load");
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn save_와_load는_round_trip한다() {
+    fn save_and_load_round_trip() {
         let dir = fresh_tempdir("roundtrip");
         let path = memos_path_from_root(&dir);
         let mut memos = BTreeMap::new();
@@ -96,19 +96,19 @@ mod tests {
     }
 
     #[test]
-    fn 제거된_키는_다음_로드에서_사라진다() {
+    fn removed_key_is_gone_on_next_load() {
         let dir = fresh_tempdir("tombstone");
         let path = memos_path_from_root(&dir);
         let mut memos = BTreeMap::new();
         memos.insert("keep".to_string(), "body".to_string());
         memos.insert("drop".to_string(), "gone".to_string());
-        save_memos_to_path(&path, &memos).expect("첫 저장");
+        save_memos_to_path(&path, &memos).expect("first save");
 
         memos.remove("drop");
-        save_memos_to_path(&path, &memos).expect("키 제거 저장");
+        save_memos_to_path(&path, &memos).expect("key-removal save");
 
         let loaded = load_memos_from_path(&path).expect("load");
-        assert_eq!(loaded, memos, "제거된 키는 로드에 나타나면 안 된다");
+        assert_eq!(loaded, memos, "removed key must not appear on load");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

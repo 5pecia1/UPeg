@@ -5,7 +5,10 @@ import 'dart:convert';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_file_value_codec.dart';
 
-const String _invalidFileOutputErrorCode = 'invalid_file_output';
+/// Client-side code for a canonical File output whose shape or size
+/// budget failed to decode — surfaced on pins through
+/// `hostAttachNoticeFor`, which maps it to a localized hint.
+const String kAttachInvalidFileOutputErrorCode = 'invalid_file_output';
 
 /// Rebuild a [CanonicalToolResult] from the daemon's JSON so the PWA
 /// renders remote outputs through the exact same path as an in-process run.
@@ -60,8 +63,8 @@ CanonicalToolResult decodeAttachCanonicalResult(Map<Object?, Object?> json) {
     return (
       entry: null,
       error: const CanonicalToolError(
-        code: _invalidFileOutputErrorCode,
-        message: '호스트 File 출력 형식 또는 크기 예산이 올바르지 않습니다',
+        code: kAttachInvalidFileOutputErrorCode,
+        message: 'host File output shape or size budget was invalid',
       ),
     );
   }

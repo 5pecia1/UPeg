@@ -22,7 +22,7 @@ fn file_success(bytes: Vec<u8>) -> ToolResult {
                 }),
             }],
         )
-        .expect("유효한 File 성공 결과"),
+        .expect("valid File success result"),
     )
 }
 
@@ -33,14 +33,14 @@ toolkit = "test"
 outputs = [{ name = "file", type = "file" }]
 primary_output_id = "file""#,
     )
-    .expect("유효한 File 출력 Tool");
+    .expect("valid File-output Tool");
     OutputAdapter::from_tool(&tool)
 }
 
 #[test]
-fn 최종_file_체인은_64mib_버퍼를_텍스트_투영_없이_이동한다() {
+fn final_file_chain_moves_64mib_buffer_without_text_projection() {
     let byte_count =
-        usize::try_from(MAX_FILE_OUTPUT_RAW_BYTES).expect("File 출력 예산은 usize 범위");
+        usize::try_from(MAX_FILE_OUTPUT_RAW_BYTES).expect("File output budget fits in usize");
     let bytes = vec![0xa5; byte_count];
     let original_pointer = bytes.as_ptr();
     let mut state = ChainState::new(1);
@@ -51,7 +51,7 @@ fn 최종_file_체인은_64mib_버퍼를_텍스트_투영_없이_이동한다() 
             result: Some(file_success(bytes)),
             duration_ms: 0,
         })
-        .expect("최종 단계 적용");
+        .expect("final step applied");
     let steps = [RuntimeStep {
         key: "source".to_string(),
         tool: "test.chain.typed_file.source".to_string(),
@@ -63,23 +63,28 @@ fn 최종_file_체인은_64mib_버퍼를_텍스트_투영_없이_이동한다() 
 
     let result = state
         .last_step_result(&steps, &declared_file_adapter())
-        .expect("최종 File 결과");
+        .expect("final File result");
     let ToolResult::Success(success) = result else {
-        panic!("성공 결과여야 한다");
+        panic!("must be a success result");
     };
-    let OutputValue::File(file) = success.outputs.into_iter().next().expect("File 출력").value
+    let OutputValue::File(file) = success
+        .outputs
+        .into_iter()
+        .next()
+        .expect("File output")
+        .value
     else {
-        panic!("typed File 출력이어야 한다");
+        panic!("must be a typed File output");
     };
     let FileContent::Bytes(returned) = file.content else {
-        panic!("bytes File이어야 한다");
+        panic!("must be a bytes File");
     };
 
     assert_eq!(returned.as_ptr(), original_pointer);
 }
 
 #[test]
-fn downstream이_file_출력을_요청하면_canonical_wire로_전달한다() {
+fn downstream_file_request_uses_canonical_wire() {
     upeg_runtime::register_runtime_dispatcher("test.chain.file_wire.source", |_| {
         file_success(vec![0, 1, 2, 0xff])
     });
@@ -87,11 +92,11 @@ fn downstream이_file_출력을_요청하면_canonical_wire로_전달한다() {
         let wire = args
             .get("input")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| "File wire 입력이 없다".to_string())?;
+            .ok_or_else(|| "no File wire input".to_string())?;
         let file = serde_json::from_str::<FileValue>(wire)
-            .map_err(|error| format!("File wire 역직렬화 실패: {error}"))?;
+            .map_err(|error| format!("File wire deserialization failed: {error}"))?;
         let FileContent::Bytes(bytes) = file.content else {
-            return Err("bytes File이 아니다".to_string());
+            return Err("not a bytes File".to_string());
         };
         Ok(bytes.len().to_string())
     });
@@ -105,13 +110,13 @@ steps = [
     { id = "sink", tool = "test.chain.file_wire.sink" },
 ]"#,
     )
-    .expect("유효한 chain Tool");
+    .expect("valid chain Tool");
     let dispatcher = chain_dispatcher_for(&tool).expect("chain dispatcher");
     let input = serde_json::json!({});
-    let args = DispatchArgs::parse(&input).expect("유효한 dispatch 인자");
+    let args = DispatchArgs::parse(&input).expect("valid dispatch args");
 
     let ToolResult::Success(success) = dispatcher(args) else {
-        panic!("chain이 성공해야 한다");
+        panic!("the chain must succeed");
     };
 
     assert_eq!(tool_success_primary_text(&success), "4");

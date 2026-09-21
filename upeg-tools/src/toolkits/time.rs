@@ -85,13 +85,13 @@ mod tests {
     // ─── epoch_now ─────────────────────────────────────
 
     #[test]
-    fn 유닉스_현재시각은_그럴듯한_시간_창_안에_있다() {
+    fn epoch_now_is_within_a_plausible_time_window() {
         let t = epoch_now().expect("system clock should be post-1970");
         assert!(t > 1_577_836_800, "expected post-2020 timestamp, got {t}");
     }
 
     #[test]
-    fn 유닉스_현재시각의_두_호출은_단조_증가하거나_같다() {
+    fn epoch_now_two_calls_are_monotonic_or_equal() {
         let a = epoch_now().unwrap();
         let b = epoch_now().unwrap();
         assert!(b >= a, "second call must not be earlier ({a} → {b})");
@@ -100,7 +100,7 @@ mod tests {
     // ─── iso_now / format_iso_utc ─────────────
 
     #[test]
-    fn format_iso_utc는_알려진_에포크_값을_고정된_문자열로_변환한다() {
+    fn format_iso_utc_maps_known_epoch_values_to_fixed_strings() {
         assert_eq!(format_iso_utc(0), "1970-01-01T00:00:00Z");
         assert_eq!(format_iso_utc(1_577_836_800), "2020-01-01T00:00:00Z");
         assert_eq!(format_iso_utc(1_577_836_799), "2019-12-31T23:59:59Z");
@@ -109,7 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn iso_현재시각은_형식_형태를_일치시킨다() {
+    fn iso_now_matches_the_expected_format_shape() {
         let s = iso_now().expect("iso_now");
         assert_eq!(s.len(), 20, "got: {s}");
         assert!(s.ends_with('Z'));

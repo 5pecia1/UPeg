@@ -7,8 +7,8 @@ use super::{
 };
 
 #[test]
-fn canonical_base64_경계의_디코딩_길이를_할당없이_계산한다() {
-    const 유효한_벡터: &[(&str, usize)] = &[
+fn canonical_base64_decoded_length_is_computed_without_allocation() {
+    const VALID_VECTORS: &[(&str, usize)] = &[
         ("", 0),
         ("Zg==", 1),
         ("Zm8=", 2),
@@ -18,7 +18,7 @@ fn canonical_base64_경계의_디코딩_길이를_할당없이_계산한다() {
         ("////", 3),
     ];
 
-    for (encoded, expected) in 유효한_벡터 {
+    for (encoded, expected) in VALID_VECTORS {
         assert_eq!(
             canonical_base64_decoded_len(encoded),
             Ok(*expected),
@@ -28,8 +28,8 @@ fn canonical_base64_경계의_디코딩_길이를_할당없이_계산한다() {
 }
 
 #[test]
-fn canonical_base64가_아닌_알파벳_패딩_tail_bit는_거부한다() {
-    const 비정규_벡터: &[&str] = &[
+fn non_canonical_base64_alphabet_padding_and_tail_bits_are_rejected() {
+    const NON_CANONICAL_VECTORS: &[&str] = &[
         "Zg",
         "Zg===",
         "Z g==",
@@ -47,7 +47,7 @@ fn canonical_base64가_아닌_알파벳_패딩_tail_bit는_거부한다() {
         "가===",
     ];
 
-    for encoded in 비정규_벡터 {
+    for encoded in NON_CANONICAL_VECTORS {
         assert!(
             canonical_base64_decoded_len(encoded).is_err(),
             "{encoded:?}"
@@ -56,46 +56,46 @@ fn canonical_base64가_아닌_알파벳_패딩_tail_bit는_거부한다() {
 }
 
 #[test]
-fn 구조_preflight는_base64_디코더를_호출하지_않는다() {
+fn structural_preflight_never_invokes_the_base64_decoder() {
     const PREFLIGHT_SOURCE: &str = include_str!("file_base64.rs");
     const STRUCTURE_SOURCE: &str = include_str!("file_structure.rs");
 
     for source in [PREFLIGHT_SOURCE, STRUCTURE_SOURCE] {
         assert!(
             !source.contains(".decode("),
-            "검증 경계에서 decoded Vec를 할당하면 안 된다"
+            "the validation boundary must not allocate a decoded Vec"
         );
     }
 }
 
 #[test]
-fn 고정_원시_바이트_한도를_넘는_encoded_입력은_디코드_할당전에_거부한다() {
-    const 한도_초과_바이트: u64 = MAX_FILE_INPUT_RAW_BYTES + 1;
+fn encoded_input_over_the_fixed_raw_byte_limit_is_rejected_before_decode_allocation() {
+    const OVER_LIMIT_BYTES: u64 = MAX_FILE_INPUT_RAW_BYTES + 1;
     const DECODED_QUANTUM_BYTES: u64 = 3;
     const ZERO_BASE64_QUANTUM: &str = "AAAA";
 
-    let decoded_len = usize::try_from(한도_초과_바이트).expect("테스트 크기는 usize여야 한다");
-    assert_eq!(한도_초과_바이트 % DECODED_QUANTUM_BYTES, 0);
+    let decoded_len = usize::try_from(OVER_LIMIT_BYTES).expect("test size must fit in usize");
+    assert_eq!(OVER_LIMIT_BYTES % DECODED_QUANTUM_BYTES, 0);
     let encoded = ZERO_BASE64_QUANTUM.repeat(
-        usize::try_from(한도_초과_바이트 / DECODED_QUANTUM_BYTES)
-            .expect("테스트 quartet 개수는 usize여야 한다"),
+        usize::try_from(OVER_LIMIT_BYTES / DECODED_QUANTUM_BYTES)
+            .expect("test quartet count must fit in usize"),
     );
     assert_eq!(
         canonical_base64_decoded_len(&encoded),
         Ok(decoded_len),
-        "preflight가 한도 초과 크기를 decoded Vec 없이 계산해야 한다"
+        "preflight must compute the over-limit size without a decoded Vec"
     );
 
     let policy = FileInputPolicy::default();
     let field = InputFieldSpec::new(
-        InputName::new("upload").expect("유효한 입력 이름이어야 한다"),
+        InputName::new("upload").expect("input name must be valid"),
         None,
         None,
         true,
         InputKind::File(policy),
     )
-    .expect("유효한 파일 필드여야 한다");
-    let spec = InputSpec::new(vec![field]).expect("유효한 입력 명세여야 한다");
+    .expect("file field must be valid");
+    let spec = InputSpec::new(vec![field]).expect("input spec must be valid");
     let mut content = Map::new();
     content.insert("kind".to_string(), Value::String("bytes".to_string()));
     content.insert("bytes".to_string(), Value::String(encoded));
@@ -112,28 +112,28 @@ fn 고정_원시_바이트_한도를_넘는_encoded_입력은_디코드_할당�
         result,
         Err(InputValueError::File(FileInputValueError::TotalTooLarge {
             max: MAX_FILE_INPUT_RAW_BYTES,
-            actual: 한도_초과_바이트,
+            actual: OVER_LIMIT_BYTES,
             ..
         }))
     ));
 }
 
 #[test]
-fn 개별_정책_한도는_raw_json을_file_value로_디코딩하기전에_적용한다() {
+fn per_policy_limits_apply_before_raw_json_is_decoded_into_a_file_value() {
     let policy = FileInputPolicy::try_from(FileInputPolicyParams {
         max_file_bytes: Some(3),
         ..FileInputPolicyParams::default()
     })
-    .expect("유효한 파일 정책이어야 한다");
+    .expect("file policy must be valid");
     let field = InputFieldSpec::new(
-        InputName::new("upload").expect("유효한 입력 이름이어야 한다"),
+        InputName::new("upload").expect("input name must be valid"),
         None,
         None,
         true,
         InputKind::File(policy),
     )
-    .expect("유효한 파일 필드여야 한다");
-    let spec = InputSpec::new(vec![field]).expect("유효한 입력 명세여야 한다");
+    .expect("file field must be valid");
+    let spec = InputSpec::new(vec![field]).expect("input spec must be valid");
     let mut args = Map::new();
     args.insert(
         "upload".to_string(),

@@ -166,26 +166,26 @@ mod tests {
     use super::*;
 
     fn decl(id: &str, label: &str) -> ProjectBoardDecl {
-        ProjectBoardDecl::new(BoardKey::parse(id).expect("보드 id"), label.to_string())
+        ProjectBoardDecl::new(BoardKey::parse(id).expect("board id"), label.to_string())
     }
 
     #[test]
-    fn scope는_선언한_보드의_store_key를_네임스페이스로_감싼다() {
+    fn scope_wraps_declared_board_store_key_in_namespace() {
         let scope = ProjectBoardScope::for_manifest(
             Path::new("/p/upeg.toml"),
             vec![decl("upeg-dev", "upeg dev")],
         );
 
-        let key = scope.store_key("upeg-dev").expect("선언된 보드");
+        let key = scope.store_key("upeg-dev").expect("declared board");
         assert!(
             key.as_str().starts_with("project:"),
-            "프로젝트 보드는 네임스페이스 접두사를 갖는다: {key}"
+            "a project board carries the namespace prefix: {key}"
         );
         assert!(key.as_str().ends_with(":upeg-dev"));
     }
 
     #[test]
-    fn scope는_선언하지_않은_보드에_store_key를_주지_않는다() {
+    fn scope_gives_no_store_key_for_undeclared_board() {
         let scope = ProjectBoardScope::for_manifest(
             Path::new("/p/upeg.toml"),
             vec![decl("upeg-dev", "upeg dev")],
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn 서로_다른_프로젝트는_같은_보드_id에_다른_store_key를_쓴다() {
+    fn different_projects_use_different_store_keys_for_same_board_id() {
         let a = ProjectBoardScope::for_manifest(
             Path::new("/a/upeg.toml"),
             vec![decl("shared", "Shared")],
@@ -209,26 +209,26 @@ mod tests {
     }
 
     #[test]
-    fn 로드한_프로젝트_원본의_변경과_삭제를_감지한다() {
+    fn detects_modification_and_deletion_of_loaded_project_source() {
         let root = std::env::temp_dir().join(format!("upeg-board-source-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).expect("디렉터리 생성");
+        std::fs::create_dir_all(&root).expect("create directory");
         let path = root.join("upeg.toml");
         const LOADED: &str = "id = \"project\"\n";
-        std::fs::write(&path, LOADED).expect("원본 쓰기");
+        std::fs::write(&path, LOADED).expect("write source");
         let scope = ProjectBoardScope::for_manifest(&path, Vec::new())
             .with_loaded_content(LOADED.to_string());
         assert!(!scope.source_changed());
 
-        std::fs::write(&path, "id = \"changed\"\n").expect("원본 변경");
+        std::fs::write(&path, "id = \"changed\"\n").expect("modify source");
         assert!(scope.source_changed());
-        std::fs::remove_file(&path).expect("원본 삭제");
+        std::fs::remove_file(&path).expect("delete source");
         assert!(scope.source_changed());
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn 원본을_로드하지_않은_스코프는_파일_검사를_생략한다() {
+    fn scope_without_loaded_source_skips_file_check() {
         let scope = ProjectBoardScope::for_manifest(Path::new("/missing/upeg.toml"), Vec::new());
         assert!(!scope.source_changed());
     }

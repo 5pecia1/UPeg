@@ -18,7 +18,7 @@ const MCP_IMPORT_DOCS_PATH: &str = "README.md";
 const MCP_IMPORT_TEST_PATH: &str = "upeg-cli/src/inventory/tests.rs";
 /// The test inside [`MCP_IMPORT_TEST_PATH`] that actually asserts this
 /// entry — pinned by the inventory honesty check.
-const MCP_IMPORT_TEST_NAME: &str = "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다";
+const MCP_IMPORT_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
 
 struct McpImportContractDeclaration {
     id: &'static str,

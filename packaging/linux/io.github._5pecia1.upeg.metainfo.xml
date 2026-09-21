@@ -4,7 +4,11 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>Apache-2.0</project_license>
   <name>upeg</name>
+  <developer id="io.github._5pecia1">
+    <name>upeg contributors</name>
+  </developer>
   <summary>Universal Pegboard</summary>
+  <url type="homepage">https://github.com/5pecia1/UPeg</url>
   <description>
     <p>upeg provides a desktop and web pegboard surface for running local tools and organizing pinned workflows.</p>
   </description>

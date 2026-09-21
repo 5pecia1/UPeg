@@ -35,7 +35,7 @@ runs:
         targets: wasm32-unknown-unknown
     - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375
       with:
-        tool: just@1.51.0,cargo-deny@0.18.2,wasm-pack@0.13.1
+        tool: just@1.51.0,cargo-deny@0.18.9,wasm-pack@0.13.1
     - if: inputs.lane == 'rust'
       id: chrome
       uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4
@@ -55,5 +55,6 @@ runs:
         CARGO_PROFILE_TEST_DEBUG: '0'
         CARGO_INCREMENTAL: '0'
         UPEG_BROWSER_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        UPEG_CONTROLLED_EMBED_NO_SANDBOX: '1'
         VERIFY_LANE: ${{ inputs.lane }}
       run: bash scripts/verify_public.sh "$VERIFY_LANE"

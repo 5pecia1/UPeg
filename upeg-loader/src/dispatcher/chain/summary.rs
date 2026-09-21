@@ -190,13 +190,13 @@ pub(crate) const UNDISPATCHED_STEP_DURATION_MS: u64 = 0;
 mod tests {
     use super::*;
 
-    fn 요약_행(status: StepStatus) -> OutputEntry {
+    fn summary_row(status: StepStatus) -> OutputEntry {
         let mut summaries = StepSummaries::default();
         summaries.record("gate", "text.repeat", status, 7);
         summaries.output_entry()
     }
 
-    fn json_행(value: Value) -> OutputEntry {
+    fn json_row(value: Value) -> OutputEntry {
         OutputEntry {
             id: CHAIN_STEPS_OUTPUT_ID.to_string(),
             label: None,
@@ -206,51 +206,52 @@ mod tests {
     }
 
     #[test]
-    fn 엔진이_만든_steps_행은_엔진_행으로_인식된다() {
+    fn engine_made_steps_row_is_recognized() {
         for status in [
             StepStatus::Ran,
             StepStatus::Skipped,
             StepStatus::Failed,
             StepStatus::Denied,
         ] {
-            assert!(is_engine_summary_row(&요약_행(status)), "{status:?}");
+            assert!(is_engine_summary_row(&summary_row(status)), "{status:?}");
         }
     }
 
     #[test]
-    fn 이름만_steps인_사용자_출력은_엔진_행이_아니다() {
-        // 체인이 아닌 도구가 낸 `steps` — 요리법의 단계 목록 같은 것. 조용히
-        // 버려지면 안 되므로 엔진 행으로 인식되어서는 안 된다.
-        let 문자열_배열 = json_행(json!(["preheat", "bake"]));
-        assert!(!is_engine_summary_row(&문자열_배열));
+    fn user_output_named_steps_is_not_engine_row() {
+        // A `steps` emitted by a non-chain tool — like a recipe's list
+        // of stages. It must not be silently dropped, so it must not be
+        // recognized as an engine row.
+        let string_array = json_row(json!(["preheat", "bake"]));
+        assert!(!is_engine_summary_row(&string_array));
 
-        let 빈_배열 = json_행(json!([]));
-        assert!(!is_engine_summary_row(&빈_배열));
+        let empty_array = json_row(json!([]));
+        assert!(!is_engine_summary_row(&empty_array));
 
-        let 객체 = json_행(json!({ "count": 2 }));
-        assert!(!is_engine_summary_row(&객체));
+        let object = json_row(json!({ "count": 2 }));
+        assert!(!is_engine_summary_row(&object));
 
-        let 여분_필드 = json_행(json!([{
+        let extra_field = json_row(json!([{
             SUMMARY_ROW_ID: "gate",
             SUMMARY_ROW_TOOL: "text.repeat",
             SUMMARY_ROW_STATUS: "ran",
             SUMMARY_ROW_DURATION_MS: 7,
             "note": "extra",
         }]));
-        assert!(!is_engine_summary_row(&여분_필드));
+        assert!(!is_engine_summary_row(&extra_field));
 
-        let 알수없는_status = json_행(json!([{
+        let unknown_status = json_row(json!([{
             SUMMARY_ROW_ID: "gate",
             SUMMARY_ROW_TOOL: "text.repeat",
             SUMMARY_ROW_STATUS: "pending",
             SUMMARY_ROW_DURATION_MS: 7,
         }]));
-        assert!(!is_engine_summary_row(&알수없는_status));
+        assert!(!is_engine_summary_row(&unknown_status));
     }
 
     #[test]
-    fn 같은_모양이어도_kind가_json이_아니면_엔진_행이_아니다() {
-        let mut entry = 요약_행(StepStatus::Ran);
+    fn same_shape_non_json_kind_is_not_engine_row() {
+        let mut entry = summary_row(StepStatus::Ran);
         entry.kind = OutputKind::String;
         assert!(!is_engine_summary_row(&entry));
     }

@@ -107,19 +107,19 @@ Widget _inlineHarness({required _DispatchLog log, required ToolDto tool}) {
 }
 
 void main() {
-  group('승인 요구 판정', () {
-    test('장벽이_없는_도구는_아무것도_묻지_않는다', () {
+  group('Approval requirement detection', () {
+    test('an_ungated_tool_requires_no_approval_prompt', () {
       expect(approvalRequirementFor(_ungatedTool), ApprovalRequirement.none);
     });
 
-    test('desktop이_승인자에_있으면_묻는다', () {
+    test('prompts_when_desktop_is_an_approver', () {
       expect(
         approvalRequirementFor(_desktopGatedTool),
         ApprovalRequirement.askDesktop,
       );
     });
 
-    test('desktop이_승인자에_없으면_설명만_한다', () {
+    test('only_explains_when_desktop_is_not_an_approver', () {
       expect(
         approvalRequirementFor(_elsewhereGatedTool),
         ApprovalRequirement.explainOtherSurfaces,
@@ -127,8 +127,8 @@ void main() {
     });
   });
 
-  group('ExpandedModalPage 승인 게이트', () {
-    testWidgets('게이트된_도구는_승인_후에만_dispatch한다', (tester) async {
+  group('ExpandedModalPage approval gate', () {
+    testWidgets('a_gated_tool_dispatches_only_after_approval', (tester) async {
       final log = _DispatchLog();
       await tester.pumpWidget(_modalHarness(log: log, tool: _desktopGatedTool));
 
@@ -136,7 +136,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(approvalConfirmDialogKey), findsOneWidget);
-      expect(log.approvals, isEmpty, reason: '묻는 동안에는 아무것도 실행하지 않는다');
+      expect(
+        log.approvals,
+        isEmpty,
+        reason: 'Nothing runs while the approval prompt is awaiting an answer',
+      );
 
       await tester.tap(find.byKey(approvalApproveButtonKey));
       await tester.pumpAndSettle();
@@ -145,7 +149,7 @@ void main() {
       expect(find.byKey(approvalConfirmDialogKey), findsNothing);
     });
 
-    testWidgets('승인을_취소하면_아무것도_dispatch하지_않는다', (tester) async {
+    testWidgets('canceling_approval_dispatches_nothing', (tester) async {
       final log = _DispatchLog();
       await tester.pumpWidget(_modalHarness(log: log, tool: _desktopGatedTool));
 
@@ -159,43 +163,50 @@ void main() {
       expect(find.byKey(const Key('expanded-modal-outcome')), findsNothing);
     });
 
-    testWidgets('desktop이_승인자가_아니면_설명하고_dispatch하지_않는다', (tester) async {
-      final log = _DispatchLog();
-      await tester.pumpWidget(
-        _modalHarness(log: log, tool: _elsewhereGatedTool),
-      );
+    testWidgets(
+      'when_desktop_is_not_an_approver_it_explains_without_dispatching',
+      (tester) async {
+        final log = _DispatchLog();
+        await tester.pumpWidget(
+          _modalHarness(log: log, tool: _elsewhereGatedTool),
+        );
 
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(approvalConfirmDialogKey), findsOneWidget);
-      expect(
-        find.byKey(approvalApproveButtonKey),
-        findsNothing,
-        reason: '인정되지 않을 승인 버튼은 제시하지 않는다',
-      );
-      expect(find.textContaining('cli, tui'), findsOneWidget);
+        expect(find.byKey(approvalConfirmDialogKey), findsOneWidget);
+        expect(
+          find.byKey(approvalApproveButtonKey),
+          findsNothing,
+          reason:
+              'Do not offer an approval button whose approval would not be honored',
+        );
+        expect(find.textContaining('cli, tui'), findsOneWidget);
 
-      await tester.tap(find.byKey(approvalDismissButtonKey));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(approvalDismissButtonKey));
+        await tester.pumpAndSettle();
 
-      expect(log.approvals, isEmpty);
-    });
+        expect(log.approvals, isEmpty);
+      },
+    );
 
-    testWidgets('장벽이_없는_도구는_묻지_않고_approve_false로_dispatch한다', (tester) async {
-      final log = _DispatchLog();
-      await tester.pumpWidget(_modalHarness(log: log, tool: _ungatedTool));
+    testWidgets(
+      'an_ungated_tool_dispatches_with_approve_false_without_prompting',
+      (tester) async {
+        final log = _DispatchLog();
+        await tester.pumpWidget(_modalHarness(log: log, tool: _ungatedTool));
 
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(approvalConfirmDialogKey), findsNothing);
-      expect(log.approvals, <bool>[false]);
-    });
+        expect(find.byKey(approvalConfirmDialogKey), findsNothing);
+        expect(log.approvals, <bool>[false]);
+      },
+    );
   });
 
-  group('inline pin 승인 게이트', () {
-    testWidgets('inline_Run도_같은_게이트를_지난다', (tester) async {
+  group('Inline pin approval gate', () {
+    testWidgets('inline_Run_uses_the_same_approval_gate', (tester) async {
       final log = _DispatchLog();
       await tester.pumpWidget(
         _inlineHarness(log: log, tool: _desktopGatedTool),
@@ -214,38 +225,47 @@ void main() {
       expect(log.approvals, <bool>[true]);
     });
 
-    testWidgets('게이트된_inline_도구는_입력_변화로_자동_실행하지_않는다', (tester) async {
-      final log = _DispatchLog();
-      final gatedWithInput = fixtureToolDto(
-        id: 'fixture.gated_input',
-        label: 'gated input chain',
-        pinKind: PinKindDto.chain,
-        invoker: InvokerDto.chain,
-        requiresApproval: true,
-        approvalSurfaces: const <String>[desktopApprovalSurfaceLabel],
-        inputFields: const <InputFieldDto>[
-          InputFieldDto(
-            key: 'value',
-            label: 'Value',
-            fieldType: InputFieldType.text(),
-            required_: true,
-          ),
-        ],
-      );
-      await tester.pumpWidget(_inlineHarness(log: log, tool: gatedWithInput));
-      await tester.pump();
+    testWidgets(
+      'a_gated_inline_tool_does_not_run_automatically_when_input_changes',
+      (tester) async {
+        final log = _DispatchLog();
+        final gatedWithInput = fixtureToolDto(
+          id: 'fixture.gated_input',
+          label: 'gated input chain',
+          pinKind: PinKindDto.chain,
+          invoker: InvokerDto.chain,
+          requiresApproval: true,
+          approvalSurfaces: const <String>[desktopApprovalSurfaceLabel],
+          inputFields: const <InputFieldDto>[
+            InputFieldDto(
+              key: 'value',
+              label: 'Value',
+              fieldType: InputFieldType.text(),
+              required_: true,
+            ),
+          ],
+        );
+        await tester.pumpWidget(_inlineHarness(log: log, tool: gatedWithInput));
+        await tester.pump();
 
-      await tester.enterText(find.byKey(const Key('field-value')), 'typed');
-      await tester.pump(inlineRunDebounce * 2);
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(const Key('field-value')), 'typed');
+        await tester.pump(inlineRunDebounce * 2);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(approvalConfirmDialogKey), findsNothing);
-      expect(log.approvals, isEmpty, reason: '승인 장벽은 사람에게 묻는 질문이라 자동 실행하지 않는다');
-      expect(
-        find.byKey(inlineRunButtonKey),
-        findsOneWidget,
-        reason: '자동 실행이 없으니 명시적 Run 어포던스가 필요하다',
-      );
-    });
+        expect(find.byKey(approvalConfirmDialogKey), findsNothing);
+        expect(
+          log.approvals,
+          isEmpty,
+          reason:
+              'An approval gate requires a human answer, so execution is not automatic',
+        );
+        expect(
+          find.byKey(inlineRunButtonKey),
+          findsOneWidget,
+          reason:
+              'An explicit Run control is needed because execution is not automatic',
+        );
+      },
+    );
   });
 }

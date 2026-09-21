@@ -10,7 +10,7 @@ use crate::*;
 use clap::Parser as _;
 
 fn seed_preset_board(state: &mut upeg_sources::pegboard::PegboardState) {
-    let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+    let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
     state.boards.push(upeg_sources::pegboard::BoardData {
         key: "cli-preset".into(),
         title: "CLI Preset".into(),
@@ -23,9 +23,9 @@ fn seed_preset_board(state: &mut upeg_sources::pegboard::PegboardState) {
 }
 
 #[test]
-fn 보드_스코프_call은_핀_preset을_기본값으로_병합한다() {
+fn board_scoped_call_merges_the_pin_preset_as_defaults() {
     crate::test_support::with_seeded_pegboard_home("cli-board-call", seed_preset_board, || {
-        // 인자를 주지 않아도 핀 preset의 input=0xff가 병합된다.
+        // The pin preset supplies input=0xff even when no args are provided.
         let out = run(parse(&[
             "upeg",
             "board",
@@ -37,7 +37,7 @@ fn 보드_스코프_call은_핀_preset을_기본값으로_병합한다() {
         .expect("board call");
         assert_eq!(out, "255\n");
 
-        // 명시 인자는 preset을 덮어쓴다.
+        // Explicit args override the preset.
         let out = run(parse(&[
             "upeg",
             "board",
@@ -53,16 +53,16 @@ fn 보드_스코프_call은_핀_preset을_기본값으로_병합한다() {
     });
 }
 
-/// 전역 `--board` 플래그로 부르는 `upeg call`도 `board <b> call`과
-/// 같은 순서(파싱 → preset 병합 → 검증)를 따라야 한다. 검증이 먼저
-/// 돌면 preset이 채워 줄 필수 입력을 "missing"으로 거절한다.
+/// `upeg call` with the global `--board` flag must follow the same order as
+/// `board <b> call`: parse → merge preset → validate. Validating first would
+/// reject required inputs that the preset supplies as "missing".
 #[test]
-fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하지_않는다() {
+fn global_board_flag_call_accepts_required_inputs_supplied_by_the_preset() {
     crate::test_support::with_seeded_pegboard_home(
         "cli-board-flag-preset",
         |state| {
             let preset =
-                upeg_core::ArgsPreset::parse(r#"{"from":"a","to":"b"}"#).expect("유효 preset");
+                upeg_core::ArgsPreset::parse(r#"{"from":"a","to":"b"}"#).expect("valid preset");
             state.boards.push(upeg_sources::pegboard::BoardData {
                 key: "flag-preset".into(),
                 title: "Flag Preset".into(),
@@ -76,7 +76,7 @@ fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하
             );
         },
         || {
-            // from/to는 필수지만 핀 preset이 공급한다 — 호출자는 input만 준다.
+            // The pin preset supplies required from/to fields; the caller only provides input.
             let out = run(parse(&[
                 "upeg",
                 "--board",
@@ -87,10 +87,10 @@ fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하
                 "input=abc",
                 "--local",
             ]))
-            .expect("preset이 채운 필수 입력은 거절되면 안 된다");
+            .expect("required inputs supplied by the preset must not be rejected");
             assert_eq!(out, "bbc\n");
 
-            // 원시 JSON 경로도 같은 순서를 따른다.
+            // The raw JSON path follows the same order.
             let out = run(parse(&[
                 "upeg",
                 "--board",
@@ -100,10 +100,10 @@ fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하
                 r#"{"input":"aaa"}"#,
                 "--local",
             ]))
-            .expect("원시 JSON 경로도 preset 병합 뒤에 검증해야 한다");
+            .expect("raw JSON args must also be validated after the preset merge");
             assert_eq!(out, "bbb\n");
 
-            // preset이 있어도 알 수 없는 입력은 여전히 거절된다.
+            // Unknown inputs are still rejected even when a preset exists.
             let err = run(parse(&[
                 "upeg",
                 "--board",
@@ -116,7 +116,7 @@ fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하
                 "nope=1",
                 "--local",
             ]))
-            .expect_err("알 수 없는 입력은 preset과 무관하게 거절되어야 한다");
+            .expect_err("unknown inputs must be rejected regardless of the preset");
             assert!(
                 err.message().contains("unknown input `nope`"),
                 "got: {}",
@@ -126,11 +126,11 @@ fn 전역_board_플래그_call은_preset이_채우는_필수_입력을_거절하
     );
 }
 
-/// 보드 목록(표면 필터링)과 호출 게이트가 같은 판단을 써야 한다.
-/// `memo.scratch`는 GUI 전용이라 `board <b> list`에 나오지 않으므로,
-/// `board <b> call`도 "핀되지 않음"으로 거절해야 한다.
+/// The surface-filtered board list and call gate must agree.
+/// GUI-only `memo.scratch` is absent from `board <b> list`, so
+/// `board <b> call` must reject it as "not pinned" too.
 #[test]
-fn 보드_스코프_call_게이트는_이_표면에_없는_핀을_핀되지_않은_것으로_본다() {
+fn board_scoped_call_treats_off_surface_pins_as_unpinned() {
     crate::test_support::with_seeded_pegboard_home(
         "cli-board-surface-gate",
         |state| {
@@ -143,7 +143,7 @@ fn 보드_스코프_call_게이트는_이_표면에_없는_핀을_핀되지_않�
                 "gui-pin".into(),
                 vec![
                     upeg_core::Placement::new("num.hex_to_decimal", 0, 0),
-                    // Desktop/Pwa/Ext 전용 — cli 표면에는 없다.
+                    // Desktop/Pwa/Ext only; unavailable on the CLI surface.
                     upeg_core::Placement::new("memo.scratch", 1, 0),
                 ],
             );
@@ -152,7 +152,7 @@ fn 보드_스코프_call_게이트는_이_표면에_없는_핀을_핀되지_않�
             let listed = run(parse(&["upeg", "board", "gui-pin", "list"])).expect("board list");
             assert!(
                 !listed.contains("memo.scratch"),
-                "cli 목록에는 GUI 전용 핀이 없어야 한다: {listed}"
+                "the CLI list must exclude GUI-only pins: {listed}"
             );
 
             let err = run(parse(&[
@@ -163,26 +163,26 @@ fn 보드_스코프_call_게이트는_이_표면에_없는_핀을_핀되지_않�
                 "memo.scratch",
                 "--local",
             ]))
-            .expect_err("목록에 없는 핀은 호출도 안 되어야 한다");
+            .expect_err("pins absent from the list must not be callable either");
             let message = err.message();
             assert!(
                 message.contains("not pinned on board `gui-pin`"),
-                "목록과 같은 판단이어야 한다: {message}"
+                "the call gate must agree with the list: {message}"
             );
             assert!(
                 !message.contains("memo.scratch,"),
-                "제안 목록도 같은 표면으로 걸러야 한다: {message}"
+                "suggestions must use the same surface filter: {message}"
             );
             assert!(
                 message.contains("num.hex_to_decimal"),
-                "이 표면에서 부를 수 있는 핀을 제안해야 한다: {message}"
+                "suggestions must include pins callable on this surface: {message}"
             );
         },
     );
 }
 
 #[test]
-fn 보드_스코프_call은_핀되지_않은_도구에_핀_목록을_제안한다() {
+fn board_scoped_call_suggests_pinned_tools_for_an_unpinned_tool() {
     crate::test_support::with_seeded_pegboard_home("cli-board-unpinned", seed_preset_board, || {
         let err = run(parse(&[
             "upeg",
@@ -194,27 +194,27 @@ fn 보드_스코프_call은_핀되지_않은_도구에_핀_목록을_제안한�
         ]))
         .expect_err("unpinned tool must fail");
         let crate::error::CliError::ToolFailed(message) = err else {
-            panic!("ToolFailed 오류여야 한다: {err:?}");
+            panic!("expected a ToolFailed error: {err:?}");
         };
         assert!(
             message.contains("not pinned on board `cli-preset`"),
-            "명확한 미핀 오류여야 한다: {message}"
+            "the error must clearly identify the unpinned tool: {message}"
         );
         assert!(
             message.contains("num.hex_to_decimal"),
-            "그 보드의 핀 목록을 제안해야 한다: {message}"
+            "the error must suggest tools pinned on that board: {message}"
         );
     });
 }
 
 #[test]
-fn 보드_스코프_list는_핀_목록과_preset을_보여준다() {
+fn board_scoped_list_shows_pinned_tools_and_presets() {
     crate::test_support::with_seeded_pegboard_home("cli-board-list", seed_preset_board, || {
         let out = run(parse(&["upeg", "board", "cli-preset", "list"])).expect("board list");
         assert!(
             out.lines()
                 .any(|line| line.starts_with("num.hex_to_decimal\t")),
-            "핀 행이 나와야 한다: {out}"
+            "the pinned tool row must appear: {out}"
         );
 
         let json_out = run(parse(&["upeg", "board", "cli-preset", "list", "--json"]))
@@ -230,28 +230,31 @@ fn 보드_스코프_list는_핀_목록과_preset을_보여준다() {
 }
 
 #[test]
-fn 알수없는_보드는_보드_키_목록을_제안한다() {
+fn unknown_board_errors_suggest_available_board_keys() {
     crate::test_support::with_seeded_pegboard_home("cli-board-unknown", seed_preset_board, || {
         let err = run(parse(&["upeg", "board", "no-such-board", "list"]))
             .expect_err("unknown board must fail");
         let crate::error::CliError::ToolFailed(message) = err else {
-            panic!("ToolFailed 오류여야 한다: {err:?}");
+            panic!("expected a ToolFailed error: {err:?}");
         };
         assert!(
             message.contains("unknown board `no-such-board`"),
             "{message}"
         );
-        assert!(message.contains("cli-preset"), "보드 목록 제안: {message}");
+        assert!(
+            message.contains("cli-preset"),
+            "the error must suggest available boards: {message}"
+        );
     });
 }
 
 #[test]
-fn mcp_보드_옵션은_알수없는_보드에_즉시_실패한다() {
+fn mcp_board_option_fails_immediately_for_an_unknown_board() {
     crate::test_support::with_seeded_pegboard_home("cli-mcp-board", seed_preset_board, || {
         let err = run(parse(&["upeg", "mcp", "--board", "no-such-board"]))
             .expect_err("unknown board must fail before serving");
         let crate::error::CliError::ToolFailed(message) = err else {
-            panic!("ToolFailed 오류여야 한다: {err:?}");
+            panic!("expected a ToolFailed error: {err:?}");
         };
         assert!(
             message.contains("unknown board `no-such-board`"),
@@ -261,17 +264,17 @@ fn mcp_보드_옵션은_알수없는_보드에_즉시_실패한다() {
 }
 
 #[test]
-fn 보드_context는_json_출력을_선택할_수_있다() {
+fn board_context_accepts_json_output() {
     let cli = parse(&["upeg", "board", "dev", "context", "--json"]);
 
     let Some(Command::Board {
         action: BoardAction::Scoped(tokens),
     }) = cli.command
     else {
-        panic!("board scoped command여야 한다");
+        panic!("expected a board-scoped command");
     };
     let scoped = BoardScopedCli::try_parse_from(tokens.into_iter().skip(1))
-        .expect("context 문법을 파싱해야 한다");
+        .expect("context syntax must parse");
 
     assert!(matches!(
         scoped.action,
@@ -280,14 +283,14 @@ fn 보드_context는_json_출력을_선택할_수_있다() {
 }
 
 #[test]
-fn 보드_connect는_추가_옵션_없이_파싱된다() {
-    let scoped = BoardScopedCli::try_parse_from(["connect"]).expect("connect 문법을 파싱해야 한다");
+fn board_connect_parses_without_extra_options() {
+    let scoped = BoardScopedCli::try_parse_from(["connect"]).expect("connect syntax must parse");
 
     assert!(matches!(scoped.action, BoardScopedAction::Connect));
 }
 
 #[test]
-fn 보드_describe는_설명과_지침을_독립적으로_수정한다() {
+fn board_describe_updates_description_and_instructions_independently() {
     let scoped = BoardScopedCli::try_parse_from([
         "describe",
         "--description",
@@ -296,7 +299,7 @@ fn 보드_describe는_설명과_지침을_독립적으로_수정한다() {
         "Run checks first",
         "--json",
     ])
-    .expect("describe patch 문법을 파싱해야 한다");
+    .expect("describe patch syntax must parse");
 
     let BoardScopedAction::Describe {
         description,
@@ -306,7 +309,7 @@ fn 보드_describe는_설명과_지침을_독립적으로_수정한다() {
         json,
     } = scoped.action
     else {
-        panic!("describe action이어야 한다");
+        panic!("expected a describe action");
     };
     assert_eq!(description.as_deref(), Some("Release work"));
     assert!(!clear_description);
@@ -316,20 +319,20 @@ fn 보드_describe는_설명과_지침을_독립적으로_수정한다() {
 }
 
 #[test]
-fn 보드_describe는_설명_입력과_삭제를_동시에_받지_않는다() {
+fn board_describe_rejects_setting_and_clearing_description_together() {
     let error = BoardScopedCli::try_parse_from([
         "describe",
         "--description",
         "Release work",
         "--clear-description",
     ])
-    .expect_err("같은 필드의 수정과 삭제는 충돌해야 한다");
+    .expect_err("setting and clearing the same field must conflict");
 
     assert_eq!(error.kind(), clap::error::ErrorKind::ArgumentConflict);
 }
 
 #[test]
-fn working_directory는_모든_명령에_앞서_파싱된다() {
+fn working_directory_parses_before_subcommands() {
     let cli = parse(&[
         "upeg",
         "--working-directory",
@@ -346,7 +349,7 @@ fn working_directory는_모든_명령에_앞서_파싱된다() {
 }
 
 #[test]
-fn 보드_context_json은_안내와_핀된_도구를_함께_보여준다() {
+fn board_context_json_shows_guidance_and_pinned_tools() {
     crate::test_support::with_seeded_pegboard_home(
         "cli-board-context",
         |state| {
@@ -355,7 +358,7 @@ fn 보드_context_json은_안내와_핀된_도구를_함께_보여준다() {
                 .boards
                 .iter_mut()
                 .find(|board| board.key == "cli-preset")
-                .expect("보드");
+                .expect("seeded board");
             board.guidance.description = "Release work".into();
             board.guidance.instructions = "Run checks first".into();
         },
@@ -375,7 +378,7 @@ fn 보드_context_json은_안내와_핀된_도구를_함께_보여준다() {
 }
 
 #[test]
-fn 보드_connect는_고정된_작업_경로와_board를_구조화된_인자로_출력한다() {
+fn board_connect_emits_the_working_directory_and_board_as_structured_args() {
     crate::test_support::with_seeded_pegboard_home("cli-board-connect", seed_preset_board, || {
         let output =
             run(parse(&["upeg", "board", "cli-preset", "connect"])).expect("board connect");
@@ -387,7 +390,7 @@ fn 보드_connect는_고정된_작업_경로와_board를_구조화된_인자로_
             server["args"],
             serde_json::json!([
                 "--working-directory",
-                std::env::current_dir().expect("현재 작업 경로"),
+                std::env::current_dir().expect("current working directory"),
                 "mcp",
                 "--board",
                 "cli-preset"
@@ -399,7 +402,7 @@ fn 보드_connect는_고정된_작업_경로와_board를_구조화된_인자로_
 }
 
 #[test]
-fn 보드_describe는_생략한_필드를_보존하고_저장한다() {
+fn board_describe_preserves_omitted_fields_and_persists() {
     crate::test_support::with_seeded_pegboard_home(
         "cli-board-describe",
         |state| {
@@ -408,7 +411,7 @@ fn 보드_describe는_생략한_필드를_보존하고_저장한다() {
                 .boards
                 .iter_mut()
                 .find(|board| board.key == "cli-preset")
-                .expect("보드");
+                .expect("seeded board");
             board.guidance.description = "Before".into();
             board.guidance.instructions = "Keep this".into();
         },
@@ -432,7 +435,7 @@ fn 보드_describe는_생략한_필드를_보존하고_저장한다() {
                 .boards
                 .iter()
                 .find(|board| board.key == "cli-preset")
-                .expect("저장된 보드");
+                .expect("persisted board");
             assert_eq!(board.guidance.description, "After");
             assert_eq!(board.guidance.instructions, "Keep this");
         },
@@ -440,13 +443,13 @@ fn 보드_describe는_생략한_필드를_보존하고_저장한다() {
 }
 
 #[test]
-fn 보드_describe는_수정할_필드가_없으면_거절한다() {
+fn board_describe_rejects_an_empty_patch() {
     crate::test_support::with_seeded_pegboard_home(
         "cli-board-describe-empty",
         seed_preset_board,
         || {
             let error = run(parse(&["upeg", "board", "cli-preset", "describe"]))
-                .expect_err("빈 patch는 거절해야 한다");
+                .expect_err("an empty patch must be rejected");
 
             assert!(
                 error.message().contains("nothing to update"),

@@ -1,8 +1,9 @@
-//! 승인 대화상자와 실행 중 pane의 렌더 회귀 테스트.
+//! Render regression tests for the approval dialog and the running
+//! pane.
 //!
-//! 상태 기계 테스트는 "무엇이 일어나는가"를, 여기서는 "사용자가 무엇을
-//! 읽는가"를 고정한다. 승인 문구가 사라지거나 라이브 tail이 화면에
-//! 닿지 않는 회귀는 CI를 지나가면 안 된다.
+//! The state-machine tests pin "what happens"; here we pin "what the
+//! user reads". Regressions where the approval wording disappears or
+//! the live tail never reaches the screen must not pass CI.
 
 use super::*;
 use crate::surfaces::tui::model::LiveTail;
@@ -28,7 +29,7 @@ fn tail_of(chunks: &[&str]) -> LiveTail {
 }
 
 #[test]
-fn 승인_대화상자는_제목과_도구_id와_선택지를_보여준다() {
+fn approval_dialog_shows_title_tool_id_and_choices() {
     let state = State {
         view: View::ConfirmApproval {
             tool_id: "deploy.prod",
@@ -41,32 +42,32 @@ fn 승인_대화상자는_제목과_도구_id와_선택지를_보여준다() {
 
     assert!(
         buf.contains("Approval required"),
-        "승인 대화상자 제목이 보여야 한다. got: {buf}"
+        "the approval dialog title must be visible. got: {buf}"
     );
     assert!(
         buf.contains("requires approval"),
-        "승인이 필요하다는 이유가 보여야 한다. got: {buf}"
+        "the reason approval is needed must be visible. got: {buf}"
     );
     assert!(
         buf.contains("deploy.prod"),
-        "무엇을 승인하는지 도구 id로 밝혀야 한다. got: {buf}"
+        "must say which tool is being approved by id. got: {buf}"
     );
     assert!(
         buf.contains("approve"),
-        "승인 키 안내가 보여야 한다. got: {buf}"
+        "the approve key hint must be visible. got: {buf}"
     );
     assert!(
         buf.contains("cancel"),
-        "취소 키 안내가 보여야 한다. got: {buf}"
+        "the cancel key hint must be visible. got: {buf}"
     );
     assert!(
         !buf.contains("Pegboard grid"),
-        "승인 대화상자는 전체 본문을 차지해야 하며 그리드 제목이 새면 안 된다"
+        "the approval dialog must occupy the whole body; the grid title must not leak"
     );
 }
 
 #[test]
-fn 실행_중_pane은_tail의_line들을_보여준다() {
+fn running_pane_shows_tail_lines() {
     let state = State {
         view: View::Running {
             tool_id: "slow.tool",
@@ -81,30 +82,30 @@ fn 실행_중_pane은_tail의_line들을_보여준다() {
 
     assert!(
         buf.contains("Running"),
-        "pane 제목이 실행 중임을 밝혀야 한다. got: {buf}"
+        "the pane title must say it is running. got: {buf}"
     );
     assert!(
         buf.contains("esc cancel"),
-        "pane 제목은 취소 키를 안내해야 한다. got: {buf}"
+        "the pane title must advertise the cancel key. got: {buf}"
     );
     assert!(
         buf.contains("esc esc quit"),
-        "pane 제목은 두 번째 esc가 무엇을 하는지도 알려야 한다. got: {buf}"
+        "the pane title must also say what a second esc does. got: {buf}"
     );
     assert!(
         buf.contains("slow.tool"),
-        "무엇이 실행 중인지 도구 id로 밝혀야 한다. got: {buf}"
+        "must say which tool is running by id. got: {buf}"
     );
     for line in ["step one", "step two", "step th"] {
         assert!(
             buf.contains(line),
-            "라이브 tail의 {line:?} 줄이 보여야 한다. got: {buf}"
+            "the live tail line {line:?} must be visible. got: {buf}"
         );
     }
 }
 
 #[test]
-fn 출력이_아직_없는_실행_중_pane은_자리표시자를_보여준다() {
+fn running_pane_without_output_shows_placeholder() {
     let state = State {
         view: View::Running {
             tool_id: "slow.tool",
@@ -119,12 +120,12 @@ fn 출력이_아직_없는_실행_중_pane은_자리표시자를_보여준다() 
 
     assert!(
         buf.contains("no output yet"),
-        "출력 전 자리표시자가 보여야 한다. got: {buf}"
+        "the pre-output placeholder must be visible. got: {buf}"
     );
 }
 
 #[test]
-fn 취소를_요청한_실행_중_pane은_취소_중이라고_말한다() {
+fn running_pane_with_cancel_requested_says_cancelling() {
     let running = State {
         view: View::Running {
             tool_id: "slow.tool",
@@ -148,6 +149,6 @@ fn 취소를_요청한_실행_중_pane은_취소_중이라고_말한다() {
     let buf = rendered(&cancelling);
     assert!(
         buf.contains("cancelling"),
-        "취소 요청 뒤에는 취소 중이라고 말해야 한다. got: {buf}"
+        "must say cancelling after a cancel request. got: {buf}"
     );
 }

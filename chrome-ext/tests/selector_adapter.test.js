@@ -64,7 +64,7 @@ const binding = (role, field, selector, action) => ({ role, field, selector, act
 
 // --- planning (pure) ---------------------------------------------------
 
-test('계획은_input_trigger_output_바인딩을_역할별로_나눈다', () => {
+test('the_plan_splits_input_trigger_output_bindings_by_role', () => {
   const plan = planSelectorApplication(
     [
       binding(BINDING_ROLE.INPUT, 'query', '#q', TRIGGER_ACTION.CLICK),
@@ -80,7 +80,7 @@ test('계획은_input_trigger_output_바인딩을_역할별로_나눈다', () =>
   assert.equal(isActionable(plan), true);
 });
 
-test('인자가_없는_input_바인딩은_조용히_빠진다', () => {
+test('input_bindings_without_arguments_are_quietly_dropped', () => {
   // Mirrors `ExecutionPlan::build`: the page just keeps whatever was there.
   const plan = planSelectorApplication(
     [
@@ -96,7 +96,7 @@ test('인자가_없는_input_바인딩은_조용히_빠진다', () => {
   );
 });
 
-test('첫_trigger가_이기고_나머지는_무시된다', () => {
+test('the_first_trigger_wins_and_the_rest_are_ignored', () => {
   const plan = planSelectorApplication(
     [
       binding(BINDING_ROLE.TRIGGER, '', '#first', TRIGGER_ACTION.ENTER),
@@ -108,7 +108,7 @@ test('첫_trigger가_이기고_나머지는_무시된다', () => {
   assert.deepEqual(plan.trigger, { selector: '#first', action: TRIGGER_ACTION.ENTER });
 });
 
-test('빈_selector와_알_수_없는_역할과_비배열_입력은_계획을_만들지_않는다', () => {
+test('empty_selectors_unknown_roles_and_non_array_input_build_no_plan', () => {
   for (const bindings of [
     null,
     undefined,
@@ -121,7 +121,7 @@ test('빈_selector와_알_수_없는_역할과_비배열_입력은_계획을_만
   }
 });
 
-test('숫자와_불리언_인자는_문자열로_적힌다', () => {
+test('number_and_boolean_arguments_are_written_as_strings', () => {
   const plan = planSelectorApplication(
     [
       binding(BINDING_ROLE.INPUT, 'count', '#count', TRIGGER_ACTION.CLICK),
@@ -142,7 +142,7 @@ test('숫자와_불리언_인자는_문자열로_적힌다', () => {
 
 // --- application (fake DOM) --------------------------------------------
 
-test('계획_적용은_필드를_채우고_input_change_이벤트를_발생시킨다', () => {
+test('applying_a_plan_fills_fields_and_fires_input_change_events', () => {
   const field = fakeElement({ value: '' });
   const root = fakeRoot({ '#q': field });
   const plan = planSelectorApplication(
@@ -158,7 +158,7 @@ test('계획_적용은_필드를_채우고_input_change_이벤트를_발생시�
   assert.deepEqual(applied.missing, []);
 });
 
-test('click_trigger는_클릭하고_enter_trigger는_포커스_후_키_이벤트를_보낸다', () => {
+test('click_trigger_clicks_and_enter_trigger_focuses_then_sends_key_events', () => {
   const clickTarget = fakeElement();
   const clicked = applySelectorPlan(
     planSelectorApplication(
@@ -186,7 +186,7 @@ test('click_trigger는_클릭하고_enter_trigger는_포커스_후_키_이벤트
   assert.deepEqual(enterTarget.events, [...ENTER_KEY_EVENTS]);
 });
 
-test('output_읽기는_value를_우선하고_없으면_textContent를_쓴다', () => {
+test('output_read_prefers_value_and_falls_back_to_textcontent', () => {
   const root = fakeRoot({
     '#withValue': fakeElement({ value: 'from-value', textContent: 'ignored' }),
     '#withText': fakeElement({ value: '', textContent: 'from-text' }),
@@ -213,7 +213,7 @@ test('output_읽기는_value를_우선하고_없으면_textContent를_쓴다', (
   assert.deepEqual(applied.missing, ['#gone']);
 });
 
-test('일치하는_요소가_없으면_missing에_기록하고_계속_진행한다', () => {
+test('unmatched_elements_are_recorded_as_missing_and_the_run_continues', () => {
   const present = fakeElement({ value: '' });
   const root = fakeRoot({ '#present': present });
   const plan = planSelectorApplication(

@@ -18,7 +18,7 @@ import 'package:upeg/src/state/pin_provider.dart';
 
 void main() {
   group('PegboardMutations', () {
-    test('pin_mutation은_layout과_pinned_board_cache를_무효화한다', () async {
+    test('pin_mutation_invalidates_layout_and_pinned_board_cache', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       var layoutLoads = 0;
@@ -79,7 +79,7 @@ void main() {
       expect(pinnedBoardLoads, 2);
     });
 
-    test('move_mutation은_현재_board_layout을_무효화한다', () async {
+    test('move_mutation_invalidates_current_board_layout', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       var layoutLoads = 0;
@@ -126,7 +126,7 @@ void main() {
       expect(layoutLoads, 2);
     });
 
-    test('move_mutation은_FRB_실패시_layout을_무효화하지_않는다', () async {
+    test('move_mutation_does_not_invalidate_layout_on_FRB_failure', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       var layoutLoads = 0;
@@ -162,7 +162,7 @@ void main() {
     });
 
     test(
-      'reorder_mutation은_atomic_reorder_mutator를_호출하고_layout을_무효화한다',
+      'reorder_mutation_calls_atomic_reorder_mutator_and_invalidates_layout',
       () async {
         final boardKey = BoardKey.parse('dev');
         final toolId = ToolId.parse('num.hex_to_decimal');
@@ -208,7 +208,7 @@ void main() {
       },
     );
 
-    test('unpin_mutation은_해당_tool의_last_outcome_캐시를_정리한다', () async {
+    test('unpin_mutation_clears_last_outcome_cache_for_that_tool', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       final other = ToolId.parse('id.uuid_v7');
@@ -239,14 +239,15 @@ void main() {
 
       await container.read(pegboardMutationsProvider).unpin(boardKey, toolId);
 
-      // 스토어는 tombstone 트랜잭션에서 행을 지우고, 메모리 캐시도 같은
-      // 시점에 비워져야 재핀이 사라진 결과를 되살리지 않는다.
+      // The store deletes the row in the tombstone transaction, and the
+      // in-memory cache must be cleared at the same time so a re-pin
+      // never resurrects a stale outcome.
       final state = container.read(lastOutcomeProvider);
       expect(state.containsKey(toolId), isFalse);
       expect(state.containsKey(other), isTrue);
     });
 
-    test('setSpan_mutation은_span을_전달하고_layout을_무효화한다', () async {
+    test('setSpan_mutation_forwards_span_and_invalidates_layout', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       var layoutLoads = 0;
@@ -300,7 +301,7 @@ void main() {
       expect(layoutLoads, 2);
     });
 
-    test('clearSpan_mutation은_override를_지우고_layout을_무효화한다', () async {
+    test('clearSpan_mutation_clears_override_and_invalidates_layout', () async {
       final boardKey = BoardKey.parse('dev');
       final toolId = ToolId.parse('num.hex_to_decimal');
       var layoutLoads = 0;

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 타입_있는_입력은_필수와_선택_필드가_있는_정적_명세를_생성한다() {
+fn typed_inputs_generate_static_spec_with_required_and_optional_fields() {
     let inputs = vec![
         syn::parse_str::<ToolInput>(r#"required input: String = "Text""#).unwrap(),
         syn::parse_str::<ToolInput>(r#"optional n: Integer = "Count""#).unwrap(),
@@ -21,7 +21,7 @@ fn 타입_있는_입력은_필수와_선택_필드가_있는_정적_명세를_�
 }
 
 #[test]
-fn 타입_있는_입력은_모든_닫힌_타입을_허용한다() {
+fn typed_inputs_accept_all_closed_types() {
     for (ident, _) in SUPPORTED_INPUT_TYPES {
         let src = if *ident == "Options" || *ident == "MultiOptions" {
             format!("optional x: {ident}([\"a\", \"b\"])")
@@ -44,7 +44,7 @@ fn 타입_있는_입력은_모든_닫힌_타입을_허용한다() {
 }
 
 #[test]
-fn 출력은_outputs_파싱과_정적_명세를_생성한다() {
+fn outputs_parse_and_generate_static_spec() {
     let outputs = vec![
         syn::parse_str::<ToolOutput>(r#"result: Number = "10진수""#).unwrap(),
         syn::parse_str::<ToolOutput>(r#"view: EmbeddedView("https://transform.tools/")"#).unwrap(),
@@ -61,7 +61,7 @@ fn 출력은_outputs_파싱과_정적_명세를_생성한다() {
 }
 
 #[test]
-fn 숫자_제약은_min_max_default를_정적_구조로_방출한다() {
+fn number_constraints_emit_min_max_default_into_static_struct() {
     let parsed =
         syn::parse_str::<ToolInput>("required port: Number(min=1, max=65535, default=8080)")
             .unwrap();
@@ -73,7 +73,7 @@ fn 숫자_제약은_min_max_default를_정적_구조로_방출한다() {
 }
 
 #[test]
-fn 문자열_제약은_regex와_default를_정적_구조로_방출한다() {
+fn string_constraints_emit_regex_and_default_into_static_struct() {
     let parsed =
         syn::parse_str::<ToolInput>(r#"required pattern: String(regex="^[a-z]+$", default="abc")"#)
             .unwrap();
@@ -84,7 +84,7 @@ fn 문자열_제약은_regex와_default를_정적_구조로_방출한다() {
 }
 
 #[test]
-fn options_choice_값은_선택지_배열로_방출된다() {
+fn options_choice_values_emit_as_choice_array() {
     let parsed =
         syn::parse_str::<ToolInput>(r#"required base: Options(["hex", "dec", "bin"])"#).unwrap();
     let tokens = static_input_kind_expr(&parsed.ty, parsed.params.as_ref())
@@ -97,7 +97,7 @@ fn options_choice_값은_선택지_배열로_방출된다() {
 }
 
 #[test]
-fn 소스_타이머는_밀리초로_변환된다() {
+fn timer_source_converts_to_milliseconds() {
     let source: SourceArg = syn::parse_str(r#"Timer("30s")"#).unwrap();
     let tokens = build_source_expr(Some(&source)).unwrap().to_string();
     assert!(tokens.contains("StaticSource :: Timer"));
@@ -105,7 +105,7 @@ fn 소스_타이머는_밀리초로_변환된다() {
 }
 
 #[test]
-fn 소스_단축키는_정적_문자열로_방출된다() {
+fn shortcut_source_emits_as_static_string() {
     let source: SourceArg = syn::parse_str(r#"Shortcut("Cmd+Shift+N")"#).unwrap();
     let tokens = build_source_expr(Some(&source)).unwrap().to_string();
     assert!(tokens.contains("StaticSource :: Shortcut"));
@@ -113,7 +113,7 @@ fn 소스_단축키는_정적_문자열로_방출된다() {
 }
 
 #[test]
-fn 소스_매뉴얼과_스태틱은_단순_변형이다() {
+fn manual_and_static_sources_are_simple_variants() {
     let manual: SourceArg = syn::parse_str("Manual").unwrap();
     let static_src: SourceArg = syn::parse_str("Static").unwrap();
     assert!(matches!(manual, SourceArg::Manual));
@@ -123,13 +123,13 @@ fn 소스_매뉴얼과_스태틱은_단순_변형이다() {
 }
 
 #[test]
-fn 소스_기본값은_user_input이다() {
+fn default_source_is_user_input() {
     let tokens = build_source_expr(None).unwrap().to_string();
     assert!(tokens.contains("StaticSource :: UserInput"));
 }
 
 #[test]
-fn 소스_타이머_지속시간_파싱은_여러_접미사를_받는다() {
+fn timer_duration_parsing_accepts_multiple_suffixes() {
     use syn::LitStr;
     let make = |s: &str| LitStr::new(s, proc_macro2::Span::call_site());
     assert_eq!(parse_duration_to_ms(&make("500ms")).unwrap(), 500);
@@ -140,9 +140,10 @@ fn 소스_타이머_지속시간_파싱은_여러_접미사를_받는다() {
 }
 
 #[test]
-fn 소스_타이머_지속시간은_합성된_표현을_정확히_더한다() {
-    // humantime crate에 위임 — "1m30s" = 90s (이전 partition 구현은
-    // 130ms로 잘못 해석했음). 단위 분리·합산은 라이브러리에 맡긴다.
+fn timer_duration_sums_compound_expressions_exactly() {
+    // Delegated to the humantime crate — "1m30s" = 90s (the earlier
+    // partition implementation misread it as 130ms). Unit splitting and
+    // summation are left to the library.
     use syn::LitStr;
     let make = |s: &str| LitStr::new(s, proc_macro2::Span::call_site());
     assert_eq!(parse_duration_to_ms(&make("1m30s")).unwrap(), 90_000);
@@ -150,12 +151,12 @@ fn 소스_타이머_지속시간은_합성된_표현을_정확히_더한다() {
     assert_eq!(
         parse_duration_to_ms(&make("2s500ms")).unwrap(),
         2_500,
-        "humantime은 ms 단위의 합성도 받아들인다"
+        "humantime also accepts ms-granularity compounds"
     );
 }
 
 #[test]
-fn 타입_있는_입력은_알_수_없는_타입을_거부한다() {
+fn typed_inputs_reject_unknown_type() {
     let parsed = syn::parse_str::<ToolInput>("optional blob: Bytes").unwrap();
     let err = match build_static_input_spec_expr(&Some(vec![parsed])) {
         Ok(_) => panic!("unknown type should be rejected"),
@@ -168,7 +169,7 @@ fn 타입_있는_입력은_알_수_없는_타입을_거부한다() {
 }
 
 #[test]
-fn 타입_있는_입력은_중복_필드_이름을_거부한다() {
+fn typed_inputs_reject_duplicate_field_names() {
     let inputs = vec![
         syn::parse_str::<ToolInput>("required input: String").unwrap(),
         syn::parse_str::<ToolInput>("optional input: String").unwrap(),
@@ -184,7 +185,7 @@ fn 타입_있는_입력은_중복_필드_이름을_거부한다() {
 }
 
 #[test]
-fn 도구_인자는_원시_입력_schema_속성을_거부한다() {
+fn tool_args_reject_raw_input_schema_attribute() {
     let err = match syn::parse_str::<ToolArgs>(
         r#"id = "text.slugify", toolkit = "text", input_schema = "{\"type\":\"object\"}""#,
     ) {
@@ -199,7 +200,7 @@ fn 도구_인자는_원시_입력_schema_속성을_거부한다() {
 }
 
 #[test]
-fn 타입_있는_입력은_함수_시그니처와_일치해야_한다() {
+fn typed_inputs_must_match_function_signature() {
     let item_fn = syn::parse_str::<ItemFn>(
         "pub fn password_generate(length: usize, include_symbols: bool) -> String { String::new() }",
     )
@@ -214,7 +215,7 @@ fn 타입_있는_입력은_함수_시그니처와_일치해야_한다() {
 }
 
 #[test]
-fn 파일_입력은_파일값_참조_파라미터와_일치한다() {
+fn file_input_matches_file_value_ref_parameter() {
     let item_fn = syn::parse_str::<ItemFn>(
         "pub fn pptx_extract_images(input: &FileValue) -> Result<String, String> { Ok(String::new()) }",
     )
@@ -227,7 +228,7 @@ fn 파일_입력은_파일값_참조_파라미터와_일치한다() {
 }
 
 #[test]
-fn 파일_입력은_문자열_파라미터를_거부한다() {
+fn file_input_rejects_string_parameter() {
     let item_fn = syn::parse_str::<ItemFn>(
         "pub fn takes_text(input: &str) -> Result<String, String> { Ok(String::new()) }",
     )
@@ -243,7 +244,7 @@ fn 파일_입력은_문자열_파라미터를_거부한다() {
 }
 
 #[test]
-fn 타입_있는_입력은_누락된_시그니처_필드를_거부한다() {
+fn typed_inputs_reject_missing_signature_field() {
     let item_fn = syn::parse_str::<ItemFn>(
         "pub fn text_repeat(input: &str, n: usize) -> String { String::new() }",
     )
@@ -259,7 +260,7 @@ fn 타입_있는_입력은_누락된_시그니처_필드를_거부한다() {
 }
 
 #[test]
-fn 타입_있는_입력은_시그니처와_다른_이름을_거부한다() {
+fn typed_inputs_reject_names_differing_from_signature() {
     let item_fn = syn::parse_str::<ItemFn>(
         "pub fn text_contains(input: &str, pattern: &str) -> String { String::new() }",
     )
@@ -278,7 +279,7 @@ fn 타입_있는_입력은_시그니처와_다른_이름을_거부한다() {
 }
 
 #[test]
-fn 타입_있는_입력은_시그니처와_다른_타입을_거부한다() {
+fn typed_inputs_reject_types_differing_from_signature() {
     let item_fn =
         syn::parse_str::<ItemFn>("pub fn random_hex_bytes(n: usize) -> String { String::new() }")
             .unwrap();
@@ -293,12 +294,13 @@ fn 타입_있는_입력은_시그니처와_다른_타입을_거부한다() {
 }
 
 #[test]
-fn 오타난_pin으로_도구_매크로_인자를_파싱해도_파싱_자체는_성공한다() {
-    // 매크로 인자 파싱(`syn::parse_str::<ToolArgs>`)은 ident 문법만 확인하고,
-    // variant 값 검증은 `lib.rs`의 `tool()`에서 `validate_enum_ident`로 별도
-    // 수행한다. 여기서는 파싱 단계와 검증 단계가 분리돼 있음을 확인한다.
-    // (`validate_enum_ident`/`ALLOWED_PIN_KINDS`는 `upeg-tool-grammar`로
-    // 이동했다 — 그 자체 커버리지는 그 크레이트의 테스트가 담당한다.)
+fn tool_args_parse_succeeds_despite_misspelled_pin() {
+    // Macro-argument parsing (`syn::parse_str::<ToolArgs>`) only checks
+    // ident grammar; the variant value is validated separately by
+    // `validate_enum_ident` inside `tool()` in `lib.rs`. This confirms the
+    // parse and validate stages are separate.
+    // (`validate_enum_ident`/`ALLOWED_PIN_KINDS` moved to
+    // `upeg-tool-grammar` — their own coverage lives in that crate's tests.)
     let args: ToolArgs = syn::parse_str(
         r#"id = "text.slugify", toolkit = "text", pegboard_units = U1, pin = Inlin"#,
     )

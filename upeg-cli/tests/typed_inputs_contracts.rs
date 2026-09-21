@@ -377,7 +377,7 @@ fn failure_stderr(output: &Output, context: &str) -> String {
 }
 
 #[test]
-fn loader는_toml_입력들을_정확한_입력_명세로_파싱한다() {
+fn the_loader_parses_toml_inputs_into_an_exact_input_spec() {
     let toolkit = unique_toolkit("loader");
     let meta = parse_single_tool(&canonical_toolkit_toml(&toolkit));
 
@@ -387,7 +387,7 @@ fn loader는_toml_입력들을_정확한_입력_명세로_파싱한다() {
 }
 
 #[test]
-fn loader는_원시_input_schema와_알수없는_타입_그리고_유효하지_않은_선택지를_거부한다() {
+fn the_loader_rejects_raw_input_schema_unknown_types_and_invalid_choices() {
     let raw_schema = minimal_toolkit_toml(
         &unique_toolkit("raw_schema"),
         r#"input_schema = "{\"type\":\"object\",\"properties\":{}}""#,
@@ -437,7 +437,7 @@ fn loader는_원시_input_schema와_알수없는_타입_그리고_유효하지_�
 }
 
 #[tokio::test]
-async fn runtime은_openapi_mcp_desktop에_파생된_입력_명세를_내보낸다() {
+async fn the_runtime_exports_the_derived_input_spec_to_openapi_mcp_and_desktop() {
     let fixture = write_fixture_toolkit("protocols");
     let meta = load_runtime_fixture(&fixture);
     assert_canonical_input_spec(&meta.input_spec);
@@ -535,7 +535,7 @@ async fn runtime은_openapi_mcp_desktop에_파생된_입력_명세를_내보낸�
 }
 
 #[test]
-fn cli는_입력_명세를_기준으로_유효_및_유효하지_않은_인자_사례를_검증한다() {
+fn the_cli_validates_valid_and_invalid_argument_cases_against_the_input_spec() {
     let fixture = write_fixture_toolkit("cli");
 
     let valid_dynamic = run_upeg_with_fixture(
@@ -694,7 +694,7 @@ fn cli는_입력_명세를_기준으로_유효_및_유효하지_않은_인자_�
 }
 
 #[test]
-fn tui_폼_표면은_구동되는_기준_입력_명세를_따른다() {
+fn the_tui_form_surface_follows_the_driving_canonical_input_spec() {
     // Desktop generic-form branch coverage now lives in the Flutter
     // widget test `flutter_app/test/widgets/generic_form_test.dart`.
     // The TUI half stays here so the Rust workspace still pins typed
@@ -741,13 +741,13 @@ fn tui_폼_표면은_구동되는_기준_입력_명세를_따른다() {
 /// default rather than sending a literal `null` the dispatcher rejects
 /// (iter 108 regression).
 #[test]
-fn 빈_폼_필드는_dispatch_경로에서_기본값으로_왕복된다() {
+fn an_empty_form_field_round_trips_to_its_default_on_the_dispatch_path() {
     let tool = toolbox_tool("text.repeat").expect("text.repeat must be a registered built-in");
     let mut state = tool.input_spec.initial_form_state();
     for field in &mut state.fields {
         field.draft = match field.name.as_str() {
             "input" => DraftInputValue::Text("foo".to_string()),
-            "count" => DraftInputValue::Text(String::new()), // 사용자가 비워둔 필드
+            "count" => DraftInputValue::Text(String::new()), // the field the user left blank
             _ => field.draft.clone(),
         };
     }

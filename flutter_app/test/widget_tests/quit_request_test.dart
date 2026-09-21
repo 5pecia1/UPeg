@@ -10,7 +10,7 @@ import 'package:upeg/src/platform/app_lifecycle.dart';
 
 void main() {
   group('runQuitRequest', () {
-    test('확인_전에는_종료하지_않는다', () async {
+    test('does_not_quit_before_confirmation', () async {
       var quitCalls = 0;
       await runQuitRequest(
         confirm: () async => false,
@@ -21,7 +21,7 @@ void main() {
       expect(quitCalls, 0);
     });
 
-    test('확인하면_quit이_정확히_한번_호출된다', () async {
+    test('quit_is_called_exactly_once_when_confirmed', () async {
       var quitCalls = 0;
       await runQuitRequest(
         confirm: () async => true,
@@ -32,30 +32,36 @@ void main() {
       expect(quitCalls, 1);
     });
 
-    test('확인된_X_닫기는_shutdown을_거친_뒤_window를_닫는다', () async {
-      final calls = <String>[];
-      await runQuitRequest(
-        confirm: () async => true,
-        quit: () => runAppQuit(
-          shutdown: () => calls.add('shutdown'),
-          closeWindow: () async => calls.add('destroy'),
-        ),
-      );
-      // Lock/discovery cleanup (shutdown) must precede the window
-      // teardown — the X button can never bypass it.
-      expect(calls, ['shutdown', 'destroy']);
-    });
+    test(
+      'a_confirmed_X_close_goes_through_shutdown_then_closes_the_window',
+      () async {
+        final calls = <String>[];
+        await runQuitRequest(
+          confirm: () async => true,
+          quit: () => runAppQuit(
+            shutdown: () => calls.add('shutdown'),
+            closeWindow: () async => calls.add('destroy'),
+          ),
+        );
+        // Lock/discovery cleanup (shutdown) must precede the window
+        // teardown — the X button can never bypass it.
+        expect(calls, ['shutdown', 'destroy']);
+      },
+    );
 
-    test('confirm이_거부되면_shutdown도_window_닫기도_없다', () async {
-      final calls = <String>[];
-      await runQuitRequest(
-        confirm: () async => false,
-        quit: () => runAppQuit(
-          shutdown: () => calls.add('shutdown'),
-          closeWindow: () async => calls.add('destroy'),
-        ),
-      );
-      expect(calls, isEmpty);
-    });
+    test(
+      'when_confirm_is_denied_there_is_no_shutdown_or_window_close',
+      () async {
+        final calls = <String>[];
+        await runQuitRequest(
+          confirm: () async => false,
+          quit: () => runAppQuit(
+            shutdown: () => calls.add('shutdown'),
+            closeWindow: () async => calls.add('destroy'),
+          ),
+        );
+        expect(calls, isEmpty);
+      },
+    );
   });
 }

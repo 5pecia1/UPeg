@@ -2,7 +2,7 @@
     use crate::input::FileContent;
 
     #[test]
-    fn 출력_명세는_중복_이름을_거부한다() {
+    fn output_spec_rejects_duplicate_names() {
         let spec = OutputSpec::new(vec![
             OutputFieldSpec {
                 name: "x".to_string(),
@@ -26,7 +26,7 @@
     }
 
     #[test]
-    fn 출력_명세는_빈_이름을_거부한다() {
+    fn output_spec_rejects_empty_names() {
         let spec = OutputSpec::new(vec![OutputFieldSpec {
             name: String::new(),
             label: None,
@@ -38,7 +38,7 @@
     }
 
     #[test]
-    fn 출력_명세는_공백_있는_이름을_거부한다() {
+    fn output_spec_rejects_padded_names() {
         let spec = OutputSpec::new(vec![OutputFieldSpec {
             name: " name".to_string(),
             label: None,
@@ -50,7 +50,7 @@
     }
 
     #[test]
-    fn 정적_출력_명세는_owned로_변환된다() {
+    fn static_output_spec_converts_to_owned() {
         static FIELDS: &[StaticOutputFieldSpec] = &[
             StaticOutputFieldSpec {
                 name: "gwei",
@@ -85,7 +85,7 @@
     }
 
     #[test]
-    fn 출력_명세는_json_schema_값으로_내보낸다() {
+    fn output_spec_exports_as_json_schema_value() {
         let spec = OutputSpec::new(vec![
             OutputFieldSpec {
                 name: "summary".to_string(),
@@ -164,7 +164,7 @@
     }
 
     #[test]
-    fn 단일_숫자_출력은_텍스트를_structured_content로_감싼다() {
+    fn single_number_output_wraps_text_as_structured_content() {
         let spec = OutputSpec::new(vec![OutputFieldSpec {
             name: "result".to_string(),
             label: None,
@@ -181,7 +181,7 @@
     }
 
     #[test]
-    fn json_출력은_텍스트_json을_structured_content_값으로_파싱한다() {
+    fn json_output_parses_text_json_into_a_structured_content_value() {
         let spec = OutputSpec::new(vec![OutputFieldSpec {
             name: "formatted".to_string(),
             label: None,
@@ -198,7 +198,7 @@
     }
 
     #[test]
-    fn 여러_출력은_객체_텍스트일_때만_structured_content로_사용한다() {
+    fn multiple_outputs_use_structured_content_only_for_object_text() {
         let spec = OutputSpec::new(vec![
             OutputFieldSpec {
                 name: "left".to_string(),
@@ -225,7 +225,7 @@
     }
 
     #[test]
-    fn 출력_종류_라벨은_모든_변형에_대해_고유하다() {
+    fn output_kind_labels_are_unique_for_every_variant() {
         let kinds = [
             OutputKind::String,
             OutputKind::Number,
@@ -246,7 +246,7 @@
     }
 
     #[test]
-    fn 출력_값은_파일과_뷰_임베드를_담을_수_있다() {
+    fn output_value_can_hold_files_and_view_embeds() {
         let file = OutputValue::File(FileValue {
             name: "x.bin".to_string(),
             content: FileContent::Bytes(vec![1, 2, 3]),
@@ -258,7 +258,7 @@
     }
 
     #[test]
-    fn 단일_output은_primary로_json화된다() {
+    fn single_output_serializes_to_json_as_primary() {
         let success = ToolSuccess::new(
             Some("result".to_string()),
             vec![OutputEntry {
@@ -288,7 +288,7 @@
     }
 
     #[test]
-    fn 다중_output은_모든_entry를_json화한다() {
+    fn multiple_outputs_serialize_every_entry_to_json() {
         let success = ToolSuccess::new(
             Some("summary".to_string()),
             vec![
@@ -332,7 +332,7 @@
     }
 
     #[test]
-    fn output이_없으면_primary는_null이다() {
+    fn without_outputs_primary_is_null() {
         let success = ToolSuccess::new(None, Vec::new()).expect("valid success");
 
         assert_eq!(
@@ -346,7 +346,7 @@
     }
 
     #[test]
-    fn primary_output_id가_없는_다중_output은_거부된다() {
+    fn multiple_outputs_without_primary_output_id_are_rejected() {
         let success = ToolSuccess::new(
             None,
             vec![
@@ -372,7 +372,7 @@
     }
 
     #[test]
-    fn primary_output_id가_유효하지_않으면_거부된다() {
+    fn invalid_primary_output_id_is_rejected() {
         let success = ToolSuccess::new(
             Some("missing".to_string()),
             vec![OutputEntry {
@@ -390,7 +390,7 @@
     }
 
     #[test]
-    fn 중복_output_id는_거부된다() {
+    fn duplicate_output_ids_are_rejected() {
         let success = ToolSuccess::new(
             Some("result".to_string()),
             vec![
@@ -416,7 +416,7 @@
     }
 
     #[test]
-    fn error는_구조화된_json으로_직렬화된다() {
+    fn error_serializes_as_structured_json() {
         let failure = ToolResult::Failure(ToolFailure {
             error: ToolError {
                 code: "tool.failed".to_string(),

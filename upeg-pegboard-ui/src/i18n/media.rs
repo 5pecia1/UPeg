@@ -50,7 +50,7 @@ pub(super) static KO: Map<&'static str, &'static str> = phf_map! {
 mod tests {
     use super::*;
     #[test]
-    fn 이미지_변환_문구는_두_언어에서_같은_키를_가진다() {
+    fn image_conversion_copy_has_the_same_keys_in_both_languages() {
         assert_eq!(EN.len(), KO.len());
         for key in EN.keys() {
             assert!(KO.contains_key(key), "{key}");

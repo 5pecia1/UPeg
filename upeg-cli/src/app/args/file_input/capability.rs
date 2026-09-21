@@ -139,62 +139,61 @@ mod tests {
     const CLEANUP_RESULT_DEADLINE: Duration = Duration::from_secs(1);
 
     #[test]
-    fn 검사한_일반_파일이_fifo로_교체되어도_열기가_대기하지_않는다() {
-        let temp = tempdir().expect("테스트 디렉터리를 만들어야 한다");
+    fn open_does_not_block_when_the_inspected_regular_file_is_swapped_for_a_fifo() {
+        let temp = tempdir().expect("must create the test directory");
         let path = temp.path().join("input.png");
         let name = path
             .file_name()
-            .expect("테스트 파일 이름이 있어야 한다")
+            .expect("the test file must have a name")
             .to_os_string();
-        fs::write(&path, b"regular").expect("검사할 일반 파일을 써야 한다");
-        let directory =
-            open_directory_nofollow(temp.path()).expect("테스트 디렉터리를 열어야 한다");
+        fs::write(&path, b"regular").expect("must write the regular file to inspect");
+        let directory = open_directory_nofollow(temp.path()).expect("must open the test directory");
         let inspected = directory
             .symlink_metadata(&name)
-            .expect("일반 파일 metadata를 검사해야 한다");
-        fs::remove_file(&path).expect("검사한 일반 파일을 제거해야 한다");
+            .expect("must inspect the regular file's metadata");
+        fs::remove_file(&path).expect("must remove the inspected regular file");
         let fifo_created = Command::new(FIFO_CREATOR)
             .arg(&path)
             .status()
-            .expect("FIFO 생성 명령을 실행해야 한다");
-        assert!(fifo_created.success(), "FIFO를 만들어야 한다");
+            .expect("must run the FIFO creation command");
+        assert!(fifo_created.success(), "must create the FIFO");
         let (started_sender, started_receiver) = mpsc::channel();
         let (result_sender, result_receiver) = mpsc::channel();
 
         let opener = thread::spawn(move || {
             started_sender
                 .send(())
-                .expect("파일 열기 시작을 알려야 한다");
+                .expect("must report the file open starting");
             let result = open_child_file_nofollow(&directory, &name, &inspected).map(drop);
             result_sender
                 .send(result)
-                .expect("파일 열기 결과를 보내야 한다");
+                .expect("must send the file open result");
         });
         started_receiver
             .recv()
-            .expect("파일 열기 시작을 받아야 한다");
+            .expect("must receive the file open start");
 
         match result_receiver.recv_timeout(OPEN_RESULT_DEADLINE) {
             Ok(result) => {
-                opener.join().expect("파일 열기 thread가 종료되어야 한다");
-                assert!(result.is_err(), "FIFO 교체를 거부해야 한다");
+                opener.join().expect("the file open thread must exit");
+                assert!(result.is_err(), "the FIFO swap must be rejected");
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 let writer = fs::OpenOptions::new()
                     .write(true)
                     .open(&path)
-                    .expect("대기 중인 FIFO reader를 정리해야 한다");
+                    .expect("must clean up the waiting FIFO reader");
                 drop(writer);
                 result_receiver
                     .recv_timeout(CLEANUP_RESULT_DEADLINE)
-                    .expect("FIFO reader 정리가 제한 시간 안에 끝나야 한다")
-                    .expect_err("FIFO 교체를 거부해야 한다");
-                opener.join().expect("파일 열기 thread가 종료되어야 한다");
-                panic!("FIFO로 교체된 파일을 여는 동안 대기했다");
+                    .expect("FIFO reader cleanup must finish within the deadline")
+                    .expect_err("the FIFO swap must be rejected");
+                opener.join().expect("the file open thread must exit");
+                panic!("blocked while opening a file swapped for a FIFO");
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                opener.join().expect("파일 열기 thread가 종료되어야 한다");
-                panic!("파일 열기 결과 channel이 끊어졌다");
+                opener.join().expect("the file open thread must exit");
+                panic!("the file open result channel disconnected");
             }
         }
     }

@@ -228,6 +228,7 @@
       font-weight: 600;
     }
 
+    #endpoint-input,
     #token-input {
       box-sizing: border-box;
       width: 100%;
@@ -239,6 +240,10 @@
       color: FieldText;
       font: inherit;
       font-size: 12px;
+    }
+
+    #endpoint-input {
+      font-family: ui-monospace, monospace;
     }
 
     .settings-actions {
@@ -258,10 +263,17 @@
       cursor: pointer;
     }
 
+    #endpoint-status,
     #token-status {
       margin: 0;
       font-size: 11px;
       color: color-mix(in srgb, CanvasText 60%, Canvas);
+    }
+
+    #pairing-help {
+      margin: 8px 0 10px;
+      font-size: 11px;
+      color: color-mix(in srgb, CanvasText 55%, Canvas);
     }
 
     /* Direct-dispatch panel (Task B2) — inline form + result for
@@ -369,6 +381,20 @@
   </div>
   <p id="site-status" aria-live="polite"></p>
   <div id="settings-panel" hidden>
+    <label for="endpoint-input" data-i18n="endpointInputLabel"></label>
+    <input
+      id="endpoint-input"
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      inputmode="url"
+      data-i18n-placeholder="endpointInputPlaceholder"
+    />
+    <div class="settings-actions">
+      <button id="endpoint-save" type="button" data-i18n="endpointSaveButton"></button>
+      <button id="endpoint-reset" type="button" data-i18n="endpointResetButton"></button>
+    </div>
+    <p id="endpoint-status" aria-live="polite"></p>
     <label for="token-input" data-i18n="tokenInputLabel"></label>
     <input
       id="token-input"
@@ -382,6 +408,7 @@
       <button id="token-clear" type="button" data-i18n="tokenClearButton"></button>
     </div>
     <p id="token-status" aria-live="polite"></p>
+    <p id="pairing-help" data-i18n="pairingHelp"></p>
   </div>
   <div id="board-tabs" role="tablist" data-i18n-aria-label="boardTabsAriaLabel" hidden></div>
   <div id="tool-list" role="listbox" data-i18n-aria-label="toolListAriaLabel" hidden></div>

@@ -24,7 +24,7 @@ use upeg_wasm::register_from_bytes;
 static TEST_PLUGIN_WASM: &[u8] = include_bytes!("fixtures/test_plugin.wasm");
 
 #[test]
-fn 플러그인_로드는_선언된_도구를_등록한다() {
+fn plugin_load_registers_declared_tools() {
     let ids = register_from_bytes(TEST_PLUGIN_WASM).expect("test plugin should load + register");
     // The fixture's `manifest` export declares two tools whose ids
     // follow upeg's `{toolkit}.{tool}` convention while pointing
@@ -38,7 +38,7 @@ fn 플러그인_로드는_선언된_도구를_등록한다() {
 }
 
 #[test]
-fn wasm_도구_실행은_플러그인_함수를_실행한다() {
+fn wasm_tool_execution_runs_plugin_function() {
     let _ = register_from_bytes(TEST_PLUGIN_WASM).expect("load");
 
     let result = upeg_runtime::try_runtime_dispatch(
@@ -68,7 +68,7 @@ fn wasm_도구_실행은_플러그인_함수를_실행한다() {
 }
 
 #[test]
-fn wasm_도구_메타는_manifest의_설명을_가진다() {
+fn wasm_tool_meta_carries_manifest_description() {
     let _ = register_from_bytes(TEST_PLUGIN_WASM).expect("load");
     let meta = upeg_runtime::toolbox_tool("test.wasm.echo").expect("registered");
     assert!(meta.description.contains("Echo"));
@@ -76,7 +76,7 @@ fn wasm_도구_메타는_manifest의_설명을_가진다() {
 }
 
 #[test]
-fn 같은_플러그인을_다시_등록해도_조회에는_멱등이다() {
+fn reregistering_same_plugin_keeps_lookup_idempotent() {
     // Loading the plugin twice should leave the registry consistent.
     // The second register replaces the dispatcher (tested in upeg-core);
     // we just confirm the tool stays callable.

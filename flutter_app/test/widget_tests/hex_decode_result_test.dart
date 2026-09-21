@@ -13,49 +13,49 @@ import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/hex_decode_result.
 
 void main() {
   group('decodeHex', () {
-    test('decodeHex는_올바른_hex를_decimal로_반환한다', () {
+    test('decodehex_returns_valid_hex_as_decimal', () {
       expect(
         decodeHex('ff'),
         const HexDecodeResult.ok(decimal: 255, hexNormalized: 'ff'),
       );
     });
 
-    test('decodeHex는_0x_접두사를_허용한다', () {
+    test('decodehex_accepts_a_0x_prefix', () {
       expect(
         decodeHex('0xFF'),
         const HexDecodeResult.ok(decimal: 255, hexNormalized: 'ff'),
       );
     });
 
-    test('decodeHex는_앞뒤_공백을_벗긴다', () {
+    test('decodehex_strips_surrounding_whitespace', () {
       expect(
         decodeHex('  ff  '),
         const HexDecodeResult.ok(decimal: 255, hexNormalized: 'ff'),
       );
     });
 
-    test('decodeHex는_대문자를_소문자로_정규화한다', () {
+    test('decodehex_normalizes_uppercase_to_lowercase', () {
       expect(
         decodeHex('CAFE'),
         const HexDecodeResult.ok(decimal: 0xcafe, hexNormalized: 'cafe'),
       );
     });
 
-    test('decodeHex는_빈_문자열을_empty로_반환한다', () {
+    test('decodehex_returns_empty_for_an_empty_string', () {
       expect(decodeHex(''), const HexDecodeResult.empty());
     });
 
-    test('decodeHex는_공백만_있는_문자열을_empty로_반환한다', () {
+    test('decodehex_returns_empty_for_a_whitespace_only_string', () {
       expect(decodeHex('   '), const HexDecodeResult.empty());
     });
 
-    test('decodeHex는_잘못된_문자열을_error로_반환한다', () {
+    test('decodehex_returns_error_for_an_invalid_string', () {
       final r = decodeHex('xyz');
       expect(r, isA<HexDecodeError>());
       expect((r as HexDecodeError).message, isNotEmpty);
     });
 
-    test('decodeHex는_0x만_있을때_error로_반환한다', () {
+    test('decodehex_returns_error_for_a_bare_0x', () {
       expect(decodeHex('0x'), isA<HexDecodeError>());
     });
   });

@@ -1,11 +1,11 @@
-//! `input_tests` 모듈의 짝 — 페그보드 목록/필터 조합과 키보드 포커스
-//! 순환 회귀 테스트만 모은다. 워크스페이스 1000-LoC 파일 크기 예산
-//! 때문에 분리했다.
+//! Companion to the `input_tests` module — collects only pegboard
+//! list/filter composition and keyboard focus-cycling regression tests.
+//! Split out for the workspace 1000-LoC file-size budget.
 
 use super::*;
 
 #[test]
-fn 도구_목록은_공유_페그보드_레이아웃_순서를_따른다() {
+fn tool_list_follows_shared_pegboard_layout_order() {
     // Both queries must read the same UPEG_HOME. HTTP fixtures temporarily
     // select a store containing their own board and pin under this lock.
     let _home = crate::test_support::pegboard_home_test_lock()
@@ -24,7 +24,7 @@ fn 도구_목록은_공유_페그보드_레이아웃_순서를_따른다() {
 }
 
 #[test]
-fn 보드와_태그별_도구_목록은_필터를_조합한다() {
+fn tool_list_by_board_and_tag_composes_filters() {
     let id = "test.tui_filter_custom";
     upeg_runtime::toolbox_add_tool(ToolMeta {
         id,
@@ -36,6 +36,8 @@ fn 보드와_태그별_도구_목록은_필터를_조합한다() {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -54,13 +56,13 @@ fn 보드와_태그별_도구_목록은_필터를_조합한다() {
         upeg_sources::pegboard::tools_for_board_and_tag_in(&state, Some("dev"), Some("custom"));
     assert!(
         dev_pure.iter().any(|t| t.id == id),
-        "dev + custom은 등록된 fixture 도구를 포함해야 한다"
+        "dev + custom must include the registered fixture tool"
     );
     assert!(
         dev_pure
             .iter()
             .all(|t| t.is_on_board("dev") && t.has_tag("custom")),
-        "모든 결과는 두 필터를 모두 만족해야 한다"
+        "every result must satisfy both filters"
     );
 
     let none = upeg_sources::pegboard::tools_for_board_and_tag_in(
@@ -68,13 +70,17 @@ fn 보드와_태그별_도구_목록은_필터를_조합한다() {
         Some("dev"),
         Some("definitely-no-such-tag"),
     );
-    assert!(none.is_empty(), "알 수 없는 태그는 빈 결과로 좁혀져야 한다");
+    assert!(
+        none.is_empty(),
+        "an unknown tag must narrow to an empty result"
+    );
 }
 
 #[test]
-fn tui는_공유_페그보드_보드와_그래픽_메타데이터를_사용한다() {
-    // 런타임과 같은 방식으로 State를 부트스트랩해서, 테스트가 디스크를
-    // 다시 읽는 대신 캐시에서 파생된 보드/태그 옵션 경로를 검증한다.
+fn tui_uses_shared_pegboard_boards_and_graphic_metadata() {
+    // Bootstrap State the same way the runtime does, so the test
+    // exercises the board/tag option path derived from the cache instead
+    // of re-reading the disk.
     let shared = upeg_sources::pegboard::load_state();
     let mut state = State {
         boards: shared.boards,
@@ -84,7 +90,7 @@ fn tui는_공유_페그보드_보드와_그래픽_메타데이터를_사용한�
     let boards = state.board_filter_options();
     assert!(
         boards.iter().any(|board| board == "trading"),
-        "TUI 보드 막대는 공유 GUI 보드 `trading`을 포함해야 한다"
+        "the TUI board bar must include the shared GUI board `trading`"
     );
 
     let trading = list_tools_for_board_and_tag(Some("trading"), None);
@@ -96,26 +102,26 @@ fn tui는_공유_페그보드_보드와_그래픽_메타데이터를_사용한�
     let net_status = trading
         .iter()
         .find(|tool| tool.id == "net.status")
-        .expect("공유 trading 레이아웃은 GUI 전용 net.status 메타데이터를 해석해야 한다");
+        .expect("shared trading layout must resolve the GUI-only net.status metadata");
     assert!(
         net_status.is_on_surface(Surface::Desktop),
-        "net.status는 Desktop 가능 GUI 도구로 남아야 한다"
+        "net.status must remain a Desktop-capable GUI tool"
     );
     assert!(
         !net_status.is_on_surface(Surface::Tui),
-        "TUI는 GUI 전용 메타데이터를 실행 가능한 척하지 않고 검사해야 한다"
+        "the TUI must inspect GUI-only metadata without pretending it can run it"
     );
 
     state.filters.select_board("trading");
     let tags = state.tag_filter_options();
     assert!(
         tags.iter().any(|tag| tag == "eth"),
-        "TUI 태그 막대는 선택된 공유 보드 레이아웃에서 태그를 파생해야 한다"
+        "the TUI tag bar must derive tags from the selected shared board layout"
     );
 }
 
 #[test]
-fn 필터키는_도구를_실행하지_않고_보드와_태그를_순환한다() {
+fn filter_keys_cycle_boards_and_tags_without_running_tools() {
     let mut state = State {
         cursor: 2,
         view: View::Detail,
@@ -125,7 +131,7 @@ fn 필터키는_도구를_실행하지_않고_보드와_태그를_순환한다()
     assert!(apply_filter_key(&mut state, Key::Char('b')));
     assert!(
         state.filters.board.is_some(),
-        "b는 전체에서 첫 보드로 순환해야 한다"
+        "b must cycle from All to the first board"
     );
     assert_eq!(state.cursor, 0);
     assert_eq!(state.view, View::List);
@@ -133,20 +139,17 @@ fn 필터키는_도구를_실행하지_않고_보드와_태그를_순환한다()
     assert!(apply_filter_key(&mut state, Key::Char('t')));
     assert!(
         state.filters.tag.is_some(),
-        "t는 전체에서 첫 태그로 순환해야 한다"
+        "t must cycle from All to the first tag"
     );
     assert_eq!(state.cursor, 0);
     assert_eq!(state.view, View::List);
 
     assert!(apply_filter_key(&mut state, Key::Char('0')));
-    assert!(
-        state.filters.board.is_none(),
-        "0은 모든 보드로 돌아가야 한다"
-    );
+    assert!(state.filters.board.is_none(), "0 must return to all boards");
 }
 
 #[test]
-fn 탭과_역탭은_기본_키보드_포커스를_순환한다() {
+fn tab_and_backtab_cycle_default_keyboard_focus() {
     let mut state = fresh();
     let tools = fixture_tools();
     let tools = tools.as_slice();
@@ -201,7 +204,7 @@ fn 탭과_역탭은_기본_키보드_포커스를_순환한다() {
 }
 
 #[test]
-fn 키보드_보드_포커스는_이동하고_보드_필터를_적용한다() {
+fn keyboard_board_focus_moves_and_applies_board_filter() {
     let mut state = State {
         cursor: 2,
         view: View::Detail,
@@ -224,7 +227,7 @@ fn 키보드_보드_포커스는_이동하고_보드_필터를_적용한다() {
     assert_eq!(state.focus, FocusArea::Boards);
     assert!(
         state.filters.board.is_some(),
-        "보드 포커스는 마우스 입력 없이 포커스된 보드를 적용해야 한다"
+        "board focus must apply the focused board with no mouse input"
     );
     assert_eq!(state.cursor, 0);
     assert_eq!(state.grid_scroll, 0);
@@ -233,7 +236,7 @@ fn 키보드_보드_포커스는_이동하고_보드_필터를_적용한다() {
 }
 
 #[test]
-fn 키보드_태그_포커스는_이동하고_태그_필터를_적용한다() {
+fn keyboard_tag_focus_moves_and_applies_tag_filter() {
     let mut state = State {
         cursor: 2,
         filters: TuiFilters::from_options(Some("dev"), None),
@@ -259,7 +262,7 @@ fn 키보드_태그_포커스는_이동하고_태그_필터를_적용한다() {
     assert_eq!(state.filters.board.as_deref(), Some("dev"));
     assert!(
         state.filters.tag.is_some(),
-        "태그 포커스는 마우스 입력 없이 포커스된 태그를 적용해야 한다"
+        "tag focus must apply the focused tag with no mouse input"
     );
     assert_eq!(state.cursor, 0);
     assert_eq!(state.grid_scroll, 0);
@@ -268,7 +271,7 @@ fn 키보드_태그_포커스는_이동하고_태그_필터를_적용한다() {
 }
 
 #[test]
-fn 키보드_태그_포커스는_포커스된_옵션이_보이도록_스크롤한다() {
+fn keyboard_tag_focus_scrolls_focused_option_into_view() {
     static TAGS: &[&str] = &[
         "zz-keyboard-overflow-00",
         "zz-keyboard-overflow-01",
@@ -285,6 +288,8 @@ fn 키보드_태그_포커스는_포커스된_옵션이_보이도록_스크롤�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -311,12 +316,12 @@ fn 키보드_태그_포커스는_포커스된_옵션이_보이도록_스크롤�
     assert_eq!(state.focus, FocusArea::Tags);
     assert!(
         state.tag_scroll > 0,
-        "화면 밖 태그로 키보드 이동하면 가로 스크롤이 조정되어야 한다"
+        "moving the keyboard to an off-screen tag must adjust horizontal scroll"
     );
 }
 
 #[test]
-fn 오른쪽_패널_포커스는_키보드로_결과를_스크롤한다() {
+fn right_pane_focus_scrolls_result_with_keyboard() {
     let mut state = State {
         focus: FocusArea::RightPane,
         view: View::Result {

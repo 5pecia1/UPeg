@@ -19,7 +19,7 @@ const RETIRED_IDENTIFIERS: &[&str] = &[
 ];
 
 #[test]
-fn 프로덕션_소스는_퇴역한_schema_폼_api를_사용하지_않는다() {
+fn production_sources_do_not_use_retired_schema_form_apis() {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("upeg-core has a workspace parent")

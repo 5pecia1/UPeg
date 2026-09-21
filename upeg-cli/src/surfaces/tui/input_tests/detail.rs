@@ -1,16 +1,16 @@
-//! `input_tests` 모듈의 짝 — Detail 보기 회귀 테스트만 모은다.
-//! 워크스페이스 1000-LoC 파일 크기 예산 때문에 분리했다.
+//! Companion to the `input_tests` module — collects only Detail-view
+//! regression tests. Split out for the workspace 1000-LoC file-size budget.
 
 use super::*;
 
 #[test]
-fn 상세_보기는_embed_메타데이터를_표시한다() {
-    // 142회차: `upeg tool show` 텍스트와의 동등성(91/93/124회차).
-    // TUI Detail에서 검사한 Embed 도구는 URL과 바인딩을 보여줘야 한다.
-    // 142회차 전에는 이들이 조용히 빠져 있었다.
+fn detail_view_shows_embed_metadata() {
+    // Iter 142: parity with `upeg tool show` text (iters 91/93/124).
+    // An Embed tool inspected in TUI Detail must show its URL and
+    // bindings. Before iter 142 they were silently omitted.
     use ratatui::backend::TestBackend;
 
-    // embed_url과 바인딩이 있는 런타임 Embed 도구를 등록한다.
+    // Register a runtime Embed tool that has embed_url and bindings.
     let id = "test.iter142.tui_embed";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -24,6 +24,8 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -43,16 +45,16 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
         }],
     );
 
-    let tools = vec![upeg_runtime::toolbox_tool(id).expect("도구가 등록되어야 한다")];
+    let tools = vec![upeg_runtime::toolbox_tool(id).expect("tool must be registered")];
 
-    // 커서를 해당 도구로 옮기고 Detail로 전환한다.
+    // Move the cursor to that tool and switch to Detail.
     let state = State {
         cursor: 0,
         view: View::Detail,
         ..State::default()
     };
 
-    // Detail 본문이 들어가도록 넉넉한 크기로 렌더링한다.
+    // Render large enough to fit the Detail body.
     let backend = TestBackend::new(120, 36);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
@@ -60,32 +62,33 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
 
     assert!(
         buf_string.contains("embed_url"),
-        "TUI Detail은 embed_url을 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show embed_url. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("iter142.example"),
-        "TUI Detail은 URL 값을 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the URL value. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("controlled_embed.bindings"),
-        "TUI Detail은 controlled_embed.bindings 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the controlled_embed.bindings header. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("input"),
-        "TUI Detail은 바인딩 필드를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the binding field. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains(".q"),
-        "TUI Detail은 바인딩 선택자를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the binding selector. rendered: {buf_string}"
     );
 }
 
 #[test]
-fn 상세_보기는_입력_schema를_표시한다() {
-    // 181회차: TUI Detail은 도구의 inputs 섹션을 보여줘야 한다
-    // (180회차 CLI 텍스트 수정과 대응). 181회차 전 사용자는 단순 검사만
-    // 하려 해도 'r'을 눌러 Form 보기로 들어가야 스키마를 볼 수 있었다.
-    // hex_to_decimal에는 필수 문자열 필드 `input`이 하나 있다.
+fn detail_view_shows_input_schema() {
+    // Iter 181: TUI Detail must show the tool's inputs section
+    // (counterpart to the iter-180 CLI text fix). Before iter 181 a user
+    // who only wanted to inspect still had to press 'r' into the Form
+    // view to see the schema. hex_to_decimal has one required string
+    // field, `input`.
     use ratatui::backend::TestBackend;
 
     let tools = vec![detail_input_tool()];
@@ -102,19 +105,20 @@ fn 상세_보기는_입력_schema를_표시한다() {
 
     assert!(
         buf_string.contains("inputs"),
-        "TUI Detail은 inputs 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the inputs header. rendered: {buf_string}"
     );
-    // 필드 행 형태: 이름 (타입, 필수 여부) — 설명.
+    // Field row shape: name (type, required) — description.
     assert!(
         buf_string.contains("(string, required)"),
-        "TUI Detail은 필드 타입과 필수 표시를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the field type and required marker. rendered: {buf_string}"
     );
 }
 
 #[test]
-fn 상세_보기는_schema가_비어_있으면_없음을_표시한다() {
-    // 181회차 짝 케이스: 무인자 도구(id.uuid_v7)는 보드와 CLI 텍스트 수정과
-    // 같은 관례로 "(none)" 자리표시자를 받는다.
+fn detail_view_shows_none_when_schema_empty() {
+    // Iter-181 companion case: a no-arg tool (id.uuid_v7) gets the
+    // "(none)" placeholder, the same convention as the board and CLI
+    // text fixes.
     use ratatui::backend::TestBackend;
 
     let tools = vec![detail_no_input_tool()];
@@ -131,10 +135,10 @@ fn 상세_보기는_schema가_비어_있으면_없음을_표시한다() {
 
     assert!(
         buf_string.contains("inputs"),
-        "스키마가 비어 있어도 TUI Detail은 inputs 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the inputs header even with an empty schema. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("(none)"),
-        "TUI Detail은 무인자 도구에 `(none)`을 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show `(none)` for a no-arg tool. rendered: {buf_string}"
     );
 }

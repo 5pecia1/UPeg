@@ -3,7 +3,7 @@
 set -euo pipefail
 readonly RUST_VERSION=1.92.0
 readonly FLUTTER_VERSION=3.44.0
-readonly CARGO_DENY_VERSION=0.18.2
+readonly CARGO_DENY_VERSION=0.18.9
 readonly WASM_TARGET=wasm32-unknown-unknown
 readonly DEFAULT_LANES=(rust wasm flutter licenses)
 export UPEG_PROJECT_MANIFEST_PATH=off
@@ -28,6 +28,9 @@ unset UPEG_LOG_PATH UPEG_CREDENTIALS_PATH GH_TOKEN GITHUB_TOKEN
 verify_lane() {
   case "$1" in
     rust)
+      # This lane runs in the exported checkout, where quality/ is at root.
+      python3 quality/public_language_check.py self-test
+      python3 quality/public_language_check.py check
       browser="${UPEG_BROWSER_PATH:-${CHROME_EXECUTABLE:-}}"
       if [ -z "$browser" ]; then
         browser="$(command -v google-chrome || command -v chromium || true)"
@@ -50,14 +53,20 @@ verify_lane() {
       done
       ;;
     flutter)
+      python3 scripts/flutter_i18n_check.py self-test
+      python3 scripts/flutter_i18n_check.py check --baseline fixtures/flutter-i18n-baseline.json
       flutter --version | grep -F "Flutter $FLUTTER_VERSION " >/dev/null
       (cd flutter_app && flutter pub get --enforce-lockfile && flutter analyze && flutter test)
       just flutter-build-linux
       just flutter-build-web
       ;;
     licenses)
-      cargo deny --version | grep -F "cargo-deny $CARGO_DENY_VERSION" >/dev/null
-      cargo deny --locked --all-features check licenses sources
+      if ! cargo deny --version | grep -Fx "cargo-deny $CARGO_DENY_VERSION" >/dev/null; then
+        printf 'Verification requires cargo-deny %s; install with cargo install cargo-deny --locked --version %s.\n' \
+          "$CARGO_DENY_VERSION" "$CARGO_DENY_VERSION" >&2
+        return 1
+      fi
+      cargo deny --locked --all-features check advisories licenses sources
       ;;
     *) printf 'Unknown verification lane: %s\n' "$1" >&2; return 1 ;;
   esac

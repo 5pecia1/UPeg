@@ -107,11 +107,11 @@ optional = true
 [dependencies.regex]
 version = "1.10"
 
+[dependencies.skrifa]
+version = "0.44"
+
 [dependencies.thiserror]
 version = "2.0"
-
-[dependencies.ttf-parser]
-version = "0.25"
 
 [dependencies.unicode-normalization]
 version = "0.1"
@@ -145,7 +145,7 @@ optional = true
 default-features = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.lopdf]
-version = "0.42.0"
+version = "0.44.0"
 features = ["rayon"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.oar-ocr]
@@ -180,6 +180,6 @@ default-features = false
 version = "0.7"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.lopdf]
-version = "0.42.0"
+version = "0.44.0"
 features = ["wasm_js"]
 default-features = false

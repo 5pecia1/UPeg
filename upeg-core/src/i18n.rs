@@ -106,13 +106,13 @@ mod tests {
     }
 
     #[test]
-    fn 직접_조회는_번역을_반환한다() {
+    fn direct_lookup_returns_the_translation() {
         assert_eq!(t(Locale::Ko, "greet", fixture), "안녕");
         assert_eq!(t(Locale::En, "greet", fixture), "hello");
     }
 
     #[test]
-    fn 로케일에_항목이_없으면_영어로_대체된다() {
+    fn missing_locale_entry_falls_back_to_english() {
         // Ko catalog has no `english_only` — must serve the En text rather
         // than blanking out the UI.
         assert_eq!(
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn 없는_키는_보이는_표식을_반환한다() {
+    fn missing_key_returns_a_visible_marker() {
         // Both fallback paths fail — render a marker so the typo surfaces
         // in the UI rather than silently rendering empty.
         assert_eq!(t(Locale::En, "no.such.key", fixture), MISSING_KEY_MARKER);
@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn 인자_치환은_이름_있는_자리표시자를_바꾼다() {
+    fn arg_substitution_replaces_named_placeholders() {
         assert_eq!(
             t_args(Locale::En, "with_arg", &[("name", "world")], fixture),
             "hello world",
@@ -142,14 +142,14 @@ mod tests {
     }
 
     #[test]
-    fn 인자_치환은_일치하지_않은_자리표시자를_그대로_둔다() {
+    fn arg_substitution_leaves_unmatched_placeholders_intact() {
         // Missing args must surface in the UI as `{name}` so the bug is
         // visible rather than silently rendering empty.
         assert_eq!(t_args(Locale::En, "with_arg", &[], fixture), "hello {name}",);
     }
 
     #[test]
-    fn 인자_치환은_추가_인자를_무시한다() {
+    fn arg_substitution_ignores_extra_args() {
         assert_eq!(
             t_args(
                 Locale::En,
@@ -162,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn 인자_대체는_여러_자리표시자를_처리한다() {
+    fn arg_substitution_handles_multiple_placeholders() {
         let out = substitute_args(
             "{a} and {b}, then {a} again",
             &[("a", "alpha"), ("b", "beta")],
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn 인자_대체는_짝없는_여는_중괄호를_보존한다() {
+    fn arg_substitution_preserves_an_unmatched_open_brace() {
         // Pathological input: a literal `{` with no matching `}`. Emit it
         // verbatim rather than panicking or hanging.
         let out = substitute_args("price: {amount with no close", &[("amount", "5")]);
@@ -179,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn 인자_대체는_자리표시자가_없어도_처리한다() {
+    fn arg_substitution_handles_templates_without_placeholders() {
         let out = substitute_args("static text", &[("ignored", "value")]);
         assert_eq!(out, "static text");
     }

@@ -21,7 +21,7 @@ import 'package:upeg/src/state/window_mode_provider.dart';
 
 void main() {
   group('Tray menu ↔ WindowMode transitions', () {
-    test('Tray_OpenDashboard은_WindowMode를_full로_바꾼다', () {
+    test('Tray_OpenDashboard_sets_WindowMode_to_full', () {
       // Mirrors `tray.dart::_setMode(WindowMode.full)` — the only path
       // the tray's `Open dashboard` menu item drives. Start from popup
       // (the non-default state) so the transition is observable.
@@ -44,7 +44,7 @@ void main() {
       );
     });
 
-    test('Tray_TogglePopup은_full에서_popup으로_전환한다', () {
+    test('Tray_TogglePopup_switches_from_full_to_popup', () {
       // Mirrors `tray.dart::_toggleMode` — `WindowModeNotifier.toggle`
       // is the typed flip the tray's `Toggle popup ↔ full` item uses.
       final container = ProviderContainer(
@@ -67,7 +67,7 @@ void main() {
       );
     });
 
-    test('Tray_TogglePopup은_popup에서_full로_되돌린다', () {
+    test('Tray_TogglePopup_returns_from_popup_to_full', () {
       // Round-trip lock: toggling twice from full lands back on full.
       // Pins the symmetry of the `toggle` switch so a future refactor
       // can't accidentally short-circuit one of the arms.

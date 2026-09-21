@@ -25,69 +25,72 @@ import 'package:upeg/src/state/host_state_provider.dart';
 
 void main() {
   group('TrayMenuSync', () {
-    testWidgets('TrayMenuSync는_pauseControllable이_바뀌면_context_menu를_재설정한다', (
-      tester,
-    ) async {
-      final controller = StreamController<HostStateEvent>();
-      addTearDown(controller.close);
-      final resets = <Menu>[];
-      final container = ProviderContainer(
-        overrides: [
-          hostStateStreamProvider.overrideWith((ref) => controller.stream),
-        ],
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'TrayMenuSync_resets_the_context_menu_when_pauseControllable_changes',
+      (tester) async {
+        final controller = StreamController<HostStateEvent>();
+        addTearDown(controller.close);
+        final resets = <Menu>[];
+        final container = ProviderContainer(
+          overrides: [
+            hostStateStreamProvider.overrideWith((ref) => controller.stream),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: TrayMenuSync(
-              setContextMenu: (menu) async {
-                resets.add(menu);
-              },
-              child: const SizedBox.shrink(),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: TrayMenuSync(
+                setContextMenu: (menu) async {
+                  resets.add(menu);
+                },
+                child: const SizedBox.shrink(),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // No event has arrived yet (host state defaults to
-      // not-controllable) — no re-set on initial mount either way;
-      // the initial menu is applied by `UpegTray.install` directly.
-      expect(resets, isEmpty);
+        // No event has arrived yet (host state defaults to
+        // not-controllable) — no re-set on initial mount either way;
+        // the initial menu is applied by `UpegTray.install` directly.
+        expect(resets, isEmpty);
 
-      // Embedded (this process hosts in-process) flips controllable
-      // false → true.
-      controller.add(const HostStateEvent.embedded(endpoint: 'unix:/tmp/e'));
-      await tester.pump();
-      await tester.pump();
+        // Embedded (this process hosts in-process) flips controllable
+        // false → true.
+        controller.add(const HostStateEvent.embedded(endpoint: 'unix:/tmp/e'));
+        await tester.pump();
+        await tester.pump();
 
-      expect(resets, hasLength(1));
-      final firstItem = (resets[0].items ?? const <MenuItem>[]).firstWhere(
-        (item) => item.key == TrayCommand.togglePause.menuItemKey,
-      );
-      expect(firstItem.disabled, isFalse);
+        expect(resets, hasLength(1));
+        final firstItem = (resets[0].items ?? const <MenuItem>[]).firstWhere(
+          (item) => item.key == TrayCommand.togglePause.menuItemKey,
+        );
+        expect(firstItem.disabled, isFalse);
 
-      // Attached (a foreign daemon) flips controllable true → false.
-      controller.add(const HostStateEvent.attached(endpoint: 'unix:/tmp/d'));
-      await tester.pump();
-      await tester.pump();
+        // Attached (a foreign daemon) flips controllable true → false.
+        controller.add(const HostStateEvent.attached(endpoint: 'unix:/tmp/d'));
+        await tester.pump();
+        await tester.pump();
 
-      expect(resets, hasLength(2));
-      final secondItem = (resets[1].items ?? const <MenuItem>[]).firstWhere(
-        (item) => item.key == TrayCommand.togglePause.menuItemKey,
-      );
-      expect(
-        secondItem.disabled,
-        isTrue,
-        reason:
-            'menu re-set after the flip must carry the new (disabled) state',
-      );
-    });
+        expect(resets, hasLength(2));
+        final secondItem = (resets[1].items ?? const <MenuItem>[]).firstWhere(
+          (item) => item.key == TrayCommand.togglePause.menuItemKey,
+        );
+        expect(
+          secondItem.disabled,
+          isTrue,
+          reason:
+              'menu re-set after the flip must carry the new (disabled) state',
+        );
+      },
+    );
 
-    testWidgets('TrayMenuSync는_platform_call_예외를_격리한다', (tester) async {
+    testWidgets('TrayMenuSync_isolates_platform_call_exceptions', (
+      tester,
+    ) async {
       final originalDebugPrint = debugPrint;
       final logs = <String>[];
       debugPrint = (String? message, {int? wrapWidth}) {

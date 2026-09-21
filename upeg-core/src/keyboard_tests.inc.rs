@@ -5,7 +5,7 @@
     }
 
     #[test]
-    fn 보드_scope는_공통_탐색과_명령을_해석한다() {
+    fn board_scope_resolves_common_navigation_and_commands() {
         let ctx = KeyboardContext::new(KeyboardScope::Board);
 
         assert_eq!(
@@ -31,25 +31,25 @@
     }
 
     #[test]
-    fn 보드_scope의_엔터는_상세가_아니라_실행이다() {
-        // Enter는 표면 전체에서 "실행/확정"이라는 하나의 계약을 지킨다.
-        // 이전에는 List의 Enter만 예외적으로 상세를 열었는데, 그 예외가
-        // Result/Form/BoardEditor의 Enter=확정 관례와 충돌했다.
+    fn board_scope_enter_runs_instead_of_opening_details() {
+        // Enter keeps a single "run/confirm" contract across every surface.
+        // Previously only List's Enter opened details as an exception, which
+        // collided with the Enter=confirm convention of Result/Form/BoardEditor.
         let ctx = KeyboardContext::new(KeyboardScope::Board);
         assert_eq!(
             resolve_key(ctx, stroke(Key::Enter)),
             Some(KeyboardCommand::Run),
-            "Enter는 Open이 아니라 Run으로 해석되어야 한다"
+            "Enter must resolve to Run, not Open"
         );
         assert_eq!(
             resolve_key(ctx, stroke(Key::F(1))),
             Some(KeyboardCommand::Run),
-            "F1도 동일하게 Run이어야 한다"
+            "F1 must resolve to Run as well"
         );
     }
 
     #[test]
-    fn 보드_scope의_오는_상세_보기를_연다() {
+    fn board_scope_o_opens_the_detail_view() {
         let ctx = KeyboardContext::new(KeyboardScope::Board);
         assert_eq!(
             resolve_key(ctx, stroke(Key::Char('o'))),
@@ -62,7 +62,7 @@
     }
 
     #[test]
-    fn 보드와_상세_scope의_f2는_복사_명령이다() {
+    fn board_and_detail_scopes_f2_is_the_copy_command() {
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         let detail_ctx = KeyboardContext::new(KeyboardScope::Detail);
         assert_eq!(
@@ -76,9 +76,9 @@
     }
 
     #[test]
-    fn f1은_boardeditor_pincolor_toolpicker_moving에서_커밋이고_confirmdelete에서_확인이다() {
-        // PinColorEditor는 keyboard_scope_for_view에서 BoardEditor와 같은
-        // 스코프를 공유하므로 별도 케이스가 필요 없다.
+    fn f1_commits_in_boardeditor_pincolor_toolpicker_moving_and_confirms_in_confirmdelete() {
+        // PinColorEditor shares BoardEditor's scope in
+        // keyboard_scope_for_view, so it needs no separate case.
         let cases = [
             (KeyboardScope::BoardEditor, KeyboardCommand::Commit),
             (KeyboardScope::ToolPicker, KeyboardCommand::Commit),
@@ -88,7 +88,7 @@
             assert_eq!(
                 resolve_key(KeyboardContext::new(scope), stroke(Key::F(1))),
                 Some(expected),
-                "{scope:?}에서 F1은 {expected:?}여야 한다"
+                "F1 in {scope:?} must be {expected:?}"
             );
         }
         assert_eq!(
@@ -101,7 +101,7 @@
     }
 
     #[test]
-    fn ctrl_u는_form_boardeditor_toolpicker에서_입력_지우기_명령이다() {
+    fn ctrl_u_clears_input_in_form_boardeditor_and_toolpicker() {
         let ctrl_u = KeyStroke::modified(
             Key::Char('u'),
             KeyModifiers {
@@ -117,15 +117,15 @@
             assert_eq!(
                 resolve_key(KeyboardContext::new(scope), ctrl_u),
                 Some(KeyboardCommand::ClearInput),
-                "{scope:?}에서 Ctrl+U는 ClearInput이어야 한다"
+                "Ctrl+U in {scope:?} must be ClearInput"
             );
         }
     }
 
     #[test]
-    fn 보드_변경_명령은_모드리스로_항상_활성이다() {
-        // 편집 모드가 사라진 뒤(modeless) `n`/`R`/`D`/`a`는 board 스코프에서
-        // 언제나 해석된다. 포커스는 필요 없다 — 보드 레벨 작업이기 때문.
+    fn board_change_commands_are_always_active_in_modeless_board() {
+        // With the edit mode gone (modeless), `n`/`R`/`D`/`a` always resolve
+        // in the board scope. No focus needed — they are board-level work.
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
 
         assert_eq!(
@@ -147,9 +147,9 @@
     }
 
     #[test]
-    fn 이는_포커스된_핀에서_리사이즈_시작이다() {
-        // 옛 편집 토글이 비운 `e`를 리사이즈 시작으로 재바인딩했다.
-        // `m`/StartMove와 대칭으로, 포커스된 핀이 있어야만 해석된다.
+    fn e_starts_resize_on_the_focused_pin() {
+        // `e`, freed by the old edit toggle, was rebound to start resize.
+        // Symmetric with `m`/StartMove, it resolves only on a focused pin.
         let focused_pin_ctx = KeyboardContext {
             has_tool_focus: true,
             ..KeyboardContext::new(KeyboardScope::Board)
@@ -165,9 +165,9 @@
     }
 
     #[test]
-    fn 포커스_없는_보드와_상세_scope의_이는_해석되지_않는다() {
-        // 포커스된 핀이 없으면 무엇을 리사이즈할지 알 수 없으므로 `e`는
-        // 무시된다. Detail scope에서는 여전히 자유키다.
+    fn e_is_not_resolved_in_unfocused_board_and_detail_scopes() {
+        // Without a focused pin there is nothing to resize, so `e` is
+        // ignored. It stays a free key in the Detail scope.
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         let detail_ctx = KeyboardContext::new(KeyboardScope::Detail);
         assert_eq!(resolve_key(board_ctx, stroke(Key::Char('e'))), None);
@@ -176,7 +176,7 @@
     }
 
     #[test]
-    fn 리사이즈_scope는_방향키를_span_증감으로_해석한다() {
+    fn resize_scope_resolves_arrow_keys_to_span_deltas() {
         let ctx = KeyboardContext::new(KeyboardScope::Resize);
         let grow_cases = [
             (Key::Right, 1, 0),
@@ -192,13 +192,13 @@
             assert_eq!(
                 resolve_key(ctx, stroke(key)),
                 Some(KeyboardCommand::ResizeBy { cols, rows }),
-                "{key:?}는 ResizeBy(cols {cols}, rows {rows})여야 한다"
+                "{key:?} must be ResizeBy(cols {cols}, rows {rows})"
             );
         }
     }
 
     #[test]
-    fn 리사이즈_scope는_커밋_취소_리셋을_moving과_같은_키로_해석한다() {
+    fn resize_scope_resolves_commit_cancel_and_reset_to_the_same_keys_as_moving() {
         let ctx = KeyboardContext::new(KeyboardScope::Resize);
         assert_eq!(
             resolve_key(ctx, stroke(Key::Enter)),
@@ -216,8 +216,8 @@
             resolve_key(ctx, stroke(Key::Char('q'))),
             Some(KeyboardCommand::Cancel)
         );
-        // `0`은 board scope의 filter-clear 관용을 따라 manifest 기본
-        // 크기로 되돌린다.
+        // `0` follows the board scope's filter-clear convention and resets
+        // to the manifest default size.
         assert_eq!(
             resolve_key(ctx, stroke(Key::Char('0'))),
             Some(KeyboardCommand::ResetSpan)
@@ -225,7 +225,7 @@
     }
 
     #[test]
-    fn 포커스된_핀은_c로_색상_편집을_연다() {
+    fn c_opens_color_editing_on_the_focused_pin() {
         let focused_pin_ctx = KeyboardContext {
             has_tool_focus: true,
             ..KeyboardContext::new(KeyboardScope::Board)
@@ -238,15 +238,15 @@
     }
 
     #[test]
-    fn 포커스_없는_보드의_c는_핀_색상_편집을_열지_않는다() {
-        // 포커스된 핀이 없으면 어떤 핀을 대상으로 할지 알 수 없으므로 `c`는
-        // 무시된다 — 이 게이트는 modeless 이후에도 유일하게 남은 조건이다.
+    fn c_on_an_unfocused_board_does_not_open_pin_color_editing() {
+        // Without a focused pin there is no target, so `c` is ignored —
+        // this gate is the only condition left after going modeless.
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         assert_eq!(resolve_key(board_ctx, stroke(Key::Char('c'))), None);
     }
 
     #[test]
-    fn 보드_scope의_슬래시는_검색을_유지한다() {
+    fn board_scope_slash_keeps_search() {
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
 
         assert_eq!(
@@ -256,7 +256,7 @@
     }
 
     #[test]
-    fn 보드_scope의_primary_k는_검색을_유지한다() {
+    fn board_scope_primary_k_keeps_search() {
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         let ctrl = KeyModifiers {
             control: true,
@@ -278,10 +278,11 @@
     }
 
     #[test]
-    fn primary_w는_scope의_esc_동작을_따라간다() {
-        // Ctrl+W(윈도/리눅스)와 Cmd+W(맥)는 데스크톱 관례상 "현재 표면 닫기"다.
-        // 각 scope가 Esc에 바인딩한 dismissal을 그대로 위임한다 —
-        // Board/Form은 Close, editor/confirm/picker/Moving은 Cancel.
+    fn primary_w_follows_the_scopes_esc_behavior() {
+        // Ctrl+W (Windows/Linux) and Cmd+W (macOS) mean "close the current
+        // surface" by desktop convention. Each scope delegates to whatever
+        // dismissal it bound to Esc — Close for Board/Form, Cancel for
+        // editor/confirm/picker/Moving.
         let ctrl = KeyModifiers {
             control: true,
             ..KeyModifiers::NONE
@@ -302,12 +303,12 @@
             assert_eq!(
                 resolve_key(ctx, KeyStroke::modified(Key::Char('w'), ctrl)),
                 Some(KeyboardCommand::Close),
-                "{scope:?} scope의 Ctrl+W는 Close여야 한다"
+                "Ctrl+W in {scope:?} scope must be Close"
             );
             assert_eq!(
                 resolve_key(ctx, KeyStroke::modified(Key::Char('W'), meta)),
                 Some(KeyboardCommand::Close),
-                "{scope:?} scope의 Cmd+W는 Close여야 한다"
+                "Cmd+W in {scope:?} scope must be Close"
             );
         }
 
@@ -323,15 +324,16 @@
             assert_eq!(
                 resolve_key(ctx, KeyStroke::modified(Key::Char('w'), ctrl)),
                 Some(KeyboardCommand::Cancel),
-                "{scope:?} scope의 Ctrl+W는 Cancel이어야 한다"
+                "Ctrl+W in {scope:?} scope must be Cancel"
             );
         }
     }
 
     #[test]
-    fn 보드_scope의_primary_q는_종료를_유지한다() {
-        // Ctrl+Q(윈도/리눅스)와 Cmd+Q(맥) 모두 데스크톱 관례상 종료다.
-        // 맨 `q`뿐 아니라 primary modifier 조합에서도 Quit이어야 한다.
+    fn board_scope_primary_q_keeps_quit() {
+        // Ctrl+Q (Windows/Linux) and Cmd+Q (macOS) both mean quit by
+        // desktop convention. It must be Quit not only for bare `q` but
+        // for primary-modifier chords too.
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         let ctrl = KeyModifiers {
             control: true,
@@ -353,7 +355,7 @@
     }
 
     #[test]
-    fn 공유_키보드_contract는_주요_scope의_명령을_고정한다() {
+    fn shared_keyboard_contract_pins_commands_across_major_scopes() {
         let board_with_focus = KeyboardContext {
             has_tool_focus: true,
             ..KeyboardContext::new(KeyboardScope::Board)
@@ -507,7 +509,7 @@
     }
 
     #[test]
-    fn command_modifier는_명시_shortcut이_아니면_일반_binding을_막는다() {
+    fn command_modifier_blocks_plain_bindings_unless_an_explicit_shortcut() {
         let board_ctx = KeyboardContext::new(KeyboardScope::Board);
         let focus_ctx = KeyboardContext {
             has_tool_focus: true,
@@ -584,7 +586,7 @@
     }
 
     #[test]
-    fn 보드_slot은_일부터_구까지만_허용한다() {
+    fn board_slot_allows_only_one_through_nine() {
         assert_eq!(BoardSlot::new(0), None);
         assert_eq!(BoardSlot::new(1).map(BoardSlot::zero_based_index), Some(0));
         assert_eq!(BoardSlot::new(9).map(BoardSlot::zero_based_index), Some(8));
@@ -592,7 +594,7 @@
     }
 
     #[test]
-    fn key_label_parser는_surface_adapter들의_공통_키_문자열을_해석한다() {
+    fn key_label_parser_resolves_key_strings_shared_by_surface_adapters() {
         assert_eq!(key_from_label("ArrowLeft", false), Some(Key::Left));
         assert_eq!(key_from_label(" ", false), Some(Key::Space));
         assert_eq!(key_from_label("Space", false), Some(Key::Space));

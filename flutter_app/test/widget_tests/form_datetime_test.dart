@@ -17,7 +17,7 @@ import '../test_helpers/tool_fixture.dart';
 
 void main() {
   group('GenericForm DateTime field', () {
-    testWidgets('GenericForm은_DateTime_필드를_text_+_picker로_렌더한다', (
+    testWidgets('GenericForm_renders_a_DateTime_field_as_text_plus_picker', (
       tester,
     ) async {
       final tool = fixtureToolDto(
@@ -43,36 +43,39 @@ void main() {
       expect(find.byIcon(Icons.calendar_today), findsOneWidget);
     });
 
-    testWidgets('GenericForm_DateTime_picker는_선택값을_form에_반영한다', (tester) async {
-      final tool = fixtureToolDto(
-        id: 'fixture.dt',
-        inputFields: const [
-          InputFieldDto(
-            key: 'when',
-            label: 'When',
-            fieldType: InputFieldType_DateTime(),
-            required_: false,
+    testWidgets(
+      'GenericForm_DateTime_picker_writes_the_selection_to_the_form',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.dt',
+          inputFields: const [
+            InputFieldDto(
+              key: 'when',
+              label: 'When',
+              fieldType: InputFieldType_DateTime(),
+              required_: false,
+            ),
+          ],
+        );
+        final controller = GenericFormController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GenericFormWidget(tool: tool, controller: controller),
+            ),
           ),
-        ],
-      );
-      final controller = GenericFormController();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: GenericFormWidget(tool: tool, controller: controller),
-          ),
-        ),
-      );
-      // Tap calendar icon to open picker.
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      // showDatePicker renders an OK button — accept the default
-      // (today) selection.
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
+        );
+        // Tap calendar icon to open picker.
+        await tester.tap(find.byIcon(Icons.calendar_today));
+        await tester.pumpAndSettle();
+        // showDatePicker renders an OK button — accept the default
+        // (today) selection.
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
 
-      final stored = controller.value('when');
-      expect(stored, isA<DateTimeValue>());
-    });
+        final stored = controller.value('when');
+        expect(stored, isA<DateTimeValue>());
+      },
+    );
   });
 }

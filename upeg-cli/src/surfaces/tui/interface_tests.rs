@@ -1,5 +1,5 @@
-//! `tui_tests.rs`를 저장소 파일 크기 예산 안에 두기 위해 분리한 TUI
-//! 인터페이스 인벤토리 회귀 테스트.
+//! TUI interface-inventory regression tests, split out of `tui_tests.rs`
+//! to stay under the repository file-size budget.
 
 use crate::surfaces::tui::interface_inventory_entries;
 use std::collections::HashSet;
@@ -9,13 +9,13 @@ use upeg_core::interface_inventory::{
 };
 
 #[test]
-fn tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다() {
+fn tui_interface_inventory_serializes_to_stable_shape() {
     let inventory = InterfaceInventory {
         schema_version: INTERFACE_INVENTORY_SCHEMA_VERSION,
         entries: interface_inventory_entries(),
     };
 
-    inventory.validate().expect("유효한 TUI 인벤토리");
+    inventory.validate().expect("valid TUI inventory");
 
     let ids: HashSet<_> = inventory
         .entries
@@ -31,7 +31,7 @@ fn tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다() 
         "tui.tool.approval",
         "tui.tool.live_output",
     ] {
-        assert!(ids.contains(id), "인벤토리 항목 {id}가 없다");
+        assert!(ids.contains(id), "missing inventory entry {id}");
     }
 
     for entry in &inventory.entries {
@@ -39,12 +39,12 @@ fn tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다() 
         assert_eq!(entry.kind, InterfaceKind::TuiInteraction);
         assert_eq!(entry.version, "v1");
         assert_eq!(entry.compatibility, Compatibility::Stable);
-        assert!(entry.owner.path.is_some(), "{} owner가 없다", entry.id);
-        assert!(entry.docs.path.is_some(), "{} docs가 없다", entry.id);
-        assert!(entry.source.path.is_some(), "{} source가 없다", entry.id);
+        assert!(entry.owner.path.is_some(), "{} missing owner", entry.id);
+        assert!(entry.docs.path.is_some(), "{} missing docs", entry.id);
+        assert!(entry.source.path.is_some(), "{} missing source", entry.id);
         assert!(
             entry.tests.path().is_some_and(|path| !path.is_empty()),
-            "{} tests가 없다",
+            "{} missing tests",
             entry.id
         );
     }

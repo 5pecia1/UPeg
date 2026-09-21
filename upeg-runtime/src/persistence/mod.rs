@@ -43,13 +43,13 @@ mod tests {
     }
 
     #[test]
-    fn 존재하지_않는_경로의_mtime은_없음이다() {
+    fn mtime_of_nonexistent_path_is_none() {
         let missing = temp_path("mtime-missing").join("never-written");
         assert!(modified_time(&missing).is_none());
     }
 
     #[test]
-    fn 기록된_파일의_mtime을_읽는다() {
+    fn mtime_of_written_file_is_read() {
         let dir = temp_path("mtime-present");
         std::fs::create_dir_all(&dir).expect("setup dir");
         let path = dir.join("probe");

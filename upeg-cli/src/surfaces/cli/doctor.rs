@@ -86,7 +86,7 @@ pub fn format_doctor() -> String {
     out
 }
 
-/// C-7: `upeg doctor` text line for project-manifest detection state —
+/// `upeg doctor` text line for project-manifest detection state —
 /// the resolved path (or `none`) plus the [`upeg_sources::project::ProjectManifestOverride`]
 /// that produced it, so `off` / an explicit `UPEG_PROJECT_MANIFEST_PATH`
 /// override is visible right next to the other runtime sources instead
@@ -202,7 +202,7 @@ mod tests {
     };
 
     #[test]
-    fn 프로젝트_매니페스트_텍스트_줄은_탐지된_경로와_override_상태를_보여준다() {
+    fn project_manifest_text_line_shows_detected_path_and_override_state() {
         let status = ProjectManifestStatus {
             lookup: Some(ProjectManifestLookup {
                 path: PathBuf::from("/home/user/project/upeg.toml"),
@@ -218,7 +218,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_매니페스트_텍스트_줄은_없을_때_none과_off를_보여준다() {
+    fn project_manifest_text_line_shows_none_and_off_when_absent() {
         let status = ProjectManifestStatus {
             lookup: None,
             override_state: ProjectManifestOverride::Disabled,
@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_매니페스트_json은_경로와_override를_필드로_담는다() {
+    fn project_manifest_json_carries_path_and_override_fields() {
         let explicit_path = PathBuf::from("/explicit/upeg.toml");
         let status = ProjectManifestStatus {
             lookup: Some(ProjectManifestLookup {
@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_매니페스트_json은_없을_때_path가_null이다() {
+    fn project_manifest_json_path_is_null_when_absent() {
         let status = ProjectManifestStatus {
             lookup: None,
             override_state: ProjectManifestOverride::Detect,

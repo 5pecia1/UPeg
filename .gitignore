@@ -37,3 +37,6 @@ __pycache__/
 .cargo/.global-cache
 .cargo/.package-cache
 .cargo/.package-cache-mutate
+
+# Generated Zensical documentation site (built at the public export root)
+/site/

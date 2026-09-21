@@ -16,7 +16,7 @@ const PIN_COLOR_HEX_DIGITS: usize = 6;
 const PIN_COLOR_HEX_LEN: usize = 1 + PIN_COLOR_HEX_DIGITS;
 
 // ─── PinKind ────────────────────────────────────────────────
-// Lexicon §4: UI 시점 표시 패턴. Pascal-case labels appear on UI badges.
+// Lexicon §4: the display pattern shown at the UI point. Pascal-case labels appear on UI badges.
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -327,14 +327,14 @@ mod controlled_embed_tests {
     use super::*;
 
     #[test]
-    fn controlled_embed_settings는_기본값에서_브라우저_override가_없다() {
+    fn controlled_embed_settings_have_no_browser_overrides_by_default() {
         let settings = ControlledEmbedSettings::default();
         assert_eq!(settings.user_agent, None);
         assert_eq!(settings.viewport, None);
     }
 
     #[test]
-    fn controlled_embed_user_agent_라벨은_정해진_문자열을_쓴다() {
+    fn controlled_embed_user_agent_labels_use_fixed_strings() {
         assert_eq!(ControlledEmbedUserAgent::Default.label(), "default");
         assert_eq!(
             ControlledEmbedUserAgent::MobileSafari.label(),
@@ -347,7 +347,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_viewport_preset은_정해진_크기를_쓴다() {
+    fn controlled_embed_viewport_presets_use_fixed_dimensions() {
         assert_eq!(
             ControlledEmbedViewportPreset::Mobile.dimensions(),
             (390, 844)
@@ -363,7 +363,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_viewport_상수는_정해진_범위와_크기를_쓴다() {
+    fn controlled_embed_viewport_constants_use_fixed_bounds_and_dimensions() {
         assert_eq!(CONTROLLED_EMBED_MOBILE_VIEWPORT, (390, 844));
         assert_eq!(CONTROLLED_EMBED_TABLET_VIEWPORT, (768, 1024));
         assert_eq!(CONTROLLED_EMBED_DESKTOP_VIEWPORT, (1366, 768));
@@ -372,7 +372,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_viewport_라벨은_preset과_custom을_구분한다() {
+    fn controlled_embed_viewport_label_distinguishes_preset_from_custom() {
         assert_eq!(
             ControlledEmbedViewport::Preset(ControlledEmbedViewportPreset::Mobile).label(),
             "mobile"
@@ -388,7 +388,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_트리거_action은_click을_기본값으로_쓴다() {
+    fn controlled_embed_trigger_action_defaults_to_click() {
         assert_eq!(
             ControlledEmbedTriggerAction::default(),
             ControlledEmbedTriggerAction::Click
@@ -396,7 +396,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_트리거_action은_click과_enter를_파싱한다() {
+    fn controlled_embed_trigger_action_parses_click_and_enter() {
         assert_eq!(
             ControlledEmbedTriggerAction::parse("click"),
             Some(ControlledEmbedTriggerAction::Click)
@@ -408,7 +408,7 @@ mod controlled_embed_tests {
     }
 
     #[test]
-    fn controlled_embed_트리거_action은_알수없는_라벨에_none을_반환한다() {
+    fn controlled_embed_trigger_action_returns_none_for_unknown_labels() {
         assert_eq!(ControlledEmbedTriggerAction::parse("submit"), None);
         assert_eq!(ControlledEmbedTriggerAction::parse(""), None);
     }
@@ -819,21 +819,21 @@ mod pin_color_tests {
     const UPPERCASE_COLOR: &str = "#A1B2C3";
 
     #[test]
-    fn pin_color는_유효한_hex를_대문자로_정규화한다() {
-        let color = PinColorHex::parse(LOWERCASE_COLOR).expect("유효한 색상");
+    fn pin_color_normalizes_valid_hex_to_uppercase() {
+        let color = PinColorHex::parse(LOWERCASE_COLOR).expect("valid color");
 
         assert_eq!(color.as_str(), UPPERCASE_COLOR);
         assert_eq!(color.to_string(), UPPERCASE_COLOR);
     }
 
     #[test]
-    fn pin_color는_짧거나_문자가_틀리거나_샵이_없으면_거부한다() {
+    fn pin_color_rejects_short_bad_digit_or_missing_hash() {
         const INVALID_COLORS: &[&str] = &["#12345", "#12GG45", "123456"];
 
         for candidate in INVALID_COLORS {
             assert!(
                 PinColorHex::parse(candidate).is_err(),
-                "{candidate} 값은 거부되어야 한다",
+                "{candidate} must be rejected",
             );
         }
     }
@@ -844,7 +844,7 @@ mod io_type_tests {
     use super::*;
 
     #[test]
-    fn io_type_라벨은_왕복_파싱한다() {
+    fn io_type_labels_parse_roundtrip() {
         for ty in [
             IoType::String,
             IoType::Number,
@@ -863,37 +863,37 @@ mod io_type_tests {
             assert_eq!(
                 IoType::parse(label),
                 Some(ty),
-                "라벨 `{label}` 은 IoType::parse 왕복해야 한다",
+                "label `{label}` must roundtrip through IoType::parse",
             );
         }
     }
 
     #[test]
-    fn io_type_파일과_뷰_임베드_라벨은_고유하다() {
+    fn io_type_file_and_embedded_view_labels_are_distinct() {
         assert_eq!(IoType::File.label(), "file");
         assert_eq!(IoType::EmbeddedView.label(), "embedded_view");
     }
 
     #[test]
-    fn io_type_파싱은_대소문자를_가리지_않는다() {
+    fn io_type_parse_is_case_insensitive() {
         assert_eq!(IoType::parse("FILE"), Some(IoType::File));
         assert_eq!(IoType::parse("Embedded_View"), Some(IoType::EmbeddedView));
     }
 
     #[test]
-    fn io_type_파싱은_알수없는_값에_없음을_반환한다() {
+    fn io_type_parse_returns_none_for_unknown_values() {
         assert_eq!(IoType::parse("blob"), None);
         assert_eq!(IoType::parse(""), None);
     }
 
     #[test]
-    fn closed_io_types에는_신규_변형이_포함된다() {
+    fn closed_io_types_include_the_new_variants() {
         assert!(CLOSED_IO_TYPES.contains(&"file"));
         assert!(CLOSED_IO_TYPES.contains(&"embedded_view"));
     }
 
     #[test]
-    fn io_type_list_문자열에는_신규_변형이_포함된다() {
+    fn io_type_list_string_includes_the_new_variants() {
         assert!(IO_TYPE_LIST.contains("file"));
         assert!(IO_TYPE_LIST.contains("embedded_view"));
     }
@@ -904,94 +904,94 @@ mod surface_tests {
     use super::*;
 
     #[test]
-    fn surface_지원하는_headless_디스패치는_4개다() {
+    fn surface_headless_dispatch_support_count_is_four() {
         let headless_count = ALL_SURFACES
             .iter()
             .filter(|s| s.supports_headless_dispatch())
             .count();
         assert_eq!(
             headless_count, 4,
-            "CLI, TUI, MCP, HTTP는 headless dispatch 지원"
+            "CLI, TUI, MCP, HTTP support headless dispatch"
         );
     }
 
     #[test]
-    fn surface_필요하는_gui_표면은_3개다() {
+    fn surface_gui_requirement_count_is_three() {
         let gui_count = ALL_SURFACES
             .iter()
             .filter(|s| s.requires_gui_surface())
             .count();
-        assert_eq!(gui_count, 3, "Desktop, PWA, Ext는 GUI surface 필요");
+        assert_eq!(gui_count, 3, "Desktop, PWA, Ext require a GUI surface");
     }
 
     #[test]
-    fn surface_headless와_gui는_서로소다() {
+    fn surface_headless_and_gui_are_mutually_exclusive() {
         for s in ALL_SURFACES {
             assert!(
                 !(s.supports_headless_dispatch() && s.requires_gui_surface()),
-                "{s:?} surface은 headless도 GUI도 동시에 지원할 수 없음"
+                "{s:?} surface cannot support both headless and GUI"
             );
         }
     }
 
     #[test]
-    fn gui_표면들은_headless_디스패치를_지원하지_않는다() {
+    fn gui_surfaces_do_not_support_headless_dispatch() {
         for s in GUI_SURFACES {
             assert!(
                 !s.supports_headless_dispatch(),
-                "{s:?} surface은 GUI 전용이므로 headless dispatch 불가"
+                "{s:?} surface is GUI-only so it cannot dispatch headless"
             );
         }
     }
 
     #[test]
-    fn 임베드_표면들은_headless_디스패치를_지원하지_않는다() {
+    fn embed_surfaces_do_not_support_headless_dispatch() {
         for s in EMBED_SURFACES {
             assert!(
                 !s.supports_headless_dispatch(),
-                "{s:?} surface은 embed 전용이므로 headless dispatch 불가"
+                "{s:?} surface is embed-only so it cannot dispatch headless"
             );
         }
     }
 
     #[test]
-    fn cli_표면은_headless_디스패치를_지원한다() {
+    fn cli_surface_supports_headless_dispatch() {
         assert!(Surface::Cli.supports_headless_dispatch());
         assert!(!Surface::Cli.requires_gui_surface());
     }
 
     #[test]
-    fn tui_표면은_headless_디스패치를_지원한다() {
+    fn tui_surface_supports_headless_dispatch() {
         assert!(Surface::Tui.supports_headless_dispatch());
         assert!(!Surface::Tui.requires_gui_surface());
     }
 
     #[test]
-    fn mcp_표면은_headless_디스패치를_지원한다() {
+    fn mcp_surface_supports_headless_dispatch() {
         assert!(Surface::Mcp.supports_headless_dispatch());
         assert!(!Surface::Mcp.requires_gui_surface());
     }
 
     #[test]
-    fn http_표면은_headless_디스패치를_지원한다() {
+    fn http_surface_supports_headless_dispatch() {
         assert!(Surface::Http.supports_headless_dispatch());
         assert!(!Surface::Http.requires_gui_surface());
     }
 
     #[test]
-    fn desktop_표면은_gui만_지원한다() {
+    fn desktop_surface_supports_gui_only() {
         assert!(!Surface::Desktop.supports_headless_dispatch());
         assert!(Surface::Desktop.requires_gui_surface());
     }
 
     #[test]
-    fn pwa_표면은_gui만_지원한다() {
+    fn pwa_surface_supports_gui_only() {
         assert!(!Surface::Pwa.supports_headless_dispatch());
         assert!(Surface::Pwa.requires_gui_surface());
     }
 
     #[test]
-    fn ext_표면은_gui만_지원한다() {
+    fn ext_surface_supports_gui_only() {
         assert!(!Surface::Ext.supports_headless_dispatch());
         assert!(Surface::Ext.requires_gui_surface());
     }

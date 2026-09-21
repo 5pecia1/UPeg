@@ -26,7 +26,7 @@ sleep 60
 
 #[cfg(unix)]
 #[test]
-fn 일부_tool_변환_실패_시_서버는_성공분만_등록하고_스킵을_보고한다() {
+fn server_registers_only_successes_and_reports_skips_on_partial_failure() {
     let (root, script) = write_partial_success_server("partial-success");
     let cfg = UpstreamConfig {
         command: script.to_str().unwrap().to_string(),
@@ -34,11 +34,11 @@ fn 일부_tool_변환_실패_시_서버는_성공분만_등록하고_스킵을_�
         reexport: false,
     };
 
-    let outcome = register_server("partial_iter_srv", &cfg).expect("partial success must register");
+    let outcome = register_server("partial_srv", &cfg).expect("partial success must register");
 
     assert_eq!(
         outcome.registered_ids(),
-        &["partial_iter_srv.good_echo"][..],
+        &["partial_srv.good_echo"][..],
         "only the convertible tool registers"
     );
     assert_eq!(outcome.skipped.len(), 1);
@@ -56,9 +56,9 @@ fn 일부_tool_변환_실패_시_서버는_성공분만_등록하고_스킵을_�
         "reason must name the unsupported keyword; got `{}`",
         outcome.skipped[0].reason
     );
-    assert!(upeg_runtime::toolbox_tool("partial_iter_srv.good_echo").is_some());
+    assert!(upeg_runtime::toolbox_tool("partial_srv.good_echo").is_some());
     assert!(
-        upeg_runtime::toolbox_tool("partial_iter_srv.bad_ref").is_none(),
+        upeg_runtime::toolbox_tool("partial_srv.bad_ref").is_none(),
         "skipped tool must not appear in the toolbox"
     );
 
@@ -68,7 +68,7 @@ fn 일부_tool_변환_실패_시_서버는_성공분만_등록하고_스킵을_�
 
 #[cfg(unix)]
 #[test]
-fn 모든_tool_변환이_실패하면_서버_등록이_실패한다() {
+fn server_registration_fails_when_all_tools_fail_conversion() {
     let (root, script) = write_unix_script(
         "all-skipped",
         r##"#!/bin/sh
@@ -101,7 +101,7 @@ sleep 60
 
 #[cfg(unix)]
 #[test]
-fn 스킵된_tool은_reexport_opt_in에도_노출되지_않는다() {
+fn skipped_tool_is_not_exposed_even_with_reexport_opt_in() {
     // reexport interplay: `reexport = true` widens the surfaces of
     // REGISTERED imports to include MCP; a skipped tool registers on
     // no surface at all, so the opt-in cannot resurrect it.
@@ -133,7 +133,7 @@ fn 스킵된_tool은_reexport_opt_in에도_노출되지_않는다() {
 
 #[cfg(unix)]
 #[test]
-fn 네임스페이스_충돌은_tool_스킵이_아니라_서버_전체_거부다() {
+fn namespace_conflict_rejects_whole_server_not_just_the_tool() {
     // Conflict policy stays atomic per-server (trust boundary): a
     // namespaced id shadowing a built-in rejects the WHOLE server —
     // including its otherwise-fine tools — instead of skipping just

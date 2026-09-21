@@ -44,7 +44,7 @@ fn ensure_fixture_loaded() {
 }
 
 #[test]
-fn 실패한_외부_도구는_진단_텍스트와_구조화_details를_함께_돌려준다() {
+fn failing_external_tool_returns_diagnostic_text_and_structured_details() {
     ensure_fixture_loaded();
 
     let response = handle(json!({

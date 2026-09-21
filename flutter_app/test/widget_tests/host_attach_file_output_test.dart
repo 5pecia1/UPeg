@@ -93,7 +93,7 @@ final class _HostAttachFileOutputRobot {
     expect(
       entry.value,
       isA<CanonicalOutputValue_File>(),
-      reason: 'host File은 렌더 전에 typed 값으로 승격되어야 한다',
+      reason: 'a host File must be promoted to a typed value before rendering',
     );
 
     final theme = UpegTheme.darkTheme();
@@ -139,19 +139,23 @@ final class _HostAttachFileOutputRobot {
     expect(
       identical(bridge.savedBytes, decodedBytes),
       isTrue,
-      reason: '렌더러는 attach boundary에서 디코드한 buffer를 그대로 저장해야 한다',
+      reason:
+          'the renderer must store the buffer decoded at the attach boundary verbatim',
     );
   }
 }
 
 void main() {
-  testWidgets('host File 출력은 요약을 렌더하고 디코드한 buffer를 그대로 저장한다', (tester) async {
-    final bridge = _RecordingFileBridge();
-    final robot = _HostAttachFileOutputRobot(tester, bridge);
+  testWidgets(
+    'a_host_file_output_renders_its_summary_and_stores_the_decoded_buffer_verbatim',
+    (tester) async {
+      final bridge = _RecordingFileBridge();
+      final robot = _HostAttachFileOutputRobot(tester, bridge);
 
-    await robot.pumpHostFileOutput();
-    robot.expectDecodedSummary();
-    await robot.saveFile();
-    robot.expectDecodedBufferSavedWithoutAnotherDecode();
-  });
+      await robot.pumpHostFileOutput();
+      robot.expectDecodedSummary();
+      await robot.saveFile();
+      robot.expectDecodedBufferSavedWithoutAnotherDecode();
+    },
+  );
 }

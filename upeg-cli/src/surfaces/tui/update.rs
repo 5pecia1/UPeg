@@ -50,6 +50,7 @@ fn sync_grid_scroll_to_cursor(state: &mut State, tools: &[&'static ToolMeta], ar
 mod editing;
 mod mouse;
 mod movement;
+mod presentation;
 mod resize;
 mod settings;
 
@@ -67,6 +68,7 @@ pub use mouse::handle_mouse;
 use movement::{
     MoveDir, handle_move_command, move_cursor_layout, start_move, toggle_pin_at_cursor,
 };
+use presentation::{apply_outcome_with_host, open_result_action, result_navigation_bounds};
 use resize::{handle_resize_command, start_resize};
 use settings::{cycle_focused_value, open_settings};
 
@@ -81,9 +83,17 @@ pub fn update(state: &mut State, msg: Msg<'_>) -> Effect {
             area,
         } => handle_key_stroke_with_area(state, stroke, tools, area),
         Msg::Mouse { mouse, tools, area } => handle_mouse(state, mouse, tools, area),
-        Msg::ToolDone { tool_id, outcome } => {
-            apply_outcome(state, tool_id, outcome);
-            Effect::None
+        Msg::ToolDone {
+            run,
+            host,
+            tool_id,
+            outcome,
+        } => {
+            if state.is_active_run(run) {
+                apply_outcome_with_host(state, tool_id, outcome, host)
+            } else {
+                Effect::None
+            }
         }
         Msg::ToolProgress { run, event } => {
             apply_progress(state, run, event);
@@ -155,7 +165,13 @@ fn approval_surface_labels(policy: &ToolApprovalPolicy) -> String {
 /// Hand the run to the event loop and switch the right pane to its live
 /// view. Every dispatch the TUI starts goes through here, so
 /// `View::Running` and the in-flight worker are created together.
-fn start_run(state: &mut State, tool_id: &'static str, args: Value) -> Effect {
+pub(super) fn start_run(state: &mut State, tool_id: &'static str, args: Value) -> Effect {
+    state.result_inputs = args.clone();
+    state.result_row = 0;
+    state.result_action = 0;
+    state.restore_result_row_key = None;
+    state.result_run = None;
+    state.result_host = None;
     let run = state.start_active_run(tool_id);
     open_running_pane(state, tool_id);
     Effect::Dispatch { run, tool_id, args }
@@ -269,6 +285,38 @@ fn handle_key_stroke_with_area(
     // Any ephemeral toast (e.g. F2 clipboard feedback) is a one-shot
     // notice — the next keystroke, whatever it is, dismisses it.
     state.status_message = None;
+
+    if matches!(state.view, View::Result { .. }) && !stroke.modifiers.has_command_modifier() {
+        let (row_count, action_count) = result_navigation_bounds(state);
+        match stroke.key {
+            Key::Char('a') => return open_result_action(state),
+            Key::Up => {
+                state.result_row = state.result_row.saturating_sub(1);
+                state.result_action = 0;
+                return Effect::None;
+            }
+            Key::Down => {
+                state.result_row = state
+                    .result_row
+                    .saturating_add(1)
+                    .min(row_count.saturating_sub(1));
+                state.result_action = 0;
+                return Effect::None;
+            }
+            Key::Left => {
+                state.result_action = state.result_action.saturating_sub(1);
+                return Effect::None;
+            }
+            Key::Right => {
+                state.result_action = state
+                    .result_action
+                    .saturating_add(1)
+                    .min(action_count.saturating_sub(1));
+                return Effect::None;
+            }
+            _ => {}
+        }
+    }
 
     if state.move_mode.is_some() {
         let context = KeyboardContext::new(KeyboardScope::Moving);
@@ -681,11 +729,7 @@ fn handle_result_view_command(
         // (dispatch immediately, or reopen the Form for a tool with
         // required inputs since no prior args are cached on `View::Result`).
         KeyboardCommand::Run => Some(run_selected_tool(state, tools)),
-        KeyboardCommand::Close | KeyboardCommand::Quit => {
-            state.right_scroll = ScrollOffset::ZERO;
-            state.view = View::List;
-            Some(Effect::None)
-        }
+        KeyboardCommand::Close | KeyboardCommand::Quit => Some(back_one_level(state)),
         KeyboardCommand::Copy => Some(copy_result_output(state)),
         _ => None,
     }
@@ -845,6 +889,18 @@ fn move_list_cursor(
 }
 
 fn back_one_level(state: &mut State) -> Effect {
+    if matches!(state.view, View::Form { .. } | View::Result { .. })
+        && let Some(frame) = state.presentation_frames.pop()
+    {
+        state.view = frame.view;
+        state.result_inputs = frame.inputs;
+        state.result_row = frame.selected_row;
+        state.result_action = frame.selected_action;
+        state.result_run = frame.result_run;
+        state.refresh_after_tool = None;
+        state.right_scroll = ScrollOffset::ZERO;
+        return Effect::None;
+    }
     state.view = match &state.view {
         View::List => return Effect::Quit,
         View::Detail => View::List,
@@ -881,35 +937,11 @@ fn back_one_level(state: &mut State) -> Effect {
 /// TUI runs one dispatch at a time (see [`refuse_second_run`]), and
 /// leaving the flag set on an envelope that somehow did not match would
 /// wedge the surface into "already running" for the rest of the session.
-pub fn apply_outcome(state: &mut State, tool_id: &'static str, outcome: Outcome) {
-    state.active_run = None;
-    let (text, is_error) = match outcome {
-        Outcome::Success(success) => {
-            state.right_scroll = ScrollOffset::ZERO;
-            state.focus = FocusArea::RightPane;
-            state.view = View::Result {
-                tool_id,
-                outputs: success.outputs,
-                text: String::new(),
-                is_error: false,
-            };
-            return;
-        }
-        Outcome::Failure(failure) => (
-            crate::domain::execution::dispatch::failure_text(&failure),
-            true,
-        ),
-        Outcome::NotFound => (
-            crate::i18n::t(state.tweaks.locale, "tui.error.tool_not_found").to_string(),
-            true,
-        ),
-    };
-    state.right_scroll = ScrollOffset::ZERO;
-    state.focus = FocusArea::RightPane;
-    state.view = View::Result {
+pub fn apply_outcome(state: &mut State, tool_id: &'static str, outcome: Outcome) -> Effect {
+    apply_outcome_with_host(
+        state,
         tool_id,
-        outputs: Vec::new(),
-        text,
-        is_error,
-    };
+        outcome,
+        super::model::PresentationHost::LocalTui,
+    )
 }

@@ -28,7 +28,7 @@ fn encoded_image(format: ImageFormat, pixel: Rgba<u8>) -> String {
     let mut bytes = Vec::new();
     image
         .write_to(&mut Cursor::new(&mut bytes), format)
-        .expect("이미지 fixture를 인코딩해야 한다");
+        .expect("must encode the image fixture");
     STANDARD.encode(bytes)
 }
 
@@ -69,24 +69,25 @@ async fn post_images_convert(images: Value) -> (StatusCode, Value) {
                     })
                     .to_string(),
                 ))
-                .expect("HTTP 요청을 만들어야 한다"),
+                .expect("must build the HTTP request"),
         )
         .await
-        .expect("HTTP 라우터가 응답해야 한다");
+        .expect("the HTTP router must answer");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX)
         .await
-        .expect("HTTP 응답 본문을 읽어야 한다");
-    let body = serde_json::from_slice(&bytes).expect("HTTP 응답은 JSON이어야 한다");
+        .expect("must read the HTTP response body");
+    let body = serde_json::from_slice(&bytes).expect("the HTTP response must be JSON");
     (status, body)
 }
 
 #[tokio::test]
-async fn 정규_file_value_wire의_png와_jpeg를_http로_변환하면_정규_zip_file_value가_반환된다() {
+async fn converting_canonical_file_value_png_and_jpeg_over_http_returns_a_canonical_zip_file_value()
+{
     let png = encoded_image(ImageFormat::Png, Rgba([1, 2, 3, u8::MAX]));
     let jpeg = encoded_image(ImageFormat::Jpeg, Rgba([4, 5, 6, u8::MAX]));
-    assert_eq!(png.len() % 4, 0, "PNG fixture는 padded base64여야 한다");
-    assert_eq!(jpeg.len() % 4, 0, "JPEG fixture는 padded base64여야 한다");
+    assert_eq!(png.len() % 4, 0, "PNG fixture must be padded base64");
+    assert_eq!(jpeg.len() % 4, 0, "JPEG fixture must be padded base64");
     let images = images_directory(vec![
         canonical_file("first.png", "image/png", png),
         canonical_file("second.jpeg", "image/jpeg", jpeg),
@@ -94,7 +95,7 @@ async fn 정규_file_value_wire의_png와_jpeg를_http로_변환하면_정규_zi
 
     let (status, body) = post_images_convert(images).await;
 
-    assert_eq!(status, StatusCode::OK, "HTTP 변환이 실패했다: {body}");
+    assert_eq!(status, StatusCode::OK, "HTTP conversion failed: {body}");
     assert_eq!(body["ok"], true);
     assert_eq!(body["primary_output_id"], "result");
     let output = &body["outputs"][0];
@@ -107,21 +108,21 @@ async fn 정규_file_value_wire의_png와_jpeg를_http로_변환하면_정규_zi
 
     let encoded_zip = file["content"]["bytes"]
         .as_str()
-        .expect("ZIP FileValue 본문은 base64 문자열이어야 한다");
+        .expect("the ZIP FileValue body must be a base64 string");
     let zip_bytes = STANDARD
         .decode(encoded_zip)
-        .expect("ZIP FileValue 본문은 정규 RFC 4648 base64여야 한다");
+        .expect("the ZIP FileValue body must be canonical RFC 4648 base64");
     assert_eq!(
         STANDARD.encode(&zip_bytes),
         encoded_zip,
-        "ZIP FileValue 본문은 canonical padded base64여야 한다"
+        "the ZIP FileValue body must be canonical padded base64"
     );
-    let mut archive = ZipArchive::new(Cursor::new(zip_bytes)).expect("출력은 ZIP이어야 한다");
+    let mut archive = ZipArchive::new(Cursor::new(zip_bytes)).expect("the output must be a ZIP");
     let names = (0..archive.len())
         .map(|index| {
             archive
                 .by_index(index)
-                .expect("ZIP 항목을 읽어야 한다")
+                .expect("must read the ZIP entry")
                 .name()
                 .to_string()
         })
@@ -130,7 +131,7 @@ async fn 정규_file_value_wire의_png와_jpeg를_http로_변환하면_정규_zi
 }
 
 #[tokio::test]
-async fn 구형_숫자_배열_file_value_wire는_http_경계에서_거부된다() {
+async fn a_legacy_numeric_array_file_value_wire_is_refused_at_the_http_boundary() {
     let legacy_file = json!({
         "name": "legacy.png",
         "is_dir": false,

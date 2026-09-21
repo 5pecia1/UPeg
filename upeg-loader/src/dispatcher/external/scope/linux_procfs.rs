@@ -160,8 +160,8 @@ pub(super) fn scan_and_terminate(
                 });
             }
         };
-        // PID 재사용과 fd 교체 사이의 TOCTOU를 막기 위해 pidfd로
-        // 프로세스를 고정한 뒤 같은 stream을 여전히 보유하는지 재확인한다.
+        // Pin the process with a pidfd against the PID-reuse/fd-swap
+        // TOCTOU, then re-check that it still holds the same stream.
         if !process_holds_stream(holders, pid, deadline)? {
             continue;
         }
@@ -261,9 +261,9 @@ mod tests {
     use super::{HolderIdentity, fdinfo_is_writable};
 
     #[test]
-    fn pty_보유자는_열려_있던_자식_쪽의_식별자를_그대로_쓴다() {
+    fn pty_holder_uses_child_side_identity_recorded_at_open() {
         // Given: an open pseudoterminal.
-        let terminal = Pty::open().expect("pty를 연다").into_master();
+        let terminal = Pty::open().expect("open a pty").into_master();
         let device = terminal.child_device();
 
         // Then: the sweep identity is the one recorded at open time —
@@ -279,51 +279,51 @@ mod tests {
     }
 
     #[test]
-    fn rdev가_같아도_inode가_다르면_같은_터미널이_아니다() {
+    fn same_rdev_different_inode_is_not_same_terminal() {
         // Given: a real child side and the way `/proc` stats it.
-        let terminal = Pty::open().expect("pty를 연다").into_master();
+        let terminal = Pty::open().expect("open a pty").into_master();
         let device = terminal.child_device();
-        let metadata = fs::metadata(device.path()).expect("자식 쪽 장치를 stat한다");
-        let 실제 = device.identity();
-        let 보유자 = |identity| HolderIdentity::PtyDevice {
+        let metadata = fs::metadata(device.path()).expect("stat the child-side device");
+        let actual = device.identity();
+        let holder = |identity| HolderIdentity::PtyDevice {
             identity,
             proc_link_target: device.path().to_os_string(),
         };
 
         // Then
         assert!(
-            보유자(실제).matches(&metadata),
-            "자기 자신은 언제나 같은 터미널이다"
+            holder(actual).matches(&metadata),
+            "itself is always the same terminal"
         );
         // A second devpts instance — a container's own `/dev/pts` — has
         // a `/dev/pts/N` with the very same character-device number on a
         // different superblock. rdev-only identity would have upeg kill
         // whoever holds that stranger's terminal.
         assert!(
-            !보유자(DeviceIdentity {
-                device: 실제.device.wrapping_add(1),
-                ..실제
+            !holder(DeviceIdentity {
+                device: actual.device.wrapping_add(1),
+                ..actual
             })
             .matches(&metadata),
-            "rdev가 같아도 다른 devpts 인스턴스의 터미널은 남의 것이다"
+            "same rdev on a different devpts instance is somebody else's terminal"
         );
         assert!(
-            !보유자(DeviceIdentity {
-                inode: 실제.inode.wrapping_add(1),
-                ..실제
+            !holder(DeviceIdentity {
+                inode: actual.inode.wrapping_add(1),
+                ..actual
             })
             .matches(&metadata),
-            "같은 인스턴스라도 pts 번호가 다르면 다른 터미널이다"
+            "a different pts number in the same instance is a different terminal"
         );
     }
 
     #[test]
-    fn fdinfo의_read_only_descriptor는_writer가_아니다() {
+    fn fdinfo_read_only_descriptor_is_not_writer() {
         assert!(!fdinfo_is_writable("pos:\t0\nflags:\t00\nmnt_id:\t1\n"));
     }
 
     #[test]
-    fn fdinfo의_write_descriptor는_writer다() {
+    fn fdinfo_write_descriptor_is_writer() {
         assert!(fdinfo_is_writable(
             "pos:\t0\nflags:\t02000001\nmnt_id:\t1\n"
         ));

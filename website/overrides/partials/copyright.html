@@ -1,0 +1,24 @@
+{#-
+  Footer meta: copyright line plus persistent links to the landing page's
+  privacy / FAQ / support sections. Anchored links are used instead of the
+  /privacy/ style redirect routes so instant navigation always lands on a
+  real content page.
+-#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">
+      {{ config.copyright }}
+    </div>
+  {% endif %}
+  <nav class="upeg-footer-links" aria-label="{{ lang.t('footer') }}">
+    <a href="{{ 'index.html' | url }}#privacy">Privacy</a>
+    <a href="{{ 'index.html' | url }}#faq">FAQ</a>
+    <a href="{{ 'index.html' | url }}#support">Support</a>
+  </nav>
+  {% if not config.extra.generator == false %}
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  {% endif %}
+</div>

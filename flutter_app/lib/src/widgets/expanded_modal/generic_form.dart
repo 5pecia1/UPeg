@@ -293,7 +293,9 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
 
   String? _errorTextFor(InputFieldDto field) {
     final v = _validations[field.key];
-    if (v is FieldValidationError) return v.message;
+    if (v is FieldValidationError) {
+      return t(ref, v.messageKey, v.messageArgs);
+    }
     return null;
   }
 

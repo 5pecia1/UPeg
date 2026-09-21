@@ -1,6 +1,7 @@
 use upeg_core::{
     InputSpec, Invoker, OutputSpec, PegboardUnits, PinKind, PrimaryOutputIdError, StaticToolMeta,
-    Surface, ToolId, ToolIdError, ToolKey, ToolMeta, validate_primary_output_id,
+    Surface, ToolEffect, ToolId, ToolIdError, ToolKey, ToolMeta, ToolPresentation,
+    validate_primary_output_id,
 };
 
 /// Source-neutral raw Tool manifest lowered by runtime adapters into [`ToolMeta`].
@@ -14,6 +15,8 @@ pub struct ExternalToolManifest {
     pub input_spec: InputSpec,
     pub output_spec: OutputSpec,
     pub primary_output_id: Option<String>,
+    pub effect: ToolEffect,
+    pub presentation: Option<ToolPresentation>,
     pub pin: Option<String>,
     pub pegboard_units: Option<String>,
     pub invoker: Option<String>,
@@ -33,6 +36,8 @@ pub struct RuntimeToolManifest {
     pub input_spec: InputSpec,
     pub output_spec: OutputSpec,
     pub primary_output_id: Option<String>,
+    pub effect: ToolEffect,
+    pub presentation: Option<ToolPresentation>,
     pub pin: PinKind,
     pub pegboard_units: PegboardUnits,
     pub invoker: Invoker,
@@ -140,6 +145,8 @@ pub fn lower_manifest_to_tool_meta(
         input_spec: manifest.input_spec,
         output_spec: manifest.output_spec,
         primary_output_id: manifest.primary_output_id,
+        effect: manifest.effect,
+        presentation: manifest.presentation,
         pin,
         pegboard_units,
         invoker,
@@ -188,6 +195,8 @@ pub fn lower_runtime_tool_manifest(
         input_spec: manifest.input_spec,
         output_spec: manifest.output_spec,
         primary_output_id: manifest.primary_output_id.map(leak_str),
+        effect: manifest.effect,
+        presentation: manifest.presentation,
         source: upeg_core::Source::UserInput,
         pin: manifest.pin,
         pegboard_units: manifest.pegboard_units,
@@ -378,6 +387,7 @@ mod tests {
             input_spec: upeg_core::StaticInputSpec::empty(),
             output_spec: upeg_core::StaticOutputSpec::empty(),
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: upeg_core::StaticSource::UserInput,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -398,9 +408,11 @@ mod tests {
                 "type": "object",
                 "properties": {"input": {"type": "string"}}
             }))
-            .expect("테스트 입력 명세가 파싱되어야 한다"),
+            .expect("test input spec must parse"),
             output_spec: OutputSpec::empty(),
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
+            presentation: None,
             pin: Some("Launcher".to_string()),
             pegboard_units: Some("U2".to_string()),
             invoker: Some(invoker.to_string()),
@@ -410,11 +422,11 @@ mod tests {
     }
 
     #[test]
-    fn 동등한_외부_manifest는_같은_필드로_낮춰진다() {
+    fn equivalent_external_manifests_lower_to_same_fields() {
         let toml_meta = lower_manifest_to_tool_meta(manifest("rtmanifest.echo", "External"))
-            .expect("TOML 형태 매니페스트가 낮춰져야 한다");
+            .expect("TOML-shaped manifest must lower");
         let wasm_meta = lower_manifest_to_tool_meta(manifest("rtmanifest.echo", "External"))
-            .expect("WASM 형태 매니페스트가 낮춰져야 한다");
+            .expect("WASM-shaped manifest must lower");
 
         assert_eq!(toml_meta.id, wasm_meta.id);
         assert_eq!(toml_meta.toolkit, wasm_meta.toolkit);
@@ -431,9 +443,9 @@ mod tests {
     }
 
     #[test]
-    fn 중복과_가리기는_타입_있는_충돌_오류를_반환한다() {
+    fn duplicates_and_shadowing_return_typed_collision_errors() {
         let existing = lower_manifest_to_tool_meta(manifest("rtmanifest.duplicate", "External"))
-            .expect("시드 메타데이터");
+            .expect("seed metadata");
         let duplicate_key = ToolKey::parse_canonical("rtmanifest", "duplicate").unwrap();
         assert!(matches!(
             validate_tool_identity(&duplicate_key, &[existing]),

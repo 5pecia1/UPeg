@@ -16,7 +16,7 @@ import 'package:upeg/src/state/host_state_provider.dart';
 
 void main() {
   group('hostStateProvider', () {
-    test('hostStateProvider는_스트림_이벤트를_AsyncData로_노출한다', () async {
+    test('hostStateProvider_exposes_stream_events_as_AsyncData', () async {
       final controller = StreamController<HostStateEvent>();
       addTearDown(controller.close);
 
@@ -45,7 +45,7 @@ void main() {
       );
     });
 
-    test('hostStateProvider는_noHost_이벤트도_전달한다', () async {
+    test('hostStateProvider_forwards_noHost_events_too', () async {
       final controller = StreamController<HostStateEvent>();
       addTearDown(controller.close);
 

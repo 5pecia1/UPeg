@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn 첫_비플래그_토큰은_도구이고_나머지는_위치인자다() {
+    fn first_non_flag_token_is_the_tool_and_the_rest_are_positionals() {
         let inv = parse_tokens(&["hex-to-decimal", "0xff", "extra"]).unwrap();
         assert_eq!(inv.tool.as_deref(), Some("hex-to-decimal"));
         assert_eq!(inv.positionals, vec!["0xff", "extra"]);
@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn help_플래그는_긴형과_짧은형_모두_어디서든_인식된다() {
+    fn help_flag_is_recognized_anywhere_in_long_and_short_form() {
         for tokens in [
             &["--help"][..],
             &["-h"][..],
@@ -193,20 +193,20 @@ mod tests {
     }
 
     #[test]
-    fn field_플래그는_다음_토큰을_값으로_소비한다() {
+    fn field_flag_consumes_the_next_token_as_its_value() {
         let inv = parse_tokens(&["hex-to-decimal", "--field", "result", "0xff"]).unwrap();
         assert_eq!(inv.field.as_deref(), Some("result"));
         assert_eq!(inv.positionals, vec!["0xff"]);
     }
 
     #[test]
-    fn field_플래그는_값이_없으면_오류다() {
+    fn field_flag_without_a_value_is_an_error() {
         let err = parse_tokens(&["hex-to-decimal", "--field"]).unwrap_err();
         assert!(err.message().contains("--field"), "got: {}", err.message());
     }
 
     #[test]
-    fn 출력_플래그_조합은_거부된다() {
+    fn combining_output_flags_is_rejected() {
         let inv = parse_tokens(&["t", "--json", "--pretty"]).unwrap();
         let err = inv.output_mode().unwrap_err();
         assert!(
@@ -217,14 +217,14 @@ mod tests {
     }
 
     #[test]
-    fn 이중대시_이후_토큰은_플래그처럼_보여도_위치인자다() {
+    fn tokens_after_double_dash_are_positionals_even_if_they_look_like_flags() {
         let inv = parse_tokens(&["echo", "--", "--json", "--help"]).unwrap();
         assert_eq!(inv.positionals, vec!["--json", "--help"]);
         assert!(!inv.json && !inv.help);
     }
 
     #[test]
-    fn 알수없는_긴_플래그는_오류이고_단일대시_토큰은_위치인자다() {
+    fn an_unknown_long_flag_is_an_error_and_single_dash_tokens_are_positionals() {
         let err = parse_tokens(&["echo", "--verbose"]).unwrap_err();
         assert!(
             err.message().contains("--verbose"),
@@ -237,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn local_플래그는_attach_정책을_local_only로_바꾼다() {
+    fn the_local_flag_switches_attach_policy_to_local_only() {
         let auto = parse_tokens(&["echo", "hi"]).unwrap();
         assert_eq!(auto.attach_policy(), HostAttachPolicy::Auto);
 

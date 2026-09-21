@@ -6,7 +6,7 @@ const SMALL_USER_OUTPUT_CAP_BYTES: usize = 32;
 const SCHEMA_MIN_OUTPUT_BYTES: f64 = 1.0;
 const SCHEMA_MAX_OUTPUT_BYTES: f64 = 67_108_864.0;
 
-fn 이미지_디렉터리(colors: &[[u8; 4]]) -> FileValue {
+fn image_directory(colors: &[[u8; 4]]) -> FileValue {
     FileValue {
         name: "photos".to_string(),
         mime: None,
@@ -24,7 +24,7 @@ fn 이미지_디렉터리(colors: &[[u8; 4]]) -> FileValue {
     }
 }
 
-const fn 기본_batch_limits() -> BatchMemoryLimits {
+const fn default_batch_limits() -> BatchMemoryLimits {
     BatchMemoryLimits {
         working_bytes: TEST_WORKING_BYTES,
         encoded_image_bytes: IMAGES_CONVERT_MAX_OUTPUT_BYTES,
@@ -36,37 +36,38 @@ fn zip_byte_len(result: &str) -> usize {
     file_bytes(&output_file(result)).len()
 }
 
-fn 전체_encoded_image_bytes(input: &FileValue) -> usize {
-    let result = images_convert_with_limits(input, "png", 기본_batch_limits())
+fn total_encoded_image_bytes(input: &FileValue) -> usize {
+    let result = images_convert_with_limits(input, "png", default_batch_limits())
         .expect("baseline conversion should succeed");
     let (_, entries) = output_zip_entries(&result);
     entries.iter().map(|(_, bytes)| bytes.len()).sum()
 }
 
 #[test]
-fn 이미지_일괄_변환은_0_byte_output_cap을_거부한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
+fn images_convert_rejects_zero_byte_output_cap() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
 
-    let error = 기본_이미지_변환(&input, "png", 0).expect_err("zero output cap must be rejected");
+    let error =
+        default_images_convert(&input, "png", 0).expect_err("zero output cap must be rejected");
 
     assert!(error.contains("max_output_bytes"), "got {error:?}");
 }
 
 #[test]
-fn 이미지_일괄_변환은_hard_cap보다_1_byte_큰_요청을_거부한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
+fn images_convert_rejects_request_one_byte_over_hard_cap() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
 
-    let error = 기본_이미지_변환(&input, "png", IMAGES_CONVERT_MAX_OUTPUT_BYTES + 1)
+    let error = default_images_convert(&input, "png", IMAGES_CONVERT_MAX_OUTPUT_BYTES + 1)
         .expect_err("a request above the hard cap must be rejected");
 
     assert!(error.contains("max_output_bytes"), "got {error:?}");
 }
 
 #[test]
-fn 이미지_일괄_변환은_hard_cap_경계를_허용한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
+fn images_convert_allows_hard_cap_boundary() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
 
-    let result = 기본_이미지_변환(&input, "png", IMAGES_CONVERT_MAX_OUTPUT_BYTES);
+    let result = default_images_convert(&input, "png", IMAGES_CONVERT_MAX_OUTPUT_BYTES);
 
     assert!(
         result.is_ok(),
@@ -75,13 +76,13 @@ fn 이미지_일괄_변환은_hard_cap_경계를_허용한다() {
 }
 
 #[test]
-fn zip_output_cap은_정확한_결과_byte_경계를_허용한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
-    let baseline = 기본_이미지_변환(&input, "png", IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES)
+fn zip_output_cap_allows_exact_result_byte_boundary() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
+    let baseline = default_images_convert(&input, "png", IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES)
         .expect("baseline conversion should succeed");
     let exact_output_bytes = zip_byte_len(&baseline);
 
-    let result = 기본_이미지_변환(&input, "png", exact_output_bytes);
+    let result = default_images_convert(&input, "png", exact_output_bytes);
 
     assert!(
         result.is_ok(),
@@ -90,35 +91,35 @@ fn zip_output_cap은_정확한_결과_byte_경계를_허용한다() {
 }
 
 #[test]
-fn zip_결과가_output_cap보다_1_byte_크면_거부한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
-    let baseline = 기본_이미지_변환(&input, "png", IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES)
+fn zip_result_one_byte_over_output_cap_is_rejected() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
+    let baseline = default_images_convert(&input, "png", IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES)
         .expect("baseline conversion should succeed");
     let smaller_cap = zip_byte_len(&baseline) - 1;
 
-    let error = 기본_이미지_변환(&input, "png", smaller_cap)
+    let error = default_images_convert(&input, "png", smaller_cap)
         .expect_err("one byte over the requested zip cap must be rejected");
 
     assert!(error.contains("output zip"), "got {error:?}");
 }
 
 #[test]
-fn 작은_user_cap은_encoded_image_생성에도_먼저_적용된다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
+fn small_user_cap_applies_to_encoded_image_too() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
 
-    let error = 기본_이미지_변환(&input, "png", SMALL_USER_OUTPUT_CAP_BYTES)
+    let error = default_images_convert(&input, "png", SMALL_USER_OUTPUT_CAP_BYTES)
         .expect_err("encoded image over the user cap must be rejected");
 
     assert!(error.contains("encoded raster"), "got {error:?}");
 }
 
 #[test]
-fn batch_encoded_budget은_단일_이미지_경계를_허용한다() {
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
-    let exact_encoded_bytes = 전체_encoded_image_bytes(&input);
+fn batch_encoded_budget_allows_single_image_boundary() {
+    let input = image_directory(&[[1, 2, 3, u8::MAX]]);
+    let exact_encoded_bytes = total_encoded_image_bytes(&input);
     let limits = BatchMemoryLimits {
         encoded_image_bytes: exact_encoded_bytes,
-        ..기본_batch_limits()
+        ..default_batch_limits()
     };
 
     let result = images_convert_with_limits(&input, "png", limits);
@@ -130,13 +131,13 @@ fn batch_encoded_budget은_단일_이미지_경계를_허용한다() {
 }
 
 #[test]
-fn batch_encoded_budget은_이미지별이_아닌_전체_합계에_적용된다() {
-    let single_input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX]]);
-    let input = 이미지_디렉터리(&[[1, 2, 3, u8::MAX], [1, 2, 3, u8::MAX]]);
-    let single_image_budget = 전체_encoded_image_bytes(&single_input);
+fn batch_encoded_budget_applies_to_aggregate_not_per_image() {
+    let single_input = image_directory(&[[1, 2, 3, u8::MAX]]);
+    let input = image_directory(&[[1, 2, 3, u8::MAX], [1, 2, 3, u8::MAX]]);
+    let single_image_budget = total_encoded_image_bytes(&single_input);
     let limits = BatchMemoryLimits {
         encoded_image_bytes: single_image_budget,
-        ..기본_batch_limits()
+        ..default_batch_limits()
     };
 
     let error = images_convert_with_limits(&input, "png", limits)
@@ -146,7 +147,7 @@ fn batch_encoded_budget은_이미지별이_아닌_전체_합계에_적용된다(
 }
 
 #[test]
-fn 이미지_일괄_변환_schema는_output_byte_범위와_기본값을_노출한다() {
+fn images_convert_schema_exposes_output_byte_range_and_default() {
     let meta = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>()
         .find(|meta| meta.id == "media.images_convert")
         .expect("images_convert metadata should exist");

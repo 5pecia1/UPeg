@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 페그보드_셀은_배치_힌트를_따른다() {
+fn pegboard_cells_follow_placement_hints() {
     // The canvas is always BOARD_COLS-wide (narrow terminals slice it
     // via grid_h_scroll), so stored (col, row) hints are honored at
     // every viewport width.
@@ -16,14 +16,14 @@ fn 페그보드_셀은_배치_힌트를_따른다() {
         None,
     ]);
     let cells = pegboard_cells(&tools, layout.left);
-    assert_eq!(cells[0].col, 2, "힌트 (2, 0)을 따라야 한다");
+    assert_eq!(cells[0].col, 2, "must follow hint (2, 0)");
     assert_eq!(cells[0].row, 0);
-    assert_eq!(cells[1].col, 4, "힌트 (4, 3)을 따라야 한다");
+    assert_eq!(cells[1].col, 4, "must follow hint (4, 3)");
     assert_eq!(cells[1].row, 3);
 }
 
 #[test]
-fn 배치_힌트가_충돌하면_첫_빈칸으로_대체된다() {
+fn colliding_placement_hints_fall_back_to_first_free_cell() {
     // Two hints colliding on the same cell: first wins (honored),
     // second auto-packs around it so the user still sees both tools
     // even when state has stale/conflicting positions.
@@ -42,12 +42,12 @@ fn 배치_힌트가_충돌하면_첫_빈칸으로_대체된다() {
     assert_ne!(
         (cells[1].col, cells[1].row),
         (0, 0),
-        "두 번째 배치는 힌트가 충돌하면 첫 번째 빈칸으로 대체되어야 한다"
+        "the second placement must fall back to the first free cell on hint collision"
     );
 }
 
 #[test]
-fn 페그보드_셀은_선언된_단위와_히트_테스트를_따른다() {
+fn pegboard_cells_follow_declared_units_and_hit_testing() {
     // Canonical 6-col canvas: WIDE(2×1) at (0,0), TALL(1×2) at (2,0),
     // ONE auto-packs to the next free row-0 slot at col 3.
     let tools = span_fixture_tools();
@@ -85,7 +85,7 @@ fn 페그보드_셀은_선언된_단위와_히트_테스트를_따른다() {
 }
 
 #[test]
-fn 그리드_이동은_카드_크기_정보를_사용한다() {
+fn grid_movement_uses_card_size_info() {
     // Pin the multi-row layout via hints so the test exercises Down/Up
     // navigation across rows. Without hints the 6-col canonical canvas
     // would auto-pack everything onto row 0 and Down/Up would no-op.
@@ -118,7 +118,7 @@ fn 그리드_이동은_카드_크기_정보를_사용한다() {
 }
 
 #[test]
-fn 열이_겹치지_않으면_그리드_이동은_왼쪽_아래_카드로_대체된다() {
+fn grid_movement_falls_back_to_lower_left_card_without_column_overlap() {
     // Force the 3-then-2 wrap shape via hints so we can verify the
     // fallback-candidate path picks the nearest below-row neighbor
     // even when no column overlap exists.
@@ -141,17 +141,17 @@ fn 열이_겹치지_않으면_그리드_이동은_왼쪽_아래_카드로_대체
     assert_eq!(
         move_cursor_in_grid(&tools, layout.left, 2, GridDirection::Down),
         4,
-        "오른쪽 끝에서 아래로 이동하면 열이 겹치지 않아도 가장 가까운 아래 행 카드로 가야 한다"
+        "moving down from the right edge must reach the nearest lower-row card even without column overlap"
     );
     assert_eq!(
         move_cursor_in_grid(&tools, layout.left, 4, GridDirection::Left),
         3,
-        "아래 행에 도착한 뒤에도 왼쪽의 아래 카드에 접근할 수 있어야 한다"
+        "after reaching the lower row, the lower-left card must still be reachable"
     );
 }
 
 #[test]
-fn 키보드_이동은_포커스된_그리드_카드를_보이도록_스크롤한다() {
+fn keyboard_movement_scrolls_focused_grid_card_into_view() {
     // Canvas is fixed at BOARD_COLS=6, so on a 60-wide area the right
     // edge of the canvas is off-screen and Right-key navigation triggers
     // horizontal auto-scroll. The hints anchor cells[1] far enough right
@@ -185,14 +185,17 @@ fn 키보드_이동은_포커스된_그리드_카드를_보이도록_스크롤�
     assert_eq!(s.cursor, 1);
     assert!(
         s.grid_h_scroll > 0,
-        "뷰포트 오른쪽 밖 포커스는 가로 스크롤을 움직여야 한다"
+        "focusing beyond the viewport's right edge must move the horizontal scroll"
     );
-    let visible = visible.expect("이동 후 선택된 셀이 보여야 한다");
-    assert!(visible.width >= 3, "선택된 카드를 그릴 공간이 있어야 한다");
+    let visible = visible.expect("the selected cell must be visible after the move");
+    assert!(
+        visible.width >= 3,
+        "there must be room to draw the selected card"
+    );
 }
 
 #[test]
-fn 렌더는_자동_스크롤_후_키보드_포커스_카드를_보여준다() {
+fn render_shows_keyboard_focused_card_after_auto_scroll() {
     use ratatui::backend::TestBackend;
 
     let mut s = fresh();
@@ -220,16 +223,16 @@ fn 렌더는_자동_스크롤_후_키보드_포커스_카드를_보여준다() {
 
     assert!(
         grid_text.contains("test.with_input"),
-        "자동 스크롤 후 포커스된 카드는 그리드 안에 렌더링되어야 한다. grid: {grid_text}"
+        "the focused card must render inside the grid after auto-scroll. grid: {grid_text}"
     );
     assert!(
         !grid_text.contains("test.simple"),
-        "첫 번째 카드는 그리드 뷰포트 밖으로 스크롤되어야 한다. grid: {grid_text}"
+        "the first card must be scrolled out of the grid viewport. grid: {grid_text}"
     );
 }
 
 #[test]
-fn 그리드가_가로로_넘치면_렌더는_가로_스크롤바를_보여준다() {
+fn render_shows_horizontal_scrollbar_when_grid_overflows() {
     // Canvas is fixed at BOARD_COLS=6 cells wide (≈113 chars), so on a
     // 60-wide area the horizontal scrollbar is the always-present axis.
     use ratatui::backend::TestBackend;
@@ -240,7 +243,7 @@ fn 그리드가_가로로_넘치면_렌더는_가로_스크롤바를_보여준�
     let area = Rect::new(0, 0, 60, 20);
     let layout = tui_layout(area);
     let scrollbar_area =
-        grid_h_scrollbar_area(layout.left).expect("가로 스크롤바 영역이 있어야 한다");
+        grid_h_scrollbar_area(layout.left).expect("must have a horizontal scrollbar area");
 
     let mut terminal = Terminal::new(TestBackend::new(area.width, area.height)).unwrap();
     terminal.draw(|f| render(f, &s, t)).unwrap();
@@ -248,14 +251,15 @@ fn 그리드가_가로로_넘치면_렌더는_가로_스크롤바를_보여준�
 
     assert!(
         scrollbar_text.contains('#'),
-        "가로로 넘치는 페그보드는 가로 스크롤바를 렌더링해야 한다. scrollbar: {scrollbar_text}"
+        "a horizontally overflowing pegboard must render a horizontal scrollbar. scrollbar: {scrollbar_text}"
     );
 }
 
 #[test]
-fn 그리드가_뷰포트에_들어가면_가로_스크롤바는_그려지지_않는다() {
-    // Wide viewport: 캔버스가 모두 보이므로 가로 스크롤바 없어야 한다 —
-    // negative complement of `그리드가_가로로_넘치면_렌더는_가로_스크롤바를_보여준다`.
+fn horizontal_scrollbar_not_drawn_when_grid_fits_viewport() {
+    // Wide viewport: the whole canvas is visible so there must be no
+    // horizontal scrollbar — negative complement of
+    // `render_shows_horizontal_scrollbar_when_grid_overflows`.
     use ratatui::backend::TestBackend;
 
     let s = fresh();
@@ -263,7 +267,8 @@ fn 그리드가_뷰포트에_들어가면_가로_스크롤바는_그려지지_�
     let t = t.as_slice();
     let area = Rect::new(0, 0, 200, 30);
     let layout = tui_layout(area);
-    let scrollbar_area = grid_h_scrollbar_area(layout.left).expect("바닥 한 줄 영역은 항상 존재");
+    let scrollbar_area =
+        grid_h_scrollbar_area(layout.left).expect("the single bottom row always exists");
 
     let mut terminal = Terminal::new(TestBackend::new(area.width, area.height)).unwrap();
     terminal.draw(|f| render(f, &s, t)).unwrap();
@@ -271,12 +276,12 @@ fn 그리드가_뷰포트에_들어가면_가로_스크롤바는_그려지지_�
 
     assert!(
         !scrollbar_text.contains('#'),
-        "뷰포트가 캔버스를 다 담으면 가로 스크롤바는 그려지지 않아야 한다. scrollbar: {scrollbar_text}"
+        "when the viewport holds the whole canvas the horizontal scrollbar must not be drawn. scrollbar: {scrollbar_text}"
     );
 }
 
 #[test]
-fn 마우스_클릭은_스크롤된_그리드_좌표를_사용한다() {
+fn mouse_click_uses_scrolled_grid_coordinates() {
     let mut s = fresh();
     let t = fixture_tools();
     let t = t.as_slice();
@@ -303,7 +308,7 @@ fn 마우스_클릭은_스크롤된_그리드_좌표를_사용한다() {
         .into_iter()
         .find(|cell| cell.index == 1)
         .and_then(|cell| grid_visible_rect(cell, layout.left, s.grid_scroll, s.grid_h_scroll))
-        .expect("스크롤 후 두 번째 카드가 보여야 한다");
+        .expect("the second card must be visible after scrolling");
 
     let action = handle_mouse(
         &mut s,

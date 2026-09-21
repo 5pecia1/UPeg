@@ -1,0 +1,128 @@
+# UPeg documentation site — https://5pecia1.github.io/UPeg/
+#
+# This file lands at the repository root of the public export (copy.bara.sky
+# moves oss/ to the root). Paths are relative to that root: docs/ holds the
+# English Markdown sources and website/overrides holds the theme overrides.
+#
+# Local preview (export-equivalent tree required — oss/ contents at root):
+#   pip install -r requirements-docs.txt
+#   zensical serve        # http://localhost:8000
+#   zensical build --clean --strict
+#   python3 website/check_site.py site --base-path /UPeg/
+
+[project]
+site_name = "UPeg"
+site_url = "https://5pecia1.github.io/UPeg/"
+site_description = "UPeg — Universal Pegboard. A local-first board for reusable tools, callable from the CLI, TUI, Desktop, PWA, Chrome extension, MCP, and HTTP."
+site_author = "UPeg contributors"
+copyright = "UPeg contributors"
+
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = true
+
+repo_url = "https://github.com/5pecia1/UPeg"
+repo_name = "5pecia1/UPeg"
+# config.py defaults github.com edit links to edit/master — this repo is main.
+edit_uri = "edit/main/docs/"
+
+# extra_css resolves against docs_dir first and the theme custom_dir second;
+# the file physically lives in website/overrides/ so docs/ stays untouched.
+extra_css = ["assets/upeg/upeg.css"]
+
+nav = [
+  { "Home" = "index.md" },
+  { "Guides" = [
+    "guides/index.md",
+    { "Installation" = "guides/installation.md" },
+    { "Quick start" = "guides/quick-start.md" },
+    { "Troubleshooting" = "guides/troubleshooting.md" },
+    { "Development" = "guides/development.md" },
+    { "Tool author guide" = "guides/tool-author.md" },
+  ] },
+  { "Product" = [
+    "product/index.md",
+    { "Identity and boundaries" = "product/identity-and-boundaries.md" },
+    { "Board and agent workflow" = "product/board-agent-workflow.md" },
+    { "Security absolutes" = "product/security-absolutes.md" },
+  ] },
+  { "Architecture" = [
+    "architecture/index.md",
+    { "Crate boundaries" = "architecture/crate-boundaries.md" },
+    { "Toolkit and Tool" = "architecture/toolkit-and-tool.md" },
+    { "Manifest contract" = "architecture/manifest.md" },
+    { "I/O type system" = "architecture/io-types.md" },
+    { "File wire" = "architecture/file-wire.md" },
+    { "Chain Tool" = "architecture/chain.md" },
+    { "Call envelope" = "architecture/call-envelope.md" },
+    { "Project manifest" = "architecture/project-manifest.md" },
+    { "HTTP API" = "architecture/http-api.md" },
+    { "Host topology" = "architecture/host-topology.md" },
+    { "MCP" = "architecture/mcp.md" },
+    { "Technology stack" = "architecture/stack.md" },
+  ] },
+  { "Reference" = [
+    { "External Tool Manifest" = "TOOL_MANIFEST.md" },
+    { "Lexicon" = "LEXICON.md" },
+    { "PDF tools" = "pdf-tools.md" },
+    { "UI/UX surface contract" = "ui-ux-surface-contract.md" },
+  ] },
+]
+
+[project.theme]
+custom_dir = "website/overrides"
+language = "en"
+# No remote font requests: system font stack instead of Google Fonts.
+font = false
+favicon = "assets/upeg/favicon.svg"
+features = [
+  "content.action.view",
+  "content.code.copy",
+  "content.code.select",
+  "content.tabs.link",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+
+# Light/dark palette with system-preference detection.
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "deep orange"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "deep orange"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+# Stable routes for the privacy / FAQ / support sections of the landing page.
+# The sections live in website/overrides/partials/upeg-meta.html; these give
+# them shareable URLs without adding Markdown files to docs/.
+[project.plugins.redirects.redirect_maps]
+"privacy.md" = "index.md#privacy"
+"faq.md" = "index.md#faq"
+"support.md" = "index.md#support"
+
+# Fail the build on broken internal links and anchors (used with --strict).
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true

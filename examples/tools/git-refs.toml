@@ -1,0 +1,57 @@
+# A read-only Git Toolkit whose collection result opens a separate detail form.
+# Keep git_refs.py beside this manifest when installing it into a Toolkit dir.
+id = "git_refs"
+tags = ["vcs", "example"]
+display_label = "Git references"
+
+[[tools]]
+id = "refs"
+display_label = "Branches"
+description = "List local Git branches in a repository."
+pegboard_units = "U1"
+invoker = "External"
+effect = "read"
+command = "python3"
+args_template = ["git_refs.py", "list", "--repo", "{repo}"]
+cwd = "."
+inputs = [{ name = "repo", type = "string", label = "Repository", required = true }]
+outputs = [{ name = "branches", type = "json", label = "Branches" }]
+primary_output_id = "branches"
+
+[tools.presentation]
+version = 1
+output = "branches"
+rows = "/refs"
+row_key = "/ref"
+columns = [
+  { label = "Branch", pointer = "/ref" },
+  { label = "Commit", pointer = "/object" },
+  { label = "Subject", pointer = "/subject" },
+]
+
+[[tools.presentation.actions]]
+id = "inspect"
+scope = "row"
+label = "Inspect ref"
+target_tool = "git_refs.ref"
+
+[tools.presentation.actions.bindings]
+repo = { from = "input", pointer = "/repo" }
+ref = { from = "row", pointer = "/ref" }
+
+[[tools]]
+id = "ref"
+display_label = "Branch reference"
+description = "Read the selected branch's commit id."
+pegboard_units = "U1"
+invoker = "External"
+effect = "read"
+command = "python3"
+args_template = ["git_refs.py", "show", "--repo", "{repo}", "--ref", "{ref}"]
+cwd = "."
+inputs = [
+  { name = "repo", type = "string", label = "Repository", required = true },
+  { name = "ref", type = "string", label = "Branch", required = true },
+]
+outputs = [{ name = "reference", type = "json", label = "Reference" }]
+primary_output_id = "reference"

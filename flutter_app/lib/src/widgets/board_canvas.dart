@@ -15,6 +15,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/state/app_state.dart';
@@ -251,7 +252,7 @@ class _BoardCanvasGridState extends ConsumerState<_BoardCanvasGrid> {
         child: Center(
           key: const Key('board-canvas-empty'),
           child: Text(
-            emptyBoardHint,
+            t(ref, 'empty.pegboard.no_pins'),
             style: TextStyle(
               color: tokens.fg3,
               fontFamily: upegMonoFontFamily,

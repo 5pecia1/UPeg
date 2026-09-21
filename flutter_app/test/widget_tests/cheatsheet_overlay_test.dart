@@ -64,7 +64,9 @@ Widget _dialogHarness() {
 
 void main() {
   group('CheatsheetOverlay', () {
-    testWidgets('카탈로그의_모든_스코프_섹션을_렌더한다', (tester) async {
+    testWidgets('every_scope_section_in_the_catalog_is_rendered', (
+      tester,
+    ) async {
       await tester.pumpWidget(_overlayHarness());
       await tester.pump();
 
@@ -79,7 +81,9 @@ void main() {
       expect(find.text(i18nEn('keys.cmd.open')), findsOneWidget);
     });
 
-    testWidgets('현재_컨텍스트_스코프_섹션이_상단에_온다', (tester) async {
+    testWidgets('the_current_context_scope_section_comes_first', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _overlayHarness(currentScope: KeyboardScopeDto.resize),
       );
@@ -102,25 +106,31 @@ void main() {
       expect(resizeTop, lessThan(boardTop));
     });
 
-    testWidgets('연속_숫자_키캡은_범위_캡으로_압축된다', (tester) async {
+    testWidgets('consecutive_digit_keycaps_are_compressed_into_a_range_cap', (
+      tester,
+    ) async {
       await tester.pumpWidget(_overlayHarness());
       await tester.pump();
 
-      // 보드 슬롯 1..9는 아홉 개의 캡이 아니라 하나의 `1–9` 캡으로.
+      // Board slots 1..9 render as a single `1–9` cap, not nine caps.
       expect(find.text('1–9'), findsOneWidget);
       expect(find.text('1'), findsNothing);
       expect(find.text('9'), findsNothing);
     });
 
-    testWidgets('primary_chord는_OS_관용_라벨로_렌더된다', (tester) async {
+    testWidgets('the_primary_chord_renders_with_OS_conventional_labels', (
+      tester,
+    ) async {
       await tester.pumpWidget(_overlayHarness(platform: TargetPlatform.macOS));
       await tester.pump();
 
-      // macOS에서는 Cmd+K가 ⌘k 캡으로 (keyboard_label.dart 재사용).
+      // On macOS, Cmd+K renders as a ⌘k cap (reuses keyboard_label.dart).
       expect(find.text('⌘k'), findsOneWidget);
     });
 
-    testWidgets('포커스_게이트_엔트리는_focused_pin_배지를_단다', (tester) async {
+    testWidgets('a_focus_gated_entry_carries_the_focused_pin_badge', (
+      tester,
+    ) async {
       await tester.pumpWidget(_overlayHarness());
       await tester.pump();
 
@@ -130,7 +140,7 @@ void main() {
       );
     });
 
-    testWidgets('Esc로_닫힌다', (tester) async {
+    testWidgets('pressing_Esc_dismisses_the_overlay', (tester) async {
       await tester.pumpWidget(_dialogHarness());
       await tester.tap(find.text('open-cheatsheet'));
       await tester.pumpAndSettle();

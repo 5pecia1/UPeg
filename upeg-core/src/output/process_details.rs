@@ -135,7 +135,7 @@ fn string_field(object: &Map<String, Value>, key: &str) -> String {
 mod tests {
     use super::*;
 
-    fn 상세(termination: ProcessTermination) -> ProcessErrorDetails {
+    fn details(termination: ProcessTermination) -> ProcessErrorDetails {
         ProcessErrorDetails {
             termination,
             stdout: "out".to_string(),
@@ -144,8 +144,8 @@ mod tests {
     }
 
     #[test]
-    fn 정상_종료는_exit_code만_담는다() {
-        let value = 상세(ProcessTermination::Exited { code: 1 }).to_value();
+    fn clean_exit_carries_only_the_exit_code() {
+        let value = details(ProcessTermination::Exited { code: 1 }).to_value();
         assert_eq!(value[EXIT_CODE_KEY], Value::from(1));
         assert_eq!(value.get(SIGNAL_KEY), None);
         assert_eq!(value.get(TIMED_OUT_KEY), None);
@@ -154,21 +154,21 @@ mod tests {
     }
 
     #[test]
-    fn 시그널_종료는_exit_code가_널이고_signal을_담는다() {
-        let value = 상세(ProcessTermination::Signaled { signal: 9 }).to_value();
+    fn signal_termination_carries_null_exit_code_and_the_signal() {
+        let value = details(ProcessTermination::Signaled { signal: 9 }).to_value();
         assert_eq!(value[EXIT_CODE_KEY], Value::Null);
         assert_eq!(value[SIGNAL_KEY], Value::from(9));
     }
 
     #[test]
-    fn 제한시간_초과는_timed_out_참을_담는다() {
-        let value = 상세(ProcessTermination::TimedOut { timeout_ms: 200 }).to_value();
+    fn timeout_carries_timed_out_true() {
+        let value = details(ProcessTermination::TimedOut { timeout_ms: 200 }).to_value();
         assert_eq!(value[EXIT_CODE_KEY], Value::Null);
         assert_eq!(value[TIMED_OUT_KEY], Value::Bool(true));
     }
 
     #[test]
-    fn 스트림_읽기는_빈_details를_건너뛴다() {
+    fn stream_reading_skips_empty_details() {
         assert_eq!(ProcessErrorStreams::from_details(None), None);
         assert_eq!(
             ProcessErrorStreams::from_details(Some(&serde_json::json!({"exit_code": 1}))),
@@ -177,10 +177,10 @@ mod tests {
     }
 
     #[test]
-    fn 스트림_읽기는_문자열_필드만_취한다() {
+    fn stream_reading_takes_only_string_fields() {
         let details = serde_json::json!({"stdout": "o", "stderr": 5});
         let streams =
-            ProcessErrorStreams::from_details(Some(&details)).expect("stdout이 비어있지 않다");
+            ProcessErrorStreams::from_details(Some(&details)).expect("stdout is non-empty");
         assert_eq!(streams.stdout, "o");
         assert_eq!(streams.stderr, "");
     }

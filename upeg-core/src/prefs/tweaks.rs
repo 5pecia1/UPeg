@@ -88,12 +88,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 기본값_상수는_기본값_트레이트와_일치한다() {
+    fn default_const_matches_the_default_trait() {
         assert_eq!(Tweaks::default(), Tweaks::default_const());
     }
 
     #[test]
-    fn 기본값은_밝은_초록_영어와_빈칸이다() {
+    fn defaults_are_light_green_english_and_holes() {
         let t = Tweaks::default_const();
         assert_eq!(t.theme, Theme::Light);
         assert_eq!(t.accent, Accent::Green);
@@ -101,12 +101,12 @@ mod tests {
         assert_eq!(t.locale, Locale::En);
         assert!(
             !t.local_http_host,
-            "네트워크 리스너는 명시적으로 켜야 한다 (FR-16)"
+            "the network listener must be enabled explicitly (FR-16)"
         );
     }
 
     #[test]
-    fn json_왕복은_로케일을_포함한_모든_필드를_보존한다() {
+    fn json_round_trip_preserves_every_field_including_locale() {
         let original = Tweaks {
             theme: Theme::Dark,
             accent: Accent::Cyan,
@@ -120,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn 설정_파싱은_쓰레기값을_거부한다() {
+    fn settings_parse_rejects_garbage() {
         assert!(parse_tweaks("not json").is_none());
         // Empty object is missing every required field.
         assert!(parse_tweaks("{}").is_none());
@@ -129,22 +129,22 @@ mod tests {
     }
 
     #[test]
-    fn 로컬_http_host_필드가_없는_기록은_꺼짐으로_파싱된다() {
+    fn records_without_the_local_http_host_field_parse_as_off() {
         let json = r#"{"theme":"Dark","accent":"Green","show_holes":true,"locale":"Ko"}"#;
         let t = parse_tweaks(json).expect("parse");
         assert!(!t.local_http_host);
-        assert_eq!(t.theme, Theme::Dark, "기존 필드는 그대로 유지된다");
+        assert_eq!(t.theme, Theme::Dark, "existing fields stay intact");
     }
 
     #[test]
-    fn 설정_파싱은_명시적_로케일을_존중한다() {
+    fn settings_parse_respects_an_explicit_locale() {
         let json = r#"{"theme":"Light","accent":"Green","show_holes":true,"locale":"Ko"}"#;
         let t = parse_tweaks(json).expect("parse");
         assert_eq!(t.locale, Locale::Ko);
     }
 
     #[test]
-    fn 설정_파싱은_낯선_필드를_거부한다() {
+    fn settings_parse_rejects_unfamiliar_fields() {
         let json = r#"{"theme":"Dark","accent":"Pink","density":"Compact","show_holes":true,"locale":"Ko"}"#;
         assert!(parse_tweaks(json).is_none());
     }

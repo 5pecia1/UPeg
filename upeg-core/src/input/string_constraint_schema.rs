@@ -190,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn 문자열_제약은_pattern과_default를_json_schema로_내보낸다() {
+    fn string_constraints_export_pattern_and_default_to_json_schema() {
         let spec = spec_of(string_field(
             "slug",
             StringConstraints {
@@ -215,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn placeholder는_ui_전용이라_json_schema에_실리지_않는다() {
+    fn placeholder_is_ui_only_and_not_emitted_into_json_schema() {
         let spec = spec_of(string_field(
             "slug",
             StringConstraints {
@@ -237,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn 제약이_없는_문자열_필드는_pattern을_내보내지_않는다() {
+    fn unconstrained_string_field_exports_no_pattern() {
         let spec = InputSpec::new(vec![
             InputFieldSpec::new(
                 InputName::new("plain").expect("test input name should be valid"),
@@ -260,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn pattern이_문자열이_아니면_가져오기를_거부한다() {
+    fn non_string_pattern_is_rejected_on_import() {
         let schema = json!({
             "type": "object",
             "properties": { "slug": { "type": "string", "pattern": 7 } }
@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn 문자열이_아닌_종류의_pattern은_가져오기를_거부한다() {
+    fn pattern_on_a_non_string_kind_is_rejected_on_import() {
         let schema = json!({
             "type": "object",
             "properties": { "flag": { "type": "boolean", "pattern": "^x$" } }
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn 파일경로_기본값은_json_schema를_왕복한다() {
+    fn file_path_default_round_trips_through_json_schema() {
         let spec = spec_of(text_field(
             "manifest_path",
             InputKind::FilePath,
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn 선택지_기본값은_json_schema를_왕복한다() {
+    fn options_default_round_trips_through_json_schema() {
         let spec = spec_of(text_field("mode", options_kind(), "fast"));
 
         let schema = spec.to_json_schema_value();
@@ -361,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn 문자열이_아닌_종류의_기본값은_문자열_제약이_되지_않는다() {
+    fn a_default_on_a_non_string_kind_does_not_become_string_constraints() {
         let field = InputFieldSpec::new(
             InputName::new("flag").expect("test input name should be valid"),
             None,
@@ -381,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn 텍스트_종류가_아니면_pattern은_여전히_거부된다() {
+    fn pattern_is_still_rejected_on_non_textual_kinds() {
         let schema = json!({
             "type": "object",
             "properties": { "path": { "type": "string", "x-upeg-kind": "file_path", "pattern": "^/" } }

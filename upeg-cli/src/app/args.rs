@@ -679,7 +679,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 입력을_선언하지_않은_도구는_표준입력을_읽지_않는다() {
+    fn a_tool_with_no_declared_input_does_not_read_stdin() {
         // `upeg time iso-now` / `upeg id uuid-v7`: no declared field means
         // nothing for stdin to bind to. This branch used to read stdin
         // whenever it was not a TTY, which hung forever on an inherited
@@ -688,7 +688,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 입력을_선언하지_않은_도구의_위치인자는_input으로_접힌다() {
+    fn positionals_of_a_tool_with_no_declared_input_fold_into_input() {
         assert_eq!(
             dynamic_args_from_cli(vec!["0xff".to_string()]),
             json!({ "input": "0xff" })
@@ -700,7 +700,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 위치인자는_선언_순서대로_바인드된다() {
+    fn positionals_bind_in_declaration_order() {
         let fields = vec![
             field("a", InputKind::String, true),
             field("b", InputKind::String, true),
@@ -714,7 +714,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 채워지지_않은_선택_필드는_빈_문자열이_아니라_생략된다() {
+    fn an_unfilled_optional_field_is_omitted_not_empty_string() {
         let fields = vec![
             field("input", InputKind::String, true),
             field("delim", InputKind::String, false),
@@ -730,7 +730,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 너무_너무많은_위치인자들은_하나의_도구_오류이다() {
+    fn too_many_positionals_are_a_single_tool_error() {
         let fields = vec![field("input", InputKind::String, true)];
         let tokens = vec![
             PositionalToken::Literal("a".into()),
@@ -745,7 +745,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 표준입력_자리표시자는_주입된_리더에서_값을_가져온다() {
+    fn the_stdin_placeholder_pulls_its_value_from_the_injected_reader() {
         let fields = vec![
             field("a", InputKind::String, true),
             field("b", InputKind::String, true),
@@ -760,7 +760,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 중복된_표준입력_자리표시자는_하나의_오류이다() {
+    fn duplicate_stdin_placeholders_are_a_single_error() {
         let fields = vec![
             field("a", InputKind::String, true),
             field("b", InputKind::String, true),
@@ -772,7 +772,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 위치인자가_주어지지_않으면_자동_표준입력이_첫번째_슬롯을_채운다() {
+    fn auto_stdin_fills_the_first_slot_when_no_positional_is_given() {
         let fields = vec![field("input", InputKind::String, true)];
         let tokens = vec![];
         let v = bind_positionals_to_schema(&fields, tokens, true, || Ok("piped".into())).unwrap();
@@ -780,7 +780,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 자동_표준입력은_명시적_위치인자를_덮어쓰기하지_않는다() {
+    fn auto_stdin_does_not_overwrite_an_explicit_positional() {
         let fields = vec![field("input", InputKind::String, true)];
         let tokens = vec![PositionalToken::Literal("explicit".into())];
         let v = bind_positionals_to_schema(&fields, tokens, true, || {
@@ -791,7 +791,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 첫번째_필드가_선택이면_자동_표준입력은_실행되지_않는다() {
+    fn auto_stdin_does_not_run_when_the_first_field_is_optional() {
         let fields = vec![field("n", InputKind::Integer, false)];
         let tokens = vec![];
         let v = bind_positionals_to_schema(&fields, tokens, true, || {
@@ -802,7 +802,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 정수_필드는_강제변환된_에서_문자열_토큰이다() {
+    fn an_integer_field_is_coerced_from_a_string_token() {
         let fields = vec![
             field("input", InputKind::String, true),
             field("n", InputKind::Integer, false),
@@ -816,7 +816,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 불리언_필드는_대소문자_무시_참이다() {
+    fn a_boolean_field_is_case_insensitive_true() {
         let fields = vec![field("flag", InputKind::Boolean, false)];
         let tokens = vec![PositionalToken::Literal("TRUE".into())];
         let v = bind_positionals_to_schema(&fields, tokens, false, no_stdin).unwrap();
@@ -824,7 +824,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 다중_옵션_필드는_빈_입력_단일_입력_중복_유효하지_않은_토큰을_모두_처리한다() {
+    fn a_multi_options_field_handles_empty_single_duplicate_and_invalid_tokens() {
         let fields = vec![field(
             "flags",
             InputKind::MultiOptions(choices(&["dry", "verbose"])),
@@ -873,7 +873,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 빈_필수_multi_options는_input_spec_검증에서_거부된다() {
+    fn an_empty_required_multi_options_is_rejected_at_input_spec_validation() {
         let input_spec = InputSpec::new(vec![field(
             "flags",
             InputKind::MultiOptions(choices(&["dry", "verbose"])),
@@ -897,7 +897,7 @@ mod schema_bound_tests {
     }
 
     #[test]
-    fn 빈_토큰과_자동_표준입력이_없으면_빈_객체를_생성한다() {
+    fn no_tokens_and_no_auto_stdin_produce_an_empty_object() {
         let fields = vec![field("input", InputKind::String, true)];
         let v = bind_positionals_to_schema(&fields, vec![], false, no_stdin).unwrap();
         assert_eq!(v, json!({}));

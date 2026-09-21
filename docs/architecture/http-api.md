@@ -1,16 +1,16 @@
 ---
 type: API Contract
 title: HTTP API
-description: "`/v1/*` 리소스 모델, 응답 규칙, CORS 및 bearer 인증 경계."
+description: "The `/v1/*` resource model, response rules, and the CORS and bearer-auth boundary."
 tags: [architecture, http, api, security]
 status: stable
 sources:
   - id: http-surface
     resource: ../../upeg-cli/src/surfaces/http
-    title: HTTP surface 구현
+    title: HTTP surface implementation
 ---
 
-# 리소스 모델
+# Resource model
 
 ```text
 GET  /healthz
@@ -37,31 +37,34 @@ POST /mcp
 GET  /mcp
 ```
 
-# 응답 규칙
+# Response rules
 
-- 탐색 응답은 JSON이며 유효 tags를 포함한 Tool 메타데이터를 담는다.
-- `/healthz`는 인증 없이 응답하며 비밀이 아닌 힌트만 노출한다: name, version,
-  그리고 MCP 임포트 로딩 신호(`importsPending` + 개수만 담은 `mcpImports` 블록,
-  [MCP](/architecture/mcp.md)의 "importsPending"). 토큰이나 포트/capability 목록,
-  upstream 서버 이름은 절대 포함하지 않는다.
-- 호스트 프로세스가 떠 있으면 `/v1/*`는 **항상** 서비스된다 — 별도의 desired-state 게이트가
-  없다. 호스트를 시작하는 것 자체가 명시적 활성화다 ([호스트 토폴로지](/architecture/host-topology.md)).
-- `/v1/tools`는 MCP 호환 클라이언트가 쓰는 `tools/list`와 같은 메타데이터 형태로
-  HTTP-가시 Tool 목록을 반환한다.
-- `/v1/credentials`, `/v1/logs`, `/v1/triggers`는 각각 참조 전용 credential 메타데이터,
-  메타데이터 전용 Execution Log 행, 등록된 Trigger 바인딩을 노출한다. 어느 것도 비밀 값이나
-  인자 값을 반환하지 않는다.
-- Tool 호출 성공은 `{ "result": "..." }`, 프로토콜/본문/Tool 에러는 `{ "error": "..." }`와
-  400/404/422를 반환한다.
-- Board Tool 호출은 해당 Board에 핀되지 않은 Tool을 거부하고, `_upeg` 컨텍스트와 프로젝트
-  매니페스트 경로를 주입한다.
-- OpenAPI는 구체적인 Tool 호출 경로와 리소스 라우트를 모두 포함한다.
+- Browse responses are JSON and carry Tool metadata including valid tags.
+- `/healthz` answers without auth and exposes only non-secret hints: name,
+  version, and the MCP-import loading signal (the `importsPending` flag plus a
+  `mcpImports` block holding counts only — see "importsPending" in
+  [MCP](mcp.md)). It never includes the token, the port/capability list, or
+  upstream server names.
+- While a host process is up, `/v1/*` is **always** served — there is no
+  separate desired-state gate. Starting the host is itself the explicit
+  activation (see [Host topology](host-topology.md)).
+- `/v1/tools` returns the HTTP-visible Tool list in the same metadata shape as
+  the `tools/list` that MCP-compatible clients use.
+- `/v1/credentials`, `/v1/logs`, and `/v1/triggers` expose reference-only
+  credential metadata, metadata-only Execution Log rows, and registered Trigger
+  bindings respectively. None of them returns secret values or argument values.
+- A successful Tool call returns `{ "result": "..." }`; a protocol, body, or
+  Tool error returns `{ "error": "..." }` with 400/404/422.
+- A Board Tool call rejects Tools not pinned to that Board and injects the
+  `_upeg` context plus the project-manifest path.
+- OpenAPI covers both the concrete Tool-call paths and the resource routes.
 
-# 스트리밍 호출 — `POST …/stream`
+# Streaming calls — `POST …/stream`
 
-`POST /v1/tools/{id}`는 도구가 끝난 뒤 봉투 하나로 답한다. 10분짜리 명령이면 10분 동안
-아무것도 오지 않는다. `/stream` 형제 경로는 즉시 `application/x-ndjson` 본문을 열고
-**한 줄에 JSON 객체 하나씩** 채워 나간다.
+`POST /v1/tools/{id}` answers with one envelope after the tool finishes. For a
+ten-minute command, nothing arrives for ten minutes. The `/stream` sibling
+route opens an `application/x-ndjson` body immediately and fills it with **one
+JSON object per line**.
 
 ```text
 POST /v1/tools/dev.verify/stream
@@ -77,122 +80,146 @@ Content-Type: application/json
 {"event":"result","result":{"ok":true,"primary_output_id":"result","outputs":[...]}}
 ```
 
-| 줄 | 필드 |
+| Line | Fields |
 |---|---|
-| `chunk` | `stream`(`stdout`\|`stderr`), `seq`(한 호출 안에서 두 스트림과 **모든 chain step**에 걸쳐 0부터 끊김 없이 증가), `data`(도구가 쓴 바이트 그대로) |
-| `dropped` | `bytes` — 소비자가 늦게 읽어서 호스트가 버린 도구 출력의 바이트 수 |
-| `result` | `result` — [비스트리밍 경로와 **글자 하나 다르지 않은** canonical 봉투](/architecture/call-envelope.md) |
+| `chunk` | `stream` (`stdout`\|`stderr`), `seq` (increases without gaps from 0 across both streams and **all chain steps** within one call), `data` (the bytes the tool wrote, verbatim) |
+| `dropped` | `bytes` — how many bytes of tool output the host dropped because the consumer read too slowly |
+| `result` | `result` — the [canonical envelope, not one letter different](call-envelope.md) from the non-streaming route |
 
-계약:
+Contract:
 
-- **마지막 줄은 언제나 `result`다.** `"event":"result"`를 볼 때까지 읽는 것이 소비자의
-  종료 조건이다. `result` 없이 끝난 본문은 연결이 끊긴 것이지 성공이 아니다.
-- **`seq`는 호출 단위다.** Chain이 `External` step을 세 개 돌려도 순번은 0, 1, 2 …로
-  이어진다. 단계마다 0으로 되돌아가지 않으므로 소비자는 stdout·stderr·step을 하나의
-  전체 순서로 복원할 수 있다.
-- **읽지 않는 소비자는 청크를 잃지, 호스트의 메모리를 먹지 않는다.** 아직 쓰이지 않은
-  NDJSON은 호출당 정해진 **바이트 예산**까지만 쌓인다. 넘치면 그 청크는 버려지고, 자리가
-  나는 즉시 버린 양이 `{"event":"dropped","bytes":N}` 한 줄로 합산 보고된다. `seq`는
-  계속 이어지므로 **손실은 이 줄로만 드러난다** — 순번의 구멍으로 알 수 있다고 가정하면 안 된다.
-- **상태 코드는 결과보다 먼저 정해진다.** 헤더가 첫 바이트와 함께 나가므로 도구 실패가
-  `422`가 될 수 없다 — 실패는 마지막 `result` 줄의 봉투로 온다. 미리 알 수 있는 라우팅
-  오류(알 수 없는 도구, board에 핀되지 않은 도구, 잘못된 본문)는 스트림을 열지 않고
-  평범한 JSON `404`/`400`으로 답한다.
-- **인증·Origin 가드·board 핀 게이트·`_upeg` 주입은 전부 동일하다.** 이 경로는 정책이
-  아니라 본문 인코딩 하나를 추가한다.
-- 청크를 만드는 것은 [`External` invoker](/architecture/manifest.md)뿐이다. 다른 invoker는
-  `result` 줄 하나만 나가고, 그것이 정상이다.
-- **연결을 끊으면 도구가 멈춘다.** 소비자가 사라지면 응답 본문이 drop되고, 그 drop이
-  이 호출의 취소다 — 호출은 애초에 취소 토큰을 설치한 채로 dispatch되기 때문이다
-  ([매니페스트 계약](/architecture/manifest.md)의 "취소"). `External` invoker는 대기
-  루프의 매 tick마다 토큰을 읽고, 취소가 서면 자식의 **process group을 종료한 뒤**
-  `error.code = "cancelled"`(`details.cancelled = true`) 봉투로 끝난다. 그 봉투를
-  읽을 사람은 이미 없지만, 자식은 확실히 죽는다.
-  - **출력이 없는 도구도 멈춘다.** 신호는 "청크를 큐에 넣지 못했다"가 아니라 본문의
-    drop이다. 10분 동안 조용한 빌드가 바로 멈춰야 하는 실행이기 때문이다.
-  - 취소를 읽지 못하는 invoker(WASM, 내장 함수)는 여전히 끝까지 달린다. 취소는
-    요청이고, 계약은 언제나 마지막 봉투 하나다.
-  - `timeout_ms`는 여전히 유용하다 — 취소는 **소비자가 있었다가 사라진** 경우만
-    다루고, 애초에 너무 오래 걸리는 실행은 예산이 막는다.
+- **The last line is always `result`.** Reading until `"event":"result"` is the
+  consumer's termination condition. A body that ends without `result` means the
+  connection broke, not success.
+- **`seq` is per call.** A Chain running three `External` steps still counts
+  0, 1, 2 … onward. Because it never returns to 0 per step, the consumer can
+  restore stdout, stderr, and steps as one total order.
+- **A consumer that does not read loses chunks, not the host's memory.**
+  Unwritten NDJSON accumulates only up to a fixed **byte budget** per call.
+  Past that, chunks are dropped, and the moment room frees up the dropped
+  amount is reported in a single `{"event":"dropped","bytes":N}` line. `seq`
+  keeps running, so **loss shows up only in that line** — do not assume it can
+  be spotted as holes in the sequence.
+- **The status code is decided before the outcome.** Headers go out with the
+  first byte, so a tool failure cannot become a `422` — failure arrives as the
+  envelope in the last `result` line. Routing errors knowable in advance
+  (unknown tool, tool not pinned to the board, malformed body) answer with a
+  plain JSON `404`/`400` without opening a stream.
+- **Auth, the Origin guard, the board-pin gate, and `_upeg` injection are all
+  identical.** This route adds one body encoding, not a policy.
+- Only the [`External` invoker](manifest.md) produces chunks. Other invokers
+  emit the single `result` line, and that is normal.
+- **Disconnecting stops the tool.** When the consumer goes away the response
+  body drops, and that drop is this call's cancellation — the call was
+  dispatched with a cancellation token installed in the first place (see
+  "Cancellation" in the [manifest contract](manifest.md)). The `External`
+  invoker reads the token on every tick of its wait loop, and once set, it
+  kills the child's **process group** and finishes with an
+  `error.code = "cancelled"` (`details.cancelled = true`) envelope. Nobody is
+  left to read that envelope, but the child is dead for sure.
+  - **A silent tool stops too.** The signal is not "could not queue a chunk"
+    but the body's drop. A build that stays quiet for ten minutes is exactly
+    the run that must stop at once.
+  - An invoker that cannot read cancellation (WASM, built-in functions) still
+    runs to the end. Cancellation is a request; the contract is always one
+    final envelope.
+  - `timeout_ms` stays useful — cancellation covers the case where **a
+    consumer was there and then gone**, while a run that simply takes too long
+    from the start is stopped by the budget.
 
-OpenAPI 문서(`/v1/openapi.json`)는 두 스트리밍 경로를 템플릿 경로로 싣는다 — 스트림 본문의
-모양은 도구마다 달라지지 않기 때문이다.
+The OpenAPI document (`/v1/openapi.json`) carries the two streaming routes as
+templated paths — the stream body's shape does not vary per tool.
 
 # MCP JSON-RPC — `/mcp`
 
-`/mcp`는 `/v1/*`의 리소스 모델이 아니라 JSON-RPC 2.0 계약이다. 메서드와 프레임 모양은
-[MCP](/architecture/mcp.md)가 소유하고, 여기서는 **HTTP로서** 어떻게 생겼는지만 적는다.
+`/mcp` is a JSON-RPC 2.0 contract, not the `/v1/*` resource model. The methods
+and frame shapes are owned by [MCP](mcp.md); only **what it looks like as
+HTTP** is written here.
 
-| 메서드 | `Accept` | 응답 |
+| Method | `Accept` | Response |
 |---|---|---|
-| `POST` | `text/event-stream` 명시 + 요청에 `id` 있음 | `200 text/event-stream` — 진행 `notifications/message` 이벤트들, 마지막 이벤트가 JSON-RPC 응답, 그 뒤 스트림 종료 |
-| `POST` | 그 외 (`*/*` 포함) | `200 application/json` 응답 하나. `id` 없는 알림은 `204` |
-| `POST` | — | 본문이 JSON이 아니면 `400`, 헤더가 잘못됐으면 `400` |
-| `GET` | `text/event-stream` 명시 | `200 text/event-stream` — 어떤 요청에도 속하지 않는 서버발 프레임(오늘은 `notifications/tools/list_changed`)과 keep-alive 주석 |
-| `GET` | 그 외 | `406 Not Acceptable` |
+| `POST` | `text/event-stream` stated explicitly + request has an `id` | `200 text/event-stream` — progress `notifications/message` events, the last event is the JSON-RPC response, then the stream closes |
+| `POST` | anything else (including `*/*`) | One `200 application/json` response. A notification with no `id` gets `204` |
+| `POST` | — | `400` when the body is not JSON, `400` for malformed headers |
+| `GET` | `text/event-stream` stated explicitly | `200 text/event-stream` — server-initiated frames belonging to no request (today: `notifications/tools/list_changed`) plus keep-alive comments |
+| `GET` | anything else | `406 Not Acceptable` |
 
-- **`*/*`는 스트림을 열지 않는다.** 와일드카드는 "아무거나"이지 "스트림"이 아니므로,
-  `curl`을 포함해 기존 클라이언트는 지금까지 받던 JSON을 그대로 받는다.
-- **인증·Origin 가드·pause 게이트는 `/v1/*`와 완전히 동일하다.** 두 방향 모두
-  bearer 토큰을 요구한다. SSE는 정책이 아니라 본문 인코딩을 하나 더한 것이다.
-- **`Mcp-Session-Id`**: `initialize` 응답에 붙고, 이후 요청이 되돌려 보내면
-  `logging/setLevel`이 옮긴 심각도 바닥이 그 세션에 남는다. 요구되지는 않으며 인가와
-  아무 상관이 없다 ([MCP](/architecture/mcp.md)).
-- **읽지 않는 소비자는 알림을 잃지, 호스트의 메모리를 먹지 않는다.** `/stream`과 같은
-  바이트 예산 규칙이며, 잃은 **프레임 수**가 `upeg.transport` logger의 `warning`
-  프레임 하나로 합산 보고된다. JSON-RPC 응답 자체는 예산과 무관하게 나간다.
-- **연결을 끊으면 도구가 멈춘다.** `POST …/stream`과 같은 계약이며 같은 구현을 쓴다
-  ([MCP](/architecture/mcp.md)).
-- **조용한 호출도 바이트를 낸다.** 프레임이 없는 동안 SSE 주석(keep-alive)이 흐르므로 중간의
-  idle-timeout 프록시가 조용한 호출을 죽은 연결로 오인하지 않는다. 주석은 이벤트가 아니라
-  SSE 소비자가 무시하는 줄이다.
+- **`*/*` does not open a stream.** A wildcard means "anything," not "stream,"
+  so existing clients — `curl` included — keep receiving the same JSON they
+  always did.
+- **Auth, the Origin guard, and the pause gate are exactly the same as
+  `/v1/*`.** Both directions require a bearer token. SSE adds one body
+  encoding, not a policy.
+- **`Mcp-Session-Id`**: attached to the `initialize` response; when a later
+  request echoes it back, the severity floor `logging/setLevel` moved stays on
+  that session. It is not required and has nothing to do with authorization
+  (see [MCP](mcp.md)).
+- **A consumer that does not read loses notifications, not the host's
+  memory.** The same per-call byte-budget rule as `/stream`; the lost **frame
+  count** is reported once, summed into a single `warning` frame on the
+  `upeg.transport` logger. The JSON-RPC response itself goes out regardless of
+  the budget.
+- **Disconnecting stops the tool.** Same contract and same implementation as
+  `POST …/stream` (see [MCP](mcp.md)).
+- **A quiet call still emits bytes.** While no frames flow, SSE comments
+  (keep-alives) do, so an idle-timeout proxy in the middle does not mistake a
+  quiet call for a dead connection. A comment is a line SSE consumers ignore,
+  not an event.
 
-**이 lane의 호출자 신원**은 `/v1/*`와 규칙이 다르다.
+**Caller identity on this lane** follows rules different from `/v1/*`.
 
-| 절반 | 값 | 이유 |
+| Half | Value | Why |
 |---|---|---|
-| surface | 언제나 `mcp` | MCP 클라이언트는 프로그램이다. 어느 프로세스가 중계하든, 어떤 헤더를 붙이든 `mcp`는 `mcp`다 |
-| role | bearer 토큰이 증명한 것 (`operator` / `agent`, 인증 못 하면 `agent`) | 이 lane은 리스너를 건너온다. stdio `upeg mcp`의 기본값인 `local`은 여기 호출자를 설명하지 못한다 |
+| surface | always `mcp` | An MCP client is a program. Whatever process relays it and whatever header it attaches, `mcp` is `mcp` |
+| role | whatever the bearer token proves (`operator` / `agent`; `agent` when unauthenticated) | This lane crosses a listener. stdio `upeg mcp`'s `local` default cannot describe a caller here |
 
-- 헤더 `X-Upeg-Origin-Surface`는 이 경로에 오지 않는다 (아래 "원점 surface").
-- **surface를 옮기는 요청 헤더는 없다.**
+- The `X-Upeg-Origin-Surface` header does not reach this route (see "Origin
+  surface" below).
+- **No request header moves the surface.**
 
 
-# 인증
+# Authentication
 
-`/healthz`를 제외한 모든 라우트는 상수 시간 비교로 `Authorization: Bearer <token>` 일치를
-요구한다. 토큰은 호스트가 발행하며 [호스트 토폴로지](/architecture/host-topology.md)를 따른다.
+Every route except `/healthz` requires `Authorization: Bearer <token>` to
+match, compared in constant time. The host issues tokens per
+[Host topology](host-topology.md).
 
-토큰은 **두 종류**이고, 형태는 같고 권한만 다르다.
+Tokens come in **two kinds** — same shape, different authority.
 
-| 토큰 | 출처 | 각인되는 주체 |
+| Token | Source | Stamped principal |
 |---|---|---|
 | operator | `~/.upeg/server.json`, `--token` / `--token-file` / `UPEG_HTTP_TOKEN` | `_upeg.principal.role = "operator"` |
-| agent | `UPEG_HTTP_AGENT_TOKENS`(콤마 구분) | `_upeg.principal.role = "agent"` |
+| agent | `UPEG_HTTP_AGENT_TOKENS` (comma-separated) | `_upeg.principal.role = "agent"` |
 
-- **인증과 권한은 다른 질문이다.** 두 토큰 모두 bearer 게이트를 통과해 데이터 평면에 들어온다.
-  갈리는 것은 그 다음이다.
-- **agent 토큰이 못 하는 것 두 가지.** `X-Upeg-Origin-Surface`가 인정되지 않고(항상 `http`로
-  각인된다), Chain의 승인 장벽을 넘지 못한다 — 인가된 표면에서 보내도
-  `approval_denied_for_principal`이다 ([Chain Tool](/architecture/chain.md)).
-  `approval_surfaces`를 넓혀도 답은 같다.
-- **두 갈래 모두 주체를 각인한다.** `/v1/*`는 `{role, 원점 surface}`, `/mcp`는 `{role, mcp}`.
-  각인하지 않는 라우트는 없다 — 각인을 빠뜨리면 surface별 기본값이 그 자리를 채우고,
-  `mcp`의 기본값은 승인 가능한 `local`이다.
-- **인증하지 못한 호출자는 `agent`다.** 토큰을 요구하지 않는 브링업 라우터가 유일한 경우이며,
-  아무도 식별하지 못하는 호스트는 아무도 operator로 승격시키지 않는다.
-- 주체는 서버가 각인하고 호출자가 보낸 값은 지워진다
-  ([호출 봉투](/architecture/call-envelope.md)의 "주체"). 실행 로그에는 **역할 라벨만**
-  남는다 — 토큰 값은 저장되지 않는다.
+- **Authentication and authority are different questions.** Both tokens pass
+  the bearer gate and enter the data plane. Where they split is after that.
+- **Two things an agent token cannot do.** `X-Upeg-Origin-Surface` is not
+  honored (the call always stamps `http`), and it cannot cross a Chain's
+  approval barrier — even sent from an authorized surface it is
+  `approval_denied_for_principal` (see [Chain Tool](chain.md)). Widening
+  `approval_surfaces` gives the same answer.
+- **Both branches stamp a principal.** `/v1/*` stamps `{role, origin surface}`;
+  `/mcp` stamps `{role, mcp}`. There is no route that skips stamping — a
+  skipped stamp would be filled by the surface's default, and `mcp`'s default
+  is `local`, which can approve.
+- **An unauthenticated caller is `agent`.** The only case is a bring-up router
+  that requires no token; a host that can identify nobody promotes nobody to
+  operator.
+- The server stamps the principal and caller-sent values are erased (see
+  "Principal" in [Call envelope](call-envelope.md)). The execution log keeps
+  **only the role label** — token values are never stored.
 
-# 원점 surface — `X-Upeg-Origin-Surface`
+# Origin surface — `X-Upeg-Origin-Surface`
 
-호스트가 떠 있으면 `upeg call`과 TUI는 in-process 대신 `/v1/tools/{id}`로 붙는다. 그 호출을
-전부 `http`로 각인하면 **전송 방식이 호출자 신원을 바꿔 버린다** — 사람이 자기 터미널에서
-`upeg call <chain> -a approve=true`를 쳐도 `http`는 승인 surface가 아니라서 거부됐고, TUI에는
-`--local` 같은 탈출구조차 없었다 ([Chain Tool](/architecture/chain.md)).
+When a host is up, `upeg call` and the TUI attach to `/v1/tools/{id}` instead of
+running in-process. Stamping all of those calls `http` would **let the
+transport change the caller's identity** — a person typing
+`upeg call <chain> -a approve=true` in their own terminal was being refused
+because `http` is not an approval surface, and the TUI had no escape hatch like
+`--local` (see [Chain Tool](chain.md)).
 
-그래서 attach 클라이언트는 **자신이 어느 로컬 surface에서 부르는지**를 헤더로 밝힌다.
+So the attach client declares **which local surface it is calling from** in a
+header.
 
 ```text
 POST /v1/tools/dev.precommit
@@ -200,37 +227,42 @@ Authorization: Bearer <token>
 X-Upeg-Origin-Surface: cli
 ```
 
-| 규칙 | 내용 |
+| Rule | Detail |
 |---|---|
-| 허용 값 | `cli`, `tui` — 이 바이너리에서 실제로 attach하는 두 surface. `desktop`은 FRB로 in-process 실행이라 attach하지 않고, `pwa`/`ext`는 페어링 토큰으로 닿는 원격 클라이언트라 `http` 그대로다 |
-| 인정 조건 | 요청이 **이 호스트의 operator 토큰으로 인증**되어야 한다. 토큰은 `~/.upeg/server.json`에 있고 같은 OS 사용자만 읽는다 — "로컬 클라이언트"라는 말의 신뢰 경계가 정확히 그것이다. agent 토큰은 프로그램을 인증할 뿐이고, 프로그램이 어느 사람용 surface에 앉아 있는지를 자칭할 수는 없다 |
-| 불인정 시 | 오류가 아니라 `http`다. 토큰이 없거나, agent 토큰이거나, 값이 허용 목록 밖이거나, 헤더가 없으면 헤더가 없던 때와 똑같이 동작한다 |
-| 적용 범위 | `_upeg.surface` 각인과 **surface 가시성 게이트 둘 다**, 버퍼 경로와 `/stream` 경로 모두에서. attach된 `upeg call`은 `--local`로 돌렸을 때와 같은 도구 집합을 본다. `_upeg.surface`와 `_upeg.principal.surface`는 언제나 같은 값을 가리킨다 |
-| MCP proxy 제외 | `upeg mcp`가 `/mcp`로 중계할 때는 이 헤더를 보내지 않는다. MCP 클라이언트는 프로그램이고, 어느 프로세스가 중계하든 `mcp`는 `mcp`다 |
+| Allowed values | `cli`, `tui` — the two surfaces that actually attach from this binary. `desktop` never attaches (it runs in-process through FRB), and `pwa`/`ext` are remote clients arriving on a pairing token, so they stay `http` |
+| Condition for honoring | The request must authenticate with **this host's operator token**. The token sits in `~/.upeg/server.json`, readable only by the same OS user — "local client" is exactly that trust boundary. An agent token authenticates a program, and a program cannot claim which human surface it sits at |
+| When not honored | Not an error — `http`. A missing token, an agent token, a value outside the allowed list, or a missing header all behave exactly as if the header were absent |
+| Scope | Both the `_upeg.surface` stamp **and** the surface-visibility gate, on the buffered route and the `/stream` route alike. An attached `upeg call` sees the same tool set it would see under `--local`. `_upeg.surface` and `_upeg.principal.surface` always point at the same value |
+| MCP proxy excluded | When `upeg mcp` relays to `/mcp` it does not send this header. An MCP client is a program; whatever process relays it, `mcp` is `mcp` |
 
-헤더는 **신원이 아니라 선언**이다. 인증 경계를 넓히지 않는다 — operator 토큰을 가진
-클라이언트는 이미 그 호스트에서 도구를 실행할 수 있고, 이 헤더는 그중 어느 로컬 surface인지만
-좁혀 말한다. 토큰 단위 호출자 신원은 위의 [인증](#인증)이 답한다.
+The header is a **declaration, not an identity.** It does not widen the auth
+boundary — a client holding the operator token can already run tools on that
+host, and this header only narrows which local surface it is. Per-token caller
+identity is answered by [Authentication](#authentication) above.
 
 # CORS
 
-브라우저 origin이 무엇을 할 수 있는지는 *누가 행위할 수 있는지*와 분리해서 결정한다.
+What a browser origin may do is decided separately from *who may act*.
 
-- **기본 허용**: 모든 `chrome-extension://<id>` origin, 그리고 loopback origin
-  (`http(s)://127.0.0.1:*`, `localhost:*`, `[::1]:*`).
-- **임의 웹 origin**은 `--cors-origin <ORIGIN>` 정확 일치를 요구한다. 반복 지정 가능하고
-  와일드카드는 없다. `*`, 스킴 누락, path/query 포함은 거부된다.
-- **Preflight(`OPTIONS`)는 의도적으로 토큰이 없다** — CORS 계층이 가장 바깥에 있어 bearer
-  검사 전에 short-circuit된다. 데이터 평면은 origin과 무관하게 항상 bearer 인증을 거친다.
-- **허용 요청 헤더**: `Authorization`, `Content-Type`, `Mcp-Session-Id`, `X-Upeg-Board`.
-  앞의 둘은 모든 호출이 싣고, 뒤의 둘은 `/mcp` lane의 요청 계약이다. 브라우저는 preflight가
-  허용하지 않은 헤더를 아예 보내지 못하므로, 빠뜨리면 브라우저 MCP 클라이언트는 자기가 받은
-  세션 id를 되돌려 보낼 수 없다.
-- **노출 응답 헤더**: `Mcp-Session-Id`. 브라우저는 expose되지 않은 응답 헤더를 스크립트에
-  숨긴다 — 서버가 발급하고 클라이언트가 읽을 수 없는 세션 id는 세션 id가 아니다.
-- **`X-Upeg-Origin-Surface`는 열지 않는다.** `cli`/`tui` + operator 토큰에서만 인정되는
-  헤더이고, 브라우저로 배달되는 surface는 둘 중 어느 것도 될 수 없다. 여는 것은 작동하지 않는
-  레버를 광고하는 일이다.
-- **Host anti-rebinding은 CORS와 독립적으로 유지된다**: 존재하지만 허용되지 않은 `Origin`
-  헤더를 거부하고, loopback이 아닌 `Host` 헤더를 거부한다. CORS는 브라우저 JS가 무엇을
-  *읽을* 수 있는지만 통제한다.
+- **Allowed by default**: every `chrome-extension://<id>` origin, and loopback
+  origins (`http(s)://127.0.0.1:*`, `localhost:*`, `[::1]:*`).
+- **Arbitrary web origins** require an exact match against `--cors-origin
+  <ORIGIN>`. Repeatable; no wildcards. `*`, a missing scheme, and any
+  path/query are rejected.
+- **Preflight (`OPTIONS`) deliberately has no token** — the CORS layer is the
+  outermost and short-circuits before the bearer check. The data plane always
+  goes through bearer auth regardless of origin.
+- **Allowed request headers**: `Authorization`, `Content-Type`,
+  `Mcp-Session-Id`, `X-Upeg-Board`. The first two ride every call; the latter
+  two are the `/mcp` lane's request contract. A browser cannot even send a
+  header preflight did not allow, so dropping one would leave a browser MCP
+  client unable to echo the session id it was issued.
+- **Exposed response headers**: `Mcp-Session-Id`. A browser hides response
+  headers that are not exposed — a session id the server issues but the client
+  cannot read is no session id.
+- **`X-Upeg-Origin-Surface` is not opened.** It is honored only from
+  `cli`/`tui` + an operator token, and a surface delivered through a browser
+  can be neither. Opening it would be advertising a lever that does not work.
+- **Host anti-rebinding holds independently of CORS**: reject an `Origin`
+  header that is present but not allowed, and reject a `Host` header that is
+  not loopback. CORS only controls what browser JS may *read*.

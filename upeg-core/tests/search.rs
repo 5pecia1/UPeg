@@ -14,8 +14,8 @@ use std::collections::HashSet;
 
 use upeg_core::{
     ALL_SURFACES, InputSpec, Invoker, PegboardUnits, PinKind, PinnedSignal, Placement,
-    RecentSignal, SearchField, SearchMatchTier, SearchQuery, SearchSignals, Surface, ToolMeta,
-    search_tools,
+    RecentSignal, SearchField, SearchMatchTier, SearchQuery, SearchSignals, Surface, ToolEffect,
+    ToolMeta, search_tools,
 };
 
 fn test_tool(
@@ -36,6 +36,8 @@ fn test_tool(
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -62,7 +64,7 @@ fn result_ids(results: &[upeg_core::SearchResult<'_>]) -> Vec<&'static str> {
 }
 
 #[test]
-fn search_빈_query는_scope_안의_모든_도구를_포함한다() {
+fn search_empty_query_includes_all_tools_in_scope() {
     let tools = vec![
         test_tool("alpha.one", "alpha", "one", "Alpha One", &[], ALL_SURFACES),
         test_tool("beta.two", "beta", "two", "Beta Two", &[], ALL_SURFACES),
@@ -85,7 +87,7 @@ fn search_빈_query는_scope_안의_모든_도구를_포함한다() {
 }
 
 #[test]
-fn search_query는_trim_후_unicode_case_insensitive로_비교한다() {
+fn search_query_compares_after_trim_as_unicode_case_insensitive() {
     let tools = vec![test_tool(
         "unicode.cafe",
         "unicode",
@@ -103,7 +105,7 @@ fn search_query는_trim_후_unicode_case_insensitive로_비교한다() {
 }
 
 #[test]
-fn search_surface_filter는_검색_전에_적용된다() {
+fn search_surface_filter_is_applied_before_searching() {
     let tools = vec![
         test_tool(
             "desktop.only",
@@ -138,7 +140,7 @@ fn search_surface_filter는_검색_전에_적용된다() {
 }
 
 #[test]
-fn search는_허용된_필드만_매칭하고_필드는_중복제거된다() {
+fn search_matches_only_allowed_fields_and_fields_are_deduplicated() {
     let tools = vec![
         test_tool(
             "alpha.alpha",
@@ -176,7 +178,7 @@ fn search는_허용된_필드만_매칭하고_필드는_중복제거된다() {
 }
 
 #[test]
-fn search_non_empty_query는_match가_없으면_빈_결과를_반환한다() {
+fn search_non_empty_query_without_matches_returns_an_empty_result() {
     let tools = vec![test_tool(
         "alpha.one",
         "alpha",
@@ -193,7 +195,7 @@ fn search_non_empty_query는_match가_없으면_빈_결과를_반환한다() {
 }
 
 #[test]
-fn search_pinned와_recent는_정해진_순서로_랭킹된다() {
+fn search_pinned_and_recent_rank_in_a_defined_order() {
     let tools = vec![
         test_tool("plain.tool", "plain", "tool", "Common", &[], ALL_SURFACES),
         test_tool("recent.tool", "recent", "tool", "Common", &[], ALL_SURFACES),
@@ -230,7 +232,7 @@ fn search_pinned와_recent는_정해진_순서로_랭킹된다() {
 }
 
 #[test]
-fn search_pinned_placements는_row_major와_중복제거를_적용한다() {
+fn search_pinned_placements_apply_row_major_order_and_deduplication() {
     let signals = SearchSignals::from_pinned_placements(&[
         Placement::new("beta.tool", 1, 0),
         Placement::new("duplicate.tool", 3, 1),
@@ -264,7 +266,7 @@ fn search_pinned_placements는_row_major와_중복제거를_적용한다() {
 }
 
 #[test]
-fn search_pinned와_recent_중복_signal과_도구_중복은_하나의_결과로_합쳐진다() {
+fn search_merges_duplicate_pinned_recent_signals_and_duplicate_tools_into_one_result() {
     let duplicated = test_tool(
         "duplicate.tool",
         "duplicate",
@@ -301,7 +303,7 @@ fn search_pinned와_recent_중복_signal과_도구_중복은_하나의_결과로
 }
 
 #[test]
-fn search_limit는_sort_후에_적용되고_tool_id가_tie_breaker이다() {
+fn search_limit_applies_after_sorting_with_tool_id_as_tie_breaker() {
     let tools = vec![
         test_tool("zeta.tool", "zeta", "tool", "Tool", &[], ALL_SURFACES),
         test_tool("alpha.tool", "alpha", "tool", "Tool", &[], ALL_SURFACES),
@@ -323,7 +325,7 @@ fn search_limit는_sort_후에_적용되고_tool_id가_tie_breaker이다() {
 }
 
 #[test]
-fn search_match_tier는_exact_prefix_substring_순서로_정렬된다() {
+fn search_match_tiers_sort_in_exact_prefix_substring_order() {
     let tools = vec![
         test_tool(
             "rank.substring",

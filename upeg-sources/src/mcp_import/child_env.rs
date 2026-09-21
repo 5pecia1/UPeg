@@ -61,16 +61,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 마커_환경변수_값이_있으면_참을_반환한다() {
+    fn returns_true_when_marker_env_var_is_set() {
         assert!(is_mcp_import_child_from(Some(std::ffi::OsStr::new(
             MCP_IMPORT_CHILD_ENV_VALUE
         ))));
-        // 값 자체는 검사하지 않는다 — 존재 여부만 본다 (빈 문자열도 Some).
+        // The value itself is not inspected — only presence matters
+        // (an empty string is still Some).
         assert!(is_mcp_import_child_from(Some(std::ffi::OsStr::new(""))));
     }
 
     #[test]
-    fn 마커_환경변수가_없으면_거짓을_반환한다() {
+    fn returns_false_when_marker_env_var_is_unset() {
         assert!(!is_mcp_import_child_from(None));
     }
 }

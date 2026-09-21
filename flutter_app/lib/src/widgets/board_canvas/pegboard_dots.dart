@@ -101,7 +101,7 @@ class PegboardGridDots extends ConsumerWidget {
 /// behaviour directly and widget tests can cast `CustomPaint.painter`
 /// without `as dynamic`.
 ///
-/// Pegboard contract — "구멍 = 좌표계": the dot pitch is derived from the
+/// Pegboard contract — "holes are the coordinate system": the dot pitch is derived from the
 /// SAME cell constants [AbsoluteGrid] uses to place pins, so a hole
 /// always sits at the gap-centred intersection between two adjacent
 /// cell slots. No independent magic-number spacing.

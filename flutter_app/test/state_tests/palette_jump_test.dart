@@ -14,7 +14,7 @@ void main() {
   final lab = BoardKey.parse('lab');
 
   group('resolvePaletteJumpBoard', () {
-    test('현재_보드에_핀이_있으면_현재_보드를_고른다', () {
+    test('picks_current_board_when_it_has_a_pin', () {
       final target = resolvePaletteJumpBoard(
         currentBoardKey: ops,
         boardOrder: [dev, ops, lab],
@@ -23,16 +23,23 @@ void main() {
       expect(target, ops);
     });
 
-    test('현재_보드에_핀이_없으면_보드_순서상_첫_번째_핀_보드를_고른다', () {
-      final target = resolvePaletteJumpBoard(
-        currentBoardKey: dev,
-        boardOrder: [dev, ops, lab],
-        pinnedBoards: {lab, ops},
-      );
-      expect(target, ops, reason: '보드 목록 순서(ops가 lab보다 앞)를 따라야 한다');
-    });
+    test(
+      'picks_first_pinned_board_in_board_order_when_current_board_has_no_pin',
+      () {
+        final target = resolvePaletteJumpBoard(
+          currentBoardKey: dev,
+          boardOrder: [dev, ops, lab],
+          pinnedBoards: {lab, ops},
+        );
+        expect(
+          target,
+          ops,
+          reason: 'must follow board-list order (ops precedes lab)',
+        );
+      },
+    );
 
-    test('핀이_어디에도_없으면_점프하지_않는다', () {
+    test('does_not_jump_when_pinned_nowhere', () {
       final target = resolvePaletteJumpBoard(
         currentBoardKey: dev,
         boardOrder: [dev, ops],
@@ -41,7 +48,7 @@ void main() {
       expect(target, isNull);
     });
 
-    test('현재_보드가_null이어도_첫_번째_핀_보드로_점프한다', () {
+    test('jumps_to_first_pinned_board_even_when_current_board_is_null', () {
       final target = resolvePaletteJumpBoard(
         currentBoardKey: null,
         boardOrder: [dev, ops],
@@ -50,13 +57,17 @@ void main() {
       expect(target, ops);
     });
 
-    test('보드_목록에_없는_보드의_핀은_점프_대상이_아니다', () {
+    test('pins_on_boards_missing_from_board_list_are_not_jump_targets', () {
       final target = resolvePaletteJumpBoard(
         currentBoardKey: dev,
         boardOrder: [dev, ops],
         pinnedBoards: {lab},
       );
-      expect(target, isNull, reason: '전환할 수 없는 보드로는 점프하지 않는다');
+      expect(
+        target,
+        isNull,
+        reason: 'never jumps to a board that cannot be switched to',
+      );
     });
   });
 }

@@ -242,7 +242,7 @@ fn js_const(source: &str, name: &str) -> u64 {
 }
 
 #[test]
-fn dart_출력_raw_bytes_상한은_rust_상수와_일치한다() {
+fn dart_output_raw_bytes_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(
             CANONICAL_FILE_VALUE_BUDGET_DART,
@@ -253,7 +253,7 @@ fn dart_출력_raw_bytes_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_출력_node_상한은_rust_상수와_일치한다() {
+fn dart_output_node_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(
             CANONICAL_FILE_VALUE_BUDGET_DART,
@@ -264,7 +264,7 @@ fn dart_출력_node_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_출력_metadata_상한은_rust_상수와_일치한다() {
+fn dart_output_metadata_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(
             CANONICAL_FILE_VALUE_BUDGET_DART,
@@ -275,7 +275,7 @@ fn dart_출력_metadata_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_출력_nesting_depth_상한은_rust_상수와_일치한다() {
+fn dart_output_nesting_depth_limit_matches_the_rust_constant() {
     let rust_depth = u64::try_from(MAX_FILE_OUTPUT_NESTING_DEPTH).expect("depth budget fits u64");
     assert_eq!(
         dart_const(
@@ -287,7 +287,7 @@ fn dart_출력_nesting_depth_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_입력_file_개수_상한은_rust_상수와_일치한다() {
+fn dart_input_file_count_limit_matches_the_rust_constant() {
     let rust_count = u64::from(MAX_FILE_INPUT_COUNT);
     assert_eq!(
         dart_const(FILE_INPUT_RESOURCE_LIMITS_DART, "maxFileInputCount"),
@@ -296,7 +296,7 @@ fn dart_입력_file_개수_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_입력_node_상한은_rust_상수와_일치한다() {
+fn dart_input_node_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(FILE_INPUT_RESOURCE_LIMITS_DART, "maxFileInputNodes"),
         MAX_FILE_INPUT_NODES,
@@ -304,7 +304,7 @@ fn dart_입력_node_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_입력_metadata_상한은_rust_상수와_일치한다() {
+fn dart_input_metadata_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(FILE_INPUT_RESOURCE_LIMITS_DART, "maxFileInputMetadataBytes"),
         MAX_FILE_INPUT_METADATA_BYTES,
@@ -312,7 +312,7 @@ fn dart_입력_metadata_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn dart_입력_raw_bytes_상한은_rust_상수와_일치한다() {
+fn dart_input_raw_bytes_limit_matches_the_rust_constant() {
     assert_eq!(
         dart_const(BOUNDED_FILE_READER_DART, "maxFileInputTransportBytes"),
         MAX_FILE_INPUT_RAW_BYTES,
@@ -320,7 +320,7 @@ fn dart_입력_raw_bytes_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn js_wire_출력_raw_bytes_상한은_rust_상수와_일치한다() {
+fn js_wire_output_raw_bytes_limit_matches_the_rust_constant() {
     assert_eq!(
         js_const(WIRE_JS, "MAX_FILE_OUTPUT_RAW_BYTES"),
         MAX_FILE_OUTPUT_RAW_BYTES,
@@ -328,7 +328,7 @@ fn js_wire_출력_raw_bytes_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn js_file_input_node_상한은_rust_상수와_일치한다() {
+fn js_file_input_node_limit_matches_the_rust_constant() {
     assert_eq!(
         js_const(FILE_INPUT_JS, "MAX_FILE_VALUE_NODE_COUNT"),
         MAX_FILE_OUTPUT_NODES,
@@ -336,7 +336,7 @@ fn js_file_input_node_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn js_file_input_metadata_상한은_rust_상수와_일치한다() {
+fn js_file_input_metadata_limit_matches_the_rust_constant() {
     assert_eq!(
         js_const(FILE_INPUT_JS, "MAX_FILE_VALUE_METADATA_BYTES"),
         MAX_FILE_OUTPUT_METADATA_BYTES,
@@ -344,13 +344,13 @@ fn js_file_input_metadata_상한은_rust_상수와_일치한다() {
 }
 
 #[test]
-fn js_file_input_policy_count_상한은_rust_상수와_일치한다() {
+fn js_file_input_policy_count_limit_matches_the_rust_constant() {
     let rust_count = u64::from(MAX_FILE_INPUT_COUNT);
     assert_eq!(js_const(FILE_INPUT_JS, "MAX_FILE_POLICY_COUNT"), rust_count,);
 }
 
 #[test]
-fn 선언_파서는_주석_처리된_동명_선언을_무시한다() {
+fn declaration_parser_ignores_commented_out_same_name_declarations() {
     let source = concat!(
         "// const int limit = 999;\n",
         "/* const int limit = 888;\n",
@@ -364,9 +364,9 @@ fn 선언_파서는_주석_처리된_동명_선언을_무시한다() {
 }
 
 #[test]
-fn 선언_파서는_들여쓴_선언을_찾고_사용처는_무시한다() {
-    // chrome-ext의 JS 상수들은 IIFE 안에서 들여쓰여 있다. 사용처
-    // (`Math.min(x, LIMIT)`)는 선언이 아니므로 매치되면 안 된다.
+fn declaration_parser_finds_indented_declarations_and_ignores_use_sites() {
+    // The chrome-ext JS constants are indented inside an IIFE. Use sites
+    // (`Math.min(x, LIMIT)`) are not declarations and must not match.
     let source = concat!(
         "  const LIMIT = 3 * 4;\n",
         "  const other = Math.min(x, LIMIT);\n",
@@ -377,7 +377,7 @@ fn 선언_파서는_들여쓴_선언을_찾고_사용처는_무시한다() {
 
 #[test]
 #[should_panic(expected = "must appear exactly once")]
-fn 선언_파서는_살아있는_중복_선언을_거부한다() {
+fn declaration_parser_rejects_live_duplicate_declarations() {
     let source = concat!("const int limit = 7;\n", "const int limit = 8;\n");
 
     let _ = declaration_rhs(source, "const int", "limit");
@@ -385,6 +385,6 @@ fn 선언_파서는_살아있는_중복_선언을_거부한다() {
 
 #[test]
 #[should_panic(expected = "found 0")]
-fn 선언_파서는_선언이_없으면_실패한다() {
+fn declaration_parser_fails_when_no_declaration_exists() {
     let _ = declaration_rhs("// const int limit = 7;\n", "const int", "limit");
 }

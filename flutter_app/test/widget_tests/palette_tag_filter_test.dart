@@ -111,25 +111,26 @@ class _SeededTag extends SelectedTagNotifier {
 
 void main() {
   group('PaletteOverlay tag filter (G04)', () {
-    testWidgets('PaletteOverlay는_selected_tag가_convert이면_convert_도구만_보여준다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _harness(selectedTag: const TagSpecific('convert')),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'paletteoverlay_shows_only_convert_tools_when_the_selected_tag_is_convert',
+      (tester) async {
+        await tester.pumpWidget(
+          _harness(selectedTag: const TagSpecific('convert')),
+        );
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('palette-hit-text.lowercase')),
-        findsNothing,
-      );
-    });
+        expect(
+          find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('palette-hit-text.lowercase')),
+          findsNothing,
+        );
+      },
+    );
 
-    testWidgets('PaletteOverlay는_selected_tag가_all이면_모든_hit를_보여준다', (
+    testWidgets('paletteoverlay_shows_every_hit_when_the_selected_tag_is_all', (
       tester,
     ) async {
       await tester.pumpWidget(_harness(selectedTag: const TagAll()));

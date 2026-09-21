@@ -16,17 +16,12 @@ import 'package:upeg/src/rust/api/tools.dart';
 const String providerNotConfiguredMessageKey =
     'pin.provider_not_configured.message';
 
-/// Legacy pre-i18n mixed-language copy. Still referenced by
-/// `board_page.dart` (owned by a parallel workstream); new call sites
-/// must use [providerNotConfiguredMessageKey] + `t()` instead.
-const String providerNotConfiguredMessage = '설정 필요 (provider not configured)';
-
 /// Whether [tool] advertises live external data but has no configured
 /// provider, so it cannot actually run.
 ///
 /// Signal: a `Live` pin whose invoker is `http` (it wants to fetch from
 /// a network provider) yet whose source is `static` (a placeholder — no
-/// endpoint / API key wired up). Such a pin must show a "설정 필요"
+/// endpoint / API key wired up). Such a pin must show a "needs setup"
 /// (provider not configured) state instead of a runnable affordance, and
 /// activating it yields a clear message rather than a generic dispatch
 /// failure.

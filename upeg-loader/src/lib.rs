@@ -1,6 +1,6 @@
 //! Declarative TOML loader for upeg Toolkits (PRD v2.1 §5.1, §2.3 #8).
 //!
-//! Lets users register Tools without writing Rust — the *0줄 코드 마이그레이션*
+//! Lets users register Tools without writing Rust — the *zero-lines-of-code migration*
 //! pillar. A TOML file like
 //!
 //! ```toml

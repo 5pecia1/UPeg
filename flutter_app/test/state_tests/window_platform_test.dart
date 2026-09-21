@@ -41,18 +41,21 @@ class _RecordingWindowModeDriver implements WindowModeDriver {
 
 void main() {
   group('applyWindowMode', () {
-    test('setHasShadow가_미지원이어도_show와_focus를_계속_호출한다', () async {
-      final driver = _RecordingWindowModeDriver(throwOnShadow: true);
+    test(
+      'keeps_calling_show_and_focus_even_when_setHasShadow_is_unsupported',
+      () async {
+        final driver = _RecordingWindowModeDriver(throwOnShadow: true);
 
-      await applyWindowModeWith(WindowMode.full, driver);
+        await applyWindowModeWith(WindowMode.full, driver);
 
-      expect(driver.calls, [
-        'setSize:1280.0x800.0',
-        'setHasShadow:true',
-        'setTitleBarStyle:TitleBarStyle.normal',
-        'show',
-        'focus',
-      ]);
-    });
+        expect(driver.calls, [
+          'setSize:1280.0x800.0',
+          'setHasShadow:true',
+          'setTitleBarStyle:TitleBarStyle.normal',
+          'show',
+          'focus',
+        ]);
+      },
+    );
   });
 }

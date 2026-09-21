@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 플러그인_입력_명세의_코어_변환은_모든_플러그인_종류를_허용한다() {
+fn plugin_input_spec_to_core_accepts_all_plugin_kinds() {
     let choices = vec![
         PluginChoiceOption::new("a").with_label("A"),
         PluginChoiceOption::new("b").with_description("second"),
@@ -37,7 +37,7 @@ fn 플러그인_입력_명세의_코어_변환은_모든_플러그인_종류를_
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_빈값이나_공백_있는_입력_이름을_거부한다() {
+fn decl_to_meta_rejects_empty_or_padded_input_names() {
     for (name, expected) in [
         ("", "must not be empty"),
         (" input", "leading or trailing whitespace"),
@@ -70,7 +70,7 @@ fn 선언을_메타로_바꾸면_빈값이나_공백_있는_입력_이름을_거
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_중복_입력_이름을_거부한다() {
+fn decl_to_meta_rejects_duplicate_input_names() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -98,7 +98,7 @@ fn 선언을_메타로_바꾸면_중복_입력_이름을_거부한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_중복_출력_이름을_거부한다() {
+fn decl_to_meta_rejects_duplicate_output_names() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -126,7 +126,7 @@ fn 선언을_메타로_바꾸면_중복_출력_이름을_거부한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_잘못된_플러그인_선택_명세를_거부한다() {
+fn decl_to_meta_rejects_invalid_plugin_choice_spec() {
     let cases = [
         (
             PluginInputKind::Options(Vec::new()),
@@ -171,7 +171,7 @@ fn 선언을_메타로_바꾸면_잘못된_플러그인_선택_명세를_거부�
 }
 
 #[test]
-fn 입력_명세가_생략된_선언은_빈_코어_명세를_사용한다() {
+fn decl_without_input_spec_uses_empty_core_spec() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -190,7 +190,7 @@ fn 입력_명세가_생략된_선언은_빈_코어_명세를_사용한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_유효한_입력_명세를_허용한다() {
+fn decl_to_meta_accepts_valid_input_spec() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),

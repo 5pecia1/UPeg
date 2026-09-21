@@ -16,29 +16,29 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-static 카운터: AtomicUsize = AtomicUsize::new(0);
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-const 도구_로컬_ID: &str = "two_lines";
+const TOOL_LOCAL_ID: &str = "two_lines";
 /// Writes to both streams, so the test can tell "mirrored live" from
 /// "printed the final primary output".
-const 자식_명령: &str = "echo out-one; echo err-one 1>&2; echo out-two";
+const CHILD_COMMAND: &str = "echo out-one; echo err-one 1>&2; echo out-two";
 
-struct 픽스처 {
+struct Fixture {
     root: PathBuf,
     toolkits: PathBuf,
     home: PathBuf,
     toolkit: String,
 }
 
-impl Drop for 픽스처 {
+impl Drop for Fixture {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.root);
     }
 }
 
-impl 픽스처 {
-    fn 새로() -> Self {
-        let n = 카운터.fetch_add(1, Ordering::SeqCst);
+impl Fixture {
+    fn new() -> Self {
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let toolkit = format!("livestream{}_{n}", std::process::id());
         let root = std::env::temp_dir().join(format!("upeg-live-output-{toolkit}"));
         let toolkits = root.join("toolkits");
@@ -51,12 +51,12 @@ impl 픽스처 {
                 r#"id = "{toolkit}"
 
 [[tools]]
-id = "{도구_로컬_ID}"
+id = "{TOOL_LOCAL_ID}"
 description = "live output fixture"
 pegboard_units = "U1"
 invoker = "External"
 command = "sh"
-args_template = ["-c", "{자식_명령}"]
+args_template = ["-c", "{CHILD_COMMAND}"]
 surfaces = ["cli"]
 "#
             ),
@@ -70,15 +70,15 @@ surfaces = ["cli"]
         }
     }
 
-    fn 도구_id(&self) -> String {
-        format!("{}.{도구_로컬_ID}", self.toolkit)
+    fn tool_id(&self) -> String {
+        format!("{}.{TOOL_LOCAL_ID}", self.toolkit)
     }
 
     /// Run `upeg call` with the given extra flags; returns (stdout, stderr).
-    fn 호출(&self, extra: &[&str]) -> (String, String) {
+    fn call(&self, extra: &[&str]) -> (String, String) {
         let output = Command::new(env!("CARGO_BIN_EXE_upeg"))
             .arg("call")
-            .arg(self.도구_id())
+            .arg(self.tool_id())
             // `--local` keeps the call in-process: an attached host
             // would answer with a final envelope over HTTP and there
             // would be nothing to mirror.
@@ -87,7 +87,7 @@ surfaces = ["cli"]
             .env("UPEG_TOOLKITS_DIR", &self.toolkits)
             .env("UPEG_HOME", &self.home)
             .output()
-            .expect("upeg 바이너리 실행");
+            .expect("run the upeg binary");
         (
             String::from_utf8_lossy(&output.stdout).into_owned(),
             String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -96,18 +96,18 @@ surfaces = ["cli"]
 }
 
 #[test]
-fn 사람용_호출은_실행_중_출력을_표준오류로_비춘다() {
-    let fixture = 픽스처::새로();
+fn a_human_call_mirrors_running_output_to_stderr() {
+    let fixture = Fixture::new();
 
-    let (stdout, stderr) = fixture.호출(&[]);
+    let (stdout, stderr) = fixture.call(&[]);
 
     assert!(
         stderr.contains("out-one") && stderr.contains("out-two"),
-        "자식 stdout이 실행 중 표준오류로 비춰야 한다: {stderr:?}"
+        "the child's stdout must be mirrored to stderr while running: {stderr:?}"
     );
     assert!(
         stderr.contains("err-one"),
-        "자식 stderr도 실행 중 표준오류로 비춰야 한다: {stderr:?}"
+        "the child's stderr must be mirrored to stderr while running: {stderr:?}"
     );
     // stdout stays exactly the final primary output (plus `upeg call`'s
     // own trailing newline) — the mirror never moves onto it.
@@ -115,28 +115,28 @@ fn 사람용_호출은_실행_중_출력을_표준오류로_비춘다() {
 }
 
 #[test]
-fn json_모드는_실행_중_아무것도_흘리지_않는다() {
-    let fixture = 픽스처::새로();
+fn json_mode_leaks_nothing_while_running() {
+    let fixture = Fixture::new();
 
-    let (stdout, stderr) = fixture.호출(&["--json"]);
+    let (stdout, stderr) = fixture.call(&["--json"]);
 
     assert!(
         !stderr.contains("out-one") && !stderr.contains("err-one"),
-        "기계용 모드는 진행 출력을 만들지 않는다: {stderr:?}"
+        "machine mode must not produce progress output: {stderr:?}"
     );
     let envelope: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("--json은 canonical 봉투 한 줄이다");
+        serde_json::from_str(stdout.trim()).expect("--json is a single canonical envelope");
     assert_eq!(envelope["ok"], true);
 }
 
 #[test]
-fn field_모드도_조용하다() {
-    let fixture = 픽스처::새로();
+fn field_mode_stays_quiet_too() {
+    let fixture = Fixture::new();
 
-    let (_, stderr) = fixture.호출(&["--field", "result"]);
+    let (_, stderr) = fixture.call(&["--field", "result"]);
 
     assert!(
         !stderr.contains("out-one"),
-        "--field는 파싱될 값을 위한 모드다: {stderr:?}"
+        "--field is a mode for a value to be parsed: {stderr:?}"
     );
 }

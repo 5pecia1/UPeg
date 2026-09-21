@@ -12,7 +12,7 @@ const String _zeroByteQuartet = 'AAAA';
 
 void main() {
   group('CanonicalFileValue codec', () {
-    test('bytes 파일은 Rust JSON shape를 손실 없이 왕복한다', () {
+    test('bytes file round-trips the Rust JSON shape losslessly', () {
       const json = <String, Object?>{
         'name': 'report.bin',
         'is_dir': false,
@@ -36,7 +36,7 @@ void main() {
       expect(jsonEncode(canonicalFileValueToJson(decoded!)), jsonEncode(json));
     });
 
-    test('directory 파일은 재귀 entries를 손실 없이 왕복한다', () {
+    test('directory file round-trips recursive entries losslessly', () {
       const json = <String, Object?>{
         'name': 'assets',
         'is_dir': true,
@@ -58,7 +58,7 @@ void main() {
       expect(jsonEncode(canonicalFileValueToJson(decoded!)), jsonEncode(json));
     });
 
-    test('JSON decoder가 만든 dynamic map도 typed 파일로 복원한다', () {
+    test('dynamic map from the JSON decoder restores into a typed file', () {
       final json = jsonDecode(
         '{"name":"input.txt","is_dir":false,'
         '"content":{"kind":"bytes","bytes":"QQ=="}}',
@@ -74,7 +74,7 @@ void main() {
       });
     });
 
-    test('빈 bytes는 빈 base64 문자열로 왕복한다', () {
+    test('empty bytes round-trip as an empty base64 string', () {
       const json = <String, Object?>{
         'name': 'empty.bin',
         'is_dir': false,
@@ -88,7 +88,7 @@ void main() {
     });
 
     test(
-      '16 MiB canonical base64는 native와 Chrome에서 검증하고 decode한다',
+      '16 MiB canonical base64 validates and decodes on native and Chrome',
       () {
         final encoded = _zeroBytesBase64(_largeCanonicalPayloadBytes);
 
@@ -103,7 +103,7 @@ void main() {
     );
 
     test(
-      '64 MiB raw cap 초과는 decoded bytes 할당 전에 typed 오류로 거부한다',
+      'over the 64 MiB raw cap rejects with a typed error before allocating decoded bytes',
       () {
         const oversizedRawBytes = canonicalFileMaximumRawBytes + 1;
         final encoded = _zeroBytesBase64(oversizedRawBytes);
@@ -114,17 +114,17 @@ void main() {
             isA<CanonicalFileValueCodecException>()
                 .having(
                   (error) => error.code,
-                  '오류 코드',
+                  'error code',
                   CanonicalFileValueCodecErrorCode.maximumRawBytesExceeded,
                 )
                 .having(
                   (error) => error.actualBytes,
-                  '실제 raw byte 크기',
+                  'actual raw byte size',
                   oversizedRawBytes,
                 )
                 .having(
                   (error) => error.limitBytes,
-                  'raw byte 제한',
+                  'raw byte limit',
                   canonicalFileMaximumRawBytes,
                 ),
           ),
@@ -133,7 +133,7 @@ void main() {
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
-    test('legacy 숫자 배열 bytes는 거부한다', () {
+    test('legacy numeric-array bytes are rejected', () {
       const json = <String, Object?>{
         'name': 'legacy.bin',
         'is_dir': false,
@@ -146,37 +146,43 @@ void main() {
       expect(canonicalFileValueFromJson(json), isNull);
     });
 
-    test('URL-safe 문자와 공백이 있는 base64는 typed 오류로 거부한다', () {
-      for (final bytes in ['-_8=', 'A Q==', 'AQ==\n']) {
-        expect(
-          () => canonicalFileValueFromJson(_fileJsonWithBytes(bytes)),
-          throwsA(
-            isA<CanonicalFileValueCodecException>().having(
-              (error) => error.code,
-              '오류 코드',
-              CanonicalFileValueCodecErrorCode.invalidBase64,
+    test(
+      'base64 with URL-safe characters or whitespace is rejected with a typed error',
+      () {
+        for (final bytes in ['-_8=', 'A Q==', 'AQ==\n']) {
+          expect(
+            () => canonicalFileValueFromJson(_fileJsonWithBytes(bytes)),
+            throwsA(
+              isA<CanonicalFileValueCodecException>().having(
+                (error) => error.code,
+                'error code',
+                CanonicalFileValueCodecErrorCode.invalidBase64,
+              ),
             ),
-          ),
-        );
-      }
-    });
+          );
+        }
+      },
+    );
 
-    test('누락된 padding과 비정규 tail bit는 typed 오류로 거부한다', () {
-      for (final bytes in ['AQI', 'AQ===', 'AB==', 'AAB=']) {
-        expect(
-          () => canonicalFileValueFromJson(_fileJsonWithBytes(bytes)),
-          throwsA(
-            isA<CanonicalFileValueCodecException>().having(
-              (error) => error.code,
-              '오류 코드',
-              CanonicalFileValueCodecErrorCode.invalidBase64,
+    test(
+      'missing padding and non-canonical tail bits are rejected with a typed error',
+      () {
+        for (final bytes in ['AQI', 'AQ===', 'AB==', 'AAB=']) {
+          expect(
+            () => canonicalFileValueFromJson(_fileJsonWithBytes(bytes)),
+            throwsA(
+              isA<CanonicalFileValueCodecException>().having(
+                (error) => error.code,
+                'error code',
+                CanonicalFileValueCodecErrorCode.invalidBase64,
+              ),
             ),
-          ),
-        );
-      }
-    });
+          );
+        }
+      },
+    );
 
-    test('is_dir와 content kind가 일치하지 않으면 거부한다', () {
+    test('rejects when is_dir and content kind disagree', () {
       const directoryMarkedAsFile = <String, Object?>{
         'name': 'folder',
         'is_dir': false,
@@ -195,7 +201,7 @@ void main() {
       expect(canonicalFileValueFromJson(bytesMarkedAsDirectory), isNull);
     });
 
-    test('mime과 content에 알 수 없는 shape가 있으면 거부한다', () {
+    test('rejects unknown shapes in mime and content', () {
       const invalidMime = <String, Object?>{
         'name': 'file.bin',
         'is_dir': false,
@@ -216,7 +222,7 @@ void main() {
       expect(canonicalFileValueFromJson(unexpectedContent), isNull);
     });
 
-    test('최대 nesting depth 이내 파일은 손실 없이 왕복한다', () {
+    test('file within maximum nesting depth round-trips losslessly', () {
       final json = _nestedFileJson(canonicalFileMaximumNestingDepth);
 
       final decoded = canonicalFileValueFromJson(json);
@@ -225,35 +231,41 @@ void main() {
       expect(jsonEncode(canonicalFileValueToJson(decoded!)), jsonEncode(json));
     });
 
-    test('최대 nesting depth를 넘는 dynamic map은 StackOverflow 없이 거부한다', () {
-      final json = _nestedFileJson(4000);
+    test(
+      'dynamic map beyond maximum nesting depth is rejected without StackOverflow',
+      () {
+        final json = _nestedFileJson(4000);
 
-      expect(
-        () => canonicalFileValueFromJson(json),
-        throwsA(
-          isA<CanonicalFileValueCodecException>().having(
-            (error) => error.code,
-            '오류 코드',
-            CanonicalFileValueCodecErrorCode.maximumNestingDepthExceeded,
+        expect(
+          () => canonicalFileValueFromJson(json),
+          throwsA(
+            isA<CanonicalFileValueCodecException>().having(
+              (error) => error.code,
+              'error code',
+              CanonicalFileValueCodecErrorCode.maximumNestingDepthExceeded,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('최대 nesting depth를 넘는 typed 파일은 StackOverflow 없이 거부한다', () {
-      final file = _nestedCanonicalFile(canonicalFileMaximumNestingDepth + 1);
+    test(
+      'typed file beyond maximum nesting depth is rejected without StackOverflow',
+      () {
+        final file = _nestedCanonicalFile(canonicalFileMaximumNestingDepth + 1);
 
-      expect(
-        () => canonicalFileValueToJson(file),
-        throwsA(
-          isA<CanonicalFileValueCodecException>().having(
-            (error) => error.code,
-            '오류 코드',
-            CanonicalFileValueCodecErrorCode.maximumNestingDepthExceeded,
+        expect(
+          () => canonicalFileValueToJson(file),
+          throwsA(
+            isA<CanonicalFileValueCodecException>().having(
+              (error) => error.code,
+              'error code',
+              CanonicalFileValueCodecErrorCode.maximumNestingDepthExceeded,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 }
 

@@ -20,7 +20,7 @@ import 'package:upeg/src/state/launch_intent_provider.dart';
 
 void main() {
   group('DeepLinkListener.handleForTest', () {
-    test('deep_link_listener는_upeg_uri를_launchIntentProvider에_전달한다', () {
+    test('deep_link_listener_forwards_a_upeg_uri_to_launchIntentProvider', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -39,7 +39,7 @@ void main() {
       expect(intent.board, 'dev');
     });
 
-    test('deep_link_listener는_upeg가_아닌_uri를_무시한다', () {
+    test('deep_link_listener_ignores_a_non_upeg_uri', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -54,7 +54,7 @@ void main() {
       expect(container.read(launchIntentProvider), isNull);
     });
 
-    test('deep_link_listener는_malformed_upeg_uri를_기록하고_무시한다', () {
+    test('deep_link_listener_logs_and_ignores_a_malformed_upeg_uri', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final logs = <String>[];

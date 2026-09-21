@@ -66,7 +66,7 @@ void main() {
   final toolId = ToolId.parse('num.hex_to_decimal');
 
   group('lastOutcomeProvider write-through', () {
-    test('record는_fresh_상태로_기록하고_write_through를_정확히_한_번_호출한다', () {
+    test('record_stores_fresh_state_and_calls_write_through_exactly_once', () {
       final calls = <_PersistCall>[];
       final container = _makeContainer(persistCalls: calls);
       container
@@ -84,7 +84,7 @@ void main() {
       expect(calls.single.result, _okResult);
     });
 
-    test('실패_결과도_스토어에_write_through된다', () {
+    test('error_results_are_written_through_to_the_store_too', () {
       final calls = <_PersistCall>[];
       final container = _makeContainer(persistCalls: calls);
       container
@@ -100,7 +100,7 @@ void main() {
       expect(container.read(lastOutcomeProvider)[toolId]?.result.ok, isFalse);
     });
 
-    test('선택된_보드가_없으면_캐시만_갱신하고_영속화는_생략한다', () {
+    test('without_selected_board_updates_cache_only_and_skips_persistence', () {
       final calls = <_PersistCall>[];
       final container = _makeContainer(persistCalls: calls);
 
@@ -110,7 +110,7 @@ void main() {
       expect(calls, isEmpty);
     });
 
-    test('write_through_실패는_예외없이_캐시를_유지한다', () {
+    test('write_through_failure_keeps_cache_without_throwing', () {
       final container = ProviderContainer(
         overrides: [
           ...pegboardSelectionOverrides(),
@@ -140,11 +140,11 @@ void main() {
       updatedAtMs: DateTime.utc(2026, 7, 17).millisecondsSinceEpoch,
     );
 
-    test('보드_전환시_저장된_결과가_restored_상태로_복원된다', () {
+    test('board_switch_restores_stored_results_as_restored_state', () {
       final container = _makeContainer(
         load: (boardKey) => boardKey == 'dev' ? [storedRow] : const [],
       );
-      // Provider가 살아 있는 상태에서 보드가 바뀌는 시나리오.
+      // Scenario: the board changes while the provider is alive.
       container.read(lastOutcomeProvider);
       container
           .read(currentBoardKeyProvider.notifier)
@@ -158,40 +158,44 @@ void main() {
       expect(
         outcome.updatedAt.toUtc(),
         DateTime.utc(2026, 7, 17),
-        reason: 'updated_at 타임스탬프가 배지 렌더용으로 보존되어야 한다',
+        reason: 'updated_at timestamp must be preserved for badge rendering',
       );
     });
 
-    test('재시작_시뮬레이션_provider_재생성_후_로드하면_restored로_복원된다', () async {
-      // 세션 1: 결과 기록 → "store"에 영속.
-      final store = <String, List<LastOutcomeDto>>{};
-      final session1 = _makeContainer(
-        persistCalls: null,
-        load: (boardKey) => store[boardKey] ?? const [],
-      );
-      session1
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-      store['dev'] = [storedRow];
+    test(
+      'restart_simulation_restores_as_restored_after_provider_recreate_load',
+      () async {
+        // Session 1: record results → persisted to the "store".
+        final store = <String, List<LastOutcomeDto>>{};
+        final session1 = _makeContainer(
+          persistCalls: null,
+          load: (boardKey) => store[boardKey] ?? const [],
+        );
+        session1
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('dev'));
+        store['dev'] = [storedRow];
 
-      // 세션 2(재시작): 보드가 이미 선택된 상태에서 provider가 처음
-      // 만들어진다 — build의 microtask 초기 hydration 경로.
-      final session2 = _makeContainer(
-        load: (boardKey) => store[boardKey] ?? const [],
-      );
-      session2
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-      session2.read(lastOutcomeProvider);
-      await Future<void>.delayed(Duration.zero);
+        // Session 2 (restart): the provider is created for the first time
+        // while a board is already selected — the microtask initial
+        // hydration path in build.
+        final session2 = _makeContainer(
+          load: (boardKey) => store[boardKey] ?? const [],
+        );
+        session2
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('dev'));
+        session2.read(lastOutcomeProvider);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(
-        session2.read(lastOutcomeProvider)[toolId],
-        isA<RestoredOutcome>(),
-      );
-    });
+        expect(
+          session2.read(lastOutcomeProvider)[toolId],
+          isA<RestoredOutcome>(),
+        );
+      },
+    );
 
-    test('세션_fresh_결과는_hydration이_덮어쓰지_않는다', () {
+    test('hydration_does_not_overwrite_session_fresh_results', () {
       final container = _makeContainer(load: (_) => [storedRow]);
       container.read(lastOutcomeProvider.notifier).record(toolId, _errorResult);
 
@@ -204,7 +208,7 @@ void main() {
       expect(cached?.result, _errorResult);
     });
 
-    test('hydration_로드_실패는_기존_캐시를_그대로_둔다', () {
+    test('hydration_load_failure_leaves_existing_cache_untouched', () {
       final container = _makeContainer(
         load: (_) => throw StateError('store unavailable'),
       );
@@ -219,7 +223,7 @@ void main() {
   });
 
   group('lastOutcomeProvider clear', () {
-    test('clear는_해당_tool의_캐시만_제거한다', () {
+    test('clear_removes_only_the_given_tool_cache', () {
       final other = ToolId.parse('id.uuid_v7');
       final container = _makeContainer();
       final notifier = container.read(lastOutcomeProvider.notifier)

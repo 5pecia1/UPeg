@@ -48,8 +48,8 @@ void main() {
       );
     }
 
-    group('스왓치 선택', () {
-      testWidgets('스왓치를_선택하면_HEX_입력창이_업데이트된다', (tester) async {
+    group('swatch selection', () {
+      testWidgets('selecting_a_swatch_updates_the_hex_input', (tester) async {
         await tester.pumpWidget(
           buildHarness(onSave: (_) {}, onReset: (_) {}, onCancel: () {}),
         );
@@ -67,8 +67,8 @@ void main() {
       });
     });
 
-    group('HEX 검증', () {
-      testWidgets('유효한_HEX는_에러메시지가_없다', (tester) async {
+    group('HEX validation', () {
+      testWidgets('a_valid_hex_shows_no_error_message', (tester) async {
         await tester.pumpWidget(
           buildHarness(
             initialColor: '#000000',
@@ -85,7 +85,7 @@ void main() {
         expect(find.byKey(const Key('pin-color-save')), findsWidgets);
       });
 
-      testWidgets('잘못된_HEX는_저장버튼이_비활성화된다', (tester) async {
+      testWidgets('an_invalid_hex_disables_the_save_button', (tester) async {
         await tester.pumpWidget(
           buildHarness(
             initialColor: _validHex,
@@ -108,7 +108,7 @@ void main() {
         expect(saveButton.onPressed, isNull);
       });
 
-      testWidgets('HEX는_대문자로_정규화된다', (tester) async {
+      testWidgets('hex_is_normalized_to_uppercase', (tester) async {
         await tester.pumpWidget(
           buildHarness(
             initialColor: _validHexLower,
@@ -124,8 +124,10 @@ void main() {
       });
     });
 
-    group('저장/초기화/취소', () {
-      testWidgets('저장_버튼은_onSave_콜백을_호출한다', (tester) async {
+    group('save/reset/cancel', () {
+      testWidgets('the_save_button_invokes_the_onsave_callback', (
+        tester,
+      ) async {
         var saveCalled = 0;
         String? savedColor;
         await tester.pumpWidget(
@@ -148,7 +150,9 @@ void main() {
         expect(savedColor, _validHex);
       });
 
-      testWidgets('초기화_버튼은_onReset_콜백을_호출한다', (tester) async {
+      testWidgets('the_reset_button_invokes_the_onreset_callback', (
+        tester,
+      ) async {
         var resetCalled = 0;
         await tester.pumpWidget(
           buildHarness(
@@ -166,7 +170,9 @@ void main() {
         expect(resetCalled, 1);
       });
 
-      testWidgets('취소_버튼은_onCancel_콜백을_호출한다', (tester) async {
+      testWidgets('the_cancel_button_invokes_the_oncancel_callback', (
+        tester,
+      ) async {
         var cancelCalled = 0;
         await tester.pumpWidget(
           buildHarness(
@@ -185,8 +191,8 @@ void main() {
       });
     });
 
-    group('키보드_단축키', () {
-      testWidgets('Escape는_취소를_발동한다', (tester) async {
+    group('keyboard shortcuts', () {
+      testWidgets('escape_triggers_cancel', (tester) async {
         var cancelCalled = 0;
         await tester.pumpWidget(
           buildHarness(
@@ -205,8 +211,10 @@ void main() {
       });
     });
 
-    group('대기_상태', () {
-      testWidgets('초기_색상이_null이면_빈_HEX_입력창으로_시작한다', (tester) async {
+    group('default state', () {
+      testWidgets('a_null_initial_color_starts_with_an_empty_hex_input', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           buildHarness(
             initialColor: null,

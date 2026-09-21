@@ -44,27 +44,33 @@ ProviderContainer _container({required TweaksDto initial}) {
 
 void main() {
   group('localeProvider', () {
-    test('localeProvider는_tweaks_locale_En일때_LocaleDto_en을_반환한다', () async {
-      final container = _container(initial: _enDto);
-      addTearDown(container.dispose);
+    test(
+      'localeProvider_returns_LocaleDto_en_when_tweaks_locale_is_En',
+      () async {
+        final container = _container(initial: _enDto);
+        addTearDown(container.dispose);
 
-      // Force the tweaks AsyncNotifier to build (seed) the initial value
-      // before reading the derived provider.
-      await container.read(tweaksProvider.future);
+        // Force the tweaks AsyncNotifier to build (seed) the initial value
+        // before reading the derived provider.
+        await container.read(tweaksProvider.future);
 
-      expect(container.read(localeProvider), LocaleDto.en);
-    });
+        expect(container.read(localeProvider), LocaleDto.en);
+      },
+    );
 
-    test('localeProvider는_tweaks_locale_Ko일때_LocaleDto_ko를_반환한다', () async {
-      final container = _container(initial: _koDto);
-      addTearDown(container.dispose);
+    test(
+      'localeProvider_returns_LocaleDto_ko_when_tweaks_locale_is_Ko',
+      () async {
+        final container = _container(initial: _koDto);
+        addTearDown(container.dispose);
 
-      await container.read(tweaksProvider.future);
+        await container.read(tweaksProvider.future);
 
-      expect(container.read(localeProvider), LocaleDto.ko);
-    });
+        expect(container.read(localeProvider), LocaleDto.ko);
+      },
+    );
 
-    test('localeProvider는_tweaks_locale이_바뀌면_갱신된다', () async {
+    test('localeProvider_updates_when_tweaks_locale_changes', () async {
       final container = _container(initial: _enDto);
       addTearDown(container.dispose);
 

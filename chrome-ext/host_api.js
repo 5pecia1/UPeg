@@ -24,11 +24,19 @@ const UpegHostWire =
 const UpegHostApi = (() => {
   const { RequestBodyTooLargeError, serializeJsonRequestBody } = UpegHostWire;
 
-  const HTTP_HOST = '127.0.0.1';
-  const HTTP_PORT = 7173;
-  const HTTP_BASE_URL = `http://${HTTP_HOST}:${HTTP_PORT}`;
-  const HTTP_ADDRESS = `${HTTP_HOST}:${HTTP_PORT}`;
-  const RUN_HINT_COMMAND = `upeg http --addr ${HTTP_ADDRESS}`;
+  // Pairing endpoint. `upeg http` binds an ephemeral loopback port by
+  // default (`DEFAULT_BIND = "127.0.0.1:0"`), so the endpoint the popup
+  // and the service worker must talk to is user-configurable, persisted
+  // under ENDPOINT_STORAGE_KEY. `upeg http status --pairing` prints a
+  // running host's `url:` + `token:` lines — that is the value to paste.
+  // The default below keeps an install paired before ephemeral ports
+  // working untouched.
+  const DEFAULT_HTTP_HOST = '127.0.0.1';
+  const DEFAULT_HTTP_PORT = 7173;
+  const DEFAULT_HTTP_BASE_URL = `http://${DEFAULT_HTTP_HOST}:${DEFAULT_HTTP_PORT}`;
+  const DEFAULT_HTTP_ADDRESS = `${DEFAULT_HTTP_HOST}:${DEFAULT_HTTP_PORT}`;
+  const RUN_HINT_COMMAND = 'upeg http';
+  const PAIRING_COMMAND = 'upeg http status --pairing';
 
   const BOARDS_LIST_PATH = '/v1/boards';
   const boardShowPath = (board) => `/v1/boards/${encodeURIComponent(board)}`;
@@ -37,8 +45,11 @@ const UpegHostApi = (() => {
   // Non-/healthz routes require `Authorization: Bearer <token>`. The token is
   // user-supplied (pasted from the host's config / start-up log) and lives
   // only in this extension's local storage — never logged, never sent
-  // anywhere but HTTP_BASE_URL above.
+  // anywhere but the configured loopback endpoint above.
   const TOKEN_STORAGE_KEY = 'upegDaemonToken';
+  // The paired endpoint, persisted as a normalized `http://host:port`
+  // base URL string.
+  const ENDPOINT_STORAGE_KEY = 'upegHostEndpoint';
 
   const HTTP_STATUS = Object.freeze({
     UNAUTHORIZED: 401,
@@ -100,6 +111,155 @@ const UpegHostApi = (() => {
     return status === HTTP_STATUS.UNAUTHORIZED || status === HTTP_STATUS.FORBIDDEN;
   }
 
+  // Endpoint validation failure reasons — popup.js maps each to a
+  // localized messages.json key, so this module stays string-free.
+  const ENDPOINT_ERROR = Object.freeze({
+    NOT_A_URL: 'not_a_url',
+    NOT_HTTP: 'not_http',
+    CREDENTIALS: 'credentials',
+    PATH_OR_QUERY: 'path_or_query',
+    NOT_LOOPBACK: 'not_loopback',
+    BAD_PORT: 'bad_port',
+  });
+
+  // The bearer token rides `Authorization` to this endpoint on every
+  // request — the endpoint is therefore restricted to loopback, or a
+  // pasted URL would send the token to a remote host. `new URL`
+  // normalizes IPv4 spellings ("127.1", "0x7f.0.0.1", "2130706433") to
+  // the dotted-quad form and IPv6 to the compressed form before we see
+  // the hostname, so the checks below cover the whole loopback space.
+  function isLoopbackHostname(hostname) {
+    if (hostname === 'localhost' || hostname === '[::1]') return true;
+    const octets = hostname.split('.');
+    if (octets.length !== 4 || octets[0] !== '127') return false;
+    return octets.every(
+      (octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255,
+    );
+  }
+
+  const DEFAULT_ENDPOINT = Object.freeze({
+    baseUrl: DEFAULT_HTTP_BASE_URL,
+    address: DEFAULT_HTTP_ADDRESS,
+    host: DEFAULT_HTTP_HOST,
+    port: DEFAULT_HTTP_PORT,
+    // The `chrome.permissions` origin pattern covering exactly this
+    // endpoint — popup.js requests it on save when it is not already
+    // granted, so a custom port never widens the granted set silently.
+    permissionPattern: `${DEFAULT_HTTP_BASE_URL}/*`,
+  });
+
+  /// Parse a user-supplied endpoint into the normalized
+  /// `{baseUrl, address, host, port, permissionPattern}` shape used by
+  /// every request path, or `{ ok: false, error }` naming which rule
+  /// rejected it. Accepted spellings: `http://127.0.0.1:49317`,
+  /// `127.0.0.1:49317`, `localhost:8080`, `[::1]:9000` — an omitted port
+  /// means the default 7173 so a bare `127.0.0.1` keeps working for
+  /// installs paired before ephemeral ports.
+  function parseLoopbackEndpoint(input) {
+    if (typeof input !== 'string') {
+      return { ok: false, error: ENDPOINT_ERROR.NOT_A_URL };
+    }
+    const trimmed = input.trim();
+    if (trimmed.length === 0) {
+      return { ok: false, error: ENDPOINT_ERROR.NOT_A_URL };
+    }
+
+    // Peel the scheme off by hand: `new URL('127.0.0.1:7173')` reads the
+    // host text as a scheme and fails, which would reject exactly the
+    // bare `host:port` form `upeg http status --pairing` users type.
+    const schemeSep = trimmed.indexOf('://');
+    let rest = trimmed;
+    if (schemeSep >= 0) {
+      if (trimmed.slice(0, schemeSep).toLowerCase() !== 'http') {
+        return { ok: false, error: ENDPOINT_ERROR.NOT_HTTP };
+      }
+      rest = trimmed.slice(schemeSep + 3);
+    }
+
+    // Split an explicit port off BEFORE `new URL` — the parser erases the
+    // default port (`:80` disappears) and rejects a malformed one by
+    // failing the whole URL, so afterwards the port text is
+    // unrecoverable and neither mistake can be reported accurately.
+    let hostPart = rest;
+    let portText = '';
+    const lastColon = rest.lastIndexOf(':');
+    if (lastColon >= 0) {
+      const bracketClose = rest.startsWith('[') ? rest.indexOf(']') : -1;
+      const isPortSuffix =
+        bracketClose >= 0
+          ? lastColon === bracketClose + 1
+          : rest.indexOf(':') === lastColon;
+      if (isPortSuffix) {
+        const candidate = rest.slice(lastColon + 1);
+        // A suffix carrying '/', '@', '?' or '#' is a path or
+        // credentials tail, not a port — leave it for the URL parse.
+        if (!/[/@?#]/.test(candidate)) {
+          portText = candidate;
+          hostPart = rest.slice(0, lastColon);
+        }
+      }
+    }
+    if (portText !== '') {
+      const port = Number(portText);
+      if (!/^\d+$/.test(portText) || port < 1 || port > 65535) {
+        return { ok: false, error: ENDPOINT_ERROR.BAD_PORT };
+      }
+    }
+
+    let url;
+    try {
+      url = new URL(`http://${hostPart}${portText === '' ? '' : `:${portText}`}`);
+    } catch {
+      return { ok: false, error: ENDPOINT_ERROR.NOT_A_URL };
+    }
+    if (url.username !== '' || url.password !== '') {
+      return { ok: false, error: ENDPOINT_ERROR.CREDENTIALS };
+    }
+    if (url.pathname !== '/' || url.search !== '' || url.hash !== '') {
+      return { ok: false, error: ENDPOINT_ERROR.PATH_OR_QUERY };
+    }
+    if (!isLoopbackHostname(url.hostname)) {
+      return { ok: false, error: ENDPOINT_ERROR.NOT_LOOPBACK };
+    }
+
+    const host = url.hostname;
+    const port = portText === '' ? DEFAULT_HTTP_PORT : Number(portText);
+    const baseUrl = `http://${host}:${port}`;
+    return {
+      ok: true,
+      endpoint: Object.freeze({
+        baseUrl,
+        address: `${host}:${port}`,
+        host,
+        port,
+        permissionPattern: `${baseUrl}/*`,
+      }),
+    };
+  }
+
+  /// Normalize a persisted endpoint value. Anything that fails
+  /// validation falls back to the default — a corrupt or hostile stored
+  /// value must never aim the bearer token at a remote origin.
+  function endpointForStoredValue(stored) {
+    const parsed = parseLoopbackEndpoint(typeof stored === 'string' ? stored : '');
+    return parsed.ok ? parsed.endpoint : DEFAULT_ENDPOINT;
+  }
+
+  /// Read the configured endpoint from a chrome.storage.local-shaped
+  /// area. Legacy installs have only a token stored — a missing or
+  /// unreadable endpoint migrates to the default instead of discarding
+  /// the pairing the user already made.
+  async function readHostEndpoint(storageArea) {
+    try {
+      const stored = await storageArea.get(ENDPOINT_STORAGE_KEY);
+      return endpointForStoredValue(
+        stored ? stored[ENDPOINT_STORAGE_KEY] : undefined,
+      );
+    } catch {
+      return DEFAULT_ENDPOINT;
+    }
+  }
+
   function authHeaders(token, extra) {
     const headers = Object.assign({ Accept: 'application/json' }, extra);
     if (typeof token === 'string' && token.length > 0) {
@@ -137,7 +297,7 @@ const UpegHostApi = (() => {
   /// [`classifyDispatchResponse`].
   async function callTool({
     fetchImpl,
-    baseUrl = HTTP_BASE_URL,
+    baseUrl = DEFAULT_HTTP_BASE_URL,
     token = null,
     toolId,
     args = {},
@@ -200,12 +360,16 @@ const UpegHostApi = (() => {
     BOARDS_LIST_PATH,
     CONTENT_SCRIPT_BOARD,
     DEEP_LINK_ACTION,
+    DEFAULT_ENDPOINT,
+    DEFAULT_HTTP_ADDRESS,
+    DEFAULT_HTTP_BASE_URL,
+    DEFAULT_HTTP_HOST,
+    DEFAULT_HTTP_PORT,
     DISPATCH_RESULT_KIND,
-    HTTP_ADDRESS,
-    HTTP_BASE_URL,
-    HTTP_HOST,
-    HTTP_PORT,
+    ENDPOINT_ERROR,
+    ENDPOINT_STORAGE_KEY,
     HTTP_STATUS,
+    PAIRING_COMMAND,
     RUNTIME_MESSAGE,
     RUN_HINT_COMMAND,
     SURFACE_PARAM_VALUE,
@@ -215,9 +379,12 @@ const UpegHostApi = (() => {
     buildDeepLink,
     callTool,
     classifyDispatchResponse,
+    endpointForStoredValue,
     isAuthStatus,
     outputText,
+    parseLoopbackEndpoint,
     primaryOutput,
+    readHostEndpoint,
     toolCallPath,
   });
 })();

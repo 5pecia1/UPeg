@@ -63,69 +63,75 @@ const _widePlacement = PlacementDto(
 
 void main() {
   group('Move-mode keyboard dispatch (F15)', () {
-    test('handleMoveModeCommand는_StartMove_+_focused_pin이면_Active로_들어간다', () {
-      final c = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier('dev'),
-          ),
-          layoutLoaderProvider.overrideWithValue(
-            (boardKey) => const LayoutSnapshotDto(
-              boardKey: 'dev',
-              boardCols: _fixedBoardCols,
-              placements: [_focusedPlacement],
+    test(
+      'handleMoveModeCommand_enters_Active_on_StartMove_with_a_focused_pin',
+      () {
+        final c = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier('dev'),
             ),
-          ),
-        ],
-      );
-      addTearDown(c.dispose);
-
-      c
-          .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
-      final handled = handleMoveModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.startMove(),
-      );
-
-      expect(handled, isTrue);
-      expect(c.read(moveModeProvider), isA<MoveModeActive>());
-    });
-
-    test('handleMoveModeCommand는_StartMove_시_현재_placement_anchor에서_시작한다', () {
-      final c = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier('dev'),
-          ),
-          layoutLoaderProvider.overrideWithValue(
-            (boardKey) => const LayoutSnapshotDto(
-              boardKey: 'dev',
-              boardCols: _fixedBoardCols,
-              placements: [_focusedPlacement],
+            layoutLoaderProvider.overrideWithValue(
+              (boardKey) => const LayoutSnapshotDto(
+                boardKey: 'dev',
+                boardCols: _fixedBoardCols,
+                placements: [_focusedPlacement],
+              ),
             ),
-          ),
-        ],
-      );
-      addTearDown(c.dispose);
+          ],
+        );
+        addTearDown(c.dispose);
 
-      c
-          .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
-      final handled = handleMoveModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.startMove(),
-      );
+        c
+            .read(focusedPinProvider.notifier)
+            .focus(ToolId.parse('num.hex_to_decimal'));
+        final handled = handleMoveModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.startMove(),
+        );
 
-      expect(handled, isTrue);
-      final active = c.read(moveModeProvider) as MoveModeActive;
-      expect(active.originX, 4);
-      expect(active.originY, 2);
-      expect(active.currentX, 4);
-      expect(active.currentY, 2);
-    });
+        expect(handled, isTrue);
+        expect(c.read(moveModeProvider), isA<MoveModeActive>());
+      },
+    );
 
-    test('handleMoveModeCommand는_focused_pin_없으면_StartMove를_무시한다', () {
+    test(
+      'handleMoveModeCommand_starts_at_the_current_placement_anchor_on_StartMove',
+      () {
+        final c = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier('dev'),
+            ),
+            layoutLoaderProvider.overrideWithValue(
+              (boardKey) => const LayoutSnapshotDto(
+                boardKey: 'dev',
+                boardCols: _fixedBoardCols,
+                placements: [_focusedPlacement],
+              ),
+            ),
+          ],
+        );
+        addTearDown(c.dispose);
+
+        c
+            .read(focusedPinProvider.notifier)
+            .focus(ToolId.parse('num.hex_to_decimal'));
+        final handled = handleMoveModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.startMove(),
+        );
+
+        expect(handled, isTrue);
+        final active = c.read(moveModeProvider) as MoveModeActive;
+        expect(active.originX, 4);
+        expect(active.originY, 2);
+        expect(active.currentX, 4);
+        expect(active.currentY, 2);
+      },
+    );
+
+    test('handleMoveModeCommand_ignores_StartMove_without_a_focused_pin', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -138,7 +144,7 @@ void main() {
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('handleMoveModeCommand는_Active일때_Arrow_Right로_nudge한다', () {
+    test('handleMoveModeCommand_nudges_on_Arrow_Right_while_Active', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -164,7 +170,7 @@ void main() {
       expect(state.currentY, 0);
     });
 
-    test('handleMoveModeCommand는_Active일때_Cancel로_Idle로_돌아온다', () {
+    test('handleMoveModeCommand_returns_to_Idle_on_Cancel_while_Active', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -188,96 +194,102 @@ void main() {
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
     });
 
-    test('handleMoveModeCommand는_Active일때_Commit으로_seam을_호출한다', () async {
-      ToolId? observedTool;
-      int? observedX;
-      int? observedY;
-      Future<void> recorder(ToolId toolId, int x, int y) async {
-        observedTool = toolId;
-        observedX = x;
-        observedY = y;
-      }
+    test(
+      'handleMoveModeCommand_calls_the_seam_on_Commit_while_Active',
+      () async {
+        ToolId? observedTool;
+        int? observedX;
+        int? observedY;
+        Future<void> recorder(ToolId toolId, int x, int y) async {
+          observedTool = toolId;
+          observedX = x;
+          observedY = y;
+        }
 
-      final c = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier('dev'),
-          ),
-          movePinCommitFnProvider.overrideWithValue(recorder),
-        ],
-      );
-      addTearDown(c.dispose);
-
-      c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.echo'));
-      c
-          .read(moveModeProvider.notifier)
-          .start(
-            boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.echo'),
-            originX: 2,
-            originY: 1,
-            maxX: _u1MaxStartX,
-          );
-      c.read(moveModeProvider.notifier).nudge(dx: 1, dy: 0);
-
-      final handled = handleMoveModeCommand(
-        c,
-        cmd: const KeyboardCommandDto.commit(),
-      );
-
-      expect(handled, isTrue);
-      // commit is sync flip-to-Idle + fire-and-forget FRB call.
-      await Future<void>.delayed(Duration.zero);
-
-      expect(c.read(moveModeProvider), isA<MoveModeIdle>());
-      expect(observedTool, ToolId.parse('fixture.echo'));
-      expect(observedX, 3);
-      expect(observedY, 1);
-    });
-
-    test('commit은_시작한_board가_아니면_이동을_저장하지_않는다', () async {
-      ToolId? observedTool;
-      Future<void> recorder(ToolId toolId, int x, int y) async {
-        observedTool = toolId;
-      }
-
-      final c = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier('dev'),
-          ),
-          layoutLoaderProvider.overrideWithValue(
-            (boardKey) => const LayoutSnapshotDto(
-              boardKey: 'dev',
-              boardCols: _fixedBoardCols,
-              placements: [_focusedPlacement],
+        final c = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier('dev'),
             ),
-          ),
-          movePinCommitFnProvider.overrideWithValue(recorder),
-        ],
-      );
-      addTearDown(c.dispose);
+            movePinCommitFnProvider.overrideWithValue(recorder),
+          ],
+        );
+        addTearDown(c.dispose);
 
-      c
-          .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
-      expect(
-        handleMoveModeCommand(c, cmd: const KeyboardCommandDto.startMove()),
-        isTrue,
-      );
-      c.read(currentBoardKeyProvider.notifier).select(_mediaBoardKey);
+        c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.echo'));
+        c
+            .read(moveModeProvider.notifier)
+            .start(
+              boardKey: _devBoardKey,
+              toolId: ToolId.parse('fixture.echo'),
+              originX: 2,
+              originY: 1,
+              maxX: _u1MaxStartX,
+            );
+        c.read(moveModeProvider.notifier).nudge(dx: 1, dy: 0);
 
-      expect(
-        handleMoveModeCommand(c, cmd: const KeyboardCommandDto.commit()),
-        isTrue,
-      );
-      await Future<void>.delayed(Duration.zero);
+        final handled = handleMoveModeCommand(
+          c,
+          cmd: const KeyboardCommandDto.commit(),
+        );
 
-      expect(c.read(moveModeProvider), isA<MoveModeIdle>());
-      expect(observedTool, isNull);
-    });
+        expect(handled, isTrue);
+        // commit is sync flip-to-Idle + fire-and-forget FRB call.
+        await Future<void>.delayed(Duration.zero);
 
-    test('handleMoveModeCommand는_Idle일때_Arrow를_무시한다', () {
+        expect(c.read(moveModeProvider), isA<MoveModeIdle>());
+        expect(observedTool, ToolId.parse('fixture.echo'));
+        expect(observedX, 3);
+        expect(observedY, 1);
+      },
+    );
+
+    test(
+      'commit_does_not_save_the_move_on_a_board_other_than_the_starting_one',
+      () async {
+        ToolId? observedTool;
+        Future<void> recorder(ToolId toolId, int x, int y) async {
+          observedTool = toolId;
+        }
+
+        final c = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier('dev'),
+            ),
+            layoutLoaderProvider.overrideWithValue(
+              (boardKey) => const LayoutSnapshotDto(
+                boardKey: 'dev',
+                boardCols: _fixedBoardCols,
+                placements: [_focusedPlacement],
+              ),
+            ),
+            movePinCommitFnProvider.overrideWithValue(recorder),
+          ],
+        );
+        addTearDown(c.dispose);
+
+        c
+            .read(focusedPinProvider.notifier)
+            .focus(ToolId.parse('num.hex_to_decimal'));
+        expect(
+          handleMoveModeCommand(c, cmd: const KeyboardCommandDto.startMove()),
+          isTrue,
+        );
+        c.read(currentBoardKeyProvider.notifier).select(_mediaBoardKey);
+
+        expect(
+          handleMoveModeCommand(c, cmd: const KeyboardCommandDto.commit()),
+          isTrue,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(c.read(moveModeProvider), isA<MoveModeIdle>());
+        expect(observedTool, isNull);
+      },
+    );
+
+    test('handleMoveModeCommand_ignores_Arrow_while_Idle', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -291,7 +303,7 @@ void main() {
       expect(handled, isFalse);
     });
 
-    test('nudge는_오른쪽_끝_열에서_더_이상_오른쪽으로_이동하지_않는다', () {
+    test('nudge_does_not_move_past_the_rightmost_column', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -308,7 +320,7 @@ void main() {
             maxX: _u1MaxStartX,
           );
 
-      // 6열(0-5)에서 U1의 마지막 anchor에 있고, 오른쪽 이동 시도 → clamp.
+      // At the last U1 anchor in 6 columns (0-5), a right move clamps.
       final handled1 = handleMoveModeCommand(
         c,
         cmd: const KeyboardCommandDto.move(direction: DirectionDto.right),
@@ -318,7 +330,7 @@ void main() {
       expect(state.currentX, _u1MaxStartX);
     });
 
-    test('nudge는_2칸_pin의_오른쪽_끝을_span에_맞춰_고정한다', () {
+    test('nudge_clamps_the_right_edge_of_a_two_cell_pin_to_its_span', () {
       final c = ProviderContainer(
         overrides: [
           currentBoardKeyProvider.overrideWith(
@@ -355,7 +367,7 @@ void main() {
       expect(state.currentX, _u2MaxStartX);
     });
 
-    test('nudge는_음수_열로_이동하지_않는다', () {
+    test('nudge_does_not_move_into_a_negative_column', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
@@ -372,7 +384,7 @@ void main() {
             maxX: _u1MaxStartX,
           );
 
-      // column 0에서 왼쪽으로 이동 시도 → clamp to 0.
+      // A left move at column 0 clamps to 0.
       final handled1 = handleMoveModeCommand(
         c,
         cmd: const KeyboardCommandDto.move(direction: DirectionDto.left),
@@ -382,7 +394,7 @@ void main() {
       expect(state.currentX, 0);
     });
 
-    test('move_mode는_0열_왼쪽으로_이동하지_않는다', () {
+    test('move_mode_does_not_move_left_of_column_0', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 

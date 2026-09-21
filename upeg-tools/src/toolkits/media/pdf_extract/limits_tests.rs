@@ -8,66 +8,66 @@ const ALLOWED_FORM_DEPTH: usize = 64;
 const REJECTED_FORM_DEPTH: usize = ALLOWED_FORM_DEPTH + 1;
 
 #[test]
-fn pdf_추출은_101번째_고유_이미지_xobject를_디코드_전에_거부한다() {
+fn pdf_extract_rejects_101st_distinct_image_xobject_before_decode() {
     // Given
     let pdf = pdf_with_images(REJECTED_IMAGE_COUNT);
 
     // When
     let error = match extract_embedded_images(&pdf, "many") {
-        Ok(_) => panic!("101번째 고유 이미지는 개수 예산을 초과해야 한다"),
+        Ok(_) => panic!("the 101st distinct image must exceed the count budget"),
         Err(error) => error,
     };
 
     // Then
     assert!(
         error.contains("100"),
-        "오류에 이미지 개수 상한이 포함되어야 한다: {error}"
+        "error must mention the image count cap: {error}"
     );
 }
 
 #[test]
-fn pdf_추출은_65단계_form_xobject_중첩을_거부한다() {
+fn pdf_extract_rejects_65_deep_form_xobject_nesting() {
     // Given
     let pdf = pdf_with_nested_forms(REJECTED_FORM_DEPTH, false);
 
     // When
     let error = match extract_embedded_images(&pdf, "deep") {
-        Ok(_) => panic!("65번째 Form 진입은 깊이 예산을 초과해야 한다"),
+        Ok(_) => panic!("the 65th Form entry must exceed the depth budget"),
         Err(error) => error,
     };
 
     // Then
     assert!(
         error.contains("64"),
-        "오류에 Form 깊이 상한이 포함되어야 한다: {error}"
+        "error must mention the Form depth cap: {error}"
     );
 }
 
 #[test]
-fn pdf_추출은_순환_form을_한번만_방문한다() {
+fn pdf_extract_visits_cyclic_form_only_once() {
     // Given
     let pdf = pdf_with_nested_forms(ALLOWED_FORM_DEPTH, true);
 
     // When
     let outcome =
-        extract_embedded_images(&pdf, "cycle").expect("이미 방문한 Form 순환은 건너뛰어야 한다");
+        extract_embedded_images(&pdf, "cycle").expect("an already-visited Form cycle is skipped");
 
     // Then
     assert_eq!(outcome.images.len(), 1);
 }
 
 #[test]
-fn pdf_추출은_인코딩된_이미지의_누적_바이트_상한을_지킨다() {
+fn pdf_extract_enforces_cumulative_encoded_image_bytes_cap() {
     // Given
     let pdf = pdf_with_images(2);
     let baseline = extract_embedded_images(&pdf, "baseline")
-        .expect("두 개별 이미지는 기본 예산 안에서 추출되어야 한다");
+        .expect("two individual images must extract within the default budget");
     let largest_image_bytes = baseline
         .images
         .iter()
         .map(|image| image.bytes.len())
         .max()
-        .expect("두 테스트 이미지가 추출되어야 한다");
+        .expect("both test images must be extracted");
     assert_eq!(baseline.images.len(), 2);
     let limits = ExtractionLimits {
         max_form_depth: ALLOWED_FORM_DEPTH,
@@ -77,19 +77,19 @@ fn pdf_추출은_인코딩된_이미지의_누적_바이트_상한을_지킨다(
 
     // When
     let error = match extract_embedded_images_with_limits(&pdf, "bytes", limits) {
-        Ok(_) => panic!("각 이미지는 합법이어도 두 이미지의 누적 바이트는 거부해야 한다"),
+        Ok(_) => panic!("each image is legal alone but their cumulative bytes must be rejected"),
         Err(error) => error,
     };
 
     // Then
     assert!(
         error.contains("PDF extracted image bytes"),
-        "오류에 누적 이미지 바이트 예산이 포함되어야 한다: {error}"
+        "error must mention the cumulative image byte budget: {error}"
     );
 }
 
 #[test]
-fn pdf_추출은_최종_zip의_전체_바이트_상한을_지킨다() {
+fn pdf_extract_enforces_final_zip_total_bytes_cap() {
     // Given
     let images = vec![("image.png".to_string(), vec![0_u8; 8])];
 
@@ -100,12 +100,12 @@ fn pdf_추출은_최종_zip의_전체_바이트_상한을_지킨다() {
         1,
         "PDF extraction output zip",
     )
-    .expect_err("zip 헤더와 노트를 포함한 전체 결과가 1바이트를 넘으면 거부해야 한다");
+    .expect_err("the total result including zip headers and notes must be rejected past 1 byte");
 
     // Then
     assert!(
         error.contains("PDF extraction output zip"),
-        "오류에 최종 zip 바이트 예산이 포함되어야 한다: {error}"
+        "error must mention the final zip byte budget: {error}"
     );
 }
 
@@ -199,6 +199,6 @@ fn finish_pdf(mut document: Document, xobjects: Dictionary) -> Vec<u8> {
     let mut bytes = Vec::new();
     document
         .save_to(&mut bytes)
-        .expect("테스트 PDF를 직렬화할 수 있어야 한다");
+        .expect("the test PDF must serialize");
     bytes
 }

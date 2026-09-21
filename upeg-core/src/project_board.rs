@@ -178,11 +178,11 @@ mod tests {
     use super::*;
 
     fn key(raw: &str) -> BoardKey {
-        BoardKey::parse(raw).expect("유효 키")
+        BoardKey::parse(raw).expect("valid key")
     }
 
     #[test]
-    fn namespace는_같은_경로에_대해_안정적이다() {
+    fn namespace_is_stable_for_the_same_path() {
         let a = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/proj/upeg.toml"));
         let b = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/proj/upeg.toml"));
         assert_eq!(a, b);
@@ -190,14 +190,14 @@ mod tests {
     }
 
     #[test]
-    fn namespace는_프로젝트마다_다르다() {
+    fn namespace_differs_between_projects() {
         let a = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/a/upeg.toml"));
         let b = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/b/upeg.toml"));
         assert_ne!(a, b);
     }
 
     #[test]
-    fn 프로젝트_store_key는_왕복한다() {
+    fn project_store_key_round_trips() {
         let namespace = ProjectBoardNamespace::for_manifest_path(Path::new("/p/upeg.toml"));
         let stored = BoardStoreKey::project(&namespace, &key("upeg-dev"));
 
@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn 전역_store_key는_그대로_분류된다() {
+    fn global_store_key_classifies_verbatim() {
         assert_eq!(
             BoardStoreKey::classify("dev"),
             StoredBoardKey::Global(key("dev"))
@@ -219,12 +219,12 @@ mod tests {
         assert_eq!(
             BoardStoreKey::global(&key("dev")).as_str(),
             "dev",
-            "전역 보드는 접두사 없이 저장된다"
+            "global boards are stored without a prefix"
         );
     }
 
     #[test]
-    fn 망가진_store_key는_사용불가로_분류된다() {
+    fn broken_store_keys_classify_as_unusable() {
         for raw in [
             "",
             "   ",
@@ -236,17 +236,17 @@ mod tests {
             assert_eq!(
                 BoardStoreKey::classify(raw),
                 StoredBoardKey::Unusable,
-                "{raw:?}는 사용불가여야 한다"
+                "{raw:?} must be unusable"
             );
         }
     }
 
     #[test]
-    fn project로_시작하는_평범한_키는_전역이다() {
+    fn plain_key_starting_with_project_is_global() {
         assert_eq!(
             BoardStoreKey::classify("projects"),
             StoredBoardKey::Global(key("projects")),
-            "접두사는 구분자까지 포함해야 프로젝트 보드다"
+            "the prefix must include the separator to be a project board"
         );
     }
 }

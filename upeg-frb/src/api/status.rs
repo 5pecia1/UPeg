@@ -41,8 +41,8 @@ pub struct NetworkStatusDto {
 ///
 /// The desktop-embedded host registers imports on a background thread
 /// AFTER it starts serving, so `Loading` is a real, seconds-long state
-/// a user can watch go by (docs/architecture/mcp.md, "desktop 내장
-/// host: 비동기 창"). A desktop that only attaches to a separate host
+/// a user can watch go by (docs/architecture/mcp.md, "desktop embedded
+/// host: async window"). A desktop that only attaches to a separate host
 /// imports nothing itself and honestly reports `NotStarted`.
 ///
 /// `Done` deliberately carries no counts: the chip renders
@@ -231,7 +231,7 @@ mod tests {
     use crate::api::pause::PausedStateDto;
 
     #[test]
-    fn status_snapshot은_현재_cargo_pkg_version을_반환한다() {
+    fn status_snapshot_returns_current_cargo_pkg_version() {
         let snap = status_snapshot().expect("status_snapshot ok");
         assert_eq!(snap.build_version, env!("CARGO_PKG_VERSION"));
         // Paused enum is compiler-enforced over the two variants —
@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn network_status_dto는_loopback_only_runtime을_정확히_매핑한다() {
+    fn network_status_dto_maps_loopback_only_runtime_exactly() {
         let runtime = upeg_runtime::NetworkStatus {
             mcp_active: true,
             http_active: false,
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn network_status_dto는_remote_bind_허용을_remote_bind_allowed로_매핑한다() {
+    fn network_status_dto_maps_remote_bind_permission_to_remote_bind_allowed() {
         let runtime = upeg_runtime::NetworkStatus {
             mcp_active: false,
             http_active: true,
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn network_status_dto는_인터페이스_없으면_offline으로_매핑한다() {
+    fn network_status_dto_maps_no_interface_to_offline() {
         let runtime = upeg_runtime::NetworkStatus {
             mcp_active: false,
             http_active: false,
@@ -281,8 +281,9 @@ mod tests {
     }
 
     #[test]
-    fn network_status_dto는_로컬_인터페이스가_꺼져도_발견된_host가_있으면_loopback_only다() {
-        // Given: 이 프로세스의 MCP/HTTP는 꺼졌지만 별도 host는 도달 가능하다.
+    fn network_status_dto_reports_loopback_only_for_discovered_host_when_local_interfaces_off() {
+        // Given: this process's MCP/HTTP interfaces are off but a
+        // separate host is reachable.
         let runtime = upeg_runtime::NetworkStatus {
             mcp_active: false,
             http_active: false,
@@ -290,17 +291,17 @@ mod tests {
             remote_bind_allowed: false,
         };
 
-        // When: runtime 상태와 발견된 host 상태를 함께 매핑한다.
+        // When: runtime state and discovered host state are mapped together.
         let dto =
             NetworkStatusDto::from_runtime(&runtime, DiscoveredHostReachability::LoopbackOnly);
 
-        // Then: status bar는 외부 loopback host를 online으로 표시한다.
+        // Then: the status bar shows the external loopback host as online.
         assert_eq!(dto.reachability, NetworkReachabilityDto::LoopbackOnly);
         assert_eq!(dto.label, "loopback-only");
     }
 
     #[test]
-    fn 발견된_host_도달_범위는_endpoint_주소에_따라_분류된다() {
+    fn discovered_host_reachability_classifies_by_endpoint_address() {
         use DiscoveredHostReachability::{LoopbackOnly, RemoteBindAllowed};
 
         let cases = [
@@ -327,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn status_snapshot은_현재_runtime과_discovery_network_status를_반영한다() {
+    fn status_snapshot_reflects_current_runtime_and_discovery_network_status() {
         let trigger_count = upeg_runtime::registered_trigger_bindings().len();
         let runtime = upeg_runtime::NetworkStatus::current(trigger_count);
         let discovered_host = match upeg_cli::current_host() {
@@ -341,10 +342,10 @@ mod tests {
     }
 
     #[test]
-    fn mcp_import_count는_프로세스가_임포트한_도구_수를_따라간다() {
-        // 임포트는 장수명 서버 프로세스만 한다. 스냅샷은 이 프로세스의
-        // provenance 레지스트리를 그대로 읽으므로, attach 전용 desktop은
-        // 정직하게 0을 보고한다.
+    fn mcp_import_count_tracks_process_imported_tool_count() {
+        // Only long-lived server processes import. The snapshot reads
+        // this process's provenance registry as-is, so an attach-only
+        // desktop honestly reports 0.
         let id = "test.status.mcp_import_chip";
         let before = status_snapshot()
             .expect("status_snapshot ok")
@@ -371,7 +372,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp_import_phase_dto는_cli_페이즈를_빠짐없이_매핑한다() {
+    fn mcp_import_phase_dto_maps_all_cli_phases() {
         use upeg_cli::{McpImportPhase, McpImportTally};
 
         let cases = [
@@ -389,10 +390,10 @@ mod tests {
     }
 
     #[test]
-    fn status_snapshot은_프로세스의_import_phase를_반영한다() {
-        // 스냅샷은 프로세스 전역 페이즈를 그대로 읽는다. 값을 고정하지
-        // 않고 소스와 일치하는지만 본다 — 다른 테스트가 병렬로 같은
-        // 전역을 만질 수 있다.
+    fn status_snapshot_reflects_process_import_phase() {
+        // The snapshot reads the process-global phase as-is. It only
+        // checks consistency with the source without pinning the value —
+        // other tests may touch the same global in parallel.
         let snap = status_snapshot().expect("status_snapshot ok");
         assert_eq!(
             snap.mcp_import_phase,
@@ -401,7 +402,7 @@ mod tests {
     }
 
     #[test]
-    fn status_snapshot은_paused_플래그를_반영한다() {
+    fn status_snapshot_reflects_paused_flag() {
         let _guard = crate::api::test_support::host_lock().lock().unwrap();
         // Paused state is a process-local AtomicBool. status_snapshot
         // must report the post-flip value via the typed enum. Force

@@ -16,21 +16,21 @@ fn fixture(label: &str) -> (PathBuf, RuntimeSourceConfig) {
 }
 
 #[test]
-fn 소스_스냅샷은_파일_변경과_추가와_삭제를_감지한다() {
+fn source_snapshot_detects_file_change_addition_and_deletion() {
     let (root, config) = fixture("mutations");
-    let directory = config.toolkits_dir.as_ref().expect("도구킷 경로");
-    std::fs::create_dir_all(directory).expect("디렉터리");
+    let directory = config.toolkits_dir.as_ref().expect("toolkits path");
+    std::fs::create_dir_all(directory).expect("directory");
     let path = directory.join("tool.toml");
-    std::fs::write(&path, "id = 'initial'\n").expect("선언");
+    std::fs::write(&path, "id = 'initial'\n").expect("declaration");
     record_sources_for_root(&root, &config);
     assert!(validate_sources_for_root(&root, &config).is_ok());
-    std::fs::write(directory.join("notes.md"), "안내만 변경").expect("관련 없는 파일");
+    std::fs::write(directory.join("notes.md"), "notes only change").expect("unrelated file");
     assert!(validate_sources_for_root(&root, &config).is_ok());
 
     for content in [Some("id = 'changed'\n"), None, Some("id = 'added'\n")] {
         match content {
-            Some(content) => std::fs::write(&path, content).expect("선언 변경"),
-            None => std::fs::remove_file(&path).expect("선언 삭제"),
+            Some(content) => std::fs::write(&path, content).expect("edit declaration"),
+            None => std::fs::remove_file(&path).expect("delete declaration"),
         }
         assert!(matches!(
             validate_sources_for_root(&root, &config),
@@ -42,15 +42,15 @@ fn 소스_스냅샷은_파일_변경과_추가와_삭제를_감지한다() {
 }
 
 #[test]
-fn 소스_스냅샷은_설정_루트끼리_간섭하지_않는다() {
+fn source_snapshots_do_not_interfere_across_config_roots() {
     let (first_root, first) = fixture("first-root");
     let (second_root, second) = fixture("second-root");
     record_sources_for_root(&first_root, &first);
     assert!(validate_sources_for_root(&second_root, &second).is_ok());
     record_sources_for_root(&second_root, &second);
-    let directory = first.toolkits_dir.as_ref().expect("도구킷 경로");
-    std::fs::create_dir_all(directory).expect("디렉터리");
-    std::fs::write(directory.join("new.toml"), "id = 'new'\n").expect("새 선언");
+    let directory = first.toolkits_dir.as_ref().expect("toolkits path");
+    std::fs::create_dir_all(directory).expect("directory");
+    std::fs::write(directory.join("new.toml"), "id = 'new'\n").expect("new declaration");
 
     assert!(validate_sources_for_root(&first_root, &first).is_err());
     assert!(validate_sources_for_root(&second_root, &second).is_ok());
@@ -58,12 +58,12 @@ fn 소스_스냅샷은_설정_루트끼리_간섭하지_않는다() {
 }
 
 #[test]
-fn 지연_임포트_로드는_시작_시점_스냅샷을_덮어쓰지_않는다() {
+fn lazy_import_load_does_not_overwrite_the_boot_snapshot() {
     let (root, config) = fixture("deferred-import");
     record_sources_for_root(&root, &config);
-    let directory = config.mcp_import_dir.as_ref().expect("임포트 경로");
-    std::fs::create_dir_all(directory).expect("디렉터리");
-    std::fs::write(directory.join("invalid.toml"), "invalid = [").expect("유효하지 않은 선언");
+    let directory = config.mcp_import_dir.as_ref().expect("import path");
+    std::fs::create_dir_all(directory).expect("directory");
+    std::fs::write(directory.join("invalid.toml"), "invalid = [").expect("invalid declaration");
     crate::load_mcp_imports_for_host(&config);
 
     assert!(matches!(
@@ -74,7 +74,7 @@ fn 지연_임포트_로드는_시작_시점_스냅샷을_덮어쓰지_않는다(
 }
 
 #[test]
-fn 소스_디렉터리_설정이_바뀌면_재시작해야_한다() {
+fn changed_source_dir_config_requires_restart() {
     let (root, config) = fixture("changed-path");
     record_sources_for_root(&root, &config);
     let mut changed = config;
@@ -87,20 +87,20 @@ fn 소스_디렉터리_설정이_바뀌면_재시작해야_한다() {
 }
 
 #[test]
-fn 읽을_수_없는_소스는_준비된_설정으로_취급하지_않는다() {
+fn unreadable_source_is_not_treated_as_ready_config() {
     let (root, config) = fixture("unreadable-source");
     let path = config
         .toolkits_dir
         .as_ref()
-        .expect("도구킷 경로")
+        .expect("toolkits path")
         .join("directory.toml");
-    std::fs::create_dir_all(&path).expect("선언 대신 디렉터리");
+    std::fs::create_dir_all(&path).expect("directory in place of declaration");
     record_sources_for_root(&root, &config);
     assert!(matches!(
         validate_sources_for_root(&root, &config),
         Err(LoadedSourcesError::Unavailable { .. })
     ));
-    std::fs::remove_dir_all(&path).expect("읽기 오류 제거");
+    std::fs::remove_dir_all(&path).expect("clear read error");
     assert!(matches!(
         validate_sources_for_root(&root, &config),
         Err(LoadedSourcesError::Unavailable { .. })
@@ -110,15 +110,15 @@ fn 읽을_수_없는_소스는_준비된_설정으로_취급하지_않는다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn 와즘_플러그인_변경도_소스_변경으로_감지한다() {
+fn wasm_plugin_change_is_detected_as_source_change() {
     let (root, mut config) = fixture("wasm-source");
     let directory = root.join("wasm");
-    std::fs::create_dir_all(&directory).expect("와즘 디렉터리");
+    std::fs::create_dir_all(&directory).expect("wasm directory");
     let path = directory.join("tool.wasm");
-    std::fs::write(&path, b"before").expect("기존 바이너리");
+    std::fs::write(&path, b"before").expect("existing binary");
     config.wasm_dir = Some(directory);
     record_sources_for_root(&root, &config);
-    std::fs::write(&path, b"after").expect("바이너리 변경");
+    std::fs::write(&path, b"after").expect("binary change");
 
     assert!(matches!(
         validate_sources_for_root(&root, &config),

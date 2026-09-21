@@ -4,7 +4,7 @@ use syn::{Ident, LitStr};
 // ─── validate_tool_identity ─────────────────────────────────────────
 
 #[test]
-fn 도구_식별자는_빈_로컬_이름을_거부한다() {
+fn tool_identity_rejects_empty_local_name() {
     let id = LitStr::new("text.", proc_macro2::Span::call_site());
     let toolkit = LitStr::new("text", proc_macro2::Span::call_site());
     let err = validate_tool_identity(&id, &toolkit).expect_err("empty local id rejected");
@@ -15,7 +15,7 @@ fn 도구_식별자는_빈_로컬_이름을_거부한다() {
 }
 
 #[test]
-fn 도구_식별자는_점_구분_도구킷과_점_구분_로컬_이름을_허용한다() {
+fn tool_identity_accepts_dotted_toolkit_and_local_name() {
     let id = LitStr::new(
         "text.extra.admin.tools.list",
         proc_macro2::Span::call_site(),
@@ -27,7 +27,7 @@ fn 도구_식별자는_점_구분_도구킷과_점_구분_로컬_이름을_허�
 }
 
 #[test]
-fn 도구_식별자는_공백_있는_점_구성요소를_거부한다() {
+fn tool_identity_rejects_padded_dot_components() {
     let id = LitStr::new(
         "text.extra.admin. tools.list",
         proc_macro2::Span::call_site(),
@@ -54,7 +54,7 @@ fn 도구_식별자는_공백_있는_점_구성요소를_거부한다() {
 // ─── validate_enum_ident / ALLOWED_* ────────────────────────────────
 
 #[test]
-fn 잘못된_pin은_친절한_에러를_낸다() {
+fn bad_pin_produces_friendly_error() {
     let ident: Ident = syn::parse_str("Inlin").unwrap();
     let err = validate_enum_ident(&ident, "pin", ALLOWED_PIN_KINDS)
         .expect_err("typo'd pin variant must be rejected");
@@ -65,7 +65,7 @@ fn 잘못된_pin은_친절한_에러를_낸다() {
 }
 
 #[test]
-fn 잘못된_pegboard_units는_친절한_에러를_낸다() {
+fn bad_pegboard_units_produces_friendly_error() {
     let ident: Ident = syn::parse_str("U3").unwrap();
     let err = validate_enum_ident(&ident, "pegboard_units", ALLOWED_PEGBOARD_UNITS)
         .expect_err("unknown pegboard_units variant must be rejected");
@@ -76,7 +76,7 @@ fn 잘못된_pegboard_units는_친절한_에러를_낸다() {
 }
 
 #[test]
-fn 잘못된_invoker는_친절한_에러를_낸다() {
+fn bad_invoker_produces_friendly_error() {
     let ident: Ident = syn::parse_str("Funtion").unwrap();
     let err = validate_enum_ident(&ident, "invoker", ALLOWED_INVOKERS)
         .expect_err("typo'd invoker variant must be rejected");
@@ -87,7 +87,7 @@ fn 잘못된_invoker는_친절한_에러를_낸다() {
 }
 
 #[test]
-fn 잘못된_surfaces_원소는_친절한_에러를_낸다() {
+fn bad_surfaces_element_produces_friendly_error() {
     let ident: Ident = syn::parse_str("Dsktop").unwrap();
     let err = validate_enum_ident(&ident, "surfaces", ALLOWED_SURFACES)
         .expect_err("typo'd surfaces element must be rejected");
@@ -98,7 +98,7 @@ fn 잘못된_surfaces_원소는_친절한_에러를_낸다() {
 }
 
 #[test]
-fn 허용된_enum_ident은_모두_통과한다() {
+fn allowed_enum_idents_all_pass() {
     for allowed in [
         ALLOWED_PIN_KINDS,
         ALLOWED_PEGBOARD_UNITS,
@@ -116,7 +116,7 @@ fn 허용된_enum_ident은_모두_통과한다() {
 // ─── input_type_label / SUPPORTED_INPUT_TYPES ───────────────────────
 
 #[test]
-fn 입력_타입_레이블은_지원되는_모든_타입을_변환한다() {
+fn input_type_label_maps_all_supported_types() {
     for (ident_name, label) in SUPPORTED_INPUT_TYPES {
         let ident: Ident = syn::parse_str(ident_name).unwrap();
         assert_eq!(
@@ -128,7 +128,7 @@ fn 입력_타입_레이블은_지원되는_모든_타입을_변환한다() {
 }
 
 #[test]
-fn 입력_타입_레이블은_알_수_없는_타입을_거부한다() {
+fn input_type_label_rejects_unknown_type() {
     let ident: Ident = syn::parse_str("Bytes").unwrap();
     let err = input_type_label(&ident).expect_err("unknown type should be rejected");
     assert!(
@@ -140,7 +140,7 @@ fn 입력_타입_레이블은_알_수_없는_타입을_거부한다() {
 // ─── ToolInput / ToolOutput / KindParams parsing ─────────────────────
 
 #[test]
-fn 필수_입력_필드는_이름과_타입과_설명을_파싱한다() {
+fn required_input_field_parses_name_type_and_description() {
     let parsed = syn::parse_str::<ToolInput>(r#"required input: String = "Text""#).unwrap();
     assert!(matches!(parsed.requirement, InputRequirement::Required));
     assert_eq!(parsed.name.to_string(), "input");
@@ -153,7 +153,7 @@ fn 필수_입력_필드는_이름과_타입과_설명을_파싱한다() {
 }
 
 #[test]
-fn 선택_출력_필드는_기본_제약없이_파싱된다() {
+fn output_field_parses_without_default_constraints() {
     let parsed = syn::parse_str::<ToolOutput>(r#"result: Number = "10진수""#).unwrap();
     assert_eq!(parsed.name.to_string(), "result");
     assert_eq!(parsed.ty.to_string(), "Number");
@@ -164,7 +164,7 @@ fn 선택_출력_필드는_기본_제약없이_파싱된다() {
 }
 
 #[test]
-fn 숫자_인라인_파라미터는_min_max_default를_파싱한다() {
+fn numeric_inline_params_parse_min_max_default() {
     let parsed =
         syn::parse_str::<ToolInput>("required port: Number(min=1, max=65535, default=8080)")
             .unwrap();
@@ -179,7 +179,7 @@ fn 숫자_인라인_파라미터는_min_max_default를_파싱한다() {
 }
 
 #[test]
-fn 문자열_인라인_파라미터는_regex와_default를_파싱한다() {
+fn string_inline_params_parse_regex_and_default() {
     let parsed =
         syn::parse_str::<ToolInput>(r#"required pattern: String(regex="^[a-z]+$", default="abc")"#)
             .unwrap();
@@ -193,7 +193,7 @@ fn 문자열_인라인_파라미터는_regex와_default를_파싱한다() {
 }
 
 #[test]
-fn 선택지_인라인_파라미터는_choices_배열을_파싱한다() {
+fn choices_inline_params_parse_choice_array() {
     let parsed =
         syn::parse_str::<ToolInput>(r#"required base: Options(["hex", "dec", "bin"])"#).unwrap();
     match parsed.params {
@@ -206,7 +206,7 @@ fn 선택지_인라인_파라미터는_choices_배열을_파싱한다() {
 }
 
 #[test]
-fn 임베디드뷰_출력은_url을_파싱한다() {
+fn embedded_view_output_parses_url() {
     let parsed =
         syn::parse_str::<ToolOutput>(r#"view: EmbeddedView("https://transform.tools/")"#).unwrap();
     match parsed.params {

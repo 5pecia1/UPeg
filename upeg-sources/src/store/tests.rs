@@ -38,36 +38,35 @@ fn one_board_state(placements: Vec<Placement>) -> PegboardState {
 }
 
 #[test]
-fn user_version_러너는_마이그레이션을_적용하고_재실행에_멱등이다() {
+fn user_version_runner_applies_migrations_and_is_idempotent_on_rerun() {
     let store = Store::open_in_memory().expect("in-memory store");
-    let version = schema::user_version(store.connection()).expect("user_version 조회");
+    let version = schema::user_version(store.connection()).expect("read user_version");
     assert_eq!(
         version,
         schema::MIGRATIONS.len(),
-        "fresh store는 모든 마이그레이션이 적용된 user_version이어야 한다"
+        "a fresh store must have a user_version with all migrations applied"
     );
 
-    // 파일 기반 재오픈: 이미 적용된 마이그레이션은 건너뛰어야 한다.
+    // File-based reopen: already-applied migrations must be skipped.
     let dir = temp_store_dir("migrate-idempotent");
     let path = store_db_path(&dir);
-    drop(Store::open_at(&path).expect("첫 오픈"));
-    let reopened =
-        Store::open_at(&path).expect("재오픈은 마이그레이션을 다시 실행하지 않아야 한다");
+    drop(Store::open_at(&path).expect("first open"));
+    let reopened = Store::open_at(&path).expect("reopen must not re-run migrations");
     assert_eq!(
-        schema::user_version(reopened.connection()).expect("재오픈 user_version"),
+        schema::user_version(reopened.connection()).expect("reopened user_version"),
         schema::MIGRATIONS.len()
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn 스키마의_span_check는_core_상수와_일치한다() {
-    // MIGRATIONS는 const 문자열이라 BOARD_COLS를 직접 삽입할 수 없다.
-    // 이 테스트가 SQL 리터럴과 Rust 상수를 묶는다.
+fn schema_span_check_matches_core_constant() {
+    // MIGRATIONS is a const string so BOARD_COLS cannot be interpolated
+    // directly. This test ties the SQL literal to the Rust constant.
     let v1 = schema::MIGRATIONS[0];
     assert!(
         v1.contains(&format!("span_cols BETWEEN 1 AND {BOARD_COLS}")),
-        "placements.span_cols CHECK는 BOARD_COLS({BOARD_COLS})와 같아야 한다"
+        "placements.span_cols CHECK must equal BOARD_COLS ({BOARD_COLS})"
     );
     assert!(v1.contains("span_rows >= 1"));
     for table in [
@@ -78,20 +77,23 @@ fn 스키마의_span_check는_core_상수와_일치한다() {
     ] {
         assert!(
             v1.contains(&format!("CREATE TABLE {table} ")),
-            "v1 스키마에 {table} 테이블이 있어야 한다"
+            "v1 schema must contain the {table} table"
         );
     }
 }
 
 #[test]
-fn 스키마는_span_check_위반_행을_거부한다() {
+fn schema_rejects_rows_violating_span_check() {
     let store = Store::open_in_memory().expect("in-memory store");
     let insert = format!(
         "INSERT INTO {boards} (key, title, position, updated_at, device_id) \
          VALUES ('dev', 'Dev', 0, 0, 'test')",
         boards = schema::BOARDS_TABLE,
     );
-    store.connection().execute(&insert, []).expect("보드 삽입");
+    store
+        .connection()
+        .execute(&insert, [])
+        .expect("insert board");
     let bad_span = format!(
         "INSERT INTO {placements} \
            (board_key, tool_id, x, y, span_cols, span_rows, updated_at, device_id) \
@@ -101,48 +103,48 @@ fn 스키마는_span_check_위반_행을_거부한다() {
     );
     assert!(
         store.connection().execute(&bad_span, []).is_err(),
-        "BOARD_COLS를 넘는 span_cols는 CHECK로 거부되어야 한다"
+        "span_cols beyond BOARD_COLS must be rejected by CHECK"
     );
 }
 
 #[test]
-fn change_rev는_쓰기_전_none이고_쓰기마다_1씩_증가한다() {
+fn change_rev_is_none_before_writes_and_increments_per_write() {
     let mut store = Store::open_in_memory().expect("in-memory store");
-    assert_eq!(store.change_rev().expect("rev 조회"), None);
+    assert_eq!(store.change_rev().expect("read rev"), None);
 
     store
         .save_state_global(&one_board_state(vec![Placement::new("a", 0, 0)]))
-        .expect("첫 저장");
-    assert_eq!(store.change_rev().expect("rev 조회"), Some(1));
+        .expect("first save");
+    assert_eq!(store.change_rev().expect("read rev"), Some(1));
 
     store
         .save_selection(&PegboardSelection::default())
-        .expect("selection 저장");
-    assert_eq!(store.change_rev().expect("rev 조회"), Some(2));
+        .expect("save selection");
+    assert_eq!(store.change_rev().expect("read rev"), Some(2));
 }
 
 #[test]
-fn device_id는_최초_오픈시_생성되고_재오픈에도_유지된다() {
+fn device_id_is_created_on_first_open_and_kept_on_reopen() {
     let dir = temp_store_dir("device-id");
     let path = store_db_path(&dir);
     let first = Store::open_at(&path)
-        .expect("첫 오픈")
+        .expect("first open")
         .device_id()
-        .expect("device_id 생성");
+        .expect("create device_id");
     assert!(
         uuid::Uuid::parse_str(&first).is_ok(),
-        "device_id는 UUID여야 한다: {first}"
+        "device_id must be a UUID: {first}"
     );
     let second = Store::open_at(&path)
-        .expect("재오픈")
+        .expect("reopen")
         .device_id()
-        .expect("device_id 유지");
+        .expect("device_id persists");
     assert_eq!(first, second);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn open_at은_경로별로_격리된_상태를_가진다() {
+fn open_at_isolates_state_per_path() {
     let dir_a = temp_store_dir("isolation-a");
     let dir_b = temp_store_dir("isolation-b");
     let mut store_a = Store::open_at(&store_db_path(&dir_a)).expect("store A");
@@ -150,14 +152,14 @@ fn open_at은_경로별로_격리된_상태를_가진다() {
 
     store_a
         .save_state_global(&one_board_state(vec![Placement::new("a", 0, 0)]))
-        .expect("A 저장");
+        .expect("save A");
 
     assert_eq!(store_a.change_rev().expect("A rev"), Some(1));
     assert_eq!(store_b.change_rev().expect("B rev"), None);
     assert!(
         store_b
             .load_state_global()
-            .expect("B 로드")
+            .expect("load B")
             .boards
             .is_empty()
     );
@@ -166,28 +168,29 @@ fn open_at은_경로별로_격리된_상태를_가진다() {
 }
 
 #[test]
-fn 언핀된_placement는_tombstone되어_로드에서_걸러진다() {
+fn unpinned_placement_is_tombstoned_and_filtered_on_load() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .save_state_global(&one_board_state(vec![
             Placement::new("keep.tool", 0, 0),
             Placement::new("drop.tool", 1, 0),
         ]))
-        .expect("두 placement 저장");
+        .expect("save two placements");
 
     store
         .save_state_global(&one_board_state(vec![Placement::new("keep.tool", 0, 0)]))
-        .expect("하나만 남긴 저장");
+        .expect("save keeping one");
 
-    let loaded = store.load_state_global().expect("로드");
+    let loaded = store.load_state_global().expect("load");
     let dev = loaded.layouts.get("dev").expect("dev layout");
     assert_eq!(
         dev.iter().map(|p| p.tool_id.as_str()).collect::<Vec<_>>(),
         vec!["keep.tool"],
-        "tombstone된 placement는 로드에 나타나면 안 된다"
+        "a tombstoned placement must not appear on load"
     );
 
-    // tombstone은 삭제가 아니다: 행 자체는 남아 있어야 한다(이후 sync 대비).
+    // A tombstone is not a delete: the row itself must remain (for
+    // future sync).
     let count: i64 = store
         .connection()
         .query_row(
@@ -198,12 +201,12 @@ fn 언핀된_placement는_tombstone되어_로드에서_걸러진다() {
             [],
             |row| row.get(0),
         )
-        .expect("행 수 조회");
-    assert_eq!(count, 2, "tombstone 행은 물리적으로 남아야 한다");
+        .expect("count rows");
+    assert_eq!(count, 2, "tombstone rows must physically remain");
 }
 
 #[test]
-fn 삭제된_보드는_tombstone되어_로드에서_걸러진다() {
+fn deleted_board_is_tombstoned_and_filtered_on_load() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .save_state_global(&PegboardState {
@@ -214,97 +217,97 @@ fn 삭제된_보드는_tombstone되어_로드에서_걸러진다() {
             ]),
             selection: PegboardSelection::default(),
         })
-        .expect("두 보드 저장");
+        .expect("save two boards");
 
     store
         .save_state_global(&one_board_state(vec![Placement::new("a", 0, 0)]))
-        .expect("lab 제거 저장");
+        .expect("save removing lab");
 
-    let loaded = store.load_state_global().expect("로드");
+    let loaded = store.load_state_global().expect("load");
     assert_eq!(loaded.boards, vec![board("dev", "Dev")]);
     assert!(
         !loaded.layouts.contains_key("lab"),
-        "tombstone된 보드의 layout은 로드되면 안 된다"
+        "a tombstoned board's layout must not load"
     );
 }
 
 #[test]
-fn 빈_layout은_기본값으로_되살아나지_않고_빈_채로_왕복한다() {
+fn empty_layout_round_trips_empty_without_default_revival() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .save_state_global(&one_board_state(vec![Placement::new("a", 0, 0)]))
-        .expect("저장");
+        .expect("save");
     store
         .save_state_global(&one_board_state(Vec::new()))
-        .expect("모두 언핀 저장");
+        .expect("save all unpinned");
 
-    let loaded = store.load_state_global().expect("로드");
+    let loaded = store.load_state_global().expect("load");
     assert_eq!(
         loaded.layouts.get("dev").map(Vec::len),
         Some(0),
-        "빈 layout은 명시적 빈 항목으로 로드되어야 한다"
+        "an empty layout must load as an explicit empty entry"
     );
 }
 
 #[test]
-fn span과_args_preset과_색상은_store를_통해_왕복한다() {
+fn span_args_preset_and_color_round_trip_through_store() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let placement = Placement::new("styled.tool", 2, 1)
-        .with_color(Some(PinColorHex::parse("#12abef").expect("테스트 색상")))
+        .with_color(Some(PinColorHex::parse("#12abef").expect("test color")))
         .with_span(Some(PinSpan::new(
-            ColSpan::new(3).expect("테스트 cols"),
-            RowSpan::new(2).expect("테스트 rows"),
+            ColSpan::new(3).expect("test cols"),
+            RowSpan::new(2).expect("test rows"),
         )))
         .with_args_preset(Some(
-            ArgsPreset::parse(r#"{"city":"Seoul","days":3}"#).expect("테스트 preset"),
+            ArgsPreset::parse(r#"{"city":"Seoul","days":3}"#).expect("test preset"),
         ));
     store
         .save_state_global(&one_board_state(vec![placement.clone()]))
-        .expect("저장");
+        .expect("save");
 
-    let loaded = store.load_state_global().expect("로드");
+    let loaded = store.load_state_global().expect("load");
     assert_eq!(
         loaded.layouts.get("dev").map(Vec::as_slice),
         Some(std::slice::from_ref(&placement)),
-        "color/span/args_preset이 손실 없이 왕복해야 한다"
+        "color/span/args_preset must round-trip losslessly"
     );
 }
 
 #[test]
-fn selection은_단일_행으로_왕복한다() {
+fn selection_round_trips_as_single_row() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let mut state = one_board_state(vec![Placement::new("a", 0, 0)]);
     state.selection = PegboardSelection {
         board_key: Some("dev".into()),
         tag: "pure".into(),
     };
-    store.save_state_global(&state).expect("저장");
+    store.save_state_global(&state).expect("save");
 
     assert_eq!(
-        store.load_state_global().expect("로드").selection,
+        store.load_state_global().expect("load").selection,
         state.selection
     );
 
     store
         .save_selection(&PegboardSelection::default())
-        .expect("selection 교체");
+        .expect("replace selection");
     assert_eq!(
-        store.load_state_global().expect("재로드").selection,
+        store.load_state_global().expect("reload").selection,
         PegboardSelection::default()
     );
 }
 
 #[test]
-fn 행단위_upsert와_tombstone은_load_state에_반영된다() {
+fn row_level_upsert_and_tombstone_are_reflected_in_load_state() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .save_state_global(&one_board_state(Vec::new()))
-        .expect("보드 준비");
+        .expect("prepare board");
 
     store
         .upsert_placement("dev", &Placement::new("row.tool", 4, 2))
-        .expect("행 단위 upsert");
-    let loaded = store.load_state_global().expect("로드");
+        .expect("row-level upsert");
+    let loaded = store.load_state_global().expect("load");
     assert_eq!(
         loaded.layouts.get("dev").and_then(|l| l.first()),
         Some(&Placement::new("row.tool", 4, 2))
@@ -312,11 +315,11 @@ fn 행단위_upsert와_tombstone은_load_state에_반영된다() {
 
     store
         .tombstone_placement("dev", "row.tool")
-        .expect("행 단위 tombstone");
+        .expect("row-level tombstone");
     assert_eq!(
         store
             .load_state_global()
-            .expect("재로드")
+            .expect("reload")
             .layouts
             .get("dev")
             .map(Vec::len),
@@ -325,41 +328,42 @@ fn 행단위_upsert와_tombstone은_load_state에_반영된다() {
 }
 
 #[test]
-fn wal_모드에서_두_커넥션이_병행으로_써도_모든_쓰기가_남는다() {
+fn in_wal_mode_concurrent_writes_from_two_connections_all_survive() {
     const WRITES_PER_CONNECTION: u64 = 5;
 
     let dir = temp_store_dir("wal-concurrency");
     let path = store_db_path(&dir);
-    // 스키마/디바이스 준비를 먼저 끝내 두 스레드가 곧장 쓰기 경쟁만 하게 한다.
-    drop(Store::open_at(&path).expect("스키마 준비"));
+    // Finish schema/device setup first so both threads only race on
+    // writes.
+    drop(Store::open_at(&path).expect("prepare schema"));
 
     let writer = |tool_prefix: &'static str, path: PathBuf| {
         std::thread::spawn(move || {
-            let mut store = Store::open_at(&path).expect("스레드 store 오픈");
+            let mut store = Store::open_at(&path).expect("thread store open");
             for index in 0..WRITES_PER_CONNECTION {
                 store
                     .upsert_placement_bootstrap(tool_prefix, index)
-                    .expect("병행 쓰기 성공");
+                    .expect("concurrent write");
             }
         })
     };
     let a = writer("alpha", path.clone());
     let b = writer("beta", path.clone());
-    a.join().expect("alpha 스레드");
-    b.join().expect("beta 스레드");
+    a.join().expect("alpha thread");
+    b.join().expect("beta thread");
 
-    let store = Store::open_at(&path).expect("검증용 오픈");
+    let store = Store::open_at(&path).expect("verification open");
     assert_eq!(
         store.change_rev().expect("rev"),
         Some(WRITES_PER_CONNECTION * 2),
-        "busy_timeout 아래에서 어떤 쓰기도 유실되면 안 된다"
+        "no write may be lost under busy_timeout"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 impl Store {
-    /// WAL 동시성 테스트 전용: 보드 upsert + placement upsert를 한
-    /// 트랜잭션으로 묶어 실제 쓰기 경합을 만든다.
+    /// WAL-concurrency test only: bundles a board upsert + placement
+    /// upsert in one transaction to create real write contention.
     fn upsert_placement_bootstrap(
         &mut self,
         prefix: &'static str,
@@ -406,21 +410,22 @@ fn log_record(tool_id: &str, started_at_ms: u64) -> super::ExecutionLogRecord {
 }
 
 #[test]
-fn v4_스키마는_execution_log에_principal_열을_덧붙인다() {
-    // append-only 이력이므로 테이블을 다시 만들지 않고 열만 추가한다 —
-    // 이전 행은 principal이 NULL로 남아야 하고, 지어내면 안 된다.
+fn v4_schema_adds_principal_column_to_execution_log() {
+    // The history is append-only, so the column is added without
+    // recreating the table — older rows must keep principal NULL, not
+    // fabricated.
     let v4 = schema::MIGRATIONS[3];
     assert!(
         v4.contains(&format!(
             "ALTER TABLE {} ADD COLUMN principal TEXT",
             schema::EXECUTION_LOG_TABLE
         )),
-        "v4는 principal 열을 ALTER TABLE로 추가해야 한다: {v4}"
+        "v4 must add the principal column via ALTER TABLE: {v4}"
     );
 }
 
 #[test]
-fn principal은_기록하고_읽는_동안_보존된다() {
+fn principal_is_preserved_between_write_and_read() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let mut record = log_record("principal.tool", 10);
     record.principal = Some("agent".to_string());
@@ -434,7 +439,7 @@ fn principal은_기록하고_읽는_동안_보존된다() {
 }
 
 #[test]
-fn principal이_없는_기록은_null로_남는다() {
+fn record_without_principal_stays_null() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let record = log_record("principal.absent", 10);
     store.append_execution_record(&record).expect("append");
@@ -447,12 +452,12 @@ fn principal이_없는_기록은_null로_남는다() {
 }
 
 #[test]
-fn v2_스키마는_memos와_execution_log_테이블을_만든다() {
+fn v2_schema_creates_memos_and_execution_log_tables() {
     let v2 = schema::MIGRATIONS[1];
     for table in [schema::MEMOS_TABLE, schema::EXECUTION_LOG_TABLE] {
         assert!(
             v2.contains(&format!("CREATE TABLE {table} ")),
-            "v2 스키마에 {table} 테이블이 있어야 한다"
+            "v2 schema must contain the {table} table"
         );
     }
     assert!(
@@ -460,30 +465,30 @@ fn v2_스키마는_memos와_execution_log_테이블을_만든다() {
             "ON {} (started_at_ms)",
             schema::EXECUTION_LOG_TABLE
         )),
-        "v2에 started_at_ms 인덱스가 있어야 한다"
+        "v2 must have a started_at_ms index"
     );
     assert!(
         v2.contains(&format!(
             "ON {} (tool_id, started_at_ms)",
             schema::EXECUTION_LOG_TABLE
         )),
-        "v2에 (tool_id, started_at_ms) 인덱스가 있어야 한다"
+        "v2 must have a (tool_id, started_at_ms) index"
     );
 }
 
 #[test]
-fn 메모_tombstone은_행을_남기고_로드에서_걸러진다() {
+fn memo_tombstone_keeps_row_and_filters_on_load() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let mut memos = BTreeMap::from([
         ("keep".to_string(), "body".to_string()),
         ("drop".to_string(), "gone".to_string()),
     ]);
-    store.save_memos(&memos).expect("두 메모 저장");
+    store.save_memos(&memos).expect("save two memos");
 
     memos.remove("drop");
-    store.save_memos(&memos).expect("하나 제거 저장");
+    store.save_memos(&memos).expect("save removing one");
 
-    assert_eq!(store.load_memos().expect("로드"), memos);
+    assert_eq!(store.load_memos().expect("load"), memos);
     let count: i64 = store
         .connection()
         .query_row(
@@ -491,15 +496,15 @@ fn 메모_tombstone은_행을_남기고_로드에서_걸러진다() {
             [],
             |row| row.get(0),
         )
-        .expect("행 수 조회");
-    assert_eq!(count, 2, "tombstone 행은 물리적으로 남아야 한다");
+        .expect("count rows");
+    assert_eq!(count, 2, "tombstone rows must physically remain");
 }
 
 #[test]
-fn 메모_동일_내용_재저장은_updated_at을_움직이지_않는다() {
+fn resaving_identical_memo_does_not_move_updated_at() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let memos = BTreeMap::from([("scratch".to_string(), "hello".to_string())]);
-    store.save_memos(&memos).expect("첫 저장");
+    store.save_memos(&memos).expect("first save");
     let first: i64 = store
         .connection()
         .query_row(
@@ -510,10 +515,10 @@ fn 메모_동일_내용_재저장은_updated_at을_움직이지_않는다() {
             [],
             |row| row.get(0),
         )
-        .expect("updated_at 조회");
+        .expect("read updated_at");
 
     std::thread::sleep(std::time::Duration::from_millis(5));
-    store.save_memos(&memos).expect("동일 내용 재저장");
+    store.save_memos(&memos).expect("resave same content");
     let second: i64 = store
         .connection()
         .query_row(
@@ -524,15 +529,15 @@ fn 메모_동일_내용_재저장은_updated_at을_움직이지_않는다() {
             [],
             |row| row.get(0),
         )
-        .expect("updated_at 재조회");
+        .expect("reread updated_at");
     assert_eq!(
         first, second,
-        "변경 없는 행의 updated_at은 움직이면 안 된다"
+        "updated_at of an unchanged row must not move"
     );
 }
 
 #[test]
-fn 실행_로그는_필터와_제한으로_읽고_append_순서를_유지한다() {
+fn execution_log_reads_with_filters_and_limit_keeping_append_order() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .append_execution_record(&log_record("a.one", 1))
@@ -556,7 +561,7 @@ fn 실행_로그는_필터와_제한으로_읽고_append_순서를_유지한다(
             since_ms: Some(2),
             ..super::ExecutionLogFilter::default()
         })
-        .expect("필터 읽기");
+        .expect("filtered read");
     assert_eq!(filtered, vec![http_record]);
 
     let limited = store
@@ -564,19 +569,19 @@ fn 실행_로그는_필터와_제한으로_읽고_append_순서를_유지한다(
             limit: Some(2),
             ..super::ExecutionLogFilter::default()
         })
-        .expect("제한 읽기");
+        .expect("limited read");
     assert_eq!(
         limited
             .iter()
             .map(|record| record.tool_id.as_str())
             .collect::<Vec<_>>(),
         vec!["b.two", "c.three"],
-        "limit은 최신 행을 남기되 append 순서로 반환해야 한다"
+        "limit must keep the newest rows but return them in append order"
     );
 }
 
 #[test]
-fn 실행_로그_recent_signal은_newest_first_unique다() {
+fn execution_log_recent_signals_are_newest_first_unique() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     for (tool_id, ts) in [
         ("alpha.one", 10),
@@ -602,7 +607,7 @@ fn 실행_로그_recent_signal은_newest_first_unique다() {
 }
 
 #[test]
-fn 실행_로그_동시_타임스탬프는_나중_삽입이_먼저_온다() {
+fn execution_log_same_timestamp_puts_later_insert_first() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .append_execution_record(&log_record("first.tool", 7))
@@ -619,23 +624,25 @@ fn 실행_로그_동시_타임스탬프는_나중_삽입이_먼저_온다() {
             .map(|signal| signal.tool_id.as_str())
             .collect::<Vec<_>>(),
         vec!["second.tool", "first.tool"],
-        "같은 started_at_ms면 삽입 순서가 늦은 쪽이 최신이다"
+        "for equal started_at_ms the later insert is newest"
     );
 }
 
 #[test]
-fn 두_커넥션이_병행으로_실행_로그를_append해도_유실되지_않는다() {
+fn concurrent_execution_log_appends_from_two_connections_are_not_lost() {
     const APPENDS_PER_CONNECTION: usize = 5;
 
     let dir = temp_store_dir("log-append-concurrency");
     let path = store_db_path(&dir);
-    // 스키마/디바이스 준비를 먼저 끝내 두 스레드가 곧장 쓰기 경쟁만 하게 한다.
-    drop(Store::open_at(&path).expect("스키마 준비"));
+    // Finish schema/device setup first so both threads only race on
+    // writes.
+    drop(Store::open_at(&path).expect("prepare schema"));
 
     let writer = |tool_prefix: &'static str, path: PathBuf| {
         std::thread::spawn(move || {
-            // CLI dispatch와 HTTP 데몬처럼 별도 커넥션에서 병행 append.
-            let mut store = Store::open_at(&path).expect("스레드 store 오픈");
+            // Concurrent appends from separate connections, like CLI
+            // dispatch and the HTTP daemon.
+            let mut store = Store::open_at(&path).expect("thread store open");
             for index in 0..APPENDS_PER_CONNECTION {
                 let started = u64::try_from(index).unwrap_or_default();
                 store
@@ -643,33 +650,34 @@ fn 두_커넥션이_병행으로_실행_로그를_append해도_유실되지_않�
                         &format!("{tool_prefix}.{index}"),
                         started,
                     ))
-                    .expect("busy_timeout 아래에서 append는 성공해야 한다");
+                    .expect("append must succeed under busy_timeout");
             }
         })
     };
     let a = writer("alpha", path.clone());
     let b = writer("beta", path.clone());
-    a.join().expect("alpha 스레드");
-    b.join().expect("beta 스레드");
+    a.join().expect("alpha thread");
+    b.join().expect("beta thread");
 
-    let store = Store::open_at(&path).expect("검증용 오픈");
+    let store = Store::open_at(&path).expect("verification open");
     let records = store
         .read_execution_records(&super::ExecutionLogFilter::default())
-        .expect("전체 읽기");
+        .expect("read all");
     assert_eq!(
         records.len(),
         APPENDS_PER_CONNECTION * 2,
-        "병행 append에서 어떤 기록도 유실되면 안 된다"
+        "no record may be lost under concurrent appends"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn 정규_내보내기는_보드_안내와_배치_형태를_보존한다() {
-    // 안내의 기본값, BTreeMap 키 정렬, None 필드 생략을 보존한다.
+fn canonical_export_preserves_board_guidance_and_layout_shape() {
+    // Preserves guidance defaults, BTreeMap key ordering, and
+    // None-field omission.
     let boards = vec![board("dev", "Dev"), board("trading", "Trading")];
     assert_eq!(
-        export::boards_to_json(&boards).expect("boards 직렬화"),
+        export::boards_to_json(&boards).expect("serialize boards"),
         r#"[{"key":"dev","title":"Dev","guidance":{"description":"","instructions":""}},{"key":"trading","title":"Trading","guidance":{"description":"","instructions":""}}]"#,
     );
 
@@ -679,18 +687,16 @@ fn 정규_내보내기는_보드_안내와_배치_형태를_보존한다() {
             "alpha".to_string(),
             vec![
                 Placement::new("styled.tool", 0, 0)
-                    .with_color(Some(PinColorHex::parse("#AABBCC").expect("테스트 색상")))
+                    .with_color(Some(PinColorHex::parse("#AABBCC").expect("test color")))
                     .with_span(Some(PinSpan::new(
-                        ColSpan::new(2).expect("테스트 cols"),
-                        RowSpan::new(1).expect("테스트 rows"),
+                        ColSpan::new(2).expect("test cols"),
+                        RowSpan::new(1).expect("test rows"),
                     )))
-                    .with_args_preset(Some(
-                        ArgsPreset::parse(r#"{"n":1}"#).expect("테스트 preset"),
-                    )),
+                    .with_args_preset(Some(ArgsPreset::parse(r#"{"n":1}"#).expect("test preset"))),
             ],
         ),
     ]);
-    let json = export::layouts_to_json(&layouts).expect("layouts 직렬화");
+    let json = export::layouts_to_json(&layouts).expect("serialize layouts");
     assert_eq!(
         json,
         concat!(
@@ -698,17 +704,17 @@ fn 정규_내보내기는_보드_안내와_배치_형태를_보존한다() {
             r#""span":{"cols":2,"rows":1},"args_preset":{"n":1}}],"#,
             r#""zeta":[{"tool_id":"plain.tool","x":1,"y":0}]}"#,
         ),
-        "BTreeMap 정렬 + None 생략의 canonical 형태가 유지되어야 한다"
+        "the canonical form of BTreeMap ordering + None omission must be kept"
     );
 
-    // import 방향도 동일 형태를 되돌린다.
+    // The import direction mirrors the same shape.
     assert_eq!(
-        export::layouts_from_json(&json).expect("layouts 역직렬화"),
+        export::layouts_from_json(&json).expect("deserialize layouts"),
         layouts
     );
     assert_eq!(
-        export::boards_from_json(&export::boards_to_json(&boards).expect("직렬화"))
-            .expect("boards 역직렬화"),
+        export::boards_from_json(&export::boards_to_json(&boards).expect("serialize"))
+            .expect("deserialize boards"),
         boards
     );
 }
@@ -730,20 +736,20 @@ fn outcome(tool_id: &str, ok: bool) -> NewLastOutcome {
 }
 
 #[test]
-fn v3_스키마는_last_outcomes_테이블을_placement_키로_만든다() {
+fn v3_schema_creates_last_outcomes_table_keyed_per_placement() {
     let v3 = schema::MIGRATIONS[2];
     assert!(
         v3.contains(&format!("CREATE TABLE {} ", schema::LAST_OUTCOMES_TABLE)),
-        "v3 스키마에 last_outcomes 테이블이 있어야 한다"
+        "v3 schema must contain the last_outcomes table"
     );
     assert!(
         v3.contains("PRIMARY KEY (board_key, tool_id)"),
-        "last_outcomes는 placement 단위 (board_key, tool_id) 키여야 한다"
+        "last_outcomes must be keyed per placement by (board_key, tool_id)"
     );
 }
 
 #[test]
-fn 크기_상한_이내의_outputs_json은_절단_없이_통과한다() {
+fn outputs_json_within_size_cap_passes_unclipped() {
     let json = r#"[{"id":"value","v":1}]"#;
     let capped = cap_outputs_json(json, Some("value"));
     assert_eq!(capped.json, json);
@@ -751,28 +757,29 @@ fn 크기_상한_이내의_outputs_json은_절단_없이_통과한다() {
 }
 
 #[test]
-fn 크기_상한_초과시_primary_output만_남기고_truncated를_표시한다() {
+fn over_size_cap_keeps_only_primary_output_and_marks_truncated() {
     let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES);
     let json = format!(r#"[{{"id":"value","v":"ok"}},{{"id":"noise","v":"{filler}"}}]"#);
     let capped = cap_outputs_json(&json, Some("value"));
     assert_eq!(capped.json, r#"[{"id":"value","v":"ok"}]"#);
     assert!(capped.truncated);
 
-    // primary id가 없으면 첫 엔트리가 프리뷰가 된다.
+    // Without a primary id the first entry becomes the preview.
     let no_primary = cap_outputs_json(&json, None);
     assert_eq!(no_primary.json, r#"[{"id":"value","v":"ok"}]"#);
     assert!(no_primary.truncated);
 }
 
 #[test]
-fn primary_output조차_상한을_넘으면_빈_배열로_절단한다() {
+fn caps_to_empty_array_when_even_primary_output_exceeds_cap() {
     let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES + 1);
     let json = format!(r#"[{{"id":"value","v":"{filler}"}}]"#);
     let capped = cap_outputs_json(&json, Some("value"));
     assert_eq!(capped.json, "[]");
     assert!(capped.truncated);
 
-    // 배열이 아닌(손상된) 페이로드도 안전하게 빈 배열로 떨어진다.
+    // A non-array (corrupted) payload also safely falls to an empty
+    // array.
     let not_array = format!(r#""{filler}""#);
     let corrupt = cap_outputs_json(&not_array, Some("value"));
     assert_eq!(corrupt.json, "[]");
@@ -780,17 +787,17 @@ fn primary_output조차_상한을_넘으면_빈_배열로_절단한다() {
 }
 
 #[test]
-fn last_outcome은_record_load로_왕복하고_같은_키에_덮어쓴다() {
+fn last_outcome_round_trips_via_record_load_and_overwrites_same_key() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .record_last_outcome("dev", &outcome("num.hex", true))
-        .expect("성공 기록");
+        .expect("record success");
     store
         .record_last_outcome("dev", &outcome("net.ping", false))
-        .expect("실패 기록");
+        .expect("record failure");
 
-    let loaded = store.load_last_outcomes("dev").expect("로드");
-    assert_eq!(loaded.len(), 2, "tool_id 정렬로 두 행이 보여야 한다");
+    let loaded = store.load_last_outcomes("dev").expect("load");
+    assert_eq!(loaded.len(), 2, "both rows must appear in tool_id order");
     let ping = &loaded[0];
     assert_eq!(ping.tool_id, "net.ping");
     assert!(!ping.ok);
@@ -803,102 +810,106 @@ fn last_outcome은_record_load로_왕복하고_같은_키에_덮어쓴다() {
     assert!(hex.updated_at_ms > 0);
     assert_eq!(hex.outputs_json, outcome("num.hex", true).outputs_json);
 
-    // 같은 (board, tool) 키에 다시 기록하면 덮어쓴다.
+    // Recording the same (board, tool) key again overwrites.
     store
         .record_last_outcome("dev", &outcome("num.hex", false))
-        .expect("덮어쓰기");
-    let reloaded = store.load_last_outcomes("dev").expect("재로드");
+        .expect("overwrite");
+    let reloaded = store.load_last_outcomes("dev").expect("reload");
     assert_eq!(reloaded.len(), 2);
-    assert!(!reloaded[1].ok, "최신 기록이 이전 기록을 대체해야 한다");
+    assert!(
+        !reloaded[1].ok,
+        "the latest record must replace the earlier one"
+    );
 }
 
 #[test]
-fn last_outcome은_board_키로_격리된다() {
+fn last_outcome_is_isolated_by_board_key() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .record_last_outcome("dev", &outcome("num.hex", true))
-        .expect("dev 기록");
+        .expect("record dev");
     store
         .record_last_outcome("trading", &outcome("num.hex", false))
-        .expect("trading 기록");
+        .expect("record trading");
 
-    assert!(store.load_last_outcomes("dev").expect("dev 로드")[0].ok);
-    assert!(!store.load_last_outcomes("trading").expect("trading 로드")[0].ok);
+    assert!(store.load_last_outcomes("dev").expect("load dev")[0].ok);
+    assert!(!store.load_last_outcomes("trading").expect("load trading")[0].ok);
     assert!(
         store
             .load_last_outcomes("personal")
-            .expect("빈 보드")
+            .expect("empty board")
             .is_empty()
     );
 }
 
 #[test]
-fn 상한_초과_기록은_truncated_플래그와_함께_저장된다() {
+fn over_cap_record_is_stored_with_truncated_flag() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES);
     let big = NewLastOutcome {
         outputs_json: format!(r#"[{{"id":"value","v":"ok"}},{{"id":"noise","v":"{filler}"}}]"#),
         ..outcome("big.tool", true)
     };
-    store.record_last_outcome("dev", &big).expect("기록");
+    store.record_last_outcome("dev", &big).expect("record");
 
-    let loaded = store.load_last_outcomes("dev").expect("로드");
+    let loaded = store.load_last_outcomes("dev").expect("load");
     assert!(loaded[0].truncated);
     assert_eq!(loaded[0].outputs_json, r#"[{"id":"value","v":"ok"}]"#);
 }
 
 #[test]
-fn clear_last_outcome은_해당_행만_삭제한다() {
+fn clear_last_outcome_deletes_only_that_row() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .record_last_outcome("dev", &outcome("num.hex", true))
-        .expect("기록 1");
+        .expect("record 1");
     store
         .record_last_outcome("dev", &outcome("net.ping", true))
-        .expect("기록 2");
+        .expect("record 2");
 
     store.clear_last_outcome("dev", "num.hex").expect("clear");
-    let remaining = store.load_last_outcomes("dev").expect("로드");
+    let remaining = store.load_last_outcomes("dev").expect("load");
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].tool_id, "net.ping");
 }
 
 #[test]
-fn 핀_unpin은_tombstone과_함께_last_outcome도_정리한다() {
+fn pin_unpin_cleans_last_outcome_alongside_tombstone() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     store
         .save_state_global(&one_board_state(vec![
             Placement::new("num.hex", 0, 0),
             Placement::new("net.ping", 1, 0),
         ]))
-        .expect("보드 준비");
+        .expect("prepare board");
     store
         .record_last_outcome("dev", &outcome("num.hex", true))
-        .expect("기록 1");
+        .expect("record 1");
     store
         .record_last_outcome("dev", &outcome("net.ping", true))
-        .expect("기록 2");
+        .expect("record 2");
 
-    // 행 단위 tombstone 경로.
+    // The row-level tombstone path.
     store
         .tombstone_placement("dev", "num.hex")
-        .expect("행 단위 unpin");
-    let after_row = store.load_last_outcomes("dev").expect("로드");
+        .expect("row-level unpin");
+    let after_row = store.load_last_outcomes("dev").expect("load");
     assert_eq!(
         after_row
             .iter()
             .map(|o| o.tool_id.as_str())
             .collect::<Vec<_>>(),
         vec!["net.ping"],
-        "tombstone된 핀의 outcome은 같은 트랜잭션에서 삭제되어야 한다"
+        "the tombstoned pin's outcome must be deleted in the same transaction"
     );
 
-    // save_state 전체 저장(diff→tombstone) 경로도 동일하게 정리한다.
+    // The whole-save save_state path (diff → tombstone) cleans up the
+    // same way.
     store
         .save_state_global(&one_board_state(Vec::new()))
-        .expect("전체 unpin");
+        .expect("full unpin");
     assert!(
-        store.load_last_outcomes("dev").expect("재로드").is_empty(),
-        "save_state 경로의 unpin도 outcome을 정리해야 한다"
+        store.load_last_outcomes("dev").expect("reload").is_empty(),
+        "unpin via the save_state path must clean the outcome too"
     );
 }

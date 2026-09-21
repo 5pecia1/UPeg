@@ -1,5 +1,5 @@
 #[test]
-fn pdf_render의_rgba_png_인코딩은_픽셀_buffer를_복제하지_않는다() {
+fn pdf_render_rgba_png_encoding_does_not_clone_pixel_buffer() {
     let source = include_str!("../image_codec.rs");
     let pdf_render_source = include_str!("../pdf_render.rs");
     let encode_rgba = source
@@ -44,7 +44,7 @@ fn pdf_render의_rgba_png_인코딩은_픽셀_buffer를_복제하지_않는다()
 }
 
 #[test]
-fn 제공된_rgba_buffer를_png로_인코딩하면_pixel이_보존된다() {
+fn encoding_supplied_rgba_buffer_as_png_preserves_pixels() {
     use super::super::image_codec::{RasterFormat, encode_rgba};
 
     let rgba = vec![255, 0, 0, 255, 0, 0, 255, 128];
@@ -60,7 +60,7 @@ fn 제공된_rgba_buffer를_png로_인코딩하면_pixel이_보존된다() {
 }
 
 #[test]
-fn 제공된_rgba_buffer를_jpeg로_인코딩하면_이미지_변환_경로가_유지된다() {
+fn encoding_supplied_rgba_buffer_as_jpeg_uses_image_conversion_path() {
     use super::super::image_codec::{RasterFormat, encode_rgba};
 
     let rgba = vec![255; 4 * 8 * 8];

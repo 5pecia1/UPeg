@@ -53,14 +53,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 활성화_플래그는_truthy_값을_인식한다() {
+    fn enable_flag_recognizes_truthy_values() {
         for v in ["1", "true", "TRUE", "yes", "YES", " 1 ", "  true "] {
             assert!(enabled_from(Some(v)), "{v:?} should enable");
         }
     }
 
     #[test]
-    fn 활성화_플래그는_다른_값과_부재를_거부한다() {
+    fn enable_flag_rejects_other_values_and_absence() {
         for v in ["0", "false", "no", "", "on", "any-other-string"] {
             assert!(!enabled_from(Some(v)), "{v:?} should not enable");
         }
@@ -68,18 +68,18 @@ mod tests {
     }
 
     #[test]
-    fn 안에서_예산이면_줄임은_원본을_반환한다() {
+    fn truncate_within_budget_returns_the_original() {
         assert_eq!(truncate("hi", 10), "hi");
         assert_eq!(truncate("", 10), "");
     }
 
     #[test]
-    fn 줄임_에서_정확한_예산은_바꾸다하지_않는다() {
+    fn truncate_at_exact_budget_changes_nothing() {
         assert_eq!(truncate("abcde", 5), "abcde");
     }
 
     #[test]
-    fn 줄임은_넘치는_부분을_말줄임표로_바꾼다() {
+    fn truncate_replaces_overflow_with_an_ellipsis() {
         let out = truncate("0123456789abc", 6);
         // chars are 1-byte ascii here; ellipsis is one char.
         assert_eq!(out.chars().count(), 6);
@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn 줄임은_다중_바이트_문자들을_처리한다() {
+    fn truncate_handles_multibyte_characters() {
         // each emoji is 1 char but several bytes — we must count chars,
         // not bytes, when deciding whether to truncate.
         let out = truncate("🐱🐶🦊🐰🐻", 3);

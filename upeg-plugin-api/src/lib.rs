@@ -520,7 +520,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 최소_manifest는_역직렬화한다() {
+    fn minimal_manifest_deserializes() {
         let json = r#"{"id":"x","tools":[{"id":"x.echo","toolkit":"x","pegboard_units":"U1"}]}"#;
         let manifest: PluginManifest = serde_json::from_str(json).unwrap();
 
@@ -533,7 +533,7 @@ mod tests {
     }
 
     #[test]
-    fn 전체_manifest는_역직렬화한다() {
+    fn full_manifest_deserializes() {
         let json = r#"{"id":"demo","tags":["wasm"],"tools":[{
             "id": "demo.greet",
             "toolkit": "demo",
@@ -585,7 +585,7 @@ mod tests {
     }
 
     #[test]
-    fn 빌더는_널_옵션_필드_없이_직렬화한다() {
+    fn builder_serializes_without_null_optional_fields() {
         let manifest = PluginManifest::new("demo").with_tool(
             PluginToolDecl::new("demo", "demo.greet", "demo_greet")
                 .with_description("Say hi.")

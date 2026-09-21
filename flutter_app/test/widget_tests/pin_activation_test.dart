@@ -1,7 +1,7 @@
 /// Widget tests for the pin activation routing.
 ///
 /// The activation decision itself is exercised in upeg-frb Rust unit
-/// tests (`pin_activation_for_가_*`). Here we verify that the Dart
+/// tests (`pin_activation_for_*`). Here we verify that the Dart
 /// switch dispatches to the right Dart side-effect for each variant.
 library;
 
@@ -33,7 +33,9 @@ void _dispatchActivation(
 
 void main() {
   group('pin activation dispatch', () {
-    testWidgets('Pin_탭은_PinKind_Embed에_대해_EmbedPage를_연다', (tester) async {
+    testWidgets('a_pin_tap_opens_the_embedpage_for_pinkind_embed', (
+      tester,
+    ) async {
       String? openedToolId;
       _dispatchActivation(
         const PinActivationDto.openEmbed(toolId: 'embed.transform_tools'),
@@ -45,7 +47,7 @@ void main() {
       expect(openedToolId, 'embed.transform_tools');
     });
 
-    testWidgets('Pin_탭은_DispatchImmediate에_대해_dispatchTool을_호출한다', (
+    testWidgets('a_pin_tap_calls_dispatchtool_for_dispatchimmediate', (
       tester,
     ) async {
       String? dispatchedTool;
@@ -59,7 +61,9 @@ void main() {
       expect(dispatchedTool, 'id.uuid_v7');
     });
 
-    testWidgets('Pin_탭은_OpenModal에_대해_ExpandedModal을_연다', (tester) async {
+    testWidgets('a_pin_tap_opens_the_expandedmodal_for_openmodal', (
+      tester,
+    ) async {
       String? openedTool;
       _dispatchActivation(
         const PinActivationDto.openModal(toolId: 'num.hex_to_decimal'),

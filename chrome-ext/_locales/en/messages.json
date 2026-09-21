@@ -4,7 +4,55 @@
   },
 
   "settingsToggleTitle": {
-    "message": "Host token settings"
+    "message": "Host endpoint & token settings"
+  },
+  "endpointInputLabel": {
+    "message": "Host endpoint"
+  },
+  "endpointInputPlaceholder": {
+    "message": "http://127.0.0.1:7173"
+  },
+  "endpointSaveButton": {
+    "message": "Save"
+  },
+  "endpointResetButton": {
+    "message": "Reset"
+  },
+  "endpointSavedStatus": {
+    "message": "Endpoint set to $ADDRESS$.",
+    "placeholders": {
+      "address": { "content": "$1", "example": "127.0.0.1:49317" }
+    }
+  },
+  "endpointResetStatus": {
+    "message": "Endpoint reset to the default $ADDRESS$.",
+    "placeholders": {
+      "address": { "content": "$1", "example": "127.0.0.1:7173" }
+    }
+  },
+  "endpointPermissionDenied": {
+    "message": "Access to that endpoint was denied — allow it to save the endpoint."
+  },
+  "endpointErrorNotUrl": {
+    "message": "Enter a URL or host:port, for example http://127.0.0.1:7173."
+  },
+  "endpointErrorNotHttp": {
+    "message": "Only http:// endpoints are supported for the local host."
+  },
+  "endpointErrorCredentials": {
+    "message": "Remove the user:password@ part — the endpoint is just host and port."
+  },
+  "endpointErrorPath": {
+    "message": "Remove the path or query — the endpoint is just the server address, for example http://127.0.0.1:7173."
+  },
+  "endpointErrorNotLoopback": {
+    "message": "For your security the endpoint must be on this device — 127.0.0.1, localhost, or ::1."
+  },
+  "endpointErrorPort": {
+    "message": "The port must be a number between 1 and 65535."
+  },
+  "pairingHelp": {
+    "message": "Run `upeg http status --pairing` to print the running host's URL and token, then paste them here."
   },
   "tokenInputLabel": {
     "message": "Host token"
@@ -41,9 +89,10 @@
     }
   },
   "runHint": {
-    "message": "Not running? Start it with: $COMMAND$",
+    "message": "Not running? Start it with: $COMMAND$, then run $PAIRING$ to see the host URL and token to enter in Settings.",
     "placeholders": {
-      "command": { "content": "$1", "example": "upeg http --addr 127.0.0.1:7173" }
+      "command": { "content": "$1", "example": "upeg http" },
+      "pairing": { "content": "$2", "example": "upeg http status --pairing" }
     }
   },
   "tokenRejected": {

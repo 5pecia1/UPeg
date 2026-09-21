@@ -13,7 +13,7 @@ import 'package:upeg/src/platform/tray.dart';
 
 void main() {
   group('Tray icon', () {
-    test('Tray_icon_path는_빈_문자열이_아닌_PNG_자산을_가리킨다', () {
+    test('tray_icon_path_points_to_a_non_empty_PNG_asset', () {
       // The constant lives next to its sole call site in `tray.dart`.
       // Web/mobile targets short-circuit `install`, so the asset path
       // is only meaningful when `isTraySupported` is true.
@@ -22,14 +22,17 @@ void main() {
       expect(trayIconAssetPath, equals('assets/tray_icon.png'));
     });
 
-    test('Tray_install은_주입된_setTrayIconFn_seam을_PNG_경로로_호출한다', () async {
-      final calls = <String>[];
-      await installTrayIcon(
-        setIcon: (path) async {
-          calls.add(path);
-        },
-      );
-      expect(calls, [trayIconAssetPath]);
-    });
+    test(
+      'tray_install_calls_the_injected_setTrayIconFn_seam_with_the_PNG_path',
+      () async {
+        final calls = <String>[];
+        await installTrayIcon(
+          setIcon: (path) async {
+            calls.add(path);
+          },
+        );
+        expect(calls, [trayIconAssetPath]);
+      },
+    );
   });
 }

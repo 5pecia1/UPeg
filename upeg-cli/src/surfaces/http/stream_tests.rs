@@ -15,7 +15,7 @@ use crate::surfaces::http::router;
 /// A tool that writes to both streams with a pause between them, so a
 /// buffered-until-exit implementation could not produce the ordering
 /// these tests assert.
-const 스트리밍_툴킷_TOML: &str = r#"
+const STREAMING_TOOLKIT_TOML: &str = r#"
 id = "httpstream"
 
 [[tools]]
@@ -79,34 +79,34 @@ type = "string"
 required = true
 "#;
 
-const 스트리밍_툴_ID: &str = "httpstream.two_lines";
-const 체인_툴_ID: &str = "httpstream.chained";
-const 두_단계_체인_툴_ID: &str = "httpstream.chained_twice";
-const 오래_사는_툴_ID: &str = "httpstream.announce_and_sleep";
+const STREAMING_TOOL_ID: &str = "httpstream.two_lines";
+const CHAIN_TOOL_ID: &str = "httpstream.chained";
+const TWO_STEP_CHAIN_TOOL_ID: &str = "httpstream.chained_twice";
+const LONG_LIVED_TOOL_ID: &str = "httpstream.announce_and_sleep";
 
 /// The toolbox is process-global and the tests run in parallel, so the
 /// fixture loads exactly once for the whole binary.
-static 픽스처_적재: std::sync::Once = std::sync::Once::new();
+static LOAD_FIXTURE: std::sync::Once = std::sync::Once::new();
 
-fn 픽스처를_적재한다() {
-    픽스처_적재.call_once(|| {
+fn load_fixture() {
+    LOAD_FIXTURE.call_once(|| {
         let dir = std::env::temp_dir().join(format!("upeg-http-stream-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("스트리밍 픽스처 디렉터리");
-        std::fs::write(dir.join("httpstream.toml"), 스트리밍_툴킷_TOML)
-            .expect("스트리밍 픽스처 TOML");
+        std::fs::create_dir_all(&dir).expect("streaming fixture directory");
+        std::fs::write(dir.join("httpstream.toml"), STREAMING_TOOLKIT_TOML)
+            .expect("streaming fixture TOML");
 
         let outcome = upeg_loader::load_and_register_dir_verbose(&dir);
         assert!(
             outcome.failed.is_empty(),
-            "스트리밍 픽스처는 실패 없이 적재된다: {:?}",
+            "streaming fixture loads without failures: {:?}",
             outcome.failed
         );
         let _ = std::fs::remove_dir_all(&dir);
     });
 }
 
-async fn 스트림_줄들(uri: &str, body: &'static str) -> (StatusCode, String, Vec<Value>) {
+async fn stream_lines(uri: &str, body: &'static str) -> (StatusCode, String, Vec<Value>) {
     let response = router()
         .oneshot(
             Request::builder()
@@ -125,16 +125,16 @@ async fn 스트림_줄들(uri: &str, body: &'static str) -> (StatusCode, String,
         .map(|value| value.to_str().unwrap().to_string())
         .unwrap_or_default();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let text = String::from_utf8(bytes.to_vec()).expect("NDJSON 본문은 UTF-8이다");
+    let text = String::from_utf8(bytes.to_vec()).expect("NDJSON body is UTF-8");
     let lines = text
         .lines()
         .filter(|line| !line.trim().is_empty())
-        .map(|line| serde_json::from_str::<Value>(line).expect("한 줄은 JSON 하나다"))
+        .map(|line| serde_json::from_str::<Value>(line).expect("one line is one JSON value"))
         .collect();
     (status, content_type, lines)
 }
 
-fn 청크_텍스트(lines: &[Value], stream: &str) -> String {
+fn chunk_text(lines: &[Value], stream: &str) -> String {
     lines
         .iter()
         .filter(|line| line["event"] == "chunk" && line["stream"] == stream)
@@ -143,27 +143,33 @@ fn 청크_텍스트(lines: &[Value], stream: &str) -> String {
 }
 
 #[tokio::test]
-async fn 스트리밍_호출은_ndjson_청크_뒤에_결과_줄을_보낸다() {
-    픽스처를_적재한다();
+async fn streaming_call_sends_ndjson_chunks_then_a_result_line() {
+    load_fixture();
 
     let (status, content_type, lines) =
-        스트림_줄들(&format!("/v1/tools/{스트리밍_툴_ID}/stream"), "{}").await;
+        stream_lines(&format!("/v1/tools/{STREAMING_TOOL_ID}/stream"), "{}").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(content_type, "application/x-ndjson");
-    assert!(lines.len() >= 2, "청크 하나와 결과 하나는 최소한 나온다");
+    assert!(
+        lines.len() >= 2,
+        "at least one chunk and one result come out"
+    );
 
-    let last = lines.last().expect("마지막 줄");
-    assert_eq!(last["event"], "result", "결과 줄은 언제나 마지막이다");
+    let last = lines.last().expect("last line");
+    assert_eq!(last["event"], "result", "the result line is always last");
     assert_eq!(last["result"]["ok"], true);
 
     // Every non-final line is a chunk, and no chunk may follow the result.
     for line in &lines[..lines.len() - 1] {
-        assert_eq!(line["event"], "chunk", "결과 줄 앞은 전부 청크다");
+        assert_eq!(
+            line["event"], "chunk",
+            "everything before the result line is a chunk"
+        );
     }
 
-    assert_eq!(청크_텍스트(&lines, "stdout"), "out-one\nout-two\n");
-    assert_eq!(청크_텍스트(&lines, "stderr"), "err-one\n");
+    assert_eq!(chunk_text(&lines, "stdout"), "out-one\nout-two\n");
+    assert_eq!(chunk_text(&lines, "stderr"), "err-one\n");
 }
 
 /// The `seq` of every chunk line, sorted.
@@ -173,38 +179,38 @@ async fn 스트리밍_호출은_ndjson_청크_뒤에_결과_줄을_보낸다() {
 /// exists *because* of that race — the contract is that the numbers form
 /// one contiguous run the consumer can sort by, not that they arrive
 /// sorted.
-fn 정렬된_순번(lines: &[Value]) -> Vec<u64> {
+fn sorted_seqs(lines: &[Value]) -> Vec<u64> {
     let mut seqs: Vec<u64> = lines
         .iter()
         .filter(|line| line["event"] == "chunk")
-        .map(|line| line["seq"].as_u64().expect("seq는 정수다"))
+        .map(|line| line["seq"].as_u64().expect("seq is an integer"))
         .collect();
     seqs.sort_unstable();
     seqs
 }
 
 #[tokio::test]
-async fn 청크_순번은_0부터_이어진다() {
-    픽스처를_적재한다();
+async fn chunk_seqs_are_contiguous_from_zero() {
+    load_fixture();
 
-    let (_, _, lines) = 스트림_줄들(&format!("/v1/tools/{스트리밍_툴_ID}/stream"), "{}").await;
+    let (_, _, lines) = stream_lines(&format!("/v1/tools/{STREAMING_TOOL_ID}/stream"), "{}").await;
 
-    let seqs = 정렬된_순번(&lines);
+    let seqs = sorted_seqs(&lines);
     assert_eq!(seqs, (0..seqs.len() as u64).collect::<Vec<_>>());
 }
 
 #[tokio::test]
-async fn 스트리밍_결과_줄은_비스트리밍_봉투와_같다() {
-    픽스처를_적재한다();
+async fn streaming_result_line_matches_the_buffered_envelope() {
+    load_fixture();
 
-    let (_, _, lines) = 스트림_줄들(&format!("/v1/tools/{스트리밍_툴_ID}/stream"), "{}").await;
-    let streamed = lines.last().expect("결과 줄")["result"].clone();
+    let (_, _, lines) = stream_lines(&format!("/v1/tools/{STREAMING_TOOL_ID}/stream"), "{}").await;
+    let streamed = lines.last().expect("result line")["result"].clone();
 
     let response = router()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/v1/tools/{스트리밍_툴_ID}"))
+                .uri(format!("/v1/tools/{STREAMING_TOOL_ID}"))
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),
@@ -212,41 +218,42 @@ async fn 스트리밍_결과_줄은_비스트리밍_봉투와_같다() {
         .await
         .unwrap();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let buffered: Value = serde_json::from_slice(&bytes).expect("표준 경로는 JSON 하나다");
+    let buffered: Value =
+        serde_json::from_slice(&bytes).expect("the buffered lane is a single JSON");
 
-    assert_eq!(streamed, buffered, "스트리밍은 봉투를 바꾸지 않는다");
+    assert_eq!(streamed, buffered, "streaming does not change the envelope");
 }
 
 #[tokio::test]
-async fn 알_수_없는_도구는_스트림을_열지_않고_404다() {
-    let (status, content_type, lines) = 스트림_줄들("/v1/tools/no.such.tool/stream", "{}").await;
+async fn unknown_tool_is_404_without_opening_a_stream() {
+    let (status, content_type, lines) = stream_lines("/v1/tools/no.such.tool/stream", "{}").await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(
         !content_type.contains("ndjson"),
-        "라우팅 오류는 평범한 JSON 응답이다"
+        "a routing error is a plain JSON response"
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0]["error"]["code"], "unknown_tool");
 }
 
 #[tokio::test]
-async fn 잘못된_본문은_스트림을_열지_않고_400이다() {
-    픽스처를_적재한다();
+async fn malformed_body_is_400_without_opening_a_stream() {
+    load_fixture();
 
     let (status, _, lines) =
-        스트림_줄들(&format!("/v1/tools/{스트리밍_툴_ID}/stream"), "\"nope\"").await;
+        stream_lines(&format!("/v1/tools/{STREAMING_TOOL_ID}/stream"), "\"nope\"").await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(lines[0]["error"]["code"], "invalid_request");
 }
 
 #[tokio::test]
-async fn 핀되지_않은_board_도구는_404다() {
-    픽스처를_적재한다();
+async fn unpinned_board_tool_is_404() {
+    load_fixture();
 
-    let (status, _, _) = 스트림_줄들(
-        &format!("/v1/boards/no-such-board/tools/{스트리밍_툴_ID}/stream"),
+    let (status, _, _) = stream_lines(
+        &format!("/v1/boards/no-such-board/tools/{STREAMING_TOOL_ID}/stream"),
         "{}",
     )
     .await;
@@ -255,7 +262,7 @@ async fn 핀되지_않은_board_도구는_404다() {
 }
 
 #[tokio::test]
-async fn openapi는_스트리밍_경로를_ndjson으로_문서화한다() {
+async fn openapi_documents_streaming_routes_as_ndjson() {
     let response = router()
         .oneshot(
             Request::builder()
@@ -266,67 +273,67 @@ async fn openapi는_스트리밍_경로를_ndjson으로_문서화한다() {
         .await
         .unwrap();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let spec: Value = serde_json::from_slice(&bytes).expect("OpenAPI 문서는 JSON이다");
+    let spec: Value = serde_json::from_slice(&bytes).expect("the OpenAPI document is JSON");
 
-    let 스트리밍 = &spec["paths"]["/v1/tools/{id}/stream"]["post"];
+    let streaming = &spec["paths"]["/v1/tools/{id}/stream"]["post"];
     assert!(
-        스트리밍.is_object(),
-        "스트리밍 경로가 문서에 없다: {:?}",
+        streaming.is_object(),
+        "streaming route missing from the document: {:?}",
         spec["paths"].as_object().map(serde_json::Map::len)
     );
     assert!(
-        스트리밍["responses"]["200"]["content"]["application/x-ndjson"]["schema"]["oneOf"]
+        streaming["responses"]["200"]["content"]["application/x-ndjson"]["schema"]["oneOf"]
             .is_array(),
-        "200 응답은 NDJSON 줄 스키마를 선언한다"
+        "the 200 response declares the NDJSON line schema"
     );
     assert!(
-        스트리밍["responses"]["422"].is_null(),
-        "스트리밍에서는 도구 실패가 상태 코드가 되지 않는다"
+        streaming["responses"]["422"].is_null(),
+        "in streaming, tool failure does not become a status code"
     );
     assert!(
         spec["paths"]["/v1/boards/{board}/tools/{id}/stream"]["post"].is_object(),
-        "board 스코프 스트리밍 경로도 문서화된다"
+        "the board-scoped streaming route is documented too"
     );
 }
 
 #[tokio::test]
-async fn chain_step의_실행_중_출력도_흘러나온다() {
-    픽스처를_적재한다();
+async fn chain_step_output_streams_too() {
+    load_fixture();
 
-    let (status, _, lines) = 스트림_줄들(&format!("/v1/tools/{체인_툴_ID}/stream"), "{}").await;
+    let (status, _, lines) = stream_lines(&format!("/v1/tools/{CHAIN_TOOL_ID}/stream"), "{}").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        청크_텍스트(&lines, "stdout"),
+        chunk_text(&lines, "stdout"),
         "out-one\nout-two\n",
-        "chain step은 같은 스레드에서 돌므로 주변 sink를 그대로 물려받는다"
+        "a chain step runs on the same thread, so it inherits the ambient sink"
     );
-    assert_eq!(lines.last().expect("결과 줄")["event"], "result");
+    assert_eq!(lines.last().expect("result line")["event"], "result");
 }
 
 #[tokio::test]
-async fn 두_단계_chain의_청크_순번은_단계마다_되돌아가지_않는다() {
-    픽스처를_적재한다();
+async fn two_step_chain_chunk_seqs_do_not_restart_per_step() {
+    load_fixture();
 
     let (status, _, lines) =
-        스트림_줄들(&format!("/v1/tools/{두_단계_체인_툴_ID}/stream"), "{}").await;
+        stream_lines(&format!("/v1/tools/{TWO_STEP_CHAIN_TOOL_ID}/stream"), "{}").await;
 
     assert_eq!(status, StatusCode::OK);
-    let seqs = 정렬된_순번(&lines);
+    let seqs = sorted_seqs(&lines);
 
     assert!(
         seqs.len() >= 4,
-        "External 단계 두 개가 각각 stdout/stderr를 쓴다: {seqs:?}"
+        "two External steps each write stdout/stderr: {seqs:?}"
     );
     assert_eq!(
         seqs,
         (0..seqs.len() as u64).collect::<Vec<_>>(),
-        "한 호출은 한 순번이다 — 단계마다 0으로 되돌아가면 소비자가 순서를 복원할 수 없다"
+        "one call is one sequence — restarting at 0 per step leaves the consumer unable to restore order"
     );
     assert_eq!(
-        청크_텍스트(&lines, "stdout"),
+        chunk_text(&lines, "stdout"),
         "out-one\nout-two\nout-one\nout-two\n",
-        "두 단계의 출력이 모두 흘러나온다"
+        "both steps' output comes out"
     );
 }
 
@@ -338,141 +345,148 @@ async fn 두_단계_chain의_청크_순번은_단계마다_되돌아가지_않�
 
 /// One chunk big enough that a handful of them fill the budget, and
 /// still small enough on its own that the first one always fits.
-const 청크_바이트: usize = 64 * 1024;
+const CHUNK_BYTES: usize = 64 * 1024;
 
-fn 진행_이벤트(seq: u64) -> ProgressEvent {
+fn progress_event(seq: u64) -> ProgressEvent {
     ProgressEvent {
         stream: ProgressStream::Stdout,
         seq,
-        chunk: "x".repeat(청크_바이트),
+        chunk: "x".repeat(CHUNK_BYTES),
     }
 }
 
-fn 결과_줄() -> String {
+fn result_line() -> String {
     line(json!({ EVENT_FIELD: EVENT_RESULT }))
 }
 
 #[test]
-fn 읽지_않는_소비자는_예산까지만_쌓이고_나머지는_dropped로_보고된다() {
+fn an_unread_consumer_accumulates_up_to_budget_and_reports_the_rest_as_dropped() {
     let (lines, mut receiver, _budget) = line_queue();
     let forwarder = ChunkForwarder::new(lines.clone());
 
     // Twice the budget's worth, with nobody draining the receiver.
-    let 보낸_청크_수 = (STREAM_QUEUE_BUDGET_BYTES / 청크_바이트) * 2;
-    for seq in 0..보낸_청크_수 as u64 {
-        forwarder.emit(진행_이벤트(seq));
+    let sent_chunks = (STREAM_QUEUE_BUDGET_BYTES / CHUNK_BYTES) * 2;
+    for seq in 0..sent_chunks as u64 {
+        forwarder.emit(progress_event(seq));
     }
-    lines.finish(결과_줄());
+    lines.finish(result_line());
 
-    let mut 원문 = Vec::new();
+    let mut raw = Vec::new();
     while let Ok(line) = receiver.try_recv() {
-        원문.push(line);
+        raw.push(line);
     }
-    let 줄들: Vec<Value> = 원문
+    let parsed_lines: Vec<Value> = raw
         .iter()
-        .map(|line| serde_json::from_str(line).expect("한 줄은 JSON 하나다"))
+        .map(|line| serde_json::from_str(line).expect("one line is one JSON value"))
         .collect();
 
-    let 청크_바이트_합: usize = 원문
+    let chunk_bytes_total: usize = raw
         .iter()
-        .zip(&줄들)
+        .zip(&parsed_lines)
         .filter(|(_, parsed)| parsed["event"] == EVENT_CHUNK)
         .map(|(raw, _)| raw.len())
         .sum();
     assert!(
-        청크_바이트_합 <= STREAM_QUEUE_BUDGET_BYTES,
-        "청크로 쌓인 양이 예산을 넘었다: {청크_바이트_합}"
+        chunk_bytes_total <= STREAM_QUEUE_BUDGET_BYTES,
+        "bytes queued as chunks exceeded the budget: {chunk_bytes_total}"
     );
     assert!(
-        줄들.len() < 보낸_청크_수,
-        "예산을 넘겼는데 한 줄도 버리지 않았다: {}줄",
-        줄들.len()
+        parsed_lines.len() < sent_chunks,
+        "over budget yet not a single line was dropped: {} lines",
+        parsed_lines.len()
     );
 
-    let 버림: Vec<&Value> = 줄들
+    let dropped: Vec<&Value> = parsed_lines
         .iter()
         .filter(|line| line["event"] == EVENT_DROPPED)
         .collect();
-    assert_eq!(버림.len(), 1, "여러 번의 손실은 한 줄로 합산된다");
-    let 버린_바이트 = 버림[0]["bytes"].as_u64().expect("bytes는 정수다");
+    assert_eq!(dropped.len(), 1, "multiple losses are summed into one line");
+    let dropped_bytes = dropped[0]["bytes"].as_u64().expect("bytes is an integer");
     assert_eq!(
-        버린_바이트,
-        (보낸_청크_수 - (줄들.len() - 2)) as u64 * 청크_바이트 as u64,
-        "보고되는 값은 도구가 쓴 출력 바이트의 합이다"
+        dropped_bytes,
+        (sent_chunks - (parsed_lines.len() - 2)) as u64 * CHUNK_BYTES as u64,
+        "the reported value is the sum of output bytes the tool wrote"
     );
 
     assert_eq!(
-        줄들.last().expect("마지막 줄")["event"],
+        parsed_lines.last().expect("last line")["event"],
         EVENT_RESULT,
-        "결과 줄은 예산과 무관하게 마지막에 나간다"
+        "the result line goes out last regardless of budget"
     );
     assert_eq!(
-        줄들[줄들.len() - 2]["event"],
+        parsed_lines[parsed_lines.len() - 2]["event"],
         EVENT_DROPPED,
-        "손실 보고는 결과 줄 바로 앞에 붙는다"
+        "the loss report sits right before the result line"
     );
 }
 
 #[test]
-fn 소비자가_사라지면_전달을_멈추고_아무것도_붙들지_않는다() {
+fn a_vanished_consumer_stops_forwarding_and_holds_nothing() {
     let (lines, receiver, budget) = line_queue();
     let forwarder = ChunkForwarder::new(lines);
     drop(receiver);
 
-    forwarder.emit(진행_이벤트(0));
+    forwarder.emit(progress_event(0));
     assert!(
         forwarder.is_stopped(),
-        "연결이 끊긴 것을 알아채면 전달을 접는다"
+        "once the disconnect is noticed, forwarding folds"
     );
 
-    forwarder.emit(진행_이벤트(1));
+    forwarder.emit(progress_event(1));
     assert_eq!(
         budget.queued_bytes(),
         0,
-        "읽을 사람이 없는 줄을 호스트가 들고 있으면 안 된다"
+        "the host must not hold a line nobody will read"
     );
 }
 
 #[test]
-fn 표지를_전달하지_못하면_버린_바이트가_그대로_남는다() {
-    // 손실 수는 표지를 만들기 전에 `swap`으로 **청구**된다 — 두
-    // 스레드가 같은 총계를 읽어 각자 보고하면 소비자는 잃은 양의 두
-    // 배를 듣는다. 청구한 뒤 전달에 실패하면 되돌려 놓아야 하고, 이
-    // 테스트가 그 되돌림을 붙든다.
+fn failing_to_deliver_the_marker_leaves_dropped_bytes_in_place() {
+    // The loss count is **charged** via `swap` before the marker is
+    // built — if two threads read the same total and each reports it,
+    // the consumer hears double the lost amount. A charge that fails to
+    // deliver must be put back, and this test pins that refund.
     let (lines, receiver, budget) = line_queue();
     let forwarder = ChunkForwarder::new(lines.clone());
 
-    // 예산을 채우고 한 청크를 버리게 만든다.
-    let 보낸_청크_수 = (STREAM_QUEUE_BUDGET_BYTES / 청크_바이트) + 2;
-    for seq in 0..보낸_청크_수 as u64 {
-        forwarder.emit(진행_이벤트(seq));
+    // Fill the budget and force one chunk to be dropped.
+    let sent_chunks = (STREAM_QUEUE_BUDGET_BYTES / CHUNK_BYTES) + 2;
+    for seq in 0..sent_chunks as u64 {
+        forwarder.emit(progress_event(seq));
     }
-    let 버린_바이트 = budget.dropped.load(std::sync::atomic::Ordering::Relaxed);
-    assert!(버린_바이트 > 0, "예산을 넘겼으면 버린 바이트가 있어야 한다");
+    let dropped_bytes = budget.dropped.load(std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        dropped_bytes > 0,
+        "over budget means there must be dropped bytes"
+    );
 
-    // 소비자가 사라진 뒤의 flush: 표지는 나가지 못한다.
+    // Flush after the consumer is gone: the marker cannot get out.
     drop(receiver);
     lines.flush_dropped();
 
     assert_eq!(
         budget.dropped.load(std::sync::atomic::Ordering::Relaxed),
-        버린_바이트,
-        "보고하지 못한 손실은 사라지지 않는다"
+        dropped_bytes,
+        "an unreported loss does not disappear"
     );
 }
 
 #[test]
-fn 소비자가_읽어가면_예산이_돌아온다() {
+fn budget_returns_as_the_consumer_reads() {
     let (lines, mut receiver, budget) = line_queue();
     let forwarder = ChunkForwarder::new(lines);
 
-    forwarder.emit(진행_이벤트(0));
-    let 쌓인 = budget.queued_bytes();
-    assert!(쌓인 > 청크_바이트, "청크 한 줄이 예산을 차지한다");
+    forwarder.emit(progress_event(0));
+    let queued = budget.queued_bytes();
+    assert!(queued > CHUNK_BYTES, "one chunk line occupies budget");
 
-    let 줄 = receiver.try_recv().expect("청크 한 줄");
-    budget.release(줄.len());
-    assert_eq!(budget.queued_bytes(), 0, "읽어간 만큼 예산이 돌아온다");
+    let queued_line = receiver.try_recv().expect("one chunk line");
+    budget.release(queued_line.len());
+    assert_eq!(
+        budget.queued_bytes(),
+        0,
+        "budget returns by the amount read"
+    );
 }
 
 /// Hanging up on a stream must stop the tool, so these two bounds are
@@ -480,16 +494,16 @@ fn 소비자가_읽어가면_예산이_돌아온다() {
 /// and how long it may take to die afterwards. Both are hang detectors
 /// — the child itself would run for thirty seconds.
 #[cfg(unix)]
-const 자식_등장_대기: std::time::Duration = std::time::Duration::from_secs(10);
+const CHILD_APPEAR_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 #[cfg(unix)]
-const 자식_종료_대기: std::time::Duration = std::time::Duration::from_secs(10);
+const CHILD_EXIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 #[cfg(unix)]
-const 생존_확인_간격: std::time::Duration = std::time::Duration::from_millis(20);
+const LIVENESS_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(20);
 
 /// The pid the fixture wrote, once it has written one.
 #[cfg(unix)]
-async fn 자식_pid를_기다린다(path: &std::path::Path) -> u32 {
-    let 마감 = std::time::Instant::now() + 자식_등장_대기;
+async fn wait_for_child_pid(path: &std::path::Path) -> u32 {
+    let deadline = std::time::Instant::now() + CHILD_APPEAR_TIMEOUT;
     loop {
         if let Ok(text) = std::fs::read_to_string(path)
             && let Ok(pid) = text.trim().parse::<u32>()
@@ -497,10 +511,10 @@ async fn 자식_pid를_기다린다(path: &std::path::Path) -> u32 {
             return pid;
         }
         assert!(
-            std::time::Instant::now() < 마감,
-            "자식이 {자식_등장_대기:?} 안에 자기 pid를 알리지 않았다"
+            std::time::Instant::now() < deadline,
+            "child did not report its pid within {CHILD_APPEAR_TIMEOUT:?}"
         );
-        tokio::time::sleep(생존_확인_간격).await;
+        tokio::time::sleep(LIVENESS_POLL_INTERVAL).await;
     }
 }
 
@@ -508,66 +522,66 @@ async fn 자식_pid를_기다린다(path: &std::path::Path) -> u32 {
 /// `/proc`, so the check reads the same on Linux and macOS; upeg reaps
 /// the child it killed, so a zombie cannot make this answer wrong.
 #[cfg(unix)]
-async fn 프로세스_종료를_기다린다(pid: u32) -> bool {
-    let 마감 = std::time::Instant::now() + 자식_종료_대기;
+async fn wait_for_process_exit(pid: u32) -> bool {
+    let deadline = std::time::Instant::now() + CHILD_EXIT_TIMEOUT;
     loop {
-        let 살아있다 = std::process::Command::new("kill")
+        let alive = std::process::Command::new("kill")
             .args(["-0", &pid.to_string()])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
             .is_ok_and(|status| status.success());
-        if !살아있다 {
+        if !alive {
             return true;
         }
-        if std::time::Instant::now() >= 마감 {
+        if std::time::Instant::now() >= deadline {
             return false;
         }
-        tokio::time::sleep(생존_확인_간격).await;
+        tokio::time::sleep(LIVENESS_POLL_INTERVAL).await;
     }
 }
 
 #[cfg(unix)]
 #[tokio::test]
-async fn 스트림_연결을_끊으면_실행_중인_자식이_종료된다() {
-    픽스처를_적재한다();
+async fn dropping_the_stream_connection_kills_the_running_child() {
+    load_fixture();
     let pid_path = std::env::temp_dir().join(format!(
         "upeg-http-stream-cancel-{}.pid",
         std::process::id()
     ));
     let _ = std::fs::remove_file(&pid_path);
 
-    let 본문 = json!({ "pid_file": pid_path.to_string_lossy() }).to_string();
+    let request_body = json!({ "pid_file": pid_path.to_string_lossy() }).to_string();
     let response = router()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/v1/tools/{오래_사는_툴_ID}/stream"))
+                .uri(format!("/v1/tools/{LONG_LIVED_TOOL_ID}/stream"))
                 .header("content-type", "application/json")
-                .body(Body::from(본문))
+                .body(Body::from(request_body))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let 스트림_본문 = response.into_body();
-    let 자식_pid = 자식_pid를_기다린다(&pid_path).await;
+    let stream_body = response.into_body();
+    let child_pid = wait_for_child_pid(&pid_path).await;
 
     // When: the consumer hangs up — dropping the body is exactly what a
     // closed connection does.
-    drop(스트림_본문);
+    drop(stream_body);
 
     // Then
-    let 종료됨 = 프로세스_종료를_기다린다(자식_pid).await;
-    if !종료됨 {
+    let exited = wait_for_process_exit(child_pid).await;
+    if !exited {
         let _ = std::process::Command::new("kill")
-            .args(["-KILL", &자식_pid.to_string()])
+            .args(["-KILL", &child_pid.to_string()])
             .status();
     }
     let _ = std::fs::remove_file(&pid_path);
     assert!(
-        종료됨,
-        "연결이 끊겼는데 자식(pid={자식_pid})이 {자식_종료_대기:?} 동안 살아 있었다"
+        exited,
+        "connection dropped but child (pid={child_pid}) stayed alive for {CHILD_EXIT_TIMEOUT:?}"
     );
 }

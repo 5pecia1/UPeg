@@ -1,9 +1,10 @@
-//! TUI 표면의 소스 인접 테스트. 프로덕션 모듈이 State/Action 머신,
-//! ratatui 렌더 함수, I/O 래퍼 `serve`에 집중할 수 있도록 이 형제 파일로
-//! 분리했다.
+//! Source-adjacent tests for the TUI surface. Split into this sibling
+//! file so the production module can focus on the State/Action machine,
+//! the ratatui render functions, and the `serve` I/O wrapper.
 //!
-//! 테스트 범위: fixture 기반 커서/폼 동작(인벤토리 결합 없음), 키/마우스
-//! 라우팅, 레이아웃 헬퍼, 표면 게이팅, 매니페스트 텍스트 렌더링.
+//! Test scope: fixture-based cursor/form behavior (no inventory
+//! coupling), key/mouse routing, layout helpers, surface gating, and
+//! manifest text rendering.
 
 use crate::domain::execution::dispatch::Outcome;
 use crate::surfaces::tui::model::{
@@ -21,11 +22,11 @@ use upeg_core::{
 };
 
 pub(crate) fn fresh() -> State {
-    // 2단계 이후 State는 원래 `pegboard::load_state`를 통해 디스크에 있던
-    // 보드/레이아웃을 캐시한다. 필터 순환/포커스 동작을 검증하는 테스트는
-    // 보드가 적어도 하나 필요하므로 `default_state`(dev / trading /
-    // personal)로 준비한다. *빈* 보드 집합이 필요한 테스트는 State를
-    // 명시적으로 만들어야 한다.
+    // Since phase 2, State caches the on-disk boards/layouts originally
+    // loaded via `pegboard::load_state`. Tests that verify filter
+    // cycling/focus behavior need at least one board, so we seed with
+    // `default_state` (dev / trading / personal). Tests that need an
+    // *empty* board set must build State explicitly.
     let snapshot = upeg_sources::pegboard::default_state();
     State {
         boards: snapshot.boards,
@@ -35,7 +36,7 @@ pub(crate) fn fresh() -> State {
 }
 
 #[test]
-fn replace_pegboard는_외부_보드를_캐시에_반영하고_현재_보드를_유지한다() {
+fn replace_pegboard_caches_external_boards_and_keeps_current_board() {
     let mut s = fresh();
     s.filters.select_board("dev");
     s.filters.select_tag("convert");
@@ -56,7 +57,7 @@ fn replace_pegboard는_외부_보드를_캐시에_반영하고_현재_보드를_
         s.board_filter_options()
             .iter()
             .any(|option| option == "gui"),
-        "외부에서 추가된 보드는 다음 프레임의 필터 옵션에 보여야 한다"
+        "an externally added board must appear in the next frame's filter options"
     );
     assert_eq!(s.filters.board.as_deref(), Some("dev"));
     assert_eq!(s.board_cursor, 0);
@@ -64,12 +65,12 @@ fn replace_pegboard는_외부_보드를_캐시에_반영하고_현재_보드를_
         s.tag_filter_options()
             .iter()
             .any(|option| option == "convert"),
-        "현재 보드에 유효한 tag filter는 유지되어야 한다"
+        "a tag filter still valid on the current board must be kept"
     );
 }
 
 #[test]
-fn replace_pegboard는_사라진_보드_필터를_all로_되돌린다() {
+fn replace_pegboard_resets_removed_board_filter_to_all() {
     let mut s = fresh();
     s.filters.select_board("dev");
     s.cursor = usize::MAX;
@@ -90,14 +91,14 @@ fn replace_pegboard는_사라진_보드_필터를_all로_되돌린다() {
 
     assert!(
         s.filters.board.is_none(),
-        "외부에서 현재 보드가 삭제되면 stale board filter를 유지하면 안 된다"
+        "when the current board is removed externally, the stale board filter must not be kept"
     );
     assert_eq!(s.board_cursor, 0);
     assert!(s.cursor < s.visible_placements().len());
 }
 
 #[test]
-fn 외부_pegboard_reload는_진행_중인_보드_편집과_move_mode에서_보류된다() {
+fn external_pegboard_reload_is_deferred_during_board_edits_and_move_mode() {
     let mut s = fresh();
     assert!(s.can_reload_external_pegboard());
 
@@ -143,7 +144,7 @@ fn 외부_pegboard_reload는_진행_중인_보드_편집과_move_mode에서_보�
     });
     assert!(
         !s.can_reload_external_pegboard(),
-        "리사이즈 프리뷰 중에도 외부 pegboard reload는 보류되어야 한다"
+        "external pegboard reload must also be deferred during a resize preview"
     );
 }
 
@@ -162,17 +163,17 @@ fn layout_ids_by_position(state: &State, board: &str) -> Vec<String> {
 
 fn string_field(name: &str, required: bool) -> InputFieldSpec {
     InputFieldSpec::new(
-        InputName::new(name).expect("테스트 입력 이름"),
+        InputName::new(name).expect("test input name"),
         None,
         None,
         required,
         InputKind::String,
     )
-    .expect("테스트 문자열 필드")
+    .expect("test string field")
 }
 
 fn string_form(name: &str, value: &str, required: bool) -> TuiFormState {
-    let spec = InputSpec::new(vec![string_field(name, required)]).expect("테스트 입력 명세");
+    let spec = InputSpec::new(vec![string_field(name, required)]).expect("test input spec");
     let mut form = TuiFormState::new(spec);
     set_form_text(&mut form, 0, value);
     form
@@ -186,8 +187,8 @@ fn set_form_text(form: &mut TuiFormState, index: usize, value: &str) {
     }
 }
 
-/// 커서/폼 동작이 인벤토리에 등록된 항목에 의존하지 않도록 고정된 가짜
-/// 도구 목록을 만든다.
+/// Builds a fixed fake tool list so cursor/form behavior does not
+/// depend on inventory-registered entries.
 pub(crate) fn fixture_tools() -> [&'static ToolMeta; 3] {
     static SIMPLE: ToolMeta = ToolMeta {
         id: "test.simple",
@@ -199,6 +200,8 @@ pub(crate) fn fixture_tools() -> [&'static ToolMeta; 3] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -215,17 +218,19 @@ pub(crate) fn fixture_tools() -> [&'static ToolMeta; 3] {
         description: "Tool that takes an input string",
         input_spec: upeg_core::InputSpec::new(vec![
             InputFieldSpec::new(
-                InputName::new("input").expect("테스트 입력 이름"),
+                InputName::new("input").expect("test input name"),
                 None,
                 Some("Some text".to_string()),
                 true,
                 InputKind::String,
             )
-            .expect("테스트 입력 필드"),
+            .expect("test input field"),
         ])
-        .expect("테스트 입력 명세"),
+        .expect("test input spec"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -243,6 +248,8 @@ pub(crate) fn fixture_tools() -> [&'static ToolMeta; 3] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -264,6 +271,8 @@ fn span_fixture_tools() -> [&'static ToolMeta; 4] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2,
@@ -281,6 +290,8 @@ fn span_fixture_tools() -> [&'static ToolMeta; 4] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -298,6 +309,8 @@ fn span_fixture_tools() -> [&'static ToolMeta; 4] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -315,6 +328,8 @@ fn span_fixture_tools() -> [&'static ToolMeta; 4] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -336,6 +351,8 @@ fn wrapped_grid_fixture_tools() -> [&'static ToolMeta; 5] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -353,6 +370,8 @@ fn wrapped_grid_fixture_tools() -> [&'static ToolMeta; 5] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -370,6 +389,8 @@ fn wrapped_grid_fixture_tools() -> [&'static ToolMeta; 5] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -387,6 +408,8 @@ fn wrapped_grid_fixture_tools() -> [&'static ToolMeta; 5] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -404,6 +427,8 @@ fn wrapped_grid_fixture_tools() -> [&'static ToolMeta; 5] {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -449,51 +474,53 @@ mod editing;
 mod narrow_layout;
 mod navigation;
 
-/// 보드 필터 옵션에 "all"이.visible로 표시되지 않지만 실제 보드는 표시되어야 한다.
-/// Flutter GUI와 동일하게 보드 막대에 "all" 칩이 렌더링되지 않아야 한다.
+/// Board filter options must not show "all" as a visible option, but
+/// must list the real boards. Like the Flutter GUI, the board bar must
+/// not render an "all" chip.
 #[test]
-fn 보드_필터_옵션은_all이_아닌_실제_보드만_반환한다() {
+fn board_filter_options_return_only_real_boards_not_all() {
     let s = fresh();
     let options = s.board_filter_options();
 
-    // "all"은.visible 옵션에 있으면 안 된다 (내부 상태로만 존재)
+    // "all" must not be a visible option (it exists only as internal
+    // state)
     assert!(
         !options.contains(&"all".to_string()),
-        "보드 필터 옵션에 'all'이.visible 있으면 안 된다"
+        "board filter options must not contain 'all'"
     );
 
-    // 하지만 실제 보드 키는 존재해야 한다
+    // But the real board keys must be present
     assert!(
         options.iter().any(|o| o == "dev"),
-        "보드 필터 옵션에 'dev'가 있어야 한다"
+        "board filter options must contain 'dev'"
     );
     assert!(
         options.iter().any(|o| o == "trading"),
-        "보드 필터 옵션에 'trading'이 있어야 한다"
+        "board filter options must contain 'trading'"
     );
     assert!(
         options.iter().any(|o| o == "personal"),
-        "보드 필터 옵션에 'personal'이 있어야 한다"
+        "board filter options must contain 'personal'"
     );
 }
 
-/// 태그 필터 옵션은 여전히 "all"을 포함해야 한다 (보드 필터와 다르게).
+/// Tag filter options must still include "all" (unlike board filters).
 #[test]
-fn 태그_필터_옵션은_all을_여전히_포함한다() {
+fn tag_filter_options_still_include_all() {
     let s = fresh();
     let options = s.tag_filter_options();
 
-    // 태그 필터는 "all"을 계속 표시해야 한다 (Flutter GUI와 동일하게)
+    // The tag filter must keep showing "all" (same as the Flutter GUI)
     assert!(
         options.contains(&"all".to_string()),
-        "태그 필터 옵션에 'all'이 있어야 한다"
+        "tag filter options must contain 'all'"
     );
 }
 
-/// 숫자 키 '0'은 여전히 전체 보드 필터(BoardFilter::All)로 돌아가야 한다.
-/// clear 보드 동작이 계속 작동해야 한다.
+/// The digit key '0' must still return to the all-boards filter
+/// (BoardFilter::All). The clear-board behavior must keep working.
 #[test]
-fn 숫자_0_키는_전체_보드_필터로_돌아간다() {
+fn digit_0_key_returns_to_all_boards_filter() {
     let mut s = fresh();
     s.filters.select_board("dev");
 
@@ -501,39 +528,41 @@ fn 숫자_0_키는_전체_보드_필터로_돌아간다() {
 
     assert!(
         result.is_some() && result.unwrap().is_none(),
-        "숫자 0 키는 BoardFilter::All을 반환해야 한다"
+        "digit 0 key must return BoardFilter::All"
     );
 }
 
-/// 숫자 키 '1'은 첫 번째 실제 보드를 선택해야 한다 (인덱스 재매핑).
-/// 이전: '1'은 "all"을 가리켰다, 이후: '1'은 첫 번째 보드("dev")를 가리킨다.
+/// The digit key '1' must select the first real board (index remapping).
+/// Before: '1' pointed at "all"; after: '1' points at the first board
+/// ("dev").
 #[test]
-fn 숫자_1_키는_첫_번째_실제_보드를_선택한다() {
+fn digit_1_key_selects_first_real_board() {
     let s = fresh();
 
     let result = s.board_for_digit('1');
 
     assert!(
         result.is_some() && result.unwrap().as_deref() == Some("dev"),
-        "숫자 1 키는 첫 번째 보드('dev')를 반환해야 한다"
+        "digit 1 key must return the first board ('dev')"
     );
 }
 
-/// 'b' 키로 보드 필터를 순환할 때, 현재가 All 상태이면 첫 번째 실제 보드로 이동해야 한다.
+/// When cycling the board filter with 'b', if current is All it must
+/// move to the first real board.
 #[test]
-fn 보드_순환은_all에서_첫_번째_실제_보드로_이동한다() {
+fn board_cycle_moves_from_all_to_first_real_board() {
     use crate::surfaces::tui::model::cycle_board_filter;
 
     let s = fresh();
     let options = s.board_filter_options();
 
-    // All 상태에서 순환
+    // Cycle from the All state
     let current = BoardFilter::All;
     let next = cycle_board_filter(&current, &options);
 
-    // 첫 번째 실제 보드로 순환해야 함
+    // Must cycle to the first real board
     assert!(
         next.as_deref() == Some("dev"),
-        "All에서 순환하면 첫 번째 보드('dev')로 이동해야 한다"
+        "cycling from All must move to the first board ('dev')"
     );
 }

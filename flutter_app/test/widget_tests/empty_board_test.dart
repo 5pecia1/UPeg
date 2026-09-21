@@ -20,7 +20,7 @@ Widget _harness(VoidCallback onOpenPalette) {
 
 void main() {
   group('EmptyBoard', () {
-    testWidgets('EmptyBoard_는_안내_텍스트와_CTA_버튼을_표시한다', (tester) async {
+    testWidgets('EmptyBoard_shows_hint_text_and_a_CTA_button', (tester) async {
       await tester.pumpWidget(_harness(() {}));
 
       expect(find.byKey(const Key('empty-board-card')), findsOneWidget);
@@ -29,7 +29,7 @@ void main() {
       expect(find.text(i18nEn(emptyBoardCtaLabelKey)), findsOneWidget);
     });
 
-    testWidgets('EmptyBoard_의_CTA는_콜백을_호출한다', (tester) async {
+    testWidgets('EmptyBoard_CTA_invokes_the_callback', (tester) async {
       int taps = 0;
       await tester.pumpWidget(_harness(() => taps += 1));
 

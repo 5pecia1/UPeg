@@ -306,29 +306,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 셀은_행_열_순서로_파싱된다() {
-        let cell = BoardCell::parse("2,3").expect("셀 파싱");
-        assert_eq!(cell.y(), 2, "첫 값은 행이다");
-        assert_eq!(cell.x(), 3, "둘째 값은 열이다");
+    fn a_cell_parses_in_row_col_order() {
+        let cell = BoardCell::parse("2,3").expect("cell parse");
+        assert_eq!(cell.y(), 2, "the first value is the row");
+        assert_eq!(cell.x(), 3, "the second value is the column");
     }
 
     #[test]
-    fn 셀은_공백을_허용한다() {
+    fn a_cell_allows_whitespace() {
         assert_eq!(
-            BoardCell::parse(" 1 , 4 ").expect("셀 파싱"),
+            BoardCell::parse(" 1 , 4 ").expect("cell parse"),
             BoardCell { row: 1, col: 4 }
         );
     }
 
     #[test]
-    fn 잘못된_셀은_거부된다() {
+    fn malformed_cells_are_rejected() {
         for raw in ["", "1", "1,2,3", "a,b", "-1,0", "1;2"] {
             assert!(
                 matches!(
                     BoardCell::parse(raw),
                     Err(BoardPinError::InvalidCell { .. })
                 ),
-                "{raw:?}는 거부되어야 한다"
+                "{raw:?} must be rejected"
             );
         }
     }
@@ -349,6 +349,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -376,7 +378,7 @@ mod tests {
     /// desktop-only tool was reported as callable from the CLI. Every
     /// verb must derive the same answer from the toolbox.
     #[test]
-    fn unpin_json은_cli에_없는_도구를_visible로_보고하지_않는다() {
+    fn unpin_json_does_not_report_a_tool_absent_from_cli_as_visible() {
         let _guard = desktop_only_tool();
         let (state, board) = board_with_no_pins();
 
@@ -386,7 +388,7 @@ mod tests {
         assert_eq!(
             value["visibleOnCli"],
             serde_json::Value::Bool(false),
-            "desktop 전용 도구는 cli 에서 보이지 않는다: {rendered}"
+            "a desktop-only tool is not visible on cli: {rendered}"
         );
         assert_eq!(value["action"], PinVerb::Unpinned.label());
     }
@@ -394,7 +396,7 @@ mod tests {
     /// The text rendering's counterpart: an unpin leaves no pin behind,
     /// so the "this pin will not show up" note has nothing to describe.
     #[test]
-    fn unpin_텍스트는_핀이_사라진_뒤_가시성_주의를_붙이지_않는다() {
+    fn unpin_text_appends_no_visibility_note_after_the_pin_is_gone() {
         let _guard = desktop_only_tool();
         let (state, board) = board_with_no_pins();
 
@@ -402,12 +404,12 @@ mod tests {
 
         assert!(
             !rendered.contains("not registered on the cli surface"),
-            "사라진 핀에 대해 가시성 주의를 붙이면 안 된다: {rendered}"
+            "must not attach a visibility note for a pin that is gone: {rendered}"
         );
     }
 
     #[test]
-    fn units는_pegboard_units를_그대로_따른다() {
+    fn units_follow_pegboard_units_verbatim() {
         assert_eq!(parse_units("U2").expect("U2").grid_span(), (2, 1));
         assert_eq!(parse_units("u2t").expect("U2T").grid_span(), (1, 2));
         assert!(matches!(

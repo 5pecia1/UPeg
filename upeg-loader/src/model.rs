@@ -1,4 +1,5 @@
 pub use boards::BoardEntryToml;
+pub use presentation::PresentationToml;
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -9,13 +10,12 @@ use upeg_core::{
 
 mod boards;
 mod input;
-
+mod presentation;
 pub(crate) fn chain_step_key(position: usize, id: Option<&str>) -> String {
     id.map(str::trim)
         .filter(|s| !s.is_empty())
         .map_or_else(|| format!("step{}", position + 1), str::to_string)
 }
-
 /// Root of the Toolkit TOML manifest loaded from `~/.upeg/toolkits/*.toml`.
 ///
 /// This is the top-level shape that TOML authors write. The `id`, `tools`,
@@ -49,7 +49,6 @@ pub struct ToolkitToml {
     #[serde(default)]
     pub boards: Vec<BoardEntryToml>,
 }
-
 /// One tool entry inside a toolkit manifest's `[[tools]]` array.
 ///
 /// This shape contains every user-authored field for a single tool: base
@@ -85,6 +84,12 @@ pub struct ToolEntryToml {
     /// and omitted when `outputs` is empty.
     #[serde(default)]
     pub primary_output_id: Option<String>,
+    /// Optional author-declared side-effect classification.
+    #[serde(default)]
+    pub effect: Option<String>,
+    /// Optional structured result presentation metadata.
+    #[serde(default)]
+    pub presentation: Option<PresentationToml>,
     /// UI rendering hint only, such as `Inline`, `Modal`, or `Embed`; runtime
     /// adapter selection is controlled by `invoker`.
     #[serde(default)]
@@ -266,6 +271,10 @@ pub struct ToolToml {
     /// and omitted when `outputs` is empty.
     #[serde(default)]
     pub primary_output_id: Option<String>,
+    #[serde(default)]
+    pub effect: Option<String>,
+    #[serde(default)]
+    pub presentation: Option<PresentationToml>,
     /// Pin kind hint for UI surfaces, such as `Inline`, `Modal`, or `Embed`.
     #[serde(default)]
     pub pin: Option<String>,

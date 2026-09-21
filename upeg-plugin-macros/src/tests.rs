@@ -13,10 +13,10 @@ fn expect_err<T>(result: syn::Result<T>, panic_message: &str) -> syn::Error {
     }
 }
 
-// ─── #[tool] 확장 — 토큰 레벨 ─────────────────────────────────────
+// ─── #[tool] expansion — token level ──────────────────────────
 
 #[test]
-fn 도구_선언_함수는_export_심볼과_pegboard_유닛을_방출한다() {
+fn tool_decl_fn_emits_export_symbol_and_pegboard_units() {
     let args: ToolArgs = syn::parse_str(
         r#"id = "greet.hello", toolkit = "greet", pegboard_units = U1, inputs = [ required name: String = "Person to greet" ]"#,
     )
@@ -42,7 +42,7 @@ fn 도구_선언_함수는_export_심볼과_pegboard_유닛을_방출한다() {
 }
 
 #[test]
-fn file_정책은_plugin_input_field에_손실없이_방출된다() {
+fn file_policy_emits_losslessly_into_plugin_input_field() {
     let args: ToolArgs = syn::parse_str(
         r#"id = "files.inspect", toolkit = "files", pegboard_units = U1, inputs = [
             required input: File(
@@ -53,13 +53,13 @@ fn file_정책은_plugin_input_field에_손실없이_방출된다() {
             )
         ]"#,
     )
-    .expect("File 정책 문법을 파싱한다");
+    .expect("parse the File policy grammar");
     let item_fn: ItemFn =
         syn::parse_str("pub fn inspect(input: serde_json::Value) -> String { input.to_string() }")
-            .expect("도구 함수를 파싱한다");
+            .expect("parse the tool function");
 
     let tokens = build_tool_decl_fn(&args, &item_fn, "Inspect", None)
-        .expect("정책이 있는 선언 함수를 생성한다")
+        .expect("generate the decl fn with the policy")
         .to_string();
 
     assert!(tokens.contains("PluginInputKind :: File"));
@@ -73,19 +73,19 @@ fn file_정책은_plugin_input_field에_손실없이_방출된다() {
 }
 
 #[test]
-fn 정책이_없는_file은_plugin_file_정책을_생략한다() {
+fn file_without_policy_omits_plugin_file_policy() {
     let args: ToolArgs = syn::parse_str(
         r#"id = "files.inspect", toolkit = "files", pegboard_units = U1, inputs = [
             required input: File
         ]"#,
     )
-    .expect("정책 없는 File 문법을 파싱한다");
+    .expect("parse the policy-free File grammar");
     let item_fn: ItemFn =
         syn::parse_str("pub fn inspect(input: serde_json::Value) -> String { input.to_string() }")
-            .expect("도구 함수를 파싱한다");
+            .expect("parse the tool function");
 
     let tokens = build_tool_decl_fn(&args, &item_fn, "Inspect", None)
-        .expect("정책 없는 선언 함수를 생성한다")
+        .expect("generate the decl fn without a policy")
         .to_string();
 
     assert!(tokens.contains("PluginInputKind :: File"));
@@ -94,7 +94,7 @@ fn 정책이_없는_file은_plugin_file_정책을_생략한다() {
 }
 
 #[test]
-fn export_심볼_이름은_고정_접두사를_따른다() {
+fn export_symbol_name_follows_fixed_prefix() {
     assert_eq!(EXPORT_FN_PREFIX, "__upeg_export_");
     assert_eq!(DECL_FN_PREFIX, "__upeg_tool_decl_");
     let fn_ident: syn::Ident = syn::parse_str("greet_hello").unwrap();
@@ -102,7 +102,7 @@ fn export_심볼_이름은_고정_접두사를_따른다() {
 }
 
 #[test]
-fn export_래퍼는_필수_문자열_파라미터를_참조로_바꿔서_호출한다() {
+fn export_wrapper_calls_with_required_string_param_as_ref() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn greet_hello(name: &str) -> String { format!(\"Hello, {name}!\") }")
             .unwrap();
@@ -119,7 +119,7 @@ fn export_래퍼는_필수_문자열_파라미터를_참조로_바꿔서_호출�
 }
 
 #[test]
-fn export_래퍼는_option_파라미터를_그대로_전달한다() {
+fn export_wrapper_passes_option_param_through() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn maybe_double(n: Option<i32>) -> Option<i32> { n.map(|x| x * 2) }")
             .unwrap();
@@ -132,7 +132,7 @@ fn export_래퍼는_option_파라미터를_그대로_전달한다() {
 }
 
 #[test]
-fn export_래퍼는_option_문자열_파라미터를_as_deref로_전달한다() {
+fn export_wrapper_passes_option_string_param_via_as_deref() {
     let item_fn: ItemFn = syn::parse_str(
         "pub fn maybe_shout(text: Option<&str>) -> String { text.unwrap_or(\"\").to_string() }",
     )
@@ -144,10 +144,10 @@ fn export_래퍼는_option_문자열_파라미터를_as_deref로_전달한다() 
     assert!(tokens.contains("maybe_shout (text . as_deref ())"));
 }
 
-// ─── upeg_plugin! 확장 — 토큰 레벨 ────────────────────────────────
+// ─── upeg_plugin! expansion — token level ────────────────────
 
 #[test]
-fn 플러그인_매크로는_manifest_export를_방출하고_각_도구_선언을_호출한다() {
+fn plugin_macro_emits_manifest_export_and_calls_each_tool_decl() {
     let args: PluginArgs =
         syn::parse_str(r#"toolkit: "greet", tools: [greet_hello, greet_bye]"#).unwrap();
 
@@ -161,7 +161,7 @@ fn 플러그인_매크로는_manifest_export를_방출하고_각_도구_선언�
 }
 
 #[test]
-fn 플러그인_매크로는_태그와_설명을_포함한다() {
+fn plugin_macro_includes_tags_and_description() {
     let args: PluginArgs = syn::parse_str(
         r#"toolkit: "greet", tags: ["demo", "wasm"], description: "Say hi.", tools: [greet_hello]"#,
     )
@@ -176,7 +176,7 @@ fn 플러그인_매크로는_태그와_설명을_포함한다() {
 }
 
 #[test]
-fn 플러그인_매크로는_빈_도구_목록을_거부한다() {
+fn plugin_macro_rejects_empty_tool_list() {
     let err = expect_err(
         syn::parse_str::<PluginArgs>(r#"toolkit: "greet", tools: []"#),
         "empty tools list must be rejected",
@@ -188,7 +188,7 @@ fn 플러그인_매크로는_빈_도구_목록을_거부한다() {
 }
 
 #[test]
-fn 플러그인_매크로는_중복된_도구_이름을_거부한다() {
+fn plugin_macro_rejects_duplicate_tool_names() {
     let err = expect_err(
         syn::parse_str::<PluginArgs>(r#"toolkit: "greet", tools: [greet_hello, greet_hello]"#),
         "duplicate tool idents must be rejected",
@@ -200,7 +200,7 @@ fn 플러그인_매크로는_중복된_도구_이름을_거부한다() {
 }
 
 #[test]
-fn 플러그인_매크로는_toolkit_누락을_거부한다() {
+fn plugin_macro_rejects_missing_toolkit() {
     let err = expect_err(
         syn::parse_str::<PluginArgs>("tools: [greet_hello]"),
         "missing toolkit must be rejected",
@@ -208,10 +208,10 @@ fn 플러그인_매크로는_toolkit_누락을_거부한다() {
     assert!(err.to_string().contains("toolkit"));
 }
 
-// ─── 금지된 키 — #[tool] ────────────────────────────────────────
+// ─── Forbidden keys — #[tool] ───────────────────────────────
 
 #[test]
-fn 금지된_invoker_키는_컴파일_에러다() {
+fn forbidden_invoker_key_is_compile_error() {
     let err = expect_err(
         syn::parse_str::<ToolArgs>(
             r#"id = "greet.hello", toolkit = "greet", pegboard_units = U1, invoker = Function"#,
@@ -226,7 +226,7 @@ fn 금지된_invoker_키는_컴파일_에러다() {
 }
 
 #[test]
-fn 금지된_boards_키는_컴파일_에러다() {
+fn forbidden_boards_key_is_compile_error() {
     let err = expect_err(
         syn::parse_str::<ToolArgs>(
             r#"id = "greet.hello", toolkit = "greet", pegboard_units = U1, boards = ["dev"]"#,
@@ -237,7 +237,7 @@ fn 금지된_boards_키는_컴파일_에러다() {
 }
 
 #[test]
-fn 금지된_source_키는_컴파일_에러다() {
+fn forbidden_source_key_is_compile_error() {
     let err = expect_err(
         syn::parse_str::<ToolArgs>(
             r#"id = "greet.hello", toolkit = "greet", pegboard_units = U1, source = Manual"#,
@@ -248,7 +248,7 @@ fn 금지된_source_키는_컴파일_에러다() {
 }
 
 #[test]
-fn pegboard_units_누락은_컴파일_에러다() {
+fn missing_pegboard_units_is_compile_error() {
     let err = expect_err(
         syn::parse_str::<ToolArgs>(r#"id = "greet.hello", toolkit = "greet""#),
         "missing pegboard_units must be rejected",
@@ -257,11 +257,11 @@ fn pegboard_units_누락은_컴파일_에러다() {
 }
 
 #[test]
-fn 알수없는_pegboard_units_값은_검증에서_거부된다() {
-    // 파싱 자체(`syn::parse_str::<ToolArgs>`)는 ident 문법만 확인하고,
-    // 값 검증은 `lib.rs`의 `tool()`에서 `validate_enum_ident`로 수행한다
-    // (upeg-macros와 동일한 파싱/검증 분리 구조 — `upeg_tool_grammar`가
-    // 그 검증 로직 자체의 커버리지를 담당한다).
+fn unknown_pegboard_units_value_is_rejected_at_validation() {
+    // Parsing itself (`syn::parse_str::<ToolArgs>`) only checks ident
+    // grammar; the value is validated by `validate_enum_ident` inside
+    // `tool()` in `lib.rs` (same parse/validate split as upeg-macros —
+    // `upeg_tool_grammar` covers the validation logic itself).
     let args: ToolArgs =
         syn::parse_str(r#"id = "greet.hello", toolkit = "greet", pegboard_units = U3"#).unwrap();
     assert_eq!(args.pegboard_units.to_string(), "U3");
@@ -275,10 +275,10 @@ fn 알수없는_pegboard_units_값은_검증에서_거부된다() {
     );
 }
 
-// ─── 시그니처 ⇄ inputs 검증 ──────────────────────────────────────
+// ─── Signature ⇄ inputs validation ──────────────────────────
 
 #[test]
-fn 필수_입력은_option이_아닌_파라미터를_요구한다() {
+fn required_input_requires_non_option_param() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn greet_hello(name: Option<String>) -> String { String::new() }")
             .unwrap();
@@ -295,7 +295,7 @@ fn 필수_입력은_option이_아닌_파라미터를_요구한다() {
 }
 
 #[test]
-fn 선택_입력은_option_파라미터를_요구한다() {
+fn optional_input_requires_option_param() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn greet_hello(name: String) -> String { String::new() }").unwrap();
     let inputs = vec![syn::parse_str("optional name: String").unwrap()];
@@ -311,7 +311,7 @@ fn 선택_입력은_option_파라미터를_요구한다() {
 }
 
 #[test]
-fn 시그니처_검증은_개수가_일치하지_않으면_거부한다() {
+fn signature_validation_rejects_arity_mismatch() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn text_repeat(input: &str, n: usize) -> String { String::new() }")
             .unwrap();
@@ -325,7 +325,7 @@ fn 시그니처_검증은_개수가_일치하지_않으면_거부한다() {
 }
 
 #[test]
-fn 시그니처_검증은_이름이_다르면_거부한다() {
+fn signature_validation_rejects_name_mismatch() {
     let item_fn: ItemFn = syn::parse_str(
         "pub fn text_contains(input: &str, pattern: &str) -> String { String::new() }",
     )
@@ -343,7 +343,7 @@ fn 시그니처_검증은_이름이_다르면_거부한다() {
 }
 
 #[test]
-fn 시그니처_검증은_타입_계열이_다르면_거부한다() {
+fn signature_validation_rejects_type_family_mismatch() {
     let item_fn: ItemFn =
         syn::parse_str("pub fn random_hex_bytes(n: usize) -> String { String::new() }").unwrap();
     let inputs = vec![syn::parse_str("required n: String").unwrap()];
@@ -356,7 +356,7 @@ fn 시그니처_검증은_타입_계열이_다르면_거부한다() {
 }
 
 #[test]
-fn 시그니처_검증은_일치하면_분류된_파라미터를_반환한다() {
+fn signature_validation_returns_classified_params_on_match() {
     let item_fn: ItemFn = syn::parse_str(
         "pub fn greet_hello(name: &str, shout: Option<bool>) -> String { String::new() }",
     )
@@ -373,10 +373,10 @@ fn 시그니처_검증은_일치하면_분류된_파라미터를_반환한다() 
     assert_eq!(params[1].name.to_string(), "shout");
 }
 
-// ─── 도구 식별자 / 표시 라벨 재사용 확인 (grammar 배선) ────────────
+// ─── Tool identity / display label reuse check (grammar wiring) ─
 
 #[test]
-fn 도구_식별자_검증은_grammar_크레이트에서_재사용된다() {
+fn tool_identity_validation_reused_from_grammar_crate() {
     let id: LitStr = syn::parse_str("\"foo.bar\"").unwrap();
     let toolkit: LitStr = syn::parse_str("\"baz\"").unwrap();
     let err = validate_tool_identity(&id, &toolkit)
@@ -385,15 +385,15 @@ fn 도구_식별자_검증은_grammar_크레이트에서_재사용된다() {
 }
 
 #[test]
-fn 표시_라벨_슬러그_변환은_grammar_크레이트에서_재사용된다() {
+fn display_label_slug_conversion_reused_from_grammar_crate() {
     assert_eq!(display_label_from_slug("greet.hello"), "Hello");
     assert!(rustdoc_first_line(&syn::parse_str("pub fn f() {}").unwrap()).is_none());
 }
 
-// ─── 인라인 제약은 플러그인 입력 계약에서 지원하지 않는다 ──────────
+// ─── Inline constraints unsupported in the plugin input contract ─
 
 #[test]
-fn 숫자_인라인_제약은_플러그인_입력에서_거부된다() {
+fn numeric_inline_constraints_are_rejected_on_plugin_input() {
     let args: ToolArgs = syn::parse_str(
         r#"id = "num.port", toolkit = "num", pegboard_units = U1, inputs = [ required port: Integer(min=1, max=65535) ]"#,
     )

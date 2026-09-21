@@ -38,7 +38,7 @@ ProviderContainer _container({
 
 void main() {
   group('paletteProvider', () {
-    test('paletteProvider는_빈_쿼리도_검색_loader에_전달한다', () async {
+    test('paletteProvider_passes_even_empty_query_to_search_loader', () async {
       String? observed;
       final container = _container(onSearch: (query) => observed = query);
       addTearDown(container.dispose);
@@ -49,18 +49,21 @@ void main() {
       expect(result, hasLength(1));
     });
 
-    test('paletteProvider는_공백만_있는_쿼리도_검색_loader에_전달한다', () async {
-      String? observed;
-      final container = _container(onSearch: (query) => observed = query);
-      addTearDown(container.dispose);
+    test(
+      'paletteProvider_passes_whitespace_only_query_to_search_loader',
+      () async {
+        String? observed;
+        final container = _container(onSearch: (query) => observed = query);
+        addTearDown(container.dispose);
 
-      container.read(paletteQueryProvider.notifier).state = '   ';
-      final result = await container.read(paletteResultsProvider.future);
-      expect(observed, '   ');
-      expect(result, hasLength(1));
-    });
+        container.read(paletteQueryProvider.notifier).state = '   ';
+        final result = await container.read(paletteResultsProvider.future);
+        expect(observed, '   ');
+        expect(result, hasLength(1));
+      },
+    );
 
-    test('paletteProvider는_쿼리를_FRB로_전달한다', () async {
+    test('paletteProvider_forwards_query_to_FRB', () async {
       String? observed;
       final container = _container(onSearch: (q) => observed = q);
       addTearDown(container.dispose);

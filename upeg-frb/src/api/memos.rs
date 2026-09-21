@@ -64,7 +64,7 @@ mod tests {
     /// store database file); this test only asserts the DTO shape
     /// conversion stays one-to-one.
     #[test]
-    fn memo_entry는_path_round_trip을_정확히_보존한다() {
+    fn memo_entry_preserves_path_round_trip_exactly() {
         let dir = std::env::temp_dir().join(format!("upeg-frb-memos-dto-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("tempdir");
@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn 빈_엔트리_벡터_저장은_빈_맵으로_왕복한다() {
+    fn saving_empty_entries_round_trips_to_empty_map() {
         let dir = std::env::temp_dir().join(format!("upeg-frb-memos-empty-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("tempdir");

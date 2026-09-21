@@ -26,7 +26,9 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 void main() {
   group('App boot ↔ instance lock seam', () {
-    testWidgets('App_boot은_instance_lock_경로를_FRB에_위임한다', (tester) async {
+    testWidgets('app_boot_delegates_the_instance_lock_path_to_frb', (
+      tester,
+    ) async {
       // The `appInitRunnerProvider` IS the Dart-side instance-lock
       // boundary — `initApp()` (the default runner) is the only public
       // call that acquires the OS lock. If a future refactor drops the
@@ -62,7 +64,7 @@ void main() {
       expect(find.byType(SplashPage), findsOneWidget);
     });
 
-    test('Tray_Quit은_shutdown을_호출해_instance_lock을_해제한다', () async {
+    test('tray_quit_invokes_shutdown_to_release_the_instance_lock', () async {
       // A01/A02 — the OS lock file lives at `~/.upeg/desktop.lock` and is
       // released by FRB `shutdown()`. The tray Quit path MUST invoke
       // `shutdown` even when the user-facing window close throws, so the

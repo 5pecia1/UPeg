@@ -82,7 +82,7 @@ fn base_parms(k: i64) -> lopdf::Dictionary {
 }
 
 #[test]
-fn ccitt_group4_스트림은_원본_픽셀로_돌아온다() {
+fn ccitt_group4_stream_round_trips_to_source_pixels() {
     let rows = fixture_rows();
     let encoded = CcittEncoder {
         coding: Coding::Group4,
@@ -97,7 +97,7 @@ fn ccitt_group4_스트림은_원본_픽셀로_돌아온다() {
 }
 
 #[test]
-fn ccitt_eol_없는_group3_1d_스트림은_원본_픽셀로_돌아온다() {
+fn ccitt_group3_1d_without_eol_round_trips_to_source_pixels() {
     // `/K 0` with `/EndOfLine` left at its `false` default — the shape the old
     // decoder refused, because it ate an EOL that was not there and so
     // desynchronized from bit zero.
@@ -115,7 +115,7 @@ fn ccitt_eol_없는_group3_1d_스트림은_원본_픽셀로_돌아온다() {
 }
 
 #[test]
-fn ccitt_eol_붙은_group3_1d_스트림도_원본_픽셀로_돌아온다() {
+fn ccitt_group3_1d_with_eol_round_trips_to_source_pixels() {
     // The other side of `/EndOfLine`: the same rows, this time with an EOL
     // before every line and `/EndOfLine true` to declare it.
     //
@@ -140,7 +140,7 @@ fn ccitt_eol_붙은_group3_1d_스트림도_원본_픽셀로_돌아온다() {
 }
 
 #[test]
-fn ccitt_혼합_1d_2d_group3_스트림은_원본_픽셀로_돌아온다() {
+fn ccitt_group3_mixed_1d_2d_round_trips_to_source_pixels() {
     // `/K > 0`: each line carries a tag bit choosing 1-D or 2-D. Previously
     // refused outright as "not implemented".
     let rows = fixture_rows();
@@ -157,7 +157,7 @@ fn ccitt_혼합_1d_2d_group3_스트림은_원본_픽셀로_돌아온다() {
 }
 
 #[test]
-fn ccitt_encoded_byte_align_스트림은_원본_픽셀로_돌아온다() {
+fn ccitt_encoded_byte_align_round_trips_to_source_pixels() {
     // `/EncodedByteAlign true` pads every row out to a byte boundary. The
     // fixture width is not a multiple of 8, so the padding is real: a decoder
     // ignoring the flag would read it as image data. Previously refused.
@@ -181,7 +181,7 @@ fn ccitt_encoded_byte_align_스트림은_원본_픽셀로_돌아온다() {
 }
 
 #[test]
-fn ccitt_black_is_1은_출력_명암을_뒤집는다() {
+fn ccitt_black_is_1_inverts_output_polarity() {
     // `/BlackIs1 true` says the coded black runs are the 1 samples, and 1 is
     // white in DeviceGray — so the same stream must come back inverted. This is
     // the polarity check on `invert_black`.

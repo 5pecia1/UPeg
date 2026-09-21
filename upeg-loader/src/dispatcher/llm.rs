@@ -165,7 +165,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn llm_provider_문자열은_provider_kind로_파싱된다() {
+    fn llm_provider_string_parses_into_provider_kind() {
         assert_eq!("".parse::<ProviderKind>().unwrap(), ProviderKind::Echo);
         assert_eq!("echo".parse::<ProviderKind>().unwrap(), ProviderKind::Echo);
         assert_eq!(
@@ -187,20 +187,20 @@ mod tests {
     }
 
     #[test]
-    fn 알_수_없는_provider는_에러를_반환한다() {
+    fn unknown_provider_returns_error() {
         let err = "azure".parse::<ProviderKind>().unwrap_err();
         assert!(err.to_string().contains("llm provider `azure`"));
         assert!(err.to_string().contains("provider = \"openai\""));
     }
 
     #[test]
-    fn tool_위임_provider의_빈_아이디는_에러를_반환한다() {
+    fn tool_delegate_provider_with_empty_id_returns_error() {
         let err = "tool:  ".parse::<ProviderKind>().unwrap_err();
         assert_eq!(err, ProviderKindParseError::EmptyDelegateToolId);
     }
 
     #[test]
-    fn openai_provider는_credential을_해석해_요청을_보낸다() {
+    fn openai_provider_resolves_credential_and_sends_request() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind mock server");
         let addr = listener.local_addr().expect("local addr");
         let handle = std::thread::spawn(move || {
@@ -261,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn openai_provider는_모델이_없으면_에러를_반환한다() {
+    fn openai_provider_without_model_returns_error() {
         let err = run_openai_chat_completion(OpenAiRequest {
             base_url: OPENAI_DEFAULT_BASE_URL,
             model: "",
@@ -273,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn openai_provider는_credential이_없으면_에러를_반환한다() {
+    fn openai_provider_without_credential_returns_error() {
         let err = run_openai_chat_completion(OpenAiRequest {
             base_url: OPENAI_DEFAULT_BASE_URL,
             model: "gpt-test",
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn openai_provider는_잘못된_형식의_응답에_에러를_반환한다() {
+    fn openai_provider_malformed_response_returns_error() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind mock server");
         let addr = listener.local_addr().expect("local addr");
         let handle = std::thread::spawn(move || {
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn openai_provider는_choices가_없는_응답에_에러를_반환한다() {
+    fn openai_provider_response_without_choices_returns_error() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind mock server");
         let addr = listener.local_addr().expect("local addr");
         let handle = std::thread::spawn(move || {

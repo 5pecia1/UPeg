@@ -1,43 +1,105 @@
 ---
 okf_version: "0.2"
+title: Universal Pegboard
+description: "Pin a tool once, call it from anywhere — one Tool definition on CLI, TUI, Desktop, PWA, Chrome extension, MCP, and HTTP."
+template: home.html
 ---
 
-# Universal Pegboard 지식 번들
+# Universal Pegboard
 
-하나의 Tool 정의가 7개 surface(CLI / TUI / Desktop / PWA / Chrome ext / MCP / HTTP)에서
-동일하게 동작하는 Rust 워크스페이스의 계약 문서다.
+upeg turns the commands, conversions, and checks you reach for every day into
+**Tools** pinned on a board — then exposes each Tool on the surfaces it
+supports: CLI, TUI, Desktop, PWA, Chrome extension, MCP, and HTTP. Define a
+Tool once (Rust macro, TOML manifest, WASM plugin, or imported MCP server)
+and its declared surfaces call it with the same inputs, outputs, and result
+envelope.
 
-* [Lexicon](LEXICON.md) - 제품·UI·CLI·매니페스트·코드가 공유하는 단일 어휘. 개명 전에 여기부터 본다.
-* [UI/UX Surface Contract](ui-ux-surface-contract.md) - TUI / Desktop·PWA / Chrome extension이 공유하는 Tool 라이프사이클, 키 바인딩, capability 렌더링.
-* [External Tool Manifest Guide](TOOL_MANIFEST.md) - Toolkit TOML 전체 필드 레퍼런스. Rust 타입에서 생성되며 손으로 고치지 않는다.
+**New here?** Start with the
+[README](https://github.com/5pecia1/UPeg/blob/main/README.md), then the
+[quick start](guides/quick-start.md).
 
-# 제품
+## Use cases
 
-* [제품 정체성과 경계](product/identity-and-boundaries.md) - 무엇이고 무엇이 아닌지.
-* [보드와 에이전트 작업 흐름](product/board-agent-workflow.md) - 개인·프로젝트 보드의 도구와 안내를 준비해 MCP에서 사용하는 절차.
-* [보안 절대 원칙](product/security-absolutes.md) - 비밀·네트워크·임베드 취급의 비타협 규칙.
+- **Everyday utilities without context switching** — convert, hash, diff,
+  generate, and inspect files from the terminal, a desktop board, or a
+  browser page.
+- **A personal board of repeatable commands** — wrap `git`, `npm`, or your
+  own scripts in TOML, save input presets, and re-run them from any surface.
+- **Tools for AI agents** — serve a prepared board over MCP so an agent gets
+  exactly the tools and guidance you chose.
+- **A small local API** — call the same Tools over HTTP from scripts, apps,
+  or the browser extension.
+- **Project-level tooling** — a repo's `upeg.toml` declares project boards
+  and tools that exist only while you work inside it.
 
-# 아키텍처
+## Guides
 
-* [크레이트 경계](architecture/crate-boundaries.md) - 도메인 / 런타임 / 어댑터 / surface 네 계층의 소유 범위.
-* [Toolkit과 Tool](architecture/toolkit-and-tool.md) - 2단계 호출 계층, Invoker, Tag 상속, 단일 dispatch 경계.
-* [매니페스트 계약](architecture/manifest.md) - Toolkit TOML 구조, invoker별 필수 필드, credential 참조 규칙.
-* [I/O 타입 시스템](architecture/io-types.md) - 닫힌 입출력 타입 집합과 인라인 제약.
-* [Chain Tool](architecture/chain.md) - 노드/연결 모델, 표현식 문법, 실행 규칙.
-* [호출 봉투와 예약 컨텍스트](architecture/call-envelope.md) - 공유 call 봉투, `_upeg` 컨텍스트, CLI positional 바인딩과 셸 자동완성.
-* [프로젝트 매니페스트](architecture/project-manifest.md) - `upeg.toml` 자동 탐지와 병합 우선순위.
-* [HTTP API](architecture/http-api.md) - `/v1/*` 리소스 모델, 응답 규칙, CORS와 bearer 인증.
-* [호스트 토폴로지와 Precedence](architecture/host-topology.md) - L1-L4 호스트 등급, discovery file, 토큰, 라이프사이클.
-* [MCP — Surface와 Import](architecture/mcp.md) - upeg이 서버가 되는 방향과 클라이언트가 되는 방향, MCP 임포트 eager load 규칙.
-* [기술 스택](architecture/stack.md) - 채택한 기술, 거부한 기술, 라이선스 게이트.
+- [Installation](guides/installation.md) — build the CLI, desktop app, PWA,
+  and extension; optional packaging tools.
+- [Quick start](guides/quick-start.md) — first call, boards and pins, MCP and
+  HTTP in a few minutes.
+- [Tool author guide](guides/tool-author.md) — the `#[tool(...)]` macro keys
+  and variants, and how to validate.
+- [Development](guides/development.md) — the dev toolchain, `just` gates, and
+  generated-artifact drift checks.
+- [Troubleshooting](guides/troubleshooting.md) — `upeg doctor`, hosts,
+  tokens, manifest detection, headless browsers.
+- [PDF tools](pdf-tools.md) — `media.pdf_inspect` / `media.pdf_to_markdown`
+  status, limits, and extraction contract.
 
-# 가이드
+## Reference
 
-* [도구 작성자 가이드](guides/tool-author.md) - `#[tool(...)]` 매크로의 키와 변형, 검증 절차.
-* [PDF 도구 안내](pdf-tools.md) - `media.pdf_inspect`/`media.pdf_to_markdown`의 추출 상태·제한·배포 방식.
+- [External Tool Manifest Guide](TOOL_MANIFEST.md) — every Toolkit TOML
+  field, generated from `upeg-loader` (do not hand-edit).
+- [Lexicon](LEXICON.md) — the single vocabulary shared by product, UI, CLI,
+  manifests, and code. Read it before renaming anything.
+- [UI/UX surface contract](ui-ux-surface-contract.md) — the Tool lifecycle,
+  key bindings, and capability rendering shared by TUI, Desktop/PWA, and the
+  Chrome extension.
+- [File wire contract](architecture/file-wire.md) — the canonical
+  `FileValue` JSON every surface sends and receives, with its size budgets.
 
-# 다이어그램
+## Product
 
-`diagrams/` 의 `*.drawio.svg` 는 편집 가능한 SVG다 — 브라우저·GitHub에서 그대로 보이고,
-draw.io 로 열면 원본 다이어그램이 그대로 복원된다. 별도 소스 파일을 두지 않는다.
-고친 뒤에는 같은 이름으로 다시 export 한다.
+- [Identity and boundaries](product/identity-and-boundaries.md) — what upeg
+  is, what it is not, and its limits.
+- [Boards and agent workflow](product/board-agent-workflow.md) — prepare a
+  board's tools and guidance, then reuse it from MCP agents.
+- [Security absolutes](product/security-absolutes.md) — the non-negotiable
+  rules for secrets, the network, and embeds.
+
+## Architecture
+
+- [Crate boundaries](architecture/crate-boundaries.md) — domain / runtime /
+  adapter / surface layers and what each owns.
+- [Toolkit and Tool](architecture/toolkit-and-tool.md) — the two-level call
+  hierarchy, Invokers, Tag inheritance, the single dispatch boundary.
+- [Manifest contract](architecture/manifest.md) — Toolkit TOML structure,
+  per-invoker required fields, credential reference rules.
+- [I/O type system](architecture/io-types.md) — the closed input/output type
+  set and its inline constraints.
+- [Result presentation](architecture/result-presentation.md) — JSON collection views and typed follow-up Tool forms.
+- [File wire](architecture/file-wire.md) — the canonical `FileValue` JSON,
+  `x-upeg-file-wire`, and size budgets.
+- [Chain Tool](architecture/chain.md) — node/connection model, expression
+  grammar, execution rules.
+- [Call envelope and reserved context](architecture/call-envelope.md) — the
+  shared call envelope, `_upeg` context, CLI positional binding, shell
+  completion.
+- [Project manifest](architecture/project-manifest.md) — `upeg.toml`
+  auto-detection and merge precedence.
+- [HTTP API](architecture/http-api.md) — the `/v1/*` resource model,
+  response rules, CORS and bearer auth.
+- [Host topology and precedence](architecture/host-topology.md) — L1–L4 host
+  ranks, the discovery file, tokens, lifecycle.
+- [MCP — surface and import](architecture/mcp.md) — upeg as an MCP server
+  and as an MCP client, and the eager-load import rules.
+- [Technology stack](architecture/stack.md) — adopted and rejected
+  technologies, and the license gate.
+
+## Diagrams
+
+`diagrams/*.drawio.svg` files are editable SVGs — they render directly in a
+browser or on GitHub, and opening one in draw.io restores the original
+diagram. There are no separate source files; export back over the same name
+after editing.

@@ -14,7 +14,7 @@ import 'package:upeg/src/state/pin_provider.dart';
 
 void main() {
   group('pinnedProvider', () {
-    test('pinnedProvider는_loader_결과를_그대로_반환한다', () {
+    test('pinnedProvider_returns_loader_result_verbatim', () {
       final container = ProviderContainer(
         overrides: [
           isPinnedLoaderProvider.overrideWith(

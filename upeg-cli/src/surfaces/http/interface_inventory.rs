@@ -22,7 +22,7 @@ const HTTP_DOCS_PATH: &str = "README.md";
 const HTTP_TEST_PATH: &str = "upeg-cli/src/inventory/tests.rs";
 /// The test inside [`HTTP_TEST_PATH`] that actually asserts these
 /// entries — pinned by the inventory honesty check.
-const HTTP_TEST_NAME: &str = "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다";
+const HTTP_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
 
 struct HttpRouteDeclaration {
     id: &'static str,

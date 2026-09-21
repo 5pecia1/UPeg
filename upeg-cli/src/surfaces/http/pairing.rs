@@ -41,7 +41,7 @@ pub(crate) fn pairing_status_block() -> String {
 mod tests {
     use super::*;
 
-    fn 가짜_서버_정보() -> ServerInfo {
+    fn fake_server_info() -> ServerInfo {
         ServerInfo {
             endpoint: "http://127.0.0.1:49317".into(),
             mcp_endpoint: "http://127.0.0.1:49317/mcp".into(),
@@ -53,8 +53,8 @@ mod tests {
     }
 
     #[test]
-    fn 페어링_블록은_엔드포인트와_토큰_라벨을_포함한다() {
-        let info = 가짜_서버_정보();
+    fn pairing_block_contains_endpoint_and_token_labels() {
+        let info = fake_server_info();
         let block = format_pairing_block(&info);
         assert!(block.starts_with("Pairing:\n"));
         assert!(block.contains("http://127.0.0.1:49317"));
@@ -62,14 +62,14 @@ mod tests {
     }
 
     #[test]
-    fn 페어링_블록은_텍스트_두_줄뿐이다() {
-        // QR 렌더링은 삭제되었다 — 페어링은 endpoint + token 텍스트다.
-        let block = format_pairing_block(&가짜_서버_정보());
-        assert_eq!(block.lines().count(), 3, "헤더 + url + token: {block}");
+    fn pairing_block_has_only_header_url_and_token_lines() {
+        // QR rendering was removed — pairing is endpoint + token text.
+        let block = format_pairing_block(&fake_server_info());
+        assert_eq!(block.lines().count(), 3, "header + url + token: {block}");
     }
 
     #[test]
-    fn 호스트가_없으면_이용불가_상수_메시지를_사용한다() {
+    fn uses_unavailable_constant_when_no_host_is_running() {
         assert_eq!(
             PAIRING_UNAVAILABLE,
             "Pairing: unavailable (no running host)\n"

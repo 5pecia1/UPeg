@@ -33,7 +33,7 @@ const BINDINGS = [
   { role: 'trigger', field: '', selector: '#go', action: 'click' },
 ];
 
-test('평범한_invoker는_호스트로_직접_디스패치한다', () => {
+test('a_plain_invoker_dispatches_straight_to_the_host', () => {
   for (const invoker of ['function', 'external', 'http', 'chain', 'llm', 'wasm']) {
     assert.equal(
       activationRouteFor(tool({ [TOOL_FIELD.INVOKER]: invoker }), { inPageAvailable: true }),
@@ -43,7 +43,7 @@ test('평범한_invoker는_호스트로_직접_디스패치한다', () => {
   }
 });
 
-test('static_invoker는_열린_사이트에서도_deep_link를_유지한다', () => {
+test('a_static_invoker_keeps_the_deep_link_even_on_an_enabled_site', () => {
   // Passive Embed: the webview IS the tool, there is nothing to POST and
   // nothing to fill in.
   assert.equal(
@@ -52,7 +52,7 @@ test('static_invoker는_열린_사이트에서도_deep_link를_유지한다', ()
   );
 });
 
-test('controlled_embed_핀은_사이트가_켜져_있으면_페이지_안에서_실행된다', () => {
+test('a_controlled_embed_pin_runs_in_page_when_the_site_is_enabled', () => {
   const controlled = tool({
     [TOOL_FIELD.INVOKER]: 'embed',
     [TOOL_FIELD.PIN]: PIN_KIND.CONTROLLED_EMBED,
@@ -66,7 +66,7 @@ test('controlled_embed_핀은_사이트가_켜져_있으면_페이지_안에서_
   );
 });
 
-test('controlled_embed_핀은_사이트가_꺼져_있으면_deep_link로_되돌아간다', () => {
+test('a_controlled_embed_pin_falls_back_to_deep_link_when_the_site_is_off', () => {
   const controlled = tool({
     [TOOL_FIELD.INVOKER]: 'embed',
     [TOOL_FIELD.PIN]: PIN_KIND.CONTROLLED_EMBED,
@@ -81,7 +81,7 @@ test('controlled_embed_핀은_사이트가_꺼져_있으면_deep_link로_되돌�
   assert.equal(activationRouteFor(controlled), ACTIVATION_ROUTE.DEEP_LINK);
 });
 
-test('바인딩이_없는_controlled_embed는_페이지에서_할_일이_없어_deep_link로_간다', () => {
+test('a_controlled_embed_without_bindings_has_no_page_work_so_it_deep_links', () => {
   const controlled = tool({
     [TOOL_FIELD.INVOKER]: 'embed',
     [TOOL_FIELD.PIN]: PIN_KIND.CONTROLLED_EMBED,
@@ -94,14 +94,14 @@ test('바인딩이_없는_controlled_embed는_페이지에서_할_일이_없어_
   );
 });
 
-test('embed_invoker인데_controlled_핀이_아니면_deep_link로_간다', () => {
+test('an_embed_invoker_without_a_controlled_pin_deep_links', () => {
   // `POST /v1/tools/{id}` cannot answer for an Embed invoker: it needs a
   // browser to drive, and this pin declares no page work.
   const embed = tool({ [TOOL_FIELD.INVOKER]: 'embed', [TOOL_FIELD.PIN]: 'Embed' });
   assert.equal(activationRouteFor(embed, { inPageAvailable: true }), ACTIVATION_ROUTE.DEEP_LINK);
 });
 
-test('도구_메타데이터_접근자는_빠진_필드에_안전한_기본값을_준다', () => {
+test('tool_metadata_accessors_give_safe_defaults_for_missing_fields', () => {
   const bare = { [TOOL_FIELD.ID]: 'x.y' };
   assert.equal(toolLabel(bare), 'x.y');
   assert.deepEqual(toolInputProperties(bare), {});

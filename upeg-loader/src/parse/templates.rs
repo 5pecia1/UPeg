@@ -60,14 +60,14 @@ pub(super) fn validate_arg_templates(parsed: &ToolToml) -> Result<(), LoadError>
 mod tests {
     use super::*;
 
-    fn 검증(toml: &str) -> Result<(), LoadError> {
+    fn validate(toml: &str) -> Result<(), LoadError> {
         let parsed: ToolToml = toml::from_str(toml).expect("test fixture should parse");
         validate_arg_templates(&parsed)
     }
 
     #[test]
-    fn 선언된_입력을_가리키는_자리표시자는_통과한다() {
-        let result = 검증(
+    fn placeholder_for_declared_input_passes() {
+        let result = validate(
             r#"
 id = "demo.log"
 toolkit = "demo"
@@ -86,8 +86,8 @@ type = "integer"
     }
 
     #[test]
-    fn 선언되지_않은_입력을_가리키면_로드에_실패한다() {
-        let result = 검증(
+    fn placeholder_for_undeclared_input_fails_load() {
+        let result = validate(
             r#"
 id = "demo.log"
 toolkit = "demo"
@@ -112,8 +112,8 @@ type = "integer"
     }
 
     #[test]
-    fn 빈_자리표시자는_로드에_실패한다() {
-        let result = 검증(
+    fn empty_placeholder_fails_load() {
+        let result = validate(
             r#"
 id = "demo.log"
 toolkit = "demo"
@@ -134,8 +134,8 @@ args_template = ["{}"]
     }
 
     #[test]
-    fn chain_step_입력_키는_선언하지_않아도_된다() {
-        let result = 검증(
+    fn chain_step_input_key_needs_no_declaration() {
+        let result = validate(
             r#"
 id = "demo.echo"
 toolkit = "demo"
@@ -150,8 +150,8 @@ args_template = ["{input}"]
     }
 
     #[test]
-    fn 리터럴_중괄호와_닫히지_않은_중괄호는_자리표시자가_아니다() {
-        let result = 검증(
+    fn literal_and_unclosed_braces_are_not_placeholders() {
+        let result = validate(
             r#"
 id = "demo.echo"
 toolkit = "demo"
@@ -166,8 +166,8 @@ args_template = ["{{nope}}", "{unclosed"]
     }
 
     #[test]
-    fn args_template이_없으면_검사할_것이_없다() {
-        let result = 검증(
+    fn without_args_template_nothing_to_check() {
+        let result = validate(
             r#"
 id = "demo.echo"
 toolkit = "demo"

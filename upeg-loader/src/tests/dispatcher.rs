@@ -100,7 +100,7 @@ impl upeg_runtime::controlled_embed::ControlledEmbedBackend for LargeUnicodeOutp
 }
 
 #[test]
-fn 호출자가_외부가_아니면_외부_dispatcher는_없다() {
+fn non_external_invoker_builds_no_external_dispatcher() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -112,7 +112,7 @@ fn 호출자가_외부가_아니면_외부_dispatcher는_없다() {
 }
 
 #[test]
-fn 명령이_누락되면_외부_dispatcher는_없다() {
+fn missing_command_builds_no_external_dispatcher() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -123,7 +123,7 @@ fn 명령이_누락되면_외부_dispatcher는_없다() {
 }
 
 #[test]
-fn 외부_dispatcher는_echo를_실행한다() {
+fn external_dispatcher_runs_echo() {
     // `echo hello` is universally available on Unix; this test is the
     // smoke check for the external-invoker plumbing.
     let parsed = toml::from_str::<ToolToml>(
@@ -140,7 +140,7 @@ fn 외부_dispatcher는_echo를_실행한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_선언된_primary_output으로_표준출력을_정규화한다() {
+fn external_dispatcher_normalizes_stdout_into_declared_primary_output() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -163,7 +163,7 @@ fn 외부_dispatcher는_선언된_primary_output으로_표준출력을_정규화
 }
 
 #[test]
-fn 외부_dispatcher는_전체_토큰_자리표시자를_치환한다() {
+fn external_dispatcher_substitutes_whole_token_placeholders() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -179,7 +179,7 @@ fn 외부_dispatcher는_전체_토큰_자리표시자를_치환한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_누락된_치환_키를_빈_문자열로_바꾼다() {
+fn external_dispatcher_substitutes_missing_key_as_empty_string() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -198,7 +198,7 @@ fn 외부_dispatcher는_누락된_치환_키를_빈_문자열로_바꾼다() {
 
 #[cfg(feature = "wasm")]
 #[test]
-fn 선언형_wasm_dispatcher는_모듈_도구를_로드하고_실행한다() {
+fn declarative_wasm_dispatcher_loads_and_runs_module_tool() {
     let dir = std::env::temp_dir().join(format!("upeg_loader_wasm_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -248,7 +248,7 @@ wasm_path = "{}"
 /// would call the closure again — forever — absent the fix.
 #[cfg(feature = "wasm")]
 #[test]
-fn 불일치하는_도구id의_wasm_dispatcher는_재귀없이_에러를_반환한다() {
+fn wasm_dispatcher_with_mismatched_tool_id_errors_without_recursion() {
     let dir = std::env::temp_dir().join(format!(
         "upeg_loader_wasm_id_mismatch_{}",
         std::process::id()
@@ -311,7 +311,7 @@ wasm_path = "{}"
 
 #[cfg(not(feature = "wasm"))]
 #[test]
-fn wasm_dispatcher는_기본_빌드에서_비활성_기능을_보고한다() {
+fn wasm_dispatcher_reports_disabled_feature_in_default_build() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -334,7 +334,7 @@ mod controlled_embed;
 mod external_contract;
 
 #[test]
-fn 외부_dispatcher는_중괄호_안의_공백을_잘라낸다() {
+fn external_dispatcher_trims_whitespace_inside_braces() {
     // Iter 247: a tool author's typo `args_template = ["{ input }"]`
     // (whitespace inside braces) used to extract ` input ` as the
     // lookup key, args.get(" input ") returned None, and the
@@ -365,7 +365,7 @@ fn 외부_dispatcher는_중괄호_안의_공백을_잘라낸다() {
 }
 
 #[test]
-fn 외부_dispatcher는_리터럴과_공백_있는_치환의_혼합을_처리한다() {
+fn external_dispatcher_handles_mixed_literal_and_padded_substitutions() {
     // Iter 257: extend iter-247 coverage. The existing iter-247
     // test only exercises single-token templates. Realistic
     // args_templates are mixed — literal flag tokens, padded and
@@ -392,7 +392,7 @@ fn 외부_dispatcher는_리터럴과_공백_있는_치환의_혼합을_처리한
 }
 
 #[test]
-fn 외부_dispatcher는_숫자_치환을_문자열화한다() {
+fn external_dispatcher_stringifies_number_substitution() {
     // Iter 110: pre-iter-110, a Number arg dropped as "" because
     // `v.as_str()` returned None. Now numbers stringify to their
     // JSON form so `-a n=5` → command receives "5".
@@ -413,7 +413,7 @@ fn 외부_dispatcher는_숫자_치환을_문자열화한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_불리언_치환을_문자열화한다() {
+fn external_dispatcher_stringifies_boolean_substitution() {
     // Same omit-vs-stringify story for booleans. `true` → "true".
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
@@ -432,7 +432,7 @@ fn 외부_dispatcher는_불리언_치환을_문자열화한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_명시적_널을_빈값으로_치환한다() {
+fn external_dispatcher_substitutes_explicit_null_as_empty() {
     // Null is "no value" — treat the same as missing. Without
     // this carve-out, `null.to_string()` would emit the literal
     // string `"null"` which is rarely what callers want.
@@ -456,7 +456,7 @@ fn 외부_dispatcher는_명시적_널을_빈값으로_치환한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_토큰_안의_자리표시자를_치환한다() {
+fn external_dispatcher_substitutes_placeholder_inside_token() {
     // `{key}` substitutes anywhere inside a token, so the shapes real
     // CLIs need (`--manifest-path={path}`, `-p{crate}`) are expressible.
     // The old rule required a token to be exactly `{key}` and emitted
@@ -482,7 +482,7 @@ fn 외부_dispatcher는_토큰_안의_자리표시자를_치환한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_이스케이프된_중괄호를_리터럴로_넘긴다() {
+fn external_dispatcher_passes_escaped_braces_through_literally() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -500,7 +500,7 @@ fn 외부_dispatcher는_이스케이프된_중괄호를_리터럴로_넘긴다()
 }
 
 #[test]
-fn 외부_dispatcher는_배열과_객체를_json_문자열로_치환한다() {
+fn external_dispatcher_substitutes_arrays_and_objects_as_json_strings() {
     // Iter 110 routed non-string non-Null values through
     // `Value::to_string()`, which for Array/Object emits their
     // JSON form. Pin that contract — useful if the tool's
@@ -534,7 +534,7 @@ fn 외부_dispatcher는_배열과_객체를_json_문자열로_치환한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_음수와_부동소수점_수를_문자열화한다() {
+fn external_dispatcher_stringifies_negative_and_float_numbers() {
     // Defensive: serde_json's Number to_string covers negative,
     // zero, and decimal forms. Pin it so nobody trims this back
     // to "i64-only" without realizing.
@@ -562,7 +562,7 @@ fn 외부_dispatcher는_음수와_부동소수점_수를_문자열화한다() {
 }
 
 #[test]
-fn 외부_dispatcher는_알수없는_명령에_깔끔한_오류를_반환한다() {
+fn external_dispatcher_returns_clean_error_for_unknown_command() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -579,7 +579,7 @@ fn 외부_dispatcher는_알수없는_명령에_깔끔한_오류를_반환한다(
 }
 
 #[test]
-fn 외부_dispatcher는_0이_아닌_종료_코드에_표준오류_메시지가_담긴_오류를_반환한다() {
+fn external_dispatcher_returns_stderr_message_error_for_nonzero_exit() {
     // `false` exits 1 with no stdout/stderr — perfect for verifying the
     // exit-code path without depending on a particular distro.
     let parsed = toml::from_str::<ToolToml>(
@@ -597,7 +597,7 @@ fn 외부_dispatcher는_0이_아닌_종료_코드에_표준오류_메시지가_�
 }
 
 #[test]
-fn http_dispatcher_목은_본문_템플릿을_렌더링한다() {
+fn http_dispatcher_mock_renders_body_template() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "http.echo"
             toolkit = "http"
@@ -612,7 +612,7 @@ fn http_dispatcher_목은_본문_템플릿을_렌더링한다() {
 }
 
 #[test]
-fn http_dispatcher_목은_primary_output_타입으로_응답을_정규화한다() {
+fn http_dispatcher_mock_normalizes_response_into_primary_output_type() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "http.echo"
             toolkit = "http"
@@ -631,7 +631,7 @@ fn http_dispatcher_목은_primary_output_타입으로_응답을_정규화한다(
 }
 
 #[test]
-fn http_dispatcher는_템플릿_헤더_값의_개행_문자를_거부한다() {
+fn http_dispatcher_rejects_newlines_in_templated_header_value() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "http.header"
             toolkit = "http"
@@ -648,7 +648,7 @@ fn http_dispatcher는_템플릿_헤더_값의_개행_문자를_거부한다() {
 }
 
 #[test]
-fn http_dispatcher는_보안url을_tls_클라이언트로_받아들인다() {
+fn http_dispatcher_accepts_secure_url_via_tls_client() {
     // E8: previously https:// was pinned as "not supported" and rejected
     // before any transport ran. The Http invoker now accepts https and
     // routes it through the TLS client. Point at a closed loopback port so
@@ -676,7 +676,7 @@ fn http_dispatcher는_보안url을_tls_클라이언트로_받아들인다() {
 }
 
 #[test]
-fn 엘엘엠_dispatcher_echo는_네트워크_없이_프롬프트를_렌더링한다() {
+fn llm_dispatcher_echo_renders_prompt_without_network() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "ai.pattern"
             toolkit = "ai"
@@ -690,7 +690,7 @@ fn 엘엘엠_dispatcher_echo는_네트워크_없이_프롬프트를_렌더링한
 }
 
 #[test]
-fn 엘엘엠_dispatcher_echo는_primary_output으로_프롬프트를_정규화한다() {
+fn llm_dispatcher_echo_normalizes_prompt_into_primary_output() {
     let parsed = toml::from_str::<ToolToml>(
         r##"id = "ai.pattern"
             toolkit = "ai"
@@ -715,7 +715,7 @@ fn 엘엘엠_dispatcher_echo는_primary_output으로_프롬프트를_정규화�
 }
 
 #[test]
-fn 엘엘엠_dispatcher의_빈_도구_제공자는_실행_가능하다() {
+fn llm_dispatcher_builds_for_empty_tool_provider() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "ai.pattern"
             toolkit = "ai"
@@ -734,7 +734,7 @@ fn 엘엘엠_dispatcher의_빈_도구_제공자는_실행_가능하다() {
 }
 
 #[test]
-fn 엘엘엠_dispatcher는_알수없는_제공자에_설정_경로를_알린다() {
+fn llm_dispatcher_points_to_config_path_for_unknown_provider() {
     // `openai` used to be the unconfigured case pinned here; now that
     // `openai` is a real `ProviderKind` variant, this test exercises a
     // provider string that is (and stays) unrecognized.
@@ -764,7 +764,7 @@ fn 엘엘엠_dispatcher는_알수없는_제공자에_설정_경로를_알린다(
               process-id-suffixed env var name unique to this test, so no other thread/test \
               observes a torn read of it"
 )]
-fn 엘엘엠_dispatcher_openai는_credential을_해석해_요청을_보낸다() {
+fn llm_dispatcher_openai_resolves_credential_and_sends_request() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind mock server");
     let addr = listener.local_addr().expect("local addr");
     let handle = std::thread::spawn(move || {
@@ -843,7 +843,7 @@ fn 엘엘엠_dispatcher_openai는_credential을_해석해_요청을_보낸다() 
 }
 
 #[test]
-fn 엘엘엠_dispatcher_openai는_credential이_없으면_에러를_반환한다() {
+fn llm_dispatcher_openai_errors_without_credential() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "ai.pattern"
             toolkit = "ai"
@@ -866,7 +866,7 @@ fn 엘엘엠_dispatcher_openai는_credential이_없으면_에러를_반환한다
               process-id-suffixed env var name unique to this test, so no other thread/test \
               observes a torn read of it"
 )]
-fn 엘엘엠_dispatcher_openai는_잘못된_형식의_응답에_에러를_반환한다() {
+fn llm_dispatcher_openai_errors_on_malformed_response() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind mock server");
     let addr = listener.local_addr().expect("local addr");
     let handle = std::thread::spawn(move || {
@@ -926,7 +926,7 @@ fn 엘엘엠_dispatcher_openai는_잘못된_형식의_응답에_에러를_반환
 }
 
 #[test]
-fn 외부_dispatcher는_보드_프로젝트와_보드_환경_맥락을_받는다() {
+fn external_dispatcher_receives_board_project_and_board_env_context() {
     let dir = std::env::temp_dir().join("upeg_loader_external_context");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

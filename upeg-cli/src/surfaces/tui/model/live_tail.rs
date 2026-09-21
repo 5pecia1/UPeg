@@ -114,21 +114,21 @@ mod tests {
     }
 
     #[test]
-    fn 새_tail은_비어_있다() {
+    fn new_tail_is_empty() {
         let tail = LiveTail::default();
         assert!(tail.is_empty());
         assert!(tail_lines(&tail).is_empty());
     }
 
     #[test]
-    fn chunk는_개행에서_line으로_나뉜다() {
+    fn chunk_splits_into_lines_at_newlines() {
         let mut tail = LiveTail::default();
         tail.push_chunk("first\nsecond\n");
         assert_eq!(tail_lines(&tail), ["first", "second"]);
     }
 
     #[test]
-    fn 여러_chunk에_걸친_line은_하나로_이어진다() {
+    fn line_spanning_multiple_chunks_joins_into_one() {
         let mut tail = LiveTail::default();
         tail.push_chunk("he");
         tail.push_chunk("llo");
@@ -137,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn 개행_전의_부분_line도_보인다() {
+    fn partial_line_before_newline_is_visible() {
         let mut tail = LiveTail::default();
         tail.push_chunk("working");
         assert!(!tail.is_empty());
@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn 상한을_넘으면_가장_오래된_line부터_버린다() {
+    fn overflow_drops_oldest_lines_first() {
         let mut tail = LiveTail::default();
         for index in 0..(TUI_LIVE_TAIL_MAX_LINES + 3) {
             tail.push_chunk(&format!("line {index}\n"));
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn 부분_line도_상한_안에_함께_들어간다() {
+    fn partial_line_fits_within_cap() {
         let mut tail = LiveTail::default();
         for index in 0..TUI_LIVE_TAIL_MAX_LINES {
             tail.push_chunk(&format!("line {index}\n"));
@@ -177,21 +177,21 @@ mod tests {
     }
 
     #[test]
-    fn 단독_캐리지리턴은_현재_line을_덮어쓴다() {
+    fn lone_carriage_return_overwrites_current_line() {
         let mut tail = LiveTail::default();
         tail.push_chunk("50%\r100%");
         assert_eq!(tail_lines(&tail), ["100%"]);
     }
 
     #[test]
-    fn 씨알엘에프는_한_번의_line_종료로_처리한다() {
+    fn crlf_treated_as_single_line_ending() {
         let mut tail = LiveTail::default();
         tail.push_chunk("done\r\n");
         assert_eq!(tail_lines(&tail), ["done"]);
     }
 
     #[test]
-    fn chunk_경계에_걸친_씨알엘에프도_한_line이다() {
+    fn crlf_spanning_chunk_boundary_is_one_line() {
         let mut tail = LiveTail::default();
         tail.push_chunk("done\r");
         tail.push_chunk("\nnext");
@@ -199,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn 한_line의_길이는_바이트_상한에서_잘린다() {
+    fn line_length_truncated_at_byte_cap() {
         let mut tail = LiveTail::default();
         let long = "x".repeat(TUI_LIVE_TAIL_MAX_LINE_BYTES * 4);
         tail.push_chunk(&long);
@@ -210,10 +210,10 @@ mod tests {
     }
 
     #[test]
-    fn 멀티바이트_문자는_바이트_상한에서_쪼개지지_않는다() {
+    fn multibyte_chars_not_split_at_byte_cap() {
         let mut tail = LiveTail::default();
-        // 3바이트 문자로만 채우면 상한(512)에 정확히 맞아떨어지지 않으므로
-        // 마지막 문자는 통째로 거부되어야 한다.
+        // Filling with only 3-byte characters can never land exactly on
+        // the 512 cap, so the last character must be rejected whole.
         let long = "가".repeat(TUI_LIVE_TAIL_MAX_LINE_BYTES);
         tail.push_chunk(&long);
 
