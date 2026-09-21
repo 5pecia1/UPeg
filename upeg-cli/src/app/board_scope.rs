@@ -268,7 +268,7 @@ fn run_board_call(
 
     // Parse → pin-preset merge → validate, through the one pipeline
     // every CLI call path shares. Requiredness deliberately lands after
-    // the merge so "preset은 기본값, 호출자 인자는 override" holds for
+    // the merge so "preset is the default, caller args override" holds for
     // required inputs too. E-3/B-2: a Chain tool's `approve` is a
     // reserved input here too, so `board <b> call <chain> -a
     // approve=true` behaves like `upeg call`.
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_보드_call은_붙을_host가_있어도_로컬로_간다() {
+    fn a_project_board_call_stays_local_even_with_a_host_to_attach() {
         let board = BoardKey::parse(PROJECT_BOARD_ID).expect("board key");
         let visibility = BoardVisibility::for_project(ProjectBoardScope::for_manifest(
             std::path::Path::new("/board-route-scratch/upeg.toml"),
@@ -385,14 +385,14 @@ mod tests {
 
         assert!(
             matches!(route, BoardRoute::Local),
-            "host 는 이 보드를 가지고 있지 않다 — 붙으면 404 가 된다"
+            "the host does not have this board — attaching would 404"
         );
     }
 
     #[test]
-    fn 전역_보드_call은_reachable_host에_붙는다() {
-        // 프로젝트 보드 규칙이 board scope 전체를 로컬로 묶어 버리지
-        // 않는다는 반대편 증거.
+    fn a_global_board_call_attaches_to_a_reachable_host() {
+        // The counter-evidence that the project-board rule does not tie
+        // all of board scope to local.
         let board = BoardKey::parse(GLOBAL_BOARD_ID).expect("board key");
 
         let route = BoardRoute::for_call_with(
@@ -405,7 +405,7 @@ mod tests {
 
         assert!(
             matches!(route, BoardRoute::Attached(_)),
-            "전역 보드는 예전처럼 auto-attach 해야 한다"
+            "a global board must auto-attach as before"
         );
     }
 }

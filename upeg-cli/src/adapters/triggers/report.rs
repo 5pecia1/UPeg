@@ -188,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn 단발_보고서는_발화하지_않은_행도_모두_출력한다() {
+    fn one_shot_report_prints_all_rows_including_unfired() {
         let rows = [
             fired("demo.one", "schedule", "ran"),
             idle("demo.two", "file"),
@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn 감시_피드는_idle_행을_출력하지_않는다() {
+    fn watch_feed_does_not_print_idle_rows() {
         let mut printer = WatchPrinter::default();
         let out = printer.render(&[
             fired("demo.one", "schedule", "ran"),
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn 감시_피드는_unsupported를_트리거별로_한_번만_출력한다() {
+    fn watch_feed_prints_unsupported_once_per_trigger() {
         let mut printer = WatchPrinter::default();
         let poll = [unsupported("demo.three", "hotkey")];
         assert_eq!(
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn 감시_피드의_unsupported_중복제거는_트리거별로_이뤄진다() {
+    fn watch_feed_unsupported_dedup_is_per_trigger() {
         let mut printer = WatchPrinter::default();
         assert!(
             !printer
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn 출력이_없는_발화는_상태_열까지만_출력한다() {
+    fn fire_without_output_prints_only_through_status_column() {
         let row = TriggerReport::new(
             key("demo.one", "schedule"),
             TriggerOutcome::Fired {

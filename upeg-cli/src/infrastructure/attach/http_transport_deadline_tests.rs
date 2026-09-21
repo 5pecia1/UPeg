@@ -13,7 +13,7 @@ const TEST_RESPONSE_DEADLINE: Duration = Duration::from_millis(80);
 /// A dispatch budget with the response half shrunk to
 /// [`TEST_RESPONSE_DEADLINE`] — the connect half is irrelevant to these
 /// tests (the listener is already bound on loopback).
-fn 테스트_예산() -> RequestBudget {
+fn test_budget() -> RequestBudget {
     RequestBudget {
         response: TEST_RESPONSE_DEADLINE,
         ..RequestBudget::DISPATCH
@@ -23,12 +23,12 @@ const TEST_DRIP_INTERVAL: Duration = Duration::from_millis(20);
 const TEST_COMPLETION_BOUND: Duration = Duration::from_millis(500);
 const TEST_SERVER_HOLD_OPEN: Duration = Duration::from_millis(200);
 
-fn 테스트_요청을_끝까지_읽는다(stream: &mut TcpStream) {
+fn read_test_request_to_end(stream: &mut TcpStream) {
     let mut request = Vec::new();
     let mut chunk = [0_u8; TEST_REQUEST_READ_CHUNK_BYTES];
     loop {
         let read_bytes = stream.read(&mut chunk).unwrap();
-        assert_ne!(read_bytes, 0, "테스트 attach 요청이 본문 전에 끝났다");
+        assert_ne!(read_bytes, 0, "test attach request ended before its body");
         request.extend_from_slice(&chunk[..read_bytes]);
         let body_start = request
             .windows(HTTP_HEADER_BODY_SEPARATOR.len())
@@ -40,7 +40,7 @@ fn 테스트_요청을_끝까지_읽는다(stream: &mut TcpStream) {
     }
 }
 
-fn 테스트_요청(endpoint: &str) -> Request<'_> {
+fn test_request(endpoint: &str) -> Request<'_> {
     Request {
         method: "POST",
         full_endpoint: endpoint,
@@ -51,7 +51,7 @@ fn 테스트_요청(endpoint: &str) -> Request<'_> {
 }
 
 #[test]
-fn slow_drip_응답은_절대_deadline에서_시간초과한다() {
+fn slow_drip_response_times_out_at_the_absolute_deadline() {
     // Given
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -59,7 +59,7 @@ fn slow_drip_응답은_절대_deadline에서_시간초과한다() {
     let server_stop = Arc::clone(&stop);
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
-        테스트_요청을_끝까지_읽는다(&mut stream);
+        read_test_request_to_end(&mut stream);
         stream.write_all(b"HTTP/1.0 200 OK\r\n\r\n").unwrap();
         for _ in 0..TEST_DRIP_BODY_BYTES {
             if server_stop.load(Ordering::Relaxed) || stream.write_all(b"x").is_err() {
@@ -73,29 +73,29 @@ fn slow_drip_응답은_절대_deadline에서_시간초과한다() {
     // When
     let started = Instant::now();
     let result = execute(
-        테스트_요청(&endpoint),
+        test_request(&endpoint),
         ResponseLimits::for_untrusted_output().unwrap(),
-        테스트_예산(),
+        test_budget(),
     );
     let elapsed = started.elapsed();
     stop.store(true, Ordering::Relaxed);
     server.join().unwrap();
 
     // Then
-    let error = result.expect_err("slow drip 응답은 절대 deadline에서 실패해야 한다");
+    let error = result.expect_err("a slow drip response must fail at the absolute deadline");
     assert_eq!(error.kind(), ErrorKind::TimedOut);
     assert!(elapsed < TEST_COMPLETION_BOUND, "elapsed={elapsed:?}");
 }
 
 #[test]
-fn content_length_본문이_완성되면_eof를_기다리지_않는다() {
+fn completed_content_length_body_does_not_wait_for_eof() {
     // Given
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (release_tx, release_rx) = mpsc::channel();
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
-        테스트_요청을_끝까지_읽는다(&mut stream);
+        read_test_request_to_end(&mut stream);
         stream
             .write_all(b"HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\n{}")
             .unwrap();
@@ -106,9 +106,9 @@ fn content_length_본문이_완성되면_eof를_기다리지_않는다() {
     // When
     let started = Instant::now();
     let result = execute(
-        테스트_요청(&endpoint),
+        test_request(&endpoint),
         ResponseLimits::for_untrusted_output().unwrap(),
-        테스트_예산(),
+        test_budget(),
     );
     let elapsed = started.elapsed();
     let _ = release_tx.send(());

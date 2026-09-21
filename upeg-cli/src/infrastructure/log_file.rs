@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn 누락된이면_fresh를_연다() {
+    fn opens_fresh_when_missing() {
         let path = tmp("fresh.log");
         let _ = std::fs::remove_file(&path);
         let mut f = open_rotated(&path).expect("open");
@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn 상한_아래이면_그대로_덧붙인다() {
+    fn appends_as_is_below_the_cap() {
         let path = tmp("append.log");
         let _ = std::fs::remove_file(&path);
         std::fs::write(&path, b"first\n").unwrap();
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn 에서_상한이면_순환한다를_검증한다() {
+    fn rotates_at_the_cap() {
         let path = tmp("rotate.log");
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(rotated_path(&path));
@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn tail는_마지막_엔_줄들을_반환한다() {
+    fn tail_returns_the_last_n_lines() {
         let path = tmp("tail.log");
         std::fs::write(&path, b"a\nb\nc\nd\ne\n").unwrap();
         let lines = tail(&path, 3).unwrap();

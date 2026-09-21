@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  // === Constants (no magic strings/numbers — 매직 넘버·문자열 지양) ===
+  // === Constants (no magic strings/numbers — keep literals named) ===
   //
   // The host wire (address, paths, deep links, dispatch classification)
   // lives in host_api.js because background.js needs the identical thing.
@@ -30,9 +30,11 @@
   const {
     BOARDS_LIST_PATH,
     DEEP_LINK_ACTION,
+    DEFAULT_ENDPOINT,
     DISPATCH_RESULT_KIND,
-    HTTP_ADDRESS,
-    HTTP_BASE_URL,
+    ENDPOINT_ERROR,
+    ENDPOINT_STORAGE_KEY,
+    PAIRING_COMMAND,
     RUNTIME_MESSAGE,
     RUN_HINT_COMMAND,
     TOKEN_STORAGE_KEY,
@@ -41,7 +43,9 @@
     buildDeepLink,
     callTool,
     isAuthStatus,
+    parseLoopbackEndpoint,
     primaryOutput,
+    readHostEndpoint,
   } = UpegHostApi;
 
   const {
@@ -129,7 +133,19 @@
     }
   }
 
-  const daemonUnreachableText = () => i18nMessage('daemonUnreachable', [HTTP_ADDRESS]);
+  const daemonUnreachableText = () =>
+    i18nMessage('daemonUnreachable', [state.endpoint.address]);
+
+  // Endpoint validation failure → localized message key. host_api.js
+  // reports the typed reason and stays catalog-free.
+  const ENDPOINT_ERROR_KEY = Object.freeze({
+    [ENDPOINT_ERROR.NOT_A_URL]: 'endpointErrorNotUrl',
+    [ENDPOINT_ERROR.NOT_HTTP]: 'endpointErrorNotHttp',
+    [ENDPOINT_ERROR.CREDENTIALS]: 'endpointErrorCredentials',
+    [ENDPOINT_ERROR.PATH_OR_QUERY]: 'endpointErrorPath',
+    [ENDPOINT_ERROR.NOT_LOOPBACK]: 'endpointErrorNotLoopback',
+    [ENDPOINT_ERROR.BAD_PORT]: 'endpointErrorPort',
+  });
 
   // === DOM handles ===
 
@@ -143,6 +159,10 @@
 
   const settingsToggleEl = document.getElementById('settings-toggle');
   const settingsPanelEl = document.getElementById('settings-panel');
+  const endpointInputEl = document.getElementById('endpoint-input');
+  const endpointSaveEl = document.getElementById('endpoint-save');
+  const endpointResetEl = document.getElementById('endpoint-reset');
+  const endpointStatusEl = document.getElementById('endpoint-status');
   const tokenInputEl = document.getElementById('token-input');
   const tokenSaveEl = document.getElementById('token-save');
   const tokenClearEl = document.getElementById('token-clear');
@@ -172,6 +192,11 @@
     activeToolIndex: 0,
     focusRegion: FOCUS_REGION.TOOLS,
     token: /** @type {string | null} */ (null),
+    // The paired endpoint every request path shares — board list, direct
+    // dispatch, and the service worker all read the same stored value.
+    endpoint: /** @type {{ baseUrl: string, address: string, permissionPattern: string }} */ (
+      DEFAULT_ENDPOINT
+    ),
     // Non-null while the direct-dispatch panel (Task B2) is open for a
     // pinned tool: which tool/board it targets, whether the form is
     // still being filled in or a run is in flight, and the last result.
@@ -198,7 +223,7 @@
   }
 
   async function fetchJson(path) {
-    const response = await fetch(`${HTTP_BASE_URL}${path}`, {
+    const response = await fetch(`${state.endpoint.baseUrl}${path}`, {
       headers: authHeaders(state.token),
     });
     if (!response.ok) {
@@ -224,7 +249,13 @@
     messageTextEl.textContent = text;
     messageHintEl.hidden = !showRunHint;
     if (showRunHint) {
-      messageHintEl.textContent = i18nMessage('runHint', [RUN_HINT_COMMAND]);
+      // `upeg http` binds an ephemeral port, so the hint names both the
+      // start command and the status command that prints the real
+      // endpoint + token to pair with.
+      messageHintEl.textContent = i18nMessage('runHint', [
+        RUN_HINT_COMMAND,
+        PAIRING_COMMAND,
+      ]);
     }
     messageTokenActionEl.hidden = !showTokenHint;
     openUpegLink.setAttribute('href', DEEP_LINK_ACTION);
@@ -351,7 +382,55 @@
     await loadToolsForBoard(state.boards[index]);
   }
 
-  // === Token storage (settings panel) ===
+  // === Endpoint + token storage (settings panel) ===
+
+  async function loadEndpoint() {
+    state.endpoint = await readHostEndpoint(chrome.storage.local);
+    // The effective endpoint is visible (not just a placeholder hint) so
+    // the user can confirm what the extension will actually call.
+    endpointInputEl.value = state.endpoint.baseUrl;
+  }
+
+  async function saveEndpoint() {
+    const parsed = parseLoopbackEndpoint(endpointInputEl.value);
+    if (!parsed.ok) {
+      endpointStatusEl.textContent = i18nMessage(ENDPOINT_ERROR_KEY[parsed.error]);
+      return;
+    }
+    // The bearer token rides Authorization to this origin on every
+    // request. The default endpoint is already covered by the manifest's
+    // required `http://127.0.0.1:7173/*`; a custom port needs its exact
+    // `http://host:port/*` pattern granted first — requested here, from a
+    // user gesture, rather than widening install-time permissions.
+    const pattern = parsed.endpoint.permissionPattern;
+    const alreadyGranted = (await grantedPatterns(chrome.permissions, [pattern])).length > 0;
+    if (
+      !alreadyGranted &&
+      !(await requestSitePermission(chrome.permissions, pattern))
+    ) {
+      endpointStatusEl.textContent = i18nMessage('endpointPermissionDenied');
+      return;
+    }
+    await chrome.storage.local.set({
+      [ENDPOINT_STORAGE_KEY]: parsed.endpoint.baseUrl,
+    });
+    state.endpoint = parsed.endpoint;
+    endpointInputEl.value = parsed.endpoint.baseUrl;
+    endpointStatusEl.textContent = i18nMessage('endpointSavedStatus', [
+      parsed.endpoint.address,
+    ]);
+    await connect();
+  }
+
+  async function resetEndpoint() {
+    await chrome.storage.local.remove(ENDPOINT_STORAGE_KEY);
+    state.endpoint = DEFAULT_ENDPOINT;
+    endpointInputEl.value = DEFAULT_ENDPOINT.baseUrl;
+    endpointStatusEl.textContent = i18nMessage('endpointResetStatus', [
+      DEFAULT_ENDPOINT.address,
+    ]);
+    await connect();
+  }
 
   async function loadToken() {
     try {
@@ -574,6 +653,7 @@
 
   async function init() {
     localizeStaticDom();
+    await loadEndpoint();
     await loadToken();
     await loadSiteState();
     await connect();
@@ -1031,6 +1111,7 @@
     }
     const outcome = await callTool({
       fetchImpl: fetch,
+      baseUrl: state.endpoint.baseUrl,
       token: state.token,
       toolId: tool[TOOL_ID_FIELD],
       args,
@@ -1061,6 +1142,15 @@
 
   siteToggleEl.addEventListener('click', toggleSite);
   settingsToggleEl.addEventListener('click', toggleSettingsPanel);
+  endpointSaveEl.addEventListener('click', saveEndpoint);
+  endpointResetEl.addEventListener('click', resetEndpoint);
+  endpointInputEl.addEventListener('keydown', (event) => {
+    // Same local-Enter contract the token field uses.
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveEndpoint();
+    }
+  });
   tokenSaveEl.addEventListener('click', saveToken);
   tokenClearEl.addEventListener('click', clearToken);
   tokenInputEl.addEventListener('keydown', (event) => {

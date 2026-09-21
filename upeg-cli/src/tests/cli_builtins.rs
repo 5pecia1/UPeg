@@ -13,7 +13,7 @@ fn write_tmp_toml(name: &str, content: &str) -> std::path::PathBuf {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn wasm_로드_하위명령은_테스트_플러그인을_로드한다() {
+fn wasm_load_subcommand_loads_the_test_plugin() {
     // The fixture .wasm lives in upeg-wasm/tests/fixtures/. Use a    // path-relative-to-workspace lookup.
     let path = std::path::Path::new("../upeg-wasm/tests/fixtures/test_plugin.wasm");
     if !path.exists() {
@@ -41,7 +41,7 @@ fn wasm_로드_하위명령은_테스트_플러그인을_로드한다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn wasm_템플릿은_플러그인_로드에_필요한_토큰을_내보낸다() {
+fn wasm_template_emits_the_tokens_required_for_plugin_loading() {
     let out = run(parse(&["upeg", "wasm", "template"])).unwrap();
     // Required tokens — if the plugin contract changes (the
     // `export` field, the manifest JSON shape, etc.), this asserts
@@ -77,7 +77,7 @@ fn wasm_템플릿은_플러그인_로드에_필요한_토큰을_내보낸다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn wasm_템플릿_출력은_파이프가능한_러스트_소스이다() {
+fn wasm_template_outputs_pipeable_rust_source() {
     // Should at least lex as Rust syntax (rustc would parse it).
     // We don't shell out to rustc here — just assert it isn't empty
     // and starts with the canonical `//!` doc-comment.
@@ -92,7 +92,7 @@ fn wasm_템플릿_출력은_파이프가능한_러스트_소스이다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn wasm_로드_알수없는_경로는_깨끗한_오류를_반환한다() {
+fn wasm_load_returns_a_clear_error_for_a_missing_path() {
     let r = run(parse(&[
         "upeg",
         "wasm",
@@ -111,7 +111,7 @@ fn wasm_로드_알수없는_경로는_깨끗한_오류를_반환한다() {
 // ─── --resolve-chain  ─────────────────────────────
 
 #[test]
-fn 체인_해석은_내장의_체인을_허용한다() {
+fn resolve_chain_accepts_a_chain_of_builtins() {
     let path = write_tmp_toml(
         "valid_resolve_builtins.toml",
         r#"id = "iter54.upper_then_md5"
@@ -136,7 +136,7 @@ steps = [
 }
 
 #[test]
-fn 체인_해석은_같은_manifest_형제를_허용한다() {
+fn resolve_chain_accepts_siblings_in_the_same_manifest() {
     let path = write_tmp_toml(
         "valid_resolve_same_manifest_sibling.toml",
         r#"id = "iter260"
@@ -180,7 +180,7 @@ args_template = ["{input}"]
 }
 
 #[test]
-fn 체인_해석은_자신_참조를_거부한다() {
+fn resolve_chain_rejects_self_references() {
     let path = write_tmp_toml(
         "self_ref.toml",
         r#"id = "iter54.self"
@@ -209,7 +209,7 @@ steps = [
 }
 
 #[test]
-fn 체인_해석은_단계_ids를_잘라낸다() {
+fn resolve_chain_trims_step_tool_ids_before_resolution() {
     // parallel to chain_dispatcher_for trim. Step ids must be    // trimmed before the self-ref check; otherwise a step like
     // `"iter240.cli_self "` (trailing space) would bypass the check
     // (compared un-trimmed to the tool's id) and surface as
@@ -273,7 +273,7 @@ steps = [
 }
 
 #[test]
-fn 체인_해석은_누락된_단계를_거부한다() {
+fn resolve_chain_rejects_missing_step_tools() {
     let path = write_tmp_toml(
         "missing_step.toml",
         r#"id = "iter54.broken"
@@ -305,7 +305,7 @@ steps = [
 }
 
 #[test]
-fn 체인_해석은_존재_확인_없이_건너뛴다() {
+fn validate_without_resolve_chain_skips_step_existence_checks() {
     // Same broken chain as the previous test, but without --resolve-chain
     // the validator only sanity-checks the SHAPE; missing step ids pass.
     let path = write_tmp_toml(
@@ -321,7 +321,7 @@ steps = [{ tool = "no.such.tool.also_zzz" }]"#,
 }
 
 #[test]
-fn 검증은_id를_가린_내장을_거부한다() {
+fn validate_rejects_ids_that_shadow_builtins() {
     // a TOML whose `id` matches a link-time built-in's id
     // used to register cleanly but then `toolbox_tools()` iterates
     // inventory first and runtime second — so `tool show` returned
@@ -353,7 +353,7 @@ description = "tries to shadow the built-in""#,
 }
 
 #[test]
-fn 패딩된_id로_가려진_내장도_검증에서_거부된다() {
+fn validate_rejects_padded_ids_that_attempt_to_shadow_builtins() {
     // a padded TOML id (e.g., `id = " num.hex_to_decimal "`)
     // must be rejected before registration. With v2.1 Toolkit-local tool
     // ids, the validator no longer normalizes this legacy full-id shape into
@@ -377,7 +377,7 @@ toolkit = "convert""#,
 }
 
 #[test]
-fn 인벤토리_id_검사는_내장을_감지하고_알수없는_id를_거부한다() {
+fn toolbox_id_check_detects_builtins_and_rejects_unknown_ids() {
     // The predicate underpins three loader-side collision checks
     // (loader, wasm, mcp_import). Pin both halves: existing built-in
     // returns true, non-colliding id returns false. `num.hex_to_decimal`
@@ -398,7 +398,7 @@ fn 인벤토리_id_검사는_내장을_감지하고_알수없는_id를_거부한
 }
 
 #[test]
-fn 고유한_id는_검증을_거쳐_로드된다() {
+fn validate_accepts_unique_tool_ids() {
     // Sanity: a non-colliding id passes the new check.
     let path = write_tmp_toml(
         "unique_id.toml",
@@ -414,7 +414,7 @@ fn 고유한_id는_검증을_거쳐_로드된다() {
 }
 
 #[test]
-fn 검증은_툴박스를_오염시키지_않는다() {
+fn validate_does_not_register_tools_in_the_toolbox() {
     // After validate runs against a TOML with id `validate.no_register`,
     // the toolbox must NOT contain it — validate is a dry-run.
     let path = write_tmp_toml(
@@ -435,7 +435,7 @@ fn 검증은_툴박스를_오염시키지_않는다() {
 // ─── Surface gating  ─────────────────────────────────
 
 #[test]
-fn cli_표면의_도구_목록은_도구가_아닌_것을_걸러낸다() {
+fn cli_tool_list_excludes_tools_not_on_the_cli_surface() {
     let id = "test.iter41.cli_excluded";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -454,6 +454,8 @@ fn cli_표면의_도구_목록은_도구가_아닌_것을_걸러낸다() {
         .expect("test input spec should import"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -470,7 +472,7 @@ fn cli_표면의_도구_목록은_도구가_아닌_것을_걸러낸다() {
 }
 
 #[test]
-fn cli_표면은_도구가_아닌_호출을_거부한다() {
+fn cli_call_rejects_tools_not_on_the_cli_surface() {
     let id = "test.iter41.cli_refused";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -484,6 +486,8 @@ fn cli_표면은_도구가_아닌_호출을_거부한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -509,19 +513,19 @@ fn cli_표면은_도구가_아닌_호출을_거부한다() {
 // ─── New built-in tools  ───────────────────────────
 
 #[test]
-fn 텍스트_소문자_하위명령을_검증한다() {
+fn text_lowercase_subcommand_converts_input_to_lowercase() {
     let out = run(parse(&["upeg", "text", "lowercase", "Hello, World"])).unwrap();
     assert_eq!(out, "hello, world\n");
 }
 
 #[test]
-fn 텍스트_대문자_하위명령을_검증한다() {
+fn text_uppercase_subcommand_converts_input_to_uppercase() {
     let out = run(parse(&["upeg", "text", "uppercase", "Hello, World"])).unwrap();
     assert_eq!(out, "HELLO, WORLD\n");
 }
 
 #[test]
-fn 해시_sha256_하위명령은_알려진_벡터와_일치한다() {
+fn hash_sha256_subcommand_matches_a_known_vector() {
     let out = run(parse(&["upeg", "hash", "sha256", "abc"])).unwrap();
     assert_eq!(
         out,
@@ -530,16 +534,16 @@ fn 해시_sha256_하위명령은_알려진_벡터와_일치한다() {
 }
 
 #[test]
-fn 시간_유닉스_현재시각_하위명령은_2020년_이후의_초를_반환한다() {
+fn time_epoch_now_subcommand_returns_seconds_after_2020() {
     let out = run(parse(&["upeg", "time", "epoch-now"])).unwrap();
     let n: u64 = out.trim().parse().expect("expected integer seconds");
     assert!(n > 1_577_836_800, "expected post-2020 epoch, got {n}");
 }
 
 #[test]
-fn 새_도구는_도구_목록에_나타난다() {
-    // Surface-listing must include the four new tools after their
-    // #[upeg::tool] annotations are linked into this binary.
+fn tool_list_includes_case_conversion_sha256_and_epoch_now() {
+    // Linking the #[upeg::tool] annotations must make these tools visible
+    // in the surface listing.
     let out = run(parse(&["upeg", "tool", "list"])).unwrap();
     for expected in [
         "text.lowercase",
@@ -554,7 +558,7 @@ fn 새_도구는_도구_목록에_나타난다() {
 // ─── text.split + text.join ───────────────────
 
 #[test]
-fn 텍스트_분할_결합_왕복은_cli를_통해_동작한다() {
+fn text_split_and_join_round_trip_through_cli() {
     let split_out = run(parse(&["upeg", "text", "split", "a,b,c", ","])).unwrap();
     assert_eq!(split_out, "[\"a\",\"b\",\"c\"]\n");
     let join_out = run(parse(&["upeg", "text", "join", r#"["a","b","c"]"#, ","])).unwrap();
@@ -562,19 +566,19 @@ fn 텍스트_분할_결합_왕복은_cli를_통해_동작한다() {
 }
 
 #[test]
-fn 텍스트_분할_기본_구분자는_공백이다() {
+fn text_split_defaults_to_whitespace_delimiters() {
     let out = run(parse(&["upeg", "text", "split", "  hello   world  "])).unwrap();
     assert_eq!(out, "[\"hello\",\"world\"]\n");
 }
 
 #[test]
-fn 텍스트_결합_기본_구분자는_공백이다() {
+fn text_join_defaults_to_a_space_delimiter() {
     let out = run(parse(&["upeg", "text", "join", r#"["a","b","c"]"#])).unwrap();
     assert_eq!(out, "a b c\n", "default delim should be space");
 }
 
 #[test]
-fn 텍스트_결합은_유효하지_않은_입력에_도구_실패를_반환한다() {
+fn text_join_returns_tool_failure_for_invalid_input() {
     let r = run(parse(&["upeg", "text", "join", "not json", ","]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
 }
@@ -582,7 +586,7 @@ fn 텍스트_결합은_유효하지_않은_입력에_도구_실패를_반환한�
 // ─── --dry-run ────────────────────────────────
 
 #[test]
-fn dry_run은_dispatch_없이_해결된_인자를_출력한다() {
+fn dry_run_prints_resolved_args_without_dispatch() {
     let out = run(parse(&[
         "upeg",
         "call",
@@ -598,7 +602,7 @@ fn dry_run은_dispatch_없이_해결된_인자를_출력한다() {
 }
 
 #[test]
-fn dry_run은_위치_인자와_인자_플래그를_올바른_우선순위로_결합한다() {
+fn dry_run_merges_positional_and_arg_flags_with_the_right_precedence() {
     // -a flags win over positional JSON. Verify dry-run reflects    // that precedence.
     let out = run(parse(&[
         "upeg",
@@ -619,7 +623,7 @@ fn dry_run은_위치_인자와_인자_플래그를_올바른_우선순위로_결
 }
 
 #[test]
-fn dry_run은_표면_게이트를_건너뛴다() {
+fn dry_run_bypasses_the_surface_gate() {
     // A tool declaring only `surfaces = ["mcp"]` would normally be    // refused via the CLI surface gate. --dry-run should still print
     // the args — the gate only applies to actual dispatch.
     let id = "test.iter73.dry_run_mcp_only";
@@ -643,6 +647,8 @@ fn dry_run은_표면_게이트를_건너뛴다() {
         .expect("valid InputSpec"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -658,20 +664,20 @@ fn dry_run은_표면_게이트를_건너뛴다() {
 // ─── hash.sha1 + hash.sha512 ──────────────────
 
 #[test]
-fn 해시_sha1_하위명령은_알려진_벡터와_일치한다() {
+fn hash_sha1_subcommand_matches_a_known_vector() {
     let out = run(parse(&["upeg", "hash", "sha1", "abc"])).unwrap();
     assert_eq!(out, "a9993e364706816aba3e25717850c26c9cd0d89d\n");
 }
 
 #[test]
-fn 해시_sha512_하위명령은_알려진_벡터와_일치한다() {
+fn hash_sha512_subcommand_matches_a_known_vector() {
     let out = run(parse(&["upeg", "hash", "sha512", "abc"])).unwrap();
     assert_eq!(out.trim_end_matches('\n').len(), 128);
     assert!(out.starts_with("ddaf35a193617aba"));
 }
 
 #[test]
-fn 해시_도구군은_hash_태그_도구_목록에_나타난다() {
+fn hash_tools_appear_in_the_hash_tag_tool_list() {
     let listed = run(parse(&["upeg", "tool", "list", "--tag", "hash"])).unwrap();
     for expected in ["hash.md5", "hash.sha1", "hash.sha256", "hash.sha512"] {
         assert!(
@@ -684,7 +690,7 @@ fn 해시_도구군은_hash_태그_도구_목록에_나타난다() {
 // ─── stdin args sentinel ─────────────────────────
 
 #[test]
-fn 호출의_대시_인자는_표준입력_센티널로_파싱된다() {
+fn call_dash_arg_parses_as_the_stdin_sentinel() {
     // `upeg call X -` keeps `-` in the parsed args field. The actual
     // stdin read happens inside `run()`; we can't unit-test that path
     // without mocking the global stdin handle, but we can confirm
@@ -699,7 +705,7 @@ fn 호출의_대시_인자는_표준입력_센티널로_파싱된다() {
 // ─── tool show --json ────────────────────────────
 
 #[test]
-fn 도구_표시_json은_v1_도구_형태를_내보낸다() {
+fn tool_show_json_emits_the_v1_tool_shape() {
     // Cover every field the `to_json_object` helper emits so that
     // additions like `outputSchema` / `embedUrl` / `selectorBindings` cannot silently
     // drop here. Same shape pinned by upeg-core's
@@ -749,7 +755,7 @@ fn 도구_표시_json은_v1_도구_형태를_내보낸다() {
 }
 
 #[test]
-fn 도구_표시_json_알수없는_id는_알수없는_도구_오류를_반환한다() {
+fn tool_show_json_with_an_unknown_id_returns_an_unknown_tool_error() {
     let r = run(parse(&[
         "upeg",
         "tool",
@@ -761,14 +767,14 @@ fn 도구_표시_json_알수없는_id는_알수없는_도구_오류를_반환한
 }
 
 #[test]
-fn json_플래그_없이_호출하면_도구_표시는_기존_텍스트_출력을_유지한다() {
+fn tool_show_without_the_json_flag_keeps_the_text_output() {
     let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"])).unwrap(); // Tabular form preserves the original contract.
     assert!(out.contains("id            num.hex_to_decimal"));
     assert!(out.contains("pin   Inline"));
 }
 
 #[test]
-fn 도구_표시는_입력들_섹션을_포함한다() {
+fn tool_show_includes_the_inputs_section() {
     // text-form `tool show` must surface the input schema
     // fields so CLI users can discover a tool's args without falling
     // back to `--json`. hex_to_decimal has a single required string field
@@ -789,7 +795,7 @@ fn 도구_표시는_입력들_섹션을_포함한다() {
 }
 
 #[test]
-fn schema가_비어_있으면_도구_표시는_입력_없음을_알린다() {
+fn tool_show_reports_no_inputs_when_the_schema_is_empty() {
     // Iter 180: tools with no typed inputs (e.g., id.uuid_v7) get    // "(none)" — same convention as boards. Pin so a future
     // edit that drops the placeholder for empty schemas is loud.
     let out = run(parse(&["upeg", "tool", "show", "id.uuid_v7"])).unwrap();
@@ -800,7 +806,7 @@ fn schema가_비어_있으면_도구_표시는_입력_없음을_알린다() {
 }
 
 #[test]
-fn 도구_표시는_description을_포함한다() {
+fn tool_show_includes_the_description() {
     // text-form `tool show` must surface the tool's    // description so users see what it does before running it.
     let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"])).unwrap();
     assert!(
@@ -818,7 +824,7 @@ fn 도구_표시는_description을_포함한다() {
 }
 
 #[test]
-fn 비어_있으면_도구_표시는_description이_없는_자리표시자를_사용한다() {
+fn tool_show_uses_a_placeholder_when_the_description_is_empty() {
     // Match the TUI Detail view's convention: empty description shows
     // "(no description)" so the row never appears blank. Register a
     // throwaway runtime tool with empty description to exercise the
@@ -834,6 +840,8 @@ fn 비어_있으면_도구_표시는_description이_없는_자리표시자를_�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -851,7 +859,7 @@ fn 비어_있으면_도구_표시는_description이_없는_자리표시자를_�
 // ─── iso_now + json_minify ─────────────────────────
 
 #[test]
-fn 시간_iso_현재시각_하위명령은_iso_8601_형태를_반환한다() {
+fn time_iso_now_subcommand_returns_iso_8601() {
     let out = run(parse(&["upeg", "time", "iso-now"])).unwrap();
     let s = out.trim_end_matches('\n');
     assert_eq!(s.len(), 20, "expected `YYYY-MM-DDTHH:MM:SSZ`, got {s:?}");
@@ -863,7 +871,7 @@ fn 시간_iso_현재시각_하위명령은_iso_8601_형태를_반환한다() {
 }
 
 #[test]
-fn 인코딩_json_압축_하위명령이_동작한다() {
+fn convert_json_minify_subcommand_works() {
     let out = run(parse(&[
         "upeg",
         "convert",
@@ -877,7 +885,7 @@ fn 인코딩_json_압축_하위명령이_동작한다() {
 }
 
 #[test]
-fn 시간_iso와_json_축소_도구는_목록과_dispatch_모두에_나타난다() {
+fn time_iso_now_and_json_minify_tools_appear_in_list_and_dispatch() {
     let listed = run(parse(&["upeg", "tool", "list"])).unwrap();
     for expected in ["time.iso_now", "convert.json_minify"] {
         assert!(
@@ -901,26 +909,26 @@ fn 시간_iso와_json_축소_도구는_목록과_dispatch_모두에_나타난다
 // ─── --quiet global flag ──────────────────────────
 
 #[test]
-fn 조용한_플래그는_상단_수준에서_파싱된다() {
+fn quiet_flag_parses_at_the_top_level() {
     let cli = parse(&["upeg", "--quiet", "tool", "list"]);
     assert!(cli.quiet);
 }
 
 #[test]
-fn 하위명령_뒤의_조용한_플래그도_파싱된다() {
+fn quiet_flag_after_a_subcommand_also_parses() {
     // global=true means clap accepts the flag at any position.
     let cli = parse(&["upeg", "tool", "list", "--quiet"]);
     assert!(cli.quiet);
 }
 
 #[test]
-fn 짧은_큐_플래그도_동작한다() {
+fn short_q_flag_also_works() {
     let cli = parse(&["upeg", "-q", "tool", "list"]);
     assert!(cli.quiet);
 }
 
 #[test]
-fn 조용한_플래그의_기본값은_거짓이다() {
+fn quiet_flag_defaults_to_false() {
     let cli = parse(&["upeg", "tool", "list"]);
     assert!(!cli.quiet);
 }
@@ -928,13 +936,13 @@ fn 조용한_플래그의_기본값은_거짓이다() {
 // ─── text.trim + security.bytes_generate ──────────────────
 
 #[test]
-fn 텍스트_잘라냄_하위명령을_검증한다() {
+fn text_trim_subcommand_works() {
     let out = run(parse(&["upeg", "text", "trim", "  hello  "])).unwrap();
     assert_eq!(out, "hello\n");
 }
 
 #[test]
-fn 랜덤_hex_바이트_기본_하위명령이_동작한다() {
+fn security_bytes_generate_default_subcommand_works() {
     let out = run(parse(&["upeg", "security", "bytes-generate"])).unwrap();
     let s = out.trim_end_matches('\n');
     assert_eq!(s.len(), 32, "default n=16 → 32 hex chars");
@@ -945,13 +953,13 @@ fn 랜덤_hex_바이트_기본_하위명령이_동작한다() {
 }
 
 #[test]
-fn 랜덤_hex_바이트_사용자지정_길이_하위명령이_동작한다() {
+fn security_bytes_generate_custom_length_subcommand_works() {
     let out = run(parse(&["upeg", "security", "bytes-generate", "8"])).unwrap();
     assert_eq!(out.trim_end_matches('\n').len(), 16);
 }
 
 #[test]
-fn 랜덤_hex_바이트_이_너무_크면_도구_실패를_반환한다() {
+fn security_bytes_generate_too_large_returns_tool_failure() {
     let r = run(parse(&["upeg", "security", "bytes-generate", "2000"]));
     match r {
         Err(CliError::ToolFailed(msg)) => assert!(msg.contains("too large")),
@@ -960,7 +968,7 @@ fn 랜덤_hex_바이트_이_너무_크면_도구_실패를_반환한다() {
 }
 
 #[test]
-fn 텍스트_다듬기와_랜덤_hex_도구는_도구_목록에_나타난다() {
+fn text_trim_and_bytes_generate_tools_appear_in_the_tool_list() {
     let listed = run(parse(&["upeg", "tool", "list"])).unwrap();
     for expected in ["text.trim", "security.bytes_generate"] {
         assert!(

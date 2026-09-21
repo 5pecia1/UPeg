@@ -647,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    fn json_schema_어댑터는_모든_입력_종류를_왕복한다() {
+    fn json_schema_adapter_round_trips_every_input_kind() {
         let spec = all_kind_spec();
 
         let schema = spec.to_json_schema_value();
@@ -716,7 +716,7 @@ mod tests {
     }
 
     #[test]
-    fn json_schema_어댑터는_열거형이_있는_레거시_선택_타입_라벨을_가져온다() {
+    fn json_schema_adapter_imports_legacy_choice_type_labels_with_enums() {
         let schema = json!({
             "type": "object",
             "properties": {
@@ -735,7 +735,7 @@ mod tests {
     }
 
     #[test]
-    fn json_schema_어댑터는_x_upeg_kind로_특수_입력을_가져온다() {
+    fn json_schema_adapter_imports_special_inputs_via_x_upeg_kind() {
         let schema = json!({
             "type": "object",
             "properties": {
@@ -767,7 +767,7 @@ mod tests {
     }
 
     #[test]
-    fn json_schema_어댑터는_지원되지_않은_구성을_거부한다() {
+    fn json_schema_adapter_rejects_unsupported_constructs() {
         let nested = json!({
             "type": "object",
             "properties": {

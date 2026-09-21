@@ -51,7 +51,7 @@ const APPROVAL_AND_LIVE_OUTPUT_DOC: &str =
 const TUI_INTERFACE_TEST: &str = "upeg-cli/src/surfaces/tui/interface_tests.rs";
 /// The test inside [`TUI_INTERFACE_TEST`] that actually asserts these
 /// entries — pinned by the inventory honesty check.
-const TUI_INTERFACE_TEST_NAME: &str = "tui_인터페이스_인벤토리는_안정적인_형태로_직렬화된다";
+const TUI_INTERFACE_TEST_NAME: &str = "tui_interface_inventory_serializes_to_stable_shape";
 
 const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {

@@ -3,7 +3,7 @@ use crate::dispatcher::{DEFAULT_APPROVAL_SURFACES, chain_dispatcher_for};
 use crate::{ChainStepToml, ToolToml, load_and_register_dir};
 use upeg_core::{OutputEntry, OutputKind, OutputValue, ToolResult, ToolSuccess};
 
-fn 성공_결과(primary: &str, outputs: Vec<OutputEntry>) -> ToolResult {
+fn success_result(primary: &str, outputs: Vec<OutputEntry>) -> ToolResult {
     ToolResult::Success(
         ToolSuccess::new(Some(primary.to_string()), outputs).expect("valid canonical success"),
     )
@@ -22,7 +22,7 @@ fn cli_call(input: serde_json::Value, approved_steps: Option<&[&str]>) -> serde_
     serde_json::json!({ "input": input, "_upeg": context })
 }
 
-fn 문자열_출력(id: &str, value: &str) -> OutputEntry {
+fn string_output(id: &str, value: &str) -> OutputEntry {
     OutputEntry {
         id: id.to_string(),
         label: None,
@@ -32,7 +32,7 @@ fn 문자열_출력(id: &str, value: &str) -> OutputEntry {
 }
 
 #[test]
-fn 체인_필드가_없으면_체인_dispatcher는_없다() {
+fn no_chain_fields_means_no_chain_dispatcher() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y""#,
@@ -42,7 +42,7 @@ fn 체인_필드가_없으면_체인_dispatcher는_없다() {
 }
 
 #[test]
-fn 체인_dispatcher는_단일_단계를_위임한다() {
+fn chain_dispatcher_delegates_single_step() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.chain.step.alpha", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         Ok(format!("alpha({s})"))
@@ -61,7 +61,7 @@ fn 체인_dispatcher는_단일_단계를_위임한다() {
 }
 
 #[test]
-fn 암시적_순서가_없는_체인_dispatcher의_독립_단계는_루트_인자를_받는다() {
+fn independent_steps_of_chain_without_implicit_order_receive_root_args() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.chain.independent.first", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         let mode = args.get("mode").and_then(|v| v.as_str()).unwrap_or("");
@@ -94,7 +94,7 @@ fn 암시적_순서가_없는_체인_dispatcher의_독립_단계는_루트_인�
 }
 
 #[test]
-fn 체인_dispatcher는_표준출력을_다음_단계_입력으로_연결한다() {
+fn chain_dispatcher_pipes_stdout_into_next_step_input() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.chain.step.upper", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         Ok(s.to_uppercase())
@@ -121,18 +121,18 @@ fn 체인_dispatcher는_표준출력을_다음_단계_입력으로_연결한다(
 }
 
 #[test]
-fn 체인_dispatcher는_기본으로_primary_output을_다음_단계에_전달한다() {
+fn chain_dispatcher_forwards_primary_output_to_next_step_by_default() {
     upeg_runtime::register_runtime_dispatcher("test.chain.primary.source", |_| {
-        성공_결과(
+        success_result(
             "machine",
             vec![
                 OutputEntry {
                     id: "label".into(),
                     label: Some("Rendered Label".into()),
                     kind: OutputKind::String,
-                    value: OutputValue::String("사람용 라벨".into()),
+                    value: OutputValue::String("human-facing label".into()),
                 },
-                문자열_출력("machine", "canonical"),
+                string_output("machine", "canonical"),
             ],
         )
     });
@@ -159,13 +159,13 @@ fn 체인_dispatcher는_기본으로_primary_output을_다음_단계에_전달�
 }
 
 #[test]
-fn 체인_dispatcher는_명시된_출력_필드를_단계_인자로_전달한다() {
+fn chain_dispatcher_forwards_named_output_field_as_step_arg() {
     upeg_runtime::register_runtime_dispatcher("test.chain.field.source", |_| {
-        성공_결과(
+        success_result(
             "primary",
             vec![
-                문자열_출력("primary", "default"),
-                문자열_출력("raw", "selected"),
+                string_output("primary", "default"),
+                string_output("raw", "selected"),
             ],
         )
     });
@@ -198,13 +198,13 @@ fn 체인_dispatcher는_명시된_출력_필드를_단계_인자로_전달한다
 }
 
 #[test]
-fn 체인_dispatcher는_마지막_단계의_정규화된_결과를_그대로_반환한다() {
+fn chain_dispatcher_returns_last_steps_normalized_result_verbatim() {
     upeg_runtime::register_runtime_dispatcher("test.chain.final.source", |_| {
-        성공_결과(
+        success_result(
             "primary",
             vec![
-                문자열_출력("primary", "canonical"),
-                문자열_출력("debug", "trace"),
+                string_output("primary", "canonical"),
+                string_output("debug", "trace"),
             ],
         )
     });
@@ -235,7 +235,7 @@ fn 체인_dispatcher는_마지막_단계의_정규화된_결과를_그대로_반
 }
 
 #[test]
-fn 체인_dispatcher_연결은_같은_도구를_별도_노드로_허용한다() {
+fn chain_dispatcher_connections_allow_same_tool_as_distinct_nodes() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.connection.reused", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         let label = args.get("label").and_then(|v| v.as_str()).unwrap_or("");
@@ -268,7 +268,7 @@ fn 체인_dispatcher_연결은_같은_도구를_별도_노드로_허용한다() 
 }
 
 #[test]
-fn 체인_dispatcher_풍부한_단계는_식_분기_승인과_출력을_지원한다() {
+fn chain_dispatcher_rich_steps_support_expression_gating_approval_and_output() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.rich.upper", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         Ok(s.to_uppercase())
@@ -346,7 +346,7 @@ fn 체인_dispatcher_풍부한_단계는_식_분기_승인과_출력을_지원�
 }
 
 #[test]
-fn 체인_dispatcher_방향성비순환그래프_단계는_선언된_의존성_출력을_받는다() {
+fn chain_dispatcher_dag_steps_receive_declared_dependency_outputs() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.dag.a", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         Ok(format!("a:{s}"))
@@ -394,7 +394,7 @@ fn 체인_dispatcher_방향성비순환그래프_단계는_선언된_의존성_�
 }
 
 #[test]
-fn 체인_dispatcher의_팬아웃_조인_꼬리_시나리오는_명시적_연결을_사용한다() {
+fn chain_dispatcher_fanout_join_tail_scenario_uses_explicit_connections() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.scenario.seed", |args| {
         let s = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
         Ok(format!("seed({s})"))
@@ -461,7 +461,7 @@ fn 체인_dispatcher의_팬아웃_조인_꼬리_시나리오는_명시적_연결
 }
 
 #[test]
-fn 체인_dispatcher는_단계_오류에서_짧게_중단한다() {
+fn chain_dispatcher_short_circuits_on_step_error() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.chain.step.fails", |_| {
         Err("step blew up".into())
     });
@@ -492,7 +492,7 @@ fn 체인_dispatcher는_단계_오류에서_짧게_중단한다() {
 }
 
 #[test]
-fn 체인_dispatcher는_알수없는_단계에_오류를_반환한다() {
+fn chain_dispatcher_errors_on_unknown_step() {
     let parsed = toml::from_str::<ToolToml>(
         r#"id = "y.x"
             toolkit = "y"
@@ -508,7 +508,7 @@ fn 체인_dispatcher는_알수없는_단계에_오류를_반환한다() {
 }
 
 #[test]
-fn 체인의_체인은_두_계층을_통해_dispatch한다() {
+fn chain_of_chains_dispatches_through_two_levels() {
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: "iter68.chain_a",
         toolkit: "iter68",
@@ -519,6 +519,8 @@ fn 체인의_체인은_두_계층을_통해_dispatch한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -553,7 +555,7 @@ fn 체인의_체인은_두_계층을_통해_dispatch한다() {
 }
 
 #[test]
-fn 체인_dispatcher는_단계_id를_잘라낸다() {
+fn chain_dispatcher_trims_step_ids() {
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: "iter240.step",
         toolkit: "iter240",
@@ -564,6 +566,8 @@ fn 체인_dispatcher는_단계_id를_잘라낸다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -626,7 +630,7 @@ fn 체인_dispatcher는_단계_id를_잘라낸다() {
 }
 
 #[test]
-fn 외부_호출자가_있는_단계는_충돌한다() {
+fn step_with_external_invoker_conflicts() {
     let dir = std::env::temp_dir().join("upeg_loader_chain_vs_external");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -658,24 +662,26 @@ steps = [{{ tool = "test.chain_vs_external.step" }}]"#,
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// ─── 승인 인가 (approval authorization) ──────────────────────────────
+// ─── approval authorization ─────────────────────────────────────────
 
-/// `_upeg.surface`를 각인한 호출 봉투. surface는 서버 surface가 각인하므로
-/// 호출자가 위조할 수 없다 — 그래서 승인 인가의 기준이 된다.
-fn 표면_승인_호출(surface: &str) -> serde_json::Value {
+/// A call envelope stamped with `_upeg.surface`. The surface is stamped
+/// by the serving surface so the caller cannot forge it — which is why
+/// it is the basis for approval authorization.
+fn surface_approval_call(surface: &str) -> serde_json::Value {
     serde_json::json!({ "approve": true, "_upeg": { "surface": surface } })
 }
 
-fn 실패(result: ToolResult) -> upeg_core::ToolError {
+fn failure(result: ToolResult) -> upeg_core::ToolError {
     match result {
         ToolResult::Failure(failure) => failure.error,
-        ToolResult::Success(success) => panic!("실패를 기대했으나 성공: {success:?}"),
+        ToolResult::Success(success) => panic!("expected failure but succeeded: {success:?}"),
     }
 }
 
-/// `requires_approval` step 하나짜리 체인. `approval_surfaces`를 그대로
-/// 이어 붙여 선언 여부/내용만 바꿔 가며 재사용한다.
-fn 승인_체인(id: &str, approval_surfaces: Option<&str>) -> ToolToml {
+/// A chain with a single `requires_approval` step. `approval_surfaces`
+/// is spliced in verbatim so tests can vary only whether/how it is
+/// declared.
+fn approval_chain(id: &str, approval_surfaces: Option<&str>) -> ToolToml {
     upeg_runtime::register_single_text_runtime_dispatcher("test.approval.echo", |args| {
         Ok(args
             .get("input")
@@ -683,13 +689,13 @@ fn 승인_체인(id: &str, approval_surfaces: Option<&str>) -> ToolToml {
             .unwrap_or("ok")
             .to_string())
     });
-    let 선언 =
+    let declaration =
         approval_surfaces.map_or_else(String::new, |list| format!("approval_surfaces = {list}\n"));
     toml::from_str::<ToolToml>(&format!(
         r#"id = "test.approval.{id}"
             toolkit = "test"
             invoker = "Chain"
-            {선언}
+            {declaration}
             [[steps]]
             id = "gate"
             tool = "test.approval.echo"
@@ -697,64 +703,65 @@ fn 승인_체인(id: &str, approval_surfaces: Option<&str>) -> ToolToml {
             args = '{{"input":"done"}}'
         "#
     ))
-    .expect("유효한 승인 체인 fixture")
+    .expect("valid approval chain fixture")
 }
 
 #[test]
-fn cli_표면의_승인은_기본_approval_surfaces에서_인정된다() {
-    let f = chain_dispatcher_for(&승인_체인("cli_ok", None)).expect("dispatcher built");
-    let out = call_dispatcher(&f, 표면_승인_호출("cli")).expect("cli 표면 승인은 인정되어야 한다");
+fn cli_surface_approval_is_honored_by_default_approval_surfaces() {
+    let f = chain_dispatcher_for(&approval_chain("cli_ok", None)).expect("dispatcher built");
+    let out = call_dispatcher(&f, surface_approval_call("cli"))
+        .expect("a cli-surface approval must be honored");
     assert_eq!(out, "done");
 }
 
 #[test]
-fn mcp_표면의_승인은_표면_인가에서_거부된다() {
-    let f = chain_dispatcher_for(&승인_체인("mcp_denied", None)).expect("dispatcher built");
-    let error = 실패(call_dispatcher_result(&f, 표면_승인_호출("mcp")));
+fn mcp_surface_approval_is_denied_by_surface_authorization() {
+    let f = chain_dispatcher_for(&approval_chain("mcp_denied", None)).expect("dispatcher built");
+    let error = failure(call_dispatcher_result(&f, surface_approval_call("mcp")));
     assert_eq!(error.code, "approval_denied_for_surface");
     assert!(
         error.message.contains("surface `mcp`") && error.message.contains("only from cli"),
-        "거부 메시지는 누가 승인할 수 있는지 알려야 한다: {}",
+        "the denial message must say who may approve: {}",
         error.message
     );
     assert!(
         error
             .message
             .contains("upeg call test.approval.mcp_denied -a approve=true"),
-        "거부 메시지는 대신 실행할 명령을 그대로 알려야 한다: {}",
+        "the denial message must name the command to run instead: {}",
         error.message
     );
 }
 
 #[test]
-fn http_표면의_approved_steps도_표면_인가에서_거부된다() {
-    let f = chain_dispatcher_for(&승인_체인("http_denied", None)).expect("dispatcher built");
+fn http_surface_approved_steps_are_denied_by_surface_authorization() {
+    let f = chain_dispatcher_for(&approval_chain("http_denied", None)).expect("dispatcher built");
     let args = serde_json::json!({
         "_upeg": { "surface": "http", "approvedSteps": ["gate"] }
     });
-    let error = 실패(call_dispatcher_result(&f, args));
+    let error = failure(call_dispatcher_result(&f, args));
     assert_eq!(error.code, "approval_denied_for_surface");
 }
 
 #[test]
-fn approval_surfaces가_mcp를_지목하면_mcp_승인이_인정된다() {
-    let f = chain_dispatcher_for(&승인_체인("mcp_allowed", Some(r#"["mcp"]"#)))
+fn approval_surfaces_naming_mcp_honor_mcp_approval() {
+    let f = chain_dispatcher_for(&approval_chain("mcp_allowed", Some(r#"["mcp"]"#)))
         .expect("dispatcher built");
-    let out = call_dispatcher(&f, 표면_승인_호출("mcp"))
-        .expect("명시적으로 지목된 surface의 승인은 인정되어야 한다");
+    let out = call_dispatcher(&f, surface_approval_call("mcp"))
+        .expect("an approval from an explicitly listed surface must be honored");
     assert_eq!(out, "done");
 
-    let error = 실패(call_dispatcher_result(&f, 표면_승인_호출("cli")));
+    let error = failure(call_dispatcher_result(&f, surface_approval_call("cli")));
     assert_eq!(
         error.code, "approval_denied_for_surface",
-        "명시 선언은 기본값을 대체한다 — cli는 더 이상 포함되지 않는다"
+        "an explicit declaration replaces the default — cli is no longer included"
     );
 }
 
 #[test]
-fn 승인_가능한_표면이어도_승인을_보내지_않으면_승인_요구다() {
-    let f = chain_dispatcher_for(&승인_체인("cli_missing", None)).expect("dispatcher built");
-    let error = 실패(call_dispatcher_result(
+fn approvable_surface_without_approval_sent_is_approval_required() {
+    let f = chain_dispatcher_for(&approval_chain("cli_missing", None)).expect("dispatcher built");
+    let error = failure(call_dispatcher_result(
         &f,
         serde_json::json!({ "_upeg": { "surface": "cli" } }),
     ));
@@ -762,10 +769,10 @@ fn 승인_가능한_표면이어도_승인을_보내지_않으면_승인_요구�
 }
 
 #[test]
-fn 게이트된_체인은_ui가_읽을_승인_정책을_등록한다() {
-    // UI가 dispatch **전에** 물어보는 값이다: 확인을 띄워야 하는가,
-    // 그리고 내 표면의 확인이 인정되는가.
-    let toml = 승인_체인("policy_default", None);
+fn gated_chain_registers_approval_policy_for_ui() {
+    // This is the value a UI asks for **before** dispatch: should a
+    // confirmation be shown, and does a confirmation on my surface count.
+    let toml = approval_chain("policy_default", None);
     let _ = chain_dispatcher_for(&toml).expect("dispatcher built");
 
     let policy = upeg_runtime::tool_approval_policy(&toml.id);
@@ -775,8 +782,8 @@ fn 게이트된_체인은_ui가_읽을_승인_정책을_등록한다() {
 }
 
 #[test]
-fn 명시된_approval_surfaces가_등록되는_정책의_실효_집합이다() {
-    let toml = 승인_체인("policy_declared", Some(r#"["mcp"]"#));
+fn declared_approval_surfaces_are_the_registered_policys_effective_set() {
+    let toml = approval_chain("policy_declared", Some(r#"["mcp"]"#));
     let _ = chain_dispatcher_for(&toml).expect("dispatcher built");
 
     let policy = upeg_runtime::tool_approval_policy(&toml.id);
@@ -786,7 +793,7 @@ fn 명시된_approval_surfaces가_등록되는_정책의_실효_집합이다() {
 }
 
 #[test]
-fn 승인_step이_없는_체인은_승인_정책을_등록하지_않는다() {
+fn chain_without_approval_steps_registers_no_approval_policy() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.approval.echo", |_| {
         Ok("done".to_string())
     });
@@ -798,7 +805,7 @@ fn 승인_step이_없는_체인은_승인_정책을_등록하지_않는다() {
             tool = "test.approval.echo"
         "#,
     )
-    .expect("유효한 체인 fixture");
+    .expect("valid chain fixture");
 
     let _ = chain_dispatcher_for(&toml).expect("dispatcher built");
 
@@ -808,12 +815,13 @@ fn 승인_step이_없는_체인은_승인_정책을_등록하지_않는다() {
 }
 
 #[test]
-fn 알수없는_approval_surfaces를_가진_dispatcher는_호출을_실패시킨다() {
-    // 로더는 이 매니페스트를 거부한다. 손으로 만든 ToolToml만 여기 도달하므로
-    // 기본값으로 조용히 내려앉지 않고 호출을 실패시킨다.
-    let f = chain_dispatcher_for(&승인_체인("bad_surface", Some(r#"["nope"]"#)))
+fn dispatcher_with_unknown_approval_surfaces_fails_calls() {
+    // The loader rejects this manifest. Only a hand-built ToolToml reaches
+    // this point, so the call must fail rather than silently fall back
+    // to defaults.
+    let f = chain_dispatcher_for(&approval_chain("bad_surface", Some(r#"["nope"]"#)))
         .expect("dispatcher built");
-    let error = 실패(call_dispatcher_result(&f, 표면_승인_호출("cli")));
+    let error = failure(call_dispatcher_result(&f, surface_approval_call("cli")));
     assert!(
         error.message.contains("approval_surfaces[0]"),
         "got {}",
@@ -821,28 +829,28 @@ fn 알수없는_approval_surfaces를_가진_dispatcher는_호출을_실패시킨
     );
 }
 
-// ─── step 메타데이터 ─────────────────────────────────────────────────
+// ─── step metadata ───────────────────────────────────────────────────
 
-fn step_요약(success: &upeg_core::ToolSuccess) -> Vec<serde_json::Value> {
+fn step_summary(success: &upeg_core::ToolSuccess) -> Vec<serde_json::Value> {
     let entry = success
         .outputs
         .iter()
         .find(|entry| entry.id == "steps")
-        .expect("모든 chain 성공 봉투는 steps 행을 싣는다");
+        .expect("every chain success envelope carries a steps row");
     let OutputValue::Json(serde_json::Value::Array(rows)) = &entry.value else {
-        panic!("steps 행은 JSON 배열이어야 한다");
+        panic!("the steps row must be a JSON array");
     };
     rows.clone()
 }
 
-fn 요약_행<'a>(rows: &'a [serde_json::Value], id: &str) -> &'a serde_json::Value {
+fn summary_row<'a>(rows: &'a [serde_json::Value], id: &str) -> &'a serde_json::Value {
     rows.iter()
         .find(|row| row["id"] == id)
-        .unwrap_or_else(|| panic!("step `{id}` 요약 행이 없다: {rows:?}"))
+        .unwrap_or_else(|| panic!("no summary row for step `{id}`: {rows:?}"))
 }
 
 #[test]
-fn 체인_성공_봉투는_실행과_건너뛴_step을_모두_요약한다() {
+fn chain_success_envelope_summarizes_ran_and_skipped_steps() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.summary.ran", |_| {
         Ok("ran".to_string())
     });
@@ -867,16 +875,16 @@ fn 체인_성공_봉투는_실행과_건너뛴_step을_모두_요약한다() {
     let f = chain_dispatcher_for(&parsed).expect("dispatcher built");
 
     let success = tool_success(call_dispatcher_result(&f, serde_json::json!({})));
-    let rows = step_요약(&success);
+    let rows = step_summary(&success);
     assert_eq!(rows.len(), 2);
-    assert_eq!(요약_행(&rows, "first")["status"], "ran");
-    assert_eq!(요약_행(&rows, "first")["tool"], "test.summary.ran");
-    assert!(요약_행(&rows, "first")["duration_ms"].is_u64());
-    assert_eq!(요약_행(&rows, "second")["status"], "skipped");
+    assert_eq!(summary_row(&rows, "first")["status"], "ran");
+    assert_eq!(summary_row(&rows, "first")["tool"], "test.summary.ran");
+    assert!(summary_row(&rows, "first")["duration_ms"].is_u64());
+    assert_eq!(summary_row(&rows, "second")["status"], "skipped");
 }
 
 #[test]
-fn 체인_실패_봉투는_details_steps에_step_상태를_싣는다() {
+fn chain_failure_envelope_carries_step_states_in_details_steps() {
     upeg_runtime::register_single_text_runtime_dispatcher("test.summary.before", |_| {
         Ok("before".to_string())
     });
@@ -899,28 +907,34 @@ fn 체인_실패_봉투는_details_steps에_step_상태를_싣는다() {
     .unwrap();
     let f = chain_dispatcher_for(&parsed).expect("dispatcher built");
 
-    let error = 실패(call_dispatcher_result(&f, serde_json::json!({})));
-    let details = error.details.expect("실패 봉투도 step 요약을 실어야 한다");
-    let rows = details["steps"].as_array().expect("steps 배열").clone();
-    assert_eq!(요약_행(&rows, "before")["status"], "ran");
-    assert_eq!(요약_행(&rows, "missing")["status"], "failed");
+    let error = failure(call_dispatcher_result(&f, serde_json::json!({})));
+    let details = error
+        .details
+        .expect("the failure envelope must carry the step summary too");
+    let rows = details["steps"].as_array().expect("steps array").clone();
+    assert_eq!(summary_row(&rows, "before")["status"], "ran");
+    assert_eq!(summary_row(&rows, "missing")["status"], "failed");
 }
 
 #[test]
-fn 승인_거부_봉투의_step_요약은_denied를_담는다() {
-    let f = chain_dispatcher_for(&승인_체인("denied_summary", None)).expect("dispatcher built");
-    let error = 실패(call_dispatcher_result(&f, 표면_승인_호출("mcp")));
-    let details = error.details.expect("거부 봉투도 step 요약을 실어야 한다");
-    let rows = details["steps"].as_array().expect("steps 배열").clone();
-    assert_eq!(요약_행(&rows, "gate")["status"], "denied");
+fn approval_denial_envelope_step_summary_marks_denied() {
+    let f =
+        chain_dispatcher_for(&approval_chain("denied_summary", None)).expect("dispatcher built");
+    let error = failure(call_dispatcher_result(&f, surface_approval_call("mcp")));
+    let details = error
+        .details
+        .expect("the denial envelope must carry the step summary too");
+    let rows = details["steps"].as_array().expect("steps array").clone();
+    assert_eq!(summary_row(&rows, "gate")["status"], "denied");
 }
 
 #[test]
-fn 자기_출력이_없는_체인은_step_요약이_primary가_된다() {
-    // action-only step: 정본 봉투는 primary 없이 output row를 실을 수
-    // 없으므로, 엔진 행이 유일한 행이면 그것이 primary가 된다.
+fn chain_without_own_output_makes_step_summary_primary() {
+    // action-only step: the canonical envelope cannot carry an output
+    // row without a primary, so when the engine row is the only row it
+    // becomes the primary.
     upeg_runtime::register_runtime_dispatcher("test.summary.action_only", |_| {
-        ToolResult::Success(ToolSuccess::new(None, Vec::new()).expect("action-only 성공"))
+        ToolResult::Success(ToolSuccess::new(None, Vec::new()).expect("action-only success"))
     });
 
     let parsed = toml::from_str::<ToolToml>(
@@ -934,5 +948,5 @@ fn 자기_출력이_없는_체인은_step_요약이_primary가_된다() {
 
     let success = tool_success(call_dispatcher_result(&f, serde_json::json!({})));
     assert_eq!(success.primary_output_id.as_deref(), Some("steps"));
-    assert_eq!(요약_행(&step_요약(&success), "act")["status"], "ran");
+    assert_eq!(summary_row(&step_summary(&success), "act")["status"], "ran");
 }

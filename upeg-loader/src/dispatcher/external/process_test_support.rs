@@ -2,25 +2,22 @@ use std::io::ErrorKind;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-const 프로세스_상태_접두사: &str = "State:";
-const 프로세스_상태_확인_간격: Duration = Duration::from_millis(10);
+const PROCESS_STATE_PREFIX: &str = "State:";
+const PROCESS_STATE_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum 프로세스_생명주기 {
-    실행_중,
-    종료됨,
+enum ProcessLifecycle {
+    Running,
+    Exited,
 }
 
-pub(super) fn 종료되지_않은_프로세스_상태(
-    pid: u32,
-    최대_대기: Duration,
-) -> Option<String> {
+pub(super) fn lingering_process_state(pid: u32, max_wait: Duration) -> Option<String> {
     let status_path = Path::new("/proc").join(pid.to_string()).join("status");
-    let deadline = Instant::now() + 최대_대기;
+    let deadline = Instant::now() + max_wait;
 
     loop {
         match std::fs::read_to_string(&status_path) {
-            Ok(status) if 생명주기(&status) == 프로세스_생명주기::종료됨 => {
+            Ok(status) if lifecycle(&status) == ProcessLifecycle::Exited => {
                 return None;
             }
             Ok(status) if Instant::now() >= deadline => return Some(status),
@@ -31,18 +28,18 @@ pub(super) fn 종료되지_않은_프로세스_상태(
             }
             Err(_) => {}
         }
-        std::thread::sleep(프로세스_상태_확인_간격);
+        std::thread::sleep(PROCESS_STATE_POLL_INTERVAL);
     }
 }
 
-fn 생명주기(status: &str) -> 프로세스_생명주기 {
+fn lifecycle(status: &str) -> ProcessLifecycle {
     let state = status
         .lines()
-        .find_map(|line| line.strip_prefix(프로세스_상태_접두사))
+        .find_map(|line| line.strip_prefix(PROCESS_STATE_PREFIX))
         .and_then(|value| value.trim_start().chars().next());
 
     match state {
-        Some('X' | 'Z') => 프로세스_생명주기::종료됨,
-        Some(_) | None => 프로세스_생명주기::실행_중,
+        Some('X' | 'Z') => ProcessLifecycle::Exited,
+        Some(_) | None => ProcessLifecycle::Running,
     }
 }

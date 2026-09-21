@@ -9,24 +9,27 @@ use std::thread;
 use super::{CancellationToken, active_cancellation, with_cancellation};
 
 #[test]
-fn 새_토큰은_취소되지_않은_상태다() {
+fn new_token_is_not_cancelled() {
     let token = CancellationToken::new();
 
     assert!(!token.is_cancelled());
 }
 
 #[test]
-fn 취소는_복제본_사이에서_공유된다() {
+fn cancellation_is_shared_across_clones() {
     let token = CancellationToken::new();
-    let 복제 = token.clone();
+    let clone = token.clone();
 
-    복제.cancel();
+    clone.cancel();
 
-    assert!(token.is_cancelled(), "복제본의 취소는 원본에도 보인다");
+    assert!(
+        token.is_cancelled(),
+        "cancelling a clone is visible on the original"
+    );
 }
 
 #[test]
-fn 취소는_되돌아가지_않는다() {
+fn cancellation_does_not_revert() {
     let token = CancellationToken::new();
 
     token.cancel();
@@ -36,102 +39,105 @@ fn 취소는_되돌아가지_않는다() {
 }
 
 #[test]
-fn 설치하지_않으면_주변_토큰이_없다() {
+fn without_installation_there_is_no_ambient_token() {
     assert!(
         active_cancellation().is_none(),
-        "아무도 설치하지 않은 dispatch는 취소 폴링 비용을 내지 않는다"
+        "a dispatch that installed nothing pays no cancellation polling cost"
     );
 }
 
 #[test]
-fn 설치한_토큰은_스코프_안에서_보인다() {
+fn installed_token_is_visible_inside_scope() {
     let token = CancellationToken::new();
 
-    let 보인_토큰 = with_cancellation(token.clone(), active_cancellation);
+    let seen_token = with_cancellation(token.clone(), active_cancellation);
 
-    let 보인_토큰 = 보인_토큰.expect("스코프 안에서는 주변 토큰이 있다");
+    let seen_token = seen_token.expect("an ambient token must exist inside the scope");
     token.cancel();
     assert!(
-        보인_토큰.is_cancelled(),
-        "포착한 토큰은 설치한 토큰과 같은 래치를 본다"
+        seen_token.is_cancelled(),
+        "the captured token observes the same latch as the installed token"
     );
 }
 
 #[test]
-fn 스코프를_벗어나면_이전_토큰이_복원된다() {
-    let 안쪽 = CancellationToken::new();
+fn leaving_scope_restores_previous_token() {
+    let inner = CancellationToken::new();
 
     with_cancellation(CancellationToken::new(), || {
-        with_cancellation(안쪽.clone(), || {
-            안쪽.cancel();
+        with_cancellation(inner.clone(), || {
+            inner.cancel();
             assert!(
                 active_cancellation()
-                    .expect("중첩 스코프의 토큰")
+                    .expect("token of the nested scope")
                     .is_cancelled(),
-                "중첩된 안쪽 토큰이 그 구간을 이긴다"
+                "the nested inner token wins for that span"
             );
         });
         assert!(
             !active_cancellation()
-                .expect("복원된 바깥 토큰")
+                .expect("restored outer token")
                 .is_cancelled(),
-            "안쪽 스코프의 취소는 바깥 토큰으로 새지 않는다"
+            "cancelling the inner scope must not leak into the outer token"
         );
     });
 
-    assert!(active_cancellation().is_none(), "스코프 밖에는 토큰이 없다");
-}
-
-#[test]
-fn 패닉해도_토큰이_다음_dispatch로_새지_않는다() {
-    let token = CancellationToken::new();
-
-    let 결과 = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        with_cancellation(token, || panic!("도구가 패닉했다"));
-    }));
-
-    assert!(결과.is_err(), "패닉은 그대로 전파된다");
     assert!(
         active_cancellation().is_none(),
-        "unwind 중에도 이전 스코프가 복원된다"
+        "no token exists outside the scope"
     );
 }
 
 #[test]
-fn 토큰은_다른_스레드에서도_취소할_수_있다() {
+fn panic_does_not_leak_token_into_next_dispatch() {
     let token = CancellationToken::new();
-    let 관측 = Arc::new(AtomicBool::new(false));
 
-    let 취소자 = {
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        with_cancellation(token, || panic!("the tool panicked"));
+    }));
+
+    assert!(outcome.is_err(), "the panic propagates unchanged");
+    assert!(
+        active_cancellation().is_none(),
+        "the previous scope is restored even during unwind"
+    );
+}
+
+#[test]
+fn token_can_be_cancelled_from_another_thread() {
+    let token = CancellationToken::new();
+    let observed = Arc::new(AtomicBool::new(false));
+
+    let canceller = {
         let token = token.clone();
         thread::spawn(move || token.cancel())
     };
-    취소자.join().expect("취소 스레드가 끝난다");
-    관측.store(token.is_cancelled(), Ordering::Relaxed);
+    canceller.join().expect("canceller thread finishes");
+    observed.store(token.is_cancelled(), Ordering::Relaxed);
 
     assert!(
-        관측.load(Ordering::Relaxed),
-        "소비자 스레드의 취소가 생산자 스레드에 보인다"
+        observed.load(Ordering::Relaxed),
+        "cancellation by the consumer thread is visible to the producer thread"
     );
 }
 
 #[test]
-fn 설치된_스코프는_중첩_dispatch에_상속된다() {
+fn installed_scope_is_inherited_by_nested_dispatch() {
     // A `Chain` runs its steps on the dispatching thread, so a step's
     // invoker must see the token the *call* was installed with.
     let token = CancellationToken::new();
 
-    let 단계에서_본_토큰 = with_cancellation(token.clone(), || {
-        fn 체인_단계() -> Option<CancellationToken> {
+    let token_seen_by_step = with_cancellation(token.clone(), || {
+        fn chain_step() -> Option<CancellationToken> {
             active_cancellation()
         }
-        체인_단계()
+        chain_step()
     });
 
     token.cancel();
     assert!(
-        단계에서_본_토큰
-            .expect("중첩 호출도 주변 토큰을 본다")
+        token_seen_by_step
+            .expect("a nested call also sees the ambient token")
             .is_cancelled()
     );
 }

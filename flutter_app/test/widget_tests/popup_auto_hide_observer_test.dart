@@ -69,64 +69,67 @@ Future<void> _pumpObserver(
 
 void main() {
   group('PopupAutoHideObserver', () {
-    testWidgets('PopupAutoHideObserver는_popup모드_unpinned_blur시_hide를_호출한다', (
-      tester,
-    ) async {
-      final hider = _RecordingHider();
-      await _pumpObserver(
-        tester,
-        mode: WindowMode.popup,
-        pinned: false,
-        hider: hider,
-      );
+    testWidgets(
+      'popupautohideobserver_calls_hide_on_blur_in_popup_mode_when_unpinned',
+      (tester) async {
+        final hider = _RecordingHider();
+        await _pumpObserver(
+          tester,
+          mode: WindowMode.popup,
+          pinned: false,
+          hider: hider,
+        );
 
-      final observer = tester.widget<PopupAutoHideObserver>(
-        find.byType(PopupAutoHideObserver),
-      );
-      observer.debugTriggerBlur();
-      await tester.pumpAndSettle();
+        final observer = tester.widget<PopupAutoHideObserver>(
+          find.byType(PopupAutoHideObserver),
+        );
+        observer.debugTriggerBlur();
+        await tester.pumpAndSettle();
 
-      expect(hider.calls, 1);
-    });
+        expect(hider.calls, 1);
+      },
+    );
 
-    testWidgets('PopupAutoHideObserver는_pinned일때_blur해도_hide를_호출하지_않는다', (
-      tester,
-    ) async {
-      final hider = _RecordingHider();
-      await _pumpObserver(
-        tester,
-        mode: WindowMode.popup,
-        pinned: true,
-        hider: hider,
-      );
+    testWidgets(
+      'popupautohideobserver_does_not_call_hide_on_blur_when_pinned',
+      (tester) async {
+        final hider = _RecordingHider();
+        await _pumpObserver(
+          tester,
+          mode: WindowMode.popup,
+          pinned: true,
+          hider: hider,
+        );
 
-      final observer = tester.widget<PopupAutoHideObserver>(
-        find.byType(PopupAutoHideObserver),
-      );
-      observer.debugTriggerBlur();
-      await tester.pumpAndSettle();
+        final observer = tester.widget<PopupAutoHideObserver>(
+          find.byType(PopupAutoHideObserver),
+        );
+        observer.debugTriggerBlur();
+        await tester.pumpAndSettle();
 
-      expect(hider.calls, 0);
-    });
+        expect(hider.calls, 0);
+      },
+    );
 
-    testWidgets('PopupAutoHideObserver는_full모드일때_blur해도_hide를_호출하지_않는다', (
-      tester,
-    ) async {
-      final hider = _RecordingHider();
-      await _pumpObserver(
-        tester,
-        mode: WindowMode.full,
-        pinned: false,
-        hider: hider,
-      );
+    testWidgets(
+      'popupautohideobserver_does_not_call_hide_on_blur_in_full_mode',
+      (tester) async {
+        final hider = _RecordingHider();
+        await _pumpObserver(
+          tester,
+          mode: WindowMode.full,
+          pinned: false,
+          hider: hider,
+        );
 
-      final observer = tester.widget<PopupAutoHideObserver>(
-        find.byType(PopupAutoHideObserver),
-      );
-      observer.debugTriggerBlur();
-      await tester.pumpAndSettle();
+        final observer = tester.widget<PopupAutoHideObserver>(
+          find.byType(PopupAutoHideObserver),
+        );
+        observer.debugTriggerBlur();
+        await tester.pumpAndSettle();
 
-      expect(hider.calls, 0);
-    });
+        expect(hider.calls, 0);
+      },
+    );
   });
 }

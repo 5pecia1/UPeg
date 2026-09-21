@@ -204,7 +204,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn desktop_딥_링크는_보드와_도구와_입력을_인코딩한다() {
+    fn desktop_deep_link_encodes_board_tool_and_input() {
         let link = desktop_deep_link("개발용", Some("num.hex_to_decimal"), Some("0xff"));
         assert!(link.starts_with("upeg://open?"), "{link}");
         assert!(link.contains("surface=ext"), "{link}");
@@ -214,13 +214,13 @@ mod tests {
     }
 
     #[test]
-    fn desktop_딥_링크는_빈_도구_와_입력을_생략한다() {
+    fn desktop_deep_link_omits_empty_tool_and_input() {
         let link = desktop_deep_link("dev", Some("   "), Some(""));
         assert_eq!(link, "upeg://open?surface=ext&board=dev");
     }
 
     #[test]
-    fn desktop_실행은_알려진_보드_도구_와_입력을_해결한다() {
+    fn desktop_launch_resolves_known_board_tool_and_input() {
         let launch = desktop_launch_from_args([
             "upeg://open?surface=ext&board=dev&tool=num.hex_to_decimal&input=0x2a",
         ]);
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_실행은_입력을_퍼센트_디코딩한다() {
+    fn desktop_launch_percent_decodes_input() {
         let launch = desktop_launch_from_args([
             "upeg://open?surface=ext&board=dev&tool=num.hex_to_decimal&input=hello%20world",
         ]);
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_실행_드롭_알수없는_도구를_검증한다() {
+    fn desktop_launch_drops_unknown_tool() {
         let launch =
             desktop_launch_from_args(["upeg://open?surface=ext&board=dev&tool=nope.missing"]);
         assert_eq!(launch.board, "dev");
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_실행_드롭_등록된_desktop이_아닌_도구를_검증한다() {
+    fn desktop_launch_drops_registered_non_desktop_tool() {
         let id = "test.deep_link.http_only";
         upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
             id,
@@ -260,6 +260,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -275,25 +277,25 @@ mod tests {
     }
 
     #[test]
-    fn desktop_실행은_upeg이_아닌_인자를_무시한다() {
+    fn desktop_launch_ignores_non_upeg_args() {
         let launch = desktop_launch_from_args(["--some-flag", "https://example.test"]);
         assert_eq!(launch, DesktopLaunch::default());
     }
 
     #[test]
-    fn desktop_실행_maybe는_쿼리_없는_open_uri를_some_기본_보드로_반환한다() {
+    fn desktop_launch_maybe_returns_default_board_for_queryless_open_uri() {
         let launch = desktop_launch_from_url_maybe("upeg://open").expect("explicit open link");
         assert_eq!(launch, DesktopLaunch::default());
     }
 
     #[test]
-    fn desktop_실행_maybe는_open을_닮은_다른_uri를_거부한다() {
+    fn desktop_launch_maybe_rejects_uri_that_only_resembles_open() {
         let launch = desktop_launch_from_url_maybe("upeg://openly?tool=num.hex_to_decimal");
         assert!(launch.is_none());
     }
 
     #[test]
-    fn desktop_실행_에서_url는_인자_파서를_일치시킨다() {
+    fn desktop_launch_from_url_matches_args_parser() {
         let url = "upeg://open?surface=ext&board=dev&tool=num.hex_to_decimal";
         let from_url = desktop_launch_from_url(url);
         let from_args = desktop_launch_from_args([url]);
@@ -302,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_실행_에서_url는_upeg이_아닌_입력을_거부한다() {
+    fn desktop_launch_from_url_rejects_non_upeg_input() {
         let launch = desktop_launch_from_url("https://example.test");
         assert_eq!(launch, DesktopLaunch::default());
     }

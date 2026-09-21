@@ -136,7 +136,7 @@ RUN cargo install flutter_rust_bridge_codegen \
         --version "${FRB_CODEGEN_VERSION}"
 
 # License policy checks use the same version as the public verification action.
-ARG CARGO_DENY_VERSION="0.18.2"
+ARG CARGO_DENY_VERSION="0.18.9"
 RUN cargo install cargo-deny --locked --version "${CARGO_DENY_VERSION}"
 
 # cargo-expand — required by flutter_rust_bridge_codegen to fully analyze

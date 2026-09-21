@@ -76,7 +76,7 @@ pub(crate) fn match_score(query: &str, candidate: &str) -> Option<(u8, usize)> {
 /// The query itself is never suggested back. A tool can be registered
 /// in this process and still produce a not-found outcome — a CLI that
 /// auto-attached to a host which does not know the tool is the real
-/// case (D-1) — and "unknown tool `dev.git_status` — did you mean
+/// case — and "unknown tool `dev.git_status` — did you mean
 /// `dev.git_status`?" is pure noise.
 pub fn suggest_tool_ids(query: &str, max: usize, on_surface: Option<Surface>) -> Vec<String> {
     let mut scored: Vec<(u8, usize, &'static str)> = toolbox_tools()

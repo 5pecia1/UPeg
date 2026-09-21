@@ -5,7 +5,7 @@
 use super::*;
 
 #[test]
-fn 누락되거나_빈_출력은_허용된다() {
+fn missing_or_empty_outputs_are_allowed() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -23,7 +23,7 @@ fn 누락되거나_빈_출력은_허용된다() {
 }
 
 #[test]
-fn 파싱은_출력을_허용하고_출력_명세를_생성한다() {
+fn parsing_accepts_outputs_and_builds_output_spec() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -63,7 +63,7 @@ fn 파싱은_출력을_허용하고_출력_명세를_생성한다() {
 }
 
 #[test]
-fn 파싱은_모든_출력_유형을_허용한다() {
+fn parsing_accepts_all_output_types() {
     for ty in [
         "string",
         "number",
@@ -99,7 +99,7 @@ fn 파싱은_모든_출력_유형을_허용한다() {
 }
 
 #[test]
-fn 출력이_있으면_primary_output_id가_필수이다() {
+fn outputs_require_primary_output_id() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -115,7 +115,7 @@ fn 출력이_있으면_primary_output_id가_필수이다() {
 }
 
 #[test]
-fn primary_output_id는_출력_필드_이름과_같아야_한다() {
+fn primary_output_id_must_match_output_field_name() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -132,7 +132,7 @@ fn primary_output_id는_출력_필드_이름과_같아야_한다() {
 }
 
 #[test]
-fn 출력이_없으면_primary_output_id도_없어야_한다() {
+fn primary_output_id_must_be_absent_without_outputs() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -148,7 +148,7 @@ fn 출력이_없으면_primary_output_id도_없어야_한다() {
 }
 
 #[test]
-fn 파싱은_잘못된_출력을_거부한다() {
+fn parsing_rejects_invalid_outputs() {
     let unknown_type = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"

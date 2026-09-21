@@ -84,7 +84,7 @@ fn read(path: &Path) -> String {
 }
 
 #[test]
-fn 스캐폴드는_이름이_치환된_cargo_toml과_lib_rs를_만든다() {
+fn the_scaffold_creates_a_cargo_toml_and_lib_rs_with_the_name_substituted() {
     let dir = scratch_dir("basic");
     let output = run_plugin_new(&dir, &["dxtest", "--dir", dir.to_str().unwrap()]);
     assert_success(&output, "plugin new dxtest");
@@ -107,7 +107,7 @@ fn 스캐폴드는_이름이_치환된_cargo_toml과_lib_rs를_만든다() {
 }
 
 #[test]
-fn local_플래그는_경로_의존성_cargo_toml을_만든다() {
+fn the_local_flag_creates_a_path_dependency_cargo_toml() {
     let dir = scratch_dir("local");
     let output = run_plugin_new(
         &dir,
@@ -131,7 +131,7 @@ fn local_플래그는_경로_의존성_cargo_toml을_만든다() {
 }
 
 #[test]
-fn 유효하지_않은_이름은_거부된다() {
+fn an_invalid_name_is_refused() {
     let dir = scratch_dir("invalid_name");
     let output = run_plugin_new(&dir, &["Not-Valid", "--dir", dir.to_str().unwrap()]);
     assert_failure(&output, "plugin new Not-Valid");
@@ -140,7 +140,7 @@ fn 유효하지_않은_이름은_거부된다() {
 }
 
 #[test]
-fn 비어있지_않은_디렉터리는_거부된다() {
+fn a_nonempty_directory_is_refused() {
     let dir = scratch_dir("nonempty");
     let target = dir.join("dxtaken");
     std::fs::create_dir_all(&target).expect("pre-create target dir");
@@ -156,7 +156,7 @@ fn 비어있지_않은_디렉터리는_거부된다() {
 }
 
 #[test]
-fn 빈_디렉터리에는_다시_스캐폴드할_수_있다() {
+fn an_empty_directory_can_be_scaffolded_again() {
     let dir = scratch_dir("empty_target");
     let target = dir.join("dxempty");
     std::fs::create_dir_all(&target).expect("pre-create empty target dir");

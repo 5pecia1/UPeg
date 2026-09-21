@@ -11,6 +11,8 @@ const TRIGGER_SOURCE_SEPARATOR: &str = "/";
 
 #[derive(Debug, Error)]
 pub enum LoadError {
+    #[error("invalid result presentation: {0}")]
+    InvalidPresentation(String),
     #[error("TOML parse error: {0}")]
     Toml(#[from] toml::de::Error),
 

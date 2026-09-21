@@ -1,10 +1,10 @@
-//! TUI 표면의 입력 라우팅과 순수 헬퍼 테스트.
+//! Input-routing and pure-helper tests for the TUI surface.
 //!
-//! 키 처리(q-back, 이동), 마우스 라우팅, 필터 막대 스크롤, 작은 레이아웃
-//! 헬퍼를 다룬다. fixture 기반 State/Action 커버리지를 가진
-//! [`super::state_tests`]의 짝이며, 이 파일은 해당 fixture를 가져와
-//! `#[test]` 항목만 추가한다. 워크스페이스 1000-LoC 파일 크기 예산 때문에
-//! 분리했다.
+//! Covers key handling (q-back, movement), mouse routing, filter-bar
+//! scrolling, and small layout helpers. Companion to
+//! [`super::state_tests`], which owns the fixture-based State/Action
+//! coverage — this file imports that fixture and adds only `#[test]`
+//! items. Split out for the workspace 1000-LoC file-size budget.
 
 use super::state_tests::{filter_option_column, fixture_tools, fresh};
 use crate::domain::execution::dispatch::Outcome;
@@ -17,17 +17,17 @@ use upeg_core::{
 
 fn input_field(name: &str, kind: InputKind, required: bool) -> InputFieldSpec {
     InputFieldSpec::new(
-        InputName::new(name).expect("테스트 입력 이름"),
+        InputName::new(name).expect("test input name"),
         None,
         None,
         required,
         kind,
     )
-    .expect("테스트 입력 필드")
+    .expect("test input field")
 }
 
 fn form_from_fields(fields: Vec<InputFieldSpec>) -> TuiFormState {
-    TuiFormState::new(InputSpec::new(fields).expect("테스트 입력 명세"))
+    TuiFormState::new(InputSpec::new(fields).expect("test input spec"))
 }
 
 fn set_form_text(form: &mut TuiFormState, index: usize, value: &str) {
@@ -58,9 +58,11 @@ fn detail_input_tool() -> &'static ToolMeta {
         display_label: "Hex to Dec",
         description: "Parse a hex string into decimal.",
         input_spec: InputSpec::new(vec![input_field("input", InputKind::String, true)])
-            .expect("테스트 입력 명세"),
+            .expect("test input spec"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -81,6 +83,8 @@ fn detail_no_input_tool() -> &'static ToolMeta {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

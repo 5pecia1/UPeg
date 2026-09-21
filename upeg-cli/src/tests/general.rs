@@ -2,6 +2,8 @@ use super::common::parse;
 use crate::domain::execution::dispatch;
 use crate::*;
 
+mod kv_args;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn cli_media_temp_dir() -> std::path::PathBuf {
     let timestamp = std::time::SystemTime::now()
@@ -43,20 +45,20 @@ fn write_cli_media_test_image_zip(path: &std::path::Path) {
 }
 
 #[test]
-fn 비_tty에서_인자가_없으면_도움말_한줄문구를_출력한다() {
+fn no_command_without_a_tty_prints_a_help_hint() {
     let out = run_no_command_with_terminal(None, None, false).expect("no-args should not fail");
     assert!(out.contains("upeg"));
     assert!(out.contains("--help"));
 }
 
 #[test]
-fn 비_tty에서_보드는_인자가_없으면_보드_맥락_한줄문구를_출력한다() {
+fn no_command_without_a_tty_prints_the_selected_board_context() {
     let out = run_no_command_with_terminal(Some("dev"), None, false).expect("no-args board");
     assert!(out.contains("Board `dev` selected"), "got:\n{out}");
 }
 
 #[test]
-fn 비_tty에서_태그가_지정되면_태그_맥락_한줄문구를_출력한다() {
+fn no_command_without_a_tty_prints_the_selected_board_and_tag_context() {
     let out = run_no_command_with_terminal(Some("dev"), Some("pure"), false).expect("no-args tag");
     assert!(
         out.contains("Board `dev` + Tag `pure` selected"),
@@ -65,7 +67,7 @@ fn 비_tty에서_태그가_지정되면_태그_맥락_한줄문구를_출력한�
 }
 
 #[test]
-fn 완성_별칭은_prd_v21_cli_예제와_일치한다() {
+fn completions_alias_generates_the_documented_bash_script() {
     let out = run(parse(&["upeg", "completions", "bash"])).expect("completion alias");
     assert!(
         out.contains("upeg") && out.contains("complete"),
@@ -74,7 +76,7 @@ fn 완성_별칭은_prd_v21_cli_예제와_일치한다() {
 }
 
 #[test]
-fn cli는_내장_hex_to_dec_도구를_목록화하고_직접_및_call로_dispatch한다() {
+fn cli_lists_builtin_hex_to_decimal_and_dispatches_directly_and_through_call() {
     let list = run(parse(&["upeg", "tool", "list"])).expect("tool list");
     assert!(
         list.lines()
@@ -97,7 +99,7 @@ fn cli는_내장_hex_to_dec_도구를_목록화하고_직접_및_call로_dispatc
 }
 
 #[test]
-fn cli_미디어_도구_목록은_미디어_도구를_포함한다() {
+fn cli_tool_list_includes_media_tools() {
     let list = run(parse(&["upeg", "tool", "list"])).expect("tool list");
     assert!(
         list.lines()
@@ -113,7 +115,7 @@ fn cli_미디어_도구_목록은_미디어_도구를_포함한다() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn cli_미디어_이미지_로_pdf_호출은_pdf를_생성한다() {
+fn cli_media_image_to_pdf_call_creates_a_pdf() {
     let dir = cli_media_temp_dir();
     std::fs::create_dir_all(&dir).expect("media test dir should be created");
     let input = dir.join("images.zip");
@@ -145,7 +147,7 @@ fn cli_미디어_이미지_로_pdf_호출은_pdf를_생성한다() {
 }
 
 #[test]
-fn 동적_도구킷_도구_경로는_runtime_도구를_dispatch한다() {
+fn dynamic_toolkit_tool_route_dispatches_runtime_tools() {
     let id = "dyn.echo";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -164,6 +166,8 @@ fn 동적_도구킷_도구_경로는_runtime_도구를_dispatch한다() {
         .expect("test input spec should import"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -184,7 +188,7 @@ fn 동적_도구킷_도구_경로는_runtime_도구를_dispatch한다() {
 }
 
 #[test]
-fn 동적_도구킷_도구_경로는_점이_포함된_부분에_대해_구조화된_키를_사용한다() {
+fn dynamic_toolkit_tool_route_uses_structured_keys_for_dotted_segments() {
     let id = "github.com.admin.tools.echo_cli";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -203,6 +207,8 @@ fn 동적_도구킷_도구_경로는_점이_포함된_부분에_대해_구조화
         .expect("test input spec should import"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -229,7 +235,7 @@ fn 동적_도구킷_도구_경로는_점이_포함된_부분에_대해_구조화
 }
 
 #[test]
-fn 동적_도구킷_도구_경로는_보드_맥락을_주입한다() {
+fn dynamic_toolkit_tool_route_injects_board_context() {
     let id = "dyn.ctx";
     let mut env = std::collections::BTreeMap::new();
     env.insert("PROFILE".to_string(), "cli".to_string());
@@ -250,6 +256,8 @@ fn 동적_도구킷_도구_경로는_보드_맥락을_주입한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -274,7 +282,7 @@ fn 동적_도구킷_도구_경로는_보드_맥락을_주입한다() {
 }
 
 #[test]
-fn 인자_또는_출력이_없는_실행_로그_기록은_cli_dispatch_메타데이터를_가진다() {
+fn execution_log_records_cli_dispatch_metadata_without_args_or_output() {
     let record = crate::adapters::execution_log::record_from_dispatch(
         "num.hex_to_decimal",
         &serde_json::json!({
@@ -293,7 +301,7 @@ fn 인자_또는_출력이_없는_실행_로그_기록은_cli_dispatch_메타데
 }
 
 #[test]
-fn 로그_이후_파서는_prd_상대_윈도우와_에포크_밀리초를_허용한다() {
+fn log_since_parser_accepts_relative_windows_and_epoch_milliseconds() {
     assert_eq!(parse_log_since("123456789").unwrap(), 123456789);
     let cutoff = parse_log_since("1h").unwrap();
     let now_ms = std::time::SystemTime::now()
@@ -309,7 +317,7 @@ fn 로그_이후_파서는_prd_상대_윈도우와_에포크_밀리초를_허용
 }
 
 #[test]
-fn 자격증명_추가는_참조만_받는다() {
+fn credential_add_stores_only_references() {
     let path = std::env::temp_dir().join("upeg_cli_credential_add.json");
     let _ = std::fs::remove_file(&path);
     let record =
@@ -338,6 +346,8 @@ fn register_context_echo_tool(id: &'static str, toolkit: &'static str) {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -358,7 +368,7 @@ fn register_context_echo_tool(id: &'static str, toolkit: &'static str) {
 }
 
 #[test]
-fn 트리거_발화는_선언된_첫_binding의_라벨을_각인한다() {
+fn trigger_fire_stamps_the_first_declared_binding_label() {
     // `_upeg.trigger` carries the fired trigger, never the tool id — the tool
     // already knows its own id. `fire` names a tool, so the first declared
     // binding wins (docs/architecture/call-envelope.md).
@@ -386,7 +396,7 @@ fn 트리거_발화는_선언된_첫_binding의_라벨을_각인한다() {
 }
 
 #[test]
-fn binding이_없는_도구의_트리거_발화는_라벨을_각인하지_않는다() {
+fn trigger_fire_without_bindings_does_not_stamp_a_label() {
     // No trigger declared means no trigger fired: a human did. Stamping a
     // synthetic source would put a value in the execution log's `trigger`
     // column that no tool could ever declare.
@@ -398,7 +408,7 @@ fn binding이_없는_도구의_트리거_발화는_라벨을_각인하지_않는
 }
 
 #[test]
-fn 트리거_runtime는_지원되는_일정을_실행하고_호스트_진단을_보고한다() {
+fn trigger_runtime_runs_supported_schedules_and_reports_host_diagnostics() {
     let id = "trig.runtime";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -412,6 +422,8 @@ fn 트리거_runtime는_지원되는_일정을_실행하고_호스트_진단을_
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -446,7 +458,7 @@ fn 트리거_runtime는_지원되는_일정을_실행하고_호스트_진단을_
 }
 
 #[test]
-fn 트리거_runtime는_cli_표면에서_도구가_아닌_트리거를_거부한다() {
+fn trigger_runtime_rejects_tools_not_on_the_cli_surface() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static CALLS: AtomicUsize = AtomicUsize::new(0);
     CALLS.store(0, Ordering::SeqCst);
@@ -464,6 +476,8 @@ fn 트리거_runtime는_cli_표면에서_도구가_아닌_트리거를_거부한
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -494,7 +508,7 @@ fn 트리거_runtime는_cli_표면에서_도구가_아닌_트리거를_거부한
 }
 
 #[test]
-fn 트리거_runtime는_파일과_디렉터리_경로_어댑터를_실행한다() {
+fn trigger_runtime_runs_file_and_directory_path_adapters() {
     let root = std::env::temp_dir().join(format!("upeg_trigger_paths_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
@@ -514,6 +528,8 @@ fn 트리거_runtime는_파일과_디렉터리_경로_어댑터를_실행한다(
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -554,7 +570,7 @@ fn 트리거_runtime는_파일과_디렉터리_경로_어댑터를_실행한다(
 }
 
 #[test]
-fn 도구_목록은_hex_to_dec를_포함한다() {
+fn tool_list_includes_hex_to_decimal_and_is_sorted_by_id() {
     let out = run(parse(&["upeg", "tool", "list"])).expect("tool list");
     assert!(
         out.contains("num.hex_to_decimal"),
@@ -571,7 +587,7 @@ fn 도구_목록은_hex_to_dec를_포함한다() {
 }
 
 #[test]
-fn 도구킷_목록은_유효한_태그로_도구를_그룹화한다() {
+fn toolkit_list_groups_tools_with_effective_tags() {
     let out = run(parse(&["upeg", "toolkit", "list"])).expect("toolkit list");
     let convert = out
         .lines()
@@ -584,7 +600,7 @@ fn 도구킷_목록은_유효한_태그로_도구를_그룹화한다() {
 }
 
 #[test]
-fn 도구킷_표시는_유효한_태그가_있는_도구를_나열한다() {
+fn toolkit_show_lists_tools_with_effective_tags() {
     let out = run(parse(&["upeg", "toolkit", "show", "convert"])).expect("toolkit show convert");
     assert!(out.contains("toolkit      convert"), "got:\n{out}");
     assert!(
@@ -594,7 +610,7 @@ fn 도구킷_표시는_유효한_태그가_있는_도구를_나열한다() {
 }
 
 #[test]
-fn 태그와_보드_명령은_일급_리소스를_그대로_노출한다() {
+fn tag_and_board_commands_expose_first_class_resources() {
     let tags = run(parse(&["upeg", "tag", "list"])).expect("tag list");
     assert!(
         tags.lines().any(|line| line.starts_with("pure\t")),
@@ -621,7 +637,7 @@ fn 태그와_보드_명령은_일급_리소스를_그대로_노출한다() {
 }
 
 #[test]
-fn 도구_목록의_태그_필터는_하나의_도구킷_태그로_좁힌다() {
+fn tool_list_tag_filter_narrows_to_a_single_toolkit_tag() {
     let out = run(parse(&["upeg", "tool", "list", "--tag", "convert"])).unwrap();
     // All output lines must have second column == "convert".
     for line in out.lines() {
@@ -653,7 +669,7 @@ fn 도구_목록의_태그_필터는_하나의_도구킷_태그로_좁힌다() {
 }
 
 #[test]
-fn 도구_목록은_알수없는_태그에_빈_결과를_반환한다() {
+fn tool_list_returns_empty_results_for_an_unknown_tag() {
     let out = run(parse(&["upeg", "tool", "list", "--tag", "no_such_tag_xyz"])).unwrap();
     assert!(
         out.is_empty(),
@@ -662,7 +678,7 @@ fn 도구_목록은_알수없는_태그에_빈_결과를_반환한다() {
 }
 
 #[test]
-fn 도구_목록의_고정된_오타는_빈_표준출력과_종료_0을_유지한다() {
+fn tool_list_board_typo_keeps_stdout_empty_and_exit_zero() {
     // Same pipe-friendly contract as --tag applies to --board.
     // Typo'd board name produces a stderr hint (verified live), but
     // stdout stays empty and exit is 0 so scripts piping
@@ -675,7 +691,7 @@ fn 도구_목록의_고정된_오타는_빈_표준출력과_종료_0을_유지�
 }
 
 #[test]
-fn 도구_목록의_태그_오타는_빈_표준출력과_종료_0을_유지한다() {
+fn tool_list_tag_typo_keeps_stdout_empty_and_exit_zero() {
     // a typo on `--tag` (e.g. `encod`) emits a stderr hint
     // but stdout stays empty and exit code is still 0 so pipe-friendly
     // scripts (`tool list --tag <maybe-empty> | grep`) keep working
@@ -694,7 +710,7 @@ fn 도구_목록의_태그_오타는_빈_표준출력과_종료_0을_유지한�
 // ─── tool list --surface / --json  ────────────────
 
 #[test]
-fn 도구_목록의_표면_필터는_다른_표면_보기를_보여준다() {
+fn tool_list_surface_filter_shows_other_surface_views() {
     // Default (no --surface) implicitly filters by `cli`. With
     // `--surface mcp`, all built-ins (which have ALL_SURFACES) still
     // appear because mcp is in the surfaces list.
@@ -719,7 +735,7 @@ fn 도구_목록의_표면_필터는_다른_표면_보기를_보여준다() {
 }
 
 #[test]
-fn 도구_목록의_표면_필터는_일치하지_않는_것을_제외한다() {
+fn tool_list_surface_filter_excludes_non_matching_tools() {
     // Register a tool only on http; verify it shows under --surface http
     // but not under --surface cli.
     let id = "test.iter49.http_only_view";
@@ -735,6 +751,8 @@ fn 도구_목록의_표면_필터는_일치하지_않는_것을_제외한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -755,7 +773,7 @@ fn 도구_목록의_표면_필터는_일치하지_않는_것을_제외한다() {
 }
 
 #[test]
-fn 도구_목록_알수없는_표면은_깨끗한_오류를_반환한다() {
+fn tool_list_unknown_surface_returns_a_clean_error() {
     let r = run(parse(&["upeg", "tool", "list", "--surface", "fax"]));
     match r {
         Err(CliError::ToolFailed(msg)) => {
@@ -767,7 +785,7 @@ fn 도구_목록_알수없는_표면은_깨끗한_오류를_반환한다() {
 }
 
 #[test]
-fn 도구_목록_json_출력은_유효한_json_배열이다() {
+fn tool_list_json_output_is_a_valid_json_array() {
     // Pin every field the `to_json_object` helper emits so that
     // additions like `outputSchema`, `boards`, `embedUrl`, and `selectorBindings`
     // cannot silently drop here. Same shape pinned by MCP's parity
@@ -803,7 +821,7 @@ fn 도구_목록_json_출력은_유효한_json_배열이다() {
 }
 
 #[test]
-fn 태그_필터는_도구_목록_json의_결과를_좁힌다() {
+fn tag_filter_narrows_tool_list_json_results() {
     let out = run(parse(&["upeg", "tool", "list", "--json", "--tag", "hash"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     let arr = v.as_array().unwrap();
@@ -816,7 +834,7 @@ fn 태그_필터는_도구_목록_json의_결과를_좁힌다() {
 }
 
 #[test]
-fn 도구_목록_형식은_탭으로_분리된_세_개의_열이다() {
+fn tool_list_format_is_three_tab_separated_columns() {
     let out = run(parse(&["upeg", "tool", "list"])).expect("tool list");
     for line in out.lines() {
         let cols: Vec<_> = line.split('\t').collect();
@@ -829,7 +847,7 @@ fn 도구_목록_형식은_탭으로_분리된_세_개의_열이다() {
 }
 
 #[test]
-fn 도구_표시는_manifest를_출력한다() {
+fn tool_show_prints_the_manifest() {
     let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"]))
         .expect("tool show should succeed");
     assert!(out.contains("id"));
@@ -842,25 +860,25 @@ fn 도구_표시는_manifest를_출력한다() {
 }
 
 #[test]
-fn 인코딩_hex_to_dec_정상_경로가_동작한다() {
+fn num_hex_to_decimal_happy_path_works() {
     let out = run(parse(&["upeg", "num", "hex-to-decimal", "0xff"])).expect("happy path");
     assert_eq!(out, "255\n");
 }
 
 #[test]
-fn 인코딩_hex_to_dec_오류_경로는_도구_실패를_반환한다() {
+fn num_hex_to_decimal_error_path_returns_tool_failure() {
     let r = run(parse(&["upeg", "num", "hex-to-decimal", "0xZZ"]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
 }
 
 #[test]
-fn 인코딩_hex_to_dec는_접두사_없이_동작한다() {
+fn num_hex_to_decimal_works_without_a_prefix() {
     let out = run(parse(&["upeg", "num", "hex-to-decimal", "ff"])).expect("no prefix");
     assert_eq!(out, "255\n");
 }
 
 #[test]
-fn cli_오류_메시지는_upeg_접두사를_가진다() {
+fn cli_error_messages_carry_upeg_prefix() {
     let e = CliError::UnknownTool("x".into());
     assert!(e.message().starts_with("upeg:"));
     let e = CliError::ToolFailed("invalid hex".into());
@@ -868,7 +886,7 @@ fn cli_오류_메시지는_upeg_접두사를_가진다() {
 }
 
 #[test]
-fn cli_오류_종료_코드들은_사용자_오류이다() {
+fn cli_error_exit_codes_are_user_errors() {
     // PRD §6.5 doesn't pin specific codes but 1 is the conventional user
     // error code (vs 2 = misuse, 0 = success). Keep them stable for scripts.
     assert_eq!(CliError::UnknownTool("x".into()).exit_code(), 1);
@@ -876,7 +894,7 @@ fn cli_오류_종료_코드들은_사용자_오류이다() {
 }
 
 #[test]
-fn id_uuid_v7은_정규_36자_문자열을_출력한다() {
+fn id_uuid_v7_prints_a_canonical_36_char_string() {
     let out = run(parse(&["upeg", "id", "uuid-v7"])).expect("uuid-v7 dispatch");
     let s = out.trim_end_matches('\n');
     assert_eq!(s.len(), 36);
@@ -886,7 +904,7 @@ fn id_uuid_v7은_정규_36자_문자열을_출력한다() {
 }
 
 #[test]
-fn id_nanoid는_url_안전한_21자_문자열을_출력한다() {
+fn id_nanoid_prints_a_url_safe_21_char_string() {
     let out = run(parse(&["upeg", "id", "nanoid"])).expect("nanoid dispatch");
     let s = out.trim_end_matches('\n');
     assert_eq!(s.len(), 21);
@@ -897,7 +915,7 @@ fn id_nanoid는_url_안전한_21자_문자열을_출력한다() {
 }
 
 #[test]
-fn 도구_목록은_id_uuid_v7을_포함한다() {
+fn tool_list_includes_id_uuid_v7() {
     let out = run(parse(&["upeg", "tool", "list"])).expect("tool list");
     assert!(
         out.contains("id.uuid_v7"),
@@ -906,25 +924,25 @@ fn 도구_목록은_id_uuid_v7을_포함한다() {
 }
 
 #[test]
-fn 인코딩_base64_인코딩은_알려진_벡터와_일치한다() {
+fn convert_base64_encode_matches_a_known_vector() {
     let out = run(parse(&["upeg", "convert", "base64-encode", "foo"])).expect("encode");
     assert_eq!(out, "Zm9v\n");
 }
 
 #[test]
-fn 인코딩_base64_디코딩은_알려진_벡터와_일치한다() {
+fn convert_base64_decode_matches_a_known_vector() {
     let out = run(parse(&["upeg", "convert", "base64-decode", "Zm9v"])).expect("decode");
     assert_eq!(out, "foo\n");
 }
 
 #[test]
-fn 인코딩_base64_디코딩은_유효하지_않은_입력에_도구_실패를_반환한다() {
+fn convert_base64_decode_returns_tool_failure_for_invalid_input() {
     let r = run(parse(&["upeg", "convert", "base64-decode", "!!!"]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
 }
 
 #[test]
-fn 도구_목록은_새로_등록된_네_개의_내장_도구를_모두_반영한다() {
+fn tool_list_reflects_all_four_newly_registered_builtin_tools() {
     let out = run(parse(&["upeg", "tool", "list"])).expect("tool list"); // Each new #[upeg::tool] should appear automatically — no manual edit
     // to tool list code. PRD §5.1.
     for expected in [
@@ -935,57 +953,4 @@ fn 도구_목록은_새로_등록된_네_개의_내장_도구를_모두_반영�
     ] {
         assert!(out.contains(expected), "missing {expected} in:\n{out}");
     }
-}
-
-#[test]
-fn kv_인자_문자열_값을_파싱한다() {
-    let (k, v) = parse_kv_arg("input=0xff").unwrap();
-    assert_eq!(k, "input");
-    // 0xff is not valid JSON, falls through to string.
-    assert_eq!(v, serde_json::Value::String("0xff".into()));
-}
-
-#[test]
-fn kv_인자_파싱은_json_원시값을_강제_변환한다() {
-    // Numbers, booleans, null keep their JSON type — matters for
-    // tools whose schema says `"type": "integer"` etc.
-    assert_eq!(parse_kv_arg("n=42").unwrap().1, serde_json::json!(42));
-    assert_eq!(parse_kv_arg("b=true").unwrap().1, serde_json::json!(true));
-    assert_eq!(parse_kv_arg("z=null").unwrap().1, serde_json::Value::Null);
-    // pin the documented "quoted string" case. The doc-comment
-    // on `parse_kv_arg` says "numbers/bools/null/quoted strings keep
-    // their JSON type" — meaning `key="hello"` parses to the bare
-    // string `hello` (quotes stripped by serde_json). If a future
-    // edit changes the is_string() branch (e.g., to fall through to
-    // the raw string form like arrays/objects do), the user's
-    // `-a key="hello"` would suddenly contain literal quotes —
-    // silent regression for shell users who quote.
-    assert_eq!(
-        parse_kv_arg(r#"key="hello""#).unwrap().1,
-        serde_json::Value::String("hello".into()),
-        "JSON-quoted string must round-trip without surrounding quotes",
-    );
-    // Negative numbers and floats — same primitive path.
-    assert_eq!(parse_kv_arg("n=-7").unwrap().1, serde_json::json!(-7));
-    assert_eq!(parse_kv_arg("n=0.5").unwrap().1, serde_json::json!(0.5));
-}
-
-#[test]
-fn kv_인자_파싱은_객체와_배열을_문자열로_유지한다() {
-    // Tools that take JSON-content-as-string (json_minify,
-    // json_format) need the literal `{"x":1}` to arrive as a string,
-    // not a parsed JSON object. Primitive coercion still applies.
-    assert_eq!(
-        parse_kv_arg("a=[1,2]").unwrap().1,
-        serde_json::Value::String("[1,2]".into()),
-    );
-    assert_eq!(
-        parse_kv_arg(r#"input={"x":1}"#).unwrap().1,
-        serde_json::Value::String(r#"{"x":1}"#.into()),
-    );
-}
-
-#[test]
-fn kv_인자_파싱은_등호가_누락된_것을_거부한다() {
-    assert!(parse_kv_arg("noequals").is_err());
 }

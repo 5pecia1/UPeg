@@ -1,14 +1,14 @@
 use super::*;
 
 #[test]
-fn file_정책은_static_input_kind에_손실없이_방출된다() {
+fn file_policy_emits_losslessly_into_static_input_kind() {
     let input = syn::parse_str::<ToolInput>(
         r#"required input: File(extensions=["png", "jpg"], max_count=3, max_file_bytes=1048576, max_total_bytes=2097152)"#,
     )
-    .expect("File 정책을 파싱해야 한다");
+    .expect("must parse the File policy");
 
     let tokens = build_static_input_spec_expr(&Some(vec![input]))
-        .expect("File 정책의 정적 입력 명세를 생성해야 한다")
+        .expect("must generate the static input spec for the File policy")
         .to_string();
 
     assert!(tokens.contains("StaticInputKind :: File"));
@@ -20,12 +20,12 @@ fn file_정책은_static_input_kind에_손실없이_방출된다() {
 }
 
 #[test]
-fn 정책이_없는_file은_기본_static_정책을_방출한다() {
+fn file_without_policy_emits_default_static_policy() {
     let input = syn::parse_str::<ToolInput>("required input: File")
-        .expect("정책 없는 File을 파싱해야 한다");
+        .expect("must parse File without a policy");
 
     let tokens = build_static_input_spec_expr(&Some(vec![input]))
-        .expect("기본 File 정책의 정적 입력 명세를 생성해야 한다")
+        .expect("must generate the static input spec for the default File policy")
         .to_string();
 
     assert!(tokens.contains("StaticInputKind :: File"));
@@ -37,28 +37,28 @@ fn 정책이_없는_file은_기본_static_정책을_방출한다() {
 }
 
 #[test]
-fn file_정책은_output에서_명시적으로_거부된다() {
+fn file_policy_is_explicitly_rejected_on_output() {
     let output = syn::parse_str::<ToolOutput>(r#"result: File(extensions=["png"], max_count=2)"#)
-        .expect("공용 문법은 File 정책을 파싱해야 한다");
+        .expect("the shared grammar must parse the File policy");
 
     let err = match build_static_output_spec_expr(&Some(vec![output])) {
-        Ok(_) => panic!("입력 전용 File 정책을 output에서 거부해야 한다"),
+        Ok(_) => panic!("input-only File policy must be rejected on output"),
         Err(err) => err,
     };
 
     assert!(
         err.to_string().contains("`File(...)` policy is input-only"),
-        "오류는 File 정책이 입력 전용임을 설명해야 한다: {err}"
+        "the error must explain the File policy is input-only: {err}"
     );
 }
 
 #[test]
-fn 정책이_없는_file_output은_계속_허용된다() {
+fn file_output_without_policy_is_still_allowed() {
     let output = syn::parse_str::<ToolOutput>("result: File")
-        .expect("정책 없는 File output을 파싱해야 한다");
+        .expect("must parse File output without a policy");
 
     let tokens = build_static_output_spec_expr(&Some(vec![output]))
-        .expect("정책 없는 File output 명세를 생성해야 한다")
+        .expect("must generate the File output spec without a policy")
         .to_string();
 
     assert!(tokens.contains("StaticOutputKind :: File"));

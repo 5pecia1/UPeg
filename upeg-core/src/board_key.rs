@@ -104,20 +104,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn board_key는_정상_키를_보존한다() {
-        let key = BoardKey::parse("dev").expect("유효 키");
+    fn board_key_preserves_a_well_formed_key() {
+        let key = BoardKey::parse("dev").expect("valid key");
         assert_eq!(key.as_str(), "dev");
         assert_eq!(key.to_string(), "dev");
     }
 
     #[test]
-    fn board_key는_빈_키를_거부한다() {
+    fn board_key_rejects_empty_keys() {
         assert_eq!(BoardKey::parse(""), Err(BoardKeyError::Empty));
         assert_eq!(BoardKey::parse("   "), Err(BoardKeyError::Empty));
     }
 
     #[test]
-    fn board_key는_예약된_구분자를_거부한다() {
+    fn board_key_rejects_the_reserved_separator() {
         assert_eq!(
             BoardKey::parse("project:abc:dev"),
             Err(BoardKeyError::Reserved {
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn board_key는_패딩된_키를_거부한다() {
+    fn board_key_rejects_padded_keys() {
         assert_eq!(
             BoardKey::parse(" dev "),
             Err(BoardKeyError::Padded {

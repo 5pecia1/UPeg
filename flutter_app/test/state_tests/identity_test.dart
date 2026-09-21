@@ -3,39 +3,39 @@ import 'package:upeg/src/identity.dart';
 
 void main() {
   group('ToolId', () {
-    test('ToolId는_정규_full_id를_값_객체로_파싱한다', () {
+    test('ToolId_parses_canonical_full_id_into_value_object', () {
       final id = ToolId.parse('num.hex_to_decimal');
 
       expect(id.value, 'num.hex_to_decimal');
       expect(id.toString(), 'num.hex_to_decimal');
     });
 
-    test('ToolId는_도구킷_구분자가_없는_id를_거부한다', () {
+    test('ToolId_rejects_id_without_toolkit_separator', () {
       expect(() => ToolId.parse('hex_to_dec'), throwsFormatException);
     });
 
-    test('ToolId는_앞뒤_공백이_있는_id를_거부한다', () {
+    test('ToolId_rejects_id_with_surrounding_whitespace', () {
       expect(() => ToolId.parse(' num.hex_to_decimal '), throwsFormatException);
     });
 
-    test('ToolId는_같은_문자열이면_같은_값으로_비교된다', () {
+    test('ToolId_compares_equal_for_identical_strings', () {
       expect(ToolId.parse('id.uuid_v7'), ToolId.parse('id.uuid_v7'));
     });
   });
 
   group('BoardKey', () {
-    test('BoardKey는_비어있지_않은_key를_값_객체로_파싱한다', () {
+    test('BoardKey_parses_non_empty_key_into_value_object', () {
       final key = BoardKey.parse('dev');
 
       expect(key.value, 'dev');
       expect(key.toString(), 'dev');
     });
 
-    test('BoardKey는_빈_key를_거부한다', () {
+    test('BoardKey_rejects_empty_key', () {
       expect(() => BoardKey.parse(''), throwsFormatException);
     });
 
-    test('BoardKey는_앞뒤_공백이_있는_key를_거부한다', () {
+    test('BoardKey_rejects_key_with_surrounding_whitespace', () {
       expect(() => BoardKey.parse(' dev '), throwsFormatException);
     });
   });

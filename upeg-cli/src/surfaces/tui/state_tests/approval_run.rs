@@ -1,21 +1,23 @@
-//! 승인 게이트(Task 1)와 실행 중 라이브 출력 / 취소(Task 2)의 상태
-//! 기계 테스트.
+//! State-machine tests for the approval gate (Task 1) and running live
+//! output / cancellation (Task 2).
 //!
-//! 승인 정책 레지스트리(`upeg_runtime::set_tool_approval_policy`)는 테스트
-//! 바이너리 전체가 공유하는 프로세스 전역 상태다. 그래서 모든 테스트는
-//! 자기만의 tool id를 쓰고, 등록한 정책은 [`PolicyGuard`]가 Drop에서
-//! `ToolApprovalPolicy::none()`으로 되돌린다.
+//! The approval-policy registry
+//! (`upeg_runtime::set_tool_approval_policy`) is process-global state
+//! shared by the whole test binary. So every test uses its own tool
+//! id, and registered policies are restored to
+//! `ToolApprovalPolicy::none()` by [`PolicyGuard`] on Drop.
 
 use super::*;
-use crate::surfaces::tui::model::{LiveTail, RunToken, TUI_LIVE_TAIL_MAX_LINES};
+use crate::surfaces::tui::model::{LiveTail, PresentationHost, RunToken, TUI_LIVE_TAIL_MAX_LINES};
 use crate::surfaces::tui::update::dispatch_or_confirm;
 use upeg_runtime::{
     ProgressEvent, ProgressStream, ToolApprovalPolicy, set_tool_approval_policy,
     tool_approval_policy,
 };
 
-/// 등록한 승인 정책을 테스트가 끝날 때 반드시 지우는 가드. 패닉으로
-/// 끝나도 다음 테스트에 정책이 새지 않는다.
+/// Guard that always clears the registered approval policy when the
+/// test ends. Even on panic the policy does not leak into the next
+/// test.
 struct PolicyGuard(&'static str);
 
 impl PolicyGuard {
@@ -31,8 +33,9 @@ impl Drop for PolicyGuard {
     }
 }
 
-/// 고유 id를 가진 무인자 도구. 정책 레지스트리가 전역이므로 테스트마다
-/// 다른 id를 써야 서로를 오염시키지 않는다.
+/// A no-arg tool with a unique id. Since the policy registry is
+/// global, each test must use a different id to avoid
+/// cross-contamination.
 fn no_input_tool(id: &'static str) -> &'static ToolMeta {
     Box::leak(Box::new(ToolMeta {
         id,
@@ -44,6 +47,8 @@ fn no_input_tool(id: &'static str) -> &'static ToolMeta {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -61,8 +66,8 @@ fn progress(chunk: &str) -> ProgressEvent {
     }
 }
 
-/// 한 chunk를 그 run의 것으로 각인한 진행 메시지. 이벤트 루프가
-/// `RunningDispatch`에서 만드는 것과 같은 모습이다.
+/// A progress message stamped as belonging to that run for one chunk.
+/// Same shape as what the event loop builds in `RunningDispatch`.
 fn tool_progress(run: RunToken, chunk: &str) -> Msg<'static> {
     Msg::ToolProgress {
         run,
@@ -70,16 +75,16 @@ fn tool_progress(run: RunToken, chunk: &str) -> Msg<'static> {
     }
 }
 
-/// `start_run`이 실제로 만드는 모습 그대로: 모델이 이 run을 살아 있다고
-/// 붙들고 있고, 오른쪽 pane에 포커스가 간 실행 중 상태. 키 라우팅
-/// 테스트가 진짜 경로를 지나가도록 한다.
+/// Exactly what `start_run` really produces: the model is holding this
+/// run as alive with focus on the right pane, in the running state.
+/// Lets key-routing tests travel the real path.
 fn running_state(tool_id: &'static str) -> State {
     let (state, _) = running_state_with_run(tool_id);
     state
 }
 
-/// [`running_state`]와 같지만 이 run의 [`RunToken`]도 함께 돌려준다 —
-/// 진행 이벤트는 그 token으로 각인되어야 한다.
+/// Like [`running_state`] but also returns this run's [`RunToken`] —
+/// progress events must be stamped with that token.
 fn running_state_with_run(tool_id: &'static str) -> (State, RunToken) {
     let mut state = State {
         focus: FocusArea::RightPane,
@@ -94,8 +99,9 @@ fn running_state_with_run(tool_id: &'static str) -> (State, RunToken) {
     (state, run)
 }
 
-/// 실행 중 pane을 이미 떠난 상태 — 취소 확인 overlay를 열었다가 물러난
-/// 뒤의 모습이다. 실행 자체는 계속되므로 모델은 여전히 run을 붙들고 있다.
+/// A state that has already left the running pane — as after opening
+/// the cancel-confirm overlay and backing out. The run itself
+/// continues, so the model is still holding the run.
 fn left_running_pane(tool_id: &'static str) -> (State, RunToken) {
     let (mut state, run) = running_state_with_run(tool_id);
     state.view = View::List;
@@ -105,14 +111,14 @@ fn left_running_pane(tool_id: &'static str) -> (State, RunToken) {
 fn tail_lines(state: &State) -> Vec<String> {
     match &state.view {
         View::Running { tail, .. } => tail.lines().map(ToOwned::to_owned).collect(),
-        other => panic!("Running 보기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the Running view but got {other:?}"),
     }
 }
 
-// ─── Task 1: 승인 게이트 ─────────────────────────────────────────
+// ─── Task 1: approval gate ─────────────────────────────────────────
 
 #[test]
-fn 승인이_필요한_도구는_실행_대신_승인_화면을_연다() {
+fn tool_requiring_approval_opens_approval_screen_instead_of_running() {
     let tool = no_input_tool("test.approval.tui.opens_prompt");
     let _guard = PolicyGuard::gated(tool.id, vec![Surface::Tui]);
     let tools = [tool];
@@ -123,19 +129,19 @@ fn 승인이_필요한_도구는_실행_대신_승인_화면을_연다() {
     assert_eq!(
         effect,
         Action::None,
-        "승인 전에는 dispatch가 나가면 안 된다"
+        "dispatch must not go out before approval"
     );
     match &s.view {
         View::ConfirmApproval { tool_id, args } => {
             assert_eq!(*tool_id, tool.id);
             assert_eq!(*args, json!({}));
         }
-        other => panic!("ConfirmApproval을 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected ConfirmApproval but got {other:?}"),
     }
 }
 
 #[test]
-fn 승인_화면에서_확인하면_approve_true를_실은_dispatch가_나간다() {
+fn confirm_on_approval_screen_sends_dispatch_carrying_approve_true() {
     let tool = no_input_tool("test.approval.tui.confirm_keys");
     let _guard = PolicyGuard::gated(tool.id, vec![Surface::Tui]);
     let tools = [tool];
@@ -155,20 +161,20 @@ fn 승인_화면에서_확인하면_approve_true를_실은_dispatch가_나간다
                 assert_eq!(
                     args,
                     json!({ "target": "prod", "approve": true }),
-                    "{key:?} 승인은 예약 키 approve=true를 실어야 한다"
+                    "{key:?} approval must carry the reserved key approve=true"
                 );
             }
-            other => panic!("{key:?} 승인에서 Dispatch를 기대했지만 {other:?}를 받았다"),
+            other => panic!("expected Dispatch on {key:?} approval but got {other:?}"),
         }
         assert!(
             matches!(s.view, View::Running { .. }),
-            "{key:?} 승인은 실행 중 보기로 넘어가야 한다"
+            "{key:?} approval must move to the running view"
         );
     }
 }
 
 #[test]
-fn 승인_화면에서_이스케이프는_목록으로_돌아가고_아무것도_실행하지_않는다() {
+fn esc_on_approval_screen_returns_to_list_without_running_anything() {
     let tool = no_input_tool("test.approval.tui.cancel");
     let _guard = PolicyGuard::gated(tool.id, vec![Surface::Tui]);
     let tools = [tool];
@@ -184,15 +190,15 @@ fn 승인_화면에서_이스케이프는_목록으로_돌아가고_아무것도
 
         let effect = handle_key(&mut s, key, &tools);
 
-        assert_eq!(effect, Action::None, "{key:?}는 아무것도 실행하지 않는다");
-        assert_eq!(s.view, View::List, "{key:?}는 목록으로 돌아간다");
+        assert_eq!(effect, Action::None, "{key:?} runs nothing");
+        assert_eq!(s.view, View::List, "{key:?} returns to the list");
     }
 }
 
 #[test]
-fn 게이트가_없는_도구는_approve_키_없이_즉시_실행한다() {
+fn ungated_tool_runs_immediately_without_approve_key() {
     let tool = no_input_tool("test.approval.tui.ungated");
-    // 정책을 등록하지 않는다: 장벽이 없는 도구의 기본 상태.
+    // No policy is registered: the default state of an ungated tool.
     assert!(!tool_approval_policy(tool.id).requires_approval());
     let tools = [tool];
     let mut s = State::default();
@@ -200,15 +206,19 @@ fn 게이트가_없는_도구는_approve_키_없이_즉시_실행한다() {
     match handle_key(&mut s, Key::Enter, &tools) {
         Action::Dispatch { tool_id, args, .. } => {
             assert_eq!(tool_id, tool.id);
-            assert_eq!(args, json!({}), "장벽이 없으면 approve 키도 없어야 한다");
+            assert_eq!(
+                args,
+                json!({}),
+                "without a gate there must be no approve key either"
+            );
         }
-        other => panic!("Dispatch를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected Dispatch but got {other:?}"),
     }
     assert!(matches!(s.view, View::Running { .. }));
 }
 
 #[test]
-fn tui를_인정하지_않는_승인_정책은_설명만_보여준다() {
+fn approval_policy_not_honoring_tui_only_shows_explanation() {
     let tool = no_input_tool("test.approval.tui.not_honored");
     let _guard = PolicyGuard::gated(tool.id, vec![Surface::Cli, Surface::Http]);
     let tools = [tool];
@@ -225,19 +235,19 @@ fn tui를_인정하지_않는_승인_정책은_설명만_보여준다() {
             ..
         } => {
             assert_eq!(*tool_id, tool.id);
-            assert!(*is_error, "인정되지 않는 승인은 오류로 표시한다");
+            assert!(*is_error, "an approval not honored is shown as an error");
             assert!(
                 text.contains("cli/http"),
-                "승인을 인정하는 표면을 이름으로 밝혀야 하지만 `{text}`를 받았다"
+                "must name the surfaces that honor approval but got `{text}`"
             );
         }
-        other => panic!("설명을 담은 Result를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected a Result carrying the explanation but got {other:?}"),
     }
     assert_eq!(s.focus, FocusArea::RightPane);
 }
 
 #[test]
-fn 폼_경로도_승인_게이트를_지난다() {
+fn form_path_also_passes_through_approval_gate() {
     let tool_id = "test.approval.tui.form_path";
     let _guard = PolicyGuard::gated(tool_id, vec![Surface::Tui]);
     let tools = fixture_tools();
@@ -251,18 +261,22 @@ fn 폼_경로도_승인_게이트를_지난다() {
 
     let effect = handle_key(&mut s, Key::Enter, tools.as_slice());
 
-    assert_eq!(effect, Action::None, "폼 실행도 승인 전에는 막혀야 한다");
+    assert_eq!(
+        effect,
+        Action::None,
+        "form runs must also be blocked before approval"
+    );
     match &s.view {
         View::ConfirmApproval { tool_id: id, args } => {
             assert_eq!(*id, tool_id);
             assert_eq!(*args, json!({ "input": "0xff" }));
         }
-        other => panic!("ConfirmApproval을 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected ConfirmApproval but got {other:?}"),
     }
 }
 
 #[test]
-fn 폼_경로의_승인은_폼이_만든_인자를_그대로_실어_보낸다() {
+fn approval_on_form_path_forwards_form_built_args_verbatim() {
     let tool_id = "test.approval.tui.form_args";
     let _guard = PolicyGuard::gated(tool_id, vec![Surface::Tui]);
     let tools = fixture_tools();
@@ -283,14 +297,14 @@ fn 폼_경로의_승인은_폼이_만든_인자를_그대로_실어_보낸다() 
             assert_eq!(id, tool_id);
             assert_eq!(args, json!({ "input": "0xff", "approve": true }));
         }
-        other => panic!("승인 후 Dispatch를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected Dispatch after approval but got {other:?}"),
     }
 }
 
 #[test]
-fn 승인이_필요한_폼_도구는_상세에서도_폼부터_연다() {
-    // 게이트는 dispatch 직전에만 선다: 입력이 필요한 도구는 여전히
-    // 폼을 먼저 보여줘야 한다.
+fn approval_required_form_tool_still_opens_form_first_from_detail() {
+    // The gate stands only just before dispatch: a tool that needs
+    // input must still show the form first.
     let _guard = PolicyGuard::gated("test.with_input", vec![Surface::Tui]);
     let tools = fixture_tools();
     let mut s = State {
@@ -305,10 +319,10 @@ fn 승인이_필요한_폼_도구는_상세에서도_폼부터_연다() {
     assert!(matches!(s.view, View::Form { .. }));
 }
 
-// ─── Task 2: 라이브 출력 + 취소 ──────────────────────────────────
+// ─── Task 2: live output + cancel ──────────────────────────────────
 
 #[test]
-fn 진행_이벤트는_실행_중_tail에_쌓인다() {
+fn progress_events_accumulate_in_running_tail() {
     let (mut s, run) = running_state_with_run("test.live.append");
 
     update(&mut s, tool_progress(run, "first\n"));
@@ -319,7 +333,7 @@ fn 진행_이벤트는_실행_중_tail에_쌓인다() {
 }
 
 #[test]
-fn tail은_마지막_n줄만_유지한다() {
+fn tail_keeps_only_last_n_lines() {
     let (mut s, run) = running_state_with_run("test.live.cap");
 
     for index in 0..(TUI_LIVE_TAIL_MAX_LINES + 5) {
@@ -332,27 +346,28 @@ fn tail은_마지막_n줄만_유지한다() {
 }
 
 #[test]
-fn 실행_중이_아닐_때의_진행_이벤트는_무시된다() {
+fn progress_events_while_not_running_are_ignored() {
     let (mut s, run) = running_state_with_run("test.live.late");
-    // 최종 봉투가 이미 도착해 모델이 run을 놓아준 뒤.
+    // After the final envelope already arrived and the model released
+    // the run.
     s.view = View::Result {
         tool_id: "test.live.late",
         outputs: Vec::new(),
-        text: "끝난 결과".into(),
+        text: "finished result".into(),
         is_error: false,
     };
     s.active_run = None;
 
-    update(&mut s, tool_progress(run, "늦게_도착한_출력\n"));
+    update(&mut s, tool_progress(run, "late_arriving_output\n"));
 
     match &s.view {
-        View::Result { text, .. } => assert_eq!(text, "끝난 결과"),
-        other => panic!("늦은 진행 이벤트가 보기를 바꾸면 안 되지만 {other:?}를 받았다"),
+        View::Result { text, .. } => assert_eq!(text, "finished result"),
+        other => panic!("a late progress event must not change the view but got {other:?}"),
     }
 }
 
 #[test]
-fn 실행_중_이스케이프는_취소를_요청하고_취소중으로_표시한다() {
+fn esc_while_running_requests_cancel_and_marks_cancelling() {
     let tools = fixture_tools();
 
     for key in [Key::Esc, Key::Char('q')] {
@@ -360,23 +375,27 @@ fn 실행_중_이스케이프는_취소를_요청하고_취소중으로_표시�
 
         let effect = handle_key(&mut s, key, tools.as_slice());
 
-        assert_eq!(effect, Action::CancelRun, "{key:?}는 실행 취소를 요청한다");
+        assert_eq!(
+            effect,
+            Action::CancelRun,
+            "{key:?} requests run cancellation"
+        );
         match &s.view {
             View::Running { cancelling, .. } => {
-                assert!(*cancelling, "{key:?} 이후에는 취소 중으로 표시되어야 한다");
+                assert!(*cancelling, "after {key:?} it must be marked cancelling");
             }
-            other => panic!("{key:?} 이후에도 Running이어야 하지만 {other:?}를 받았다"),
+            other => panic!("must still be Running after {key:?} but got {other:?}"),
         }
     }
 }
 
 #[test]
-fn 취소가_이미_요청된_실행에서_다시_이스케이프하면_종료_확인을_연다() {
-    // 취소는 요청일 뿐이라 token을 보지 않는 invoker에서는 영원히
-    // 끝나지 않을 수 있다. 다른 키가 모두 삼켜지는 보기에서 탈출구가
-    // 하나도 없으면 안 되므로 두 번째 Esc는 격상한다 — 다만 오종료
-    // 방지 계약을 지나치지 않고 통과한다: 종료는 확인 대화상자를
-    // 거쳐야 한다.
+fn esc_again_on_already_cancelled_run_opens_quit_confirm() {
+    // Cancel is only a request, so an invoker that ignores the token
+    // may never finish. A view that swallows every other key must not
+    // lack an escape hatch, so a second Esc escalates — but without
+    // bypassing the quit-guard contract: quitting must go through the
+    // confirm dialog.
     let tools = fixture_tools();
     let mut s = running_state("test.live.escalate");
 
@@ -387,18 +406,19 @@ fn 취소가_이미_요청된_실행에서_다시_이스케이프하면_종료_�
     assert_eq!(
         handle_key(&mut s, Key::Esc, tools.as_slice()),
         Action::CancelRun,
-        "두 번째 Esc도 취소 요청을 다시 보내야 한다"
+        "the second Esc must also re-send the cancel request"
     );
     assert_eq!(
         s.view,
         View::ConfirmQuit,
-        "두 번째 Esc는 세션을 바로 끝내지 않고 종료 확인을 연다"
+        "the second Esc opens the quit confirm instead of ending the session outright"
     );
 }
 
 #[test]
-fn 실행_중_종료_확인에서_예를_고르면_비로소_종료한다() {
-    // 격상 경로의 끝: 확인은 여전히 사람의 의도적인 한 번의 y다.
+fn yes_on_quit_confirm_while_running_finally_quits() {
+    // The end of the escalation path: confirmation is still one
+    // deliberate human y.
     let tools = fixture_tools();
     let tools = tools.as_slice();
     let mut s = running_state("test.live.escalate_confirm");
@@ -410,9 +430,10 @@ fn 실행_중_종료_확인에서_예를_고르면_비로소_종료한다() {
 }
 
 #[test]
-fn 실행_중_종료_확인을_물리면_목록으로_돌아간다() {
-    // 정직성 공백을 고정한다: 확인을 취소해도 실행 중 pane으로
-    // 돌아가지는 않는다. 실행 자체는 계속되고 결과는 그대로 도착한다.
+fn dismissing_quit_confirm_while_running_returns_to_list() {
+    // Pins an honesty gap: dismissing the confirm does not return to
+    // the running pane. The run itself continues and the result still
+    // arrives.
     let tools = fixture_tools();
     let tools = tools.as_slice();
     let mut s = running_state("test.live.escalate_back");
@@ -425,7 +446,7 @@ fn 실행_중_종료_확인을_물리면_목록으로_돌아간다() {
 }
 
 #[test]
-fn 실행_중_다른_키는_무시된다() {
+fn other_keys_are_ignored_while_running() {
     let tools = fixture_tools();
 
     for key in [Key::Char('o'), Key::Char('s'), Key::Char('n'), Key::Enter] {
@@ -433,7 +454,11 @@ fn 실행_중_다른_키는_무시된다() {
 
         let effect = handle_key(&mut s, key, tools.as_slice());
 
-        assert_eq!(effect, Action::None, "{key:?}는 실행 중에 소비되지 않는다");
+        assert_eq!(
+            effect,
+            Action::None,
+            "{key:?} is not consumed while running"
+        );
         assert!(
             matches!(
                 s.view,
@@ -442,15 +467,15 @@ fn 실행_중_다른_키는_무시된다() {
                     ..
                 }
             ),
-            "{key:?}는 실행 중 보기를 바꾸면 안 된다"
+            "{key:?} must not change the running view"
         );
     }
 }
 
 #[test]
-fn 실행_중_오른쪽_pane_스크롤은_계속_동작한다() {
-    // 라이브 tail을 되짚어 보는 것은 실행을 방해하지 않는다 —
-    // Result 보기와 같은 계약.
+fn right_pane_scroll_keeps_working_while_running() {
+    // Scrolling back through the live tail does not disturb the run —
+    // same contract as the Result view.
     let tools = fixture_tools();
     let mut s = running_state("test.live.scroll");
 
@@ -464,18 +489,23 @@ fn 실행_중_오른쪽_pane_스크롤은_계속_동작한다() {
             ..
         }
     ));
-    assert!(s.right_scroll.get() > 0, "실행 중에도 pane은 스크롤된다");
+    assert!(
+        s.right_scroll.get() > 0,
+        "the pane scrolls even while running"
+    );
 }
 
 #[test]
-fn tool_done은_실행_중_보기를_결과로_교체한다() {
+fn tool_done_replaces_running_view_with_result() {
     let (mut s, run) = running_state_with_run("test.live.done");
-    update(&mut s, tool_progress(run, "작업 중\n"));
+    update(&mut s, tool_progress(run, "working\n"));
 
     let success = crate::domain::execution::dispatch::text_success("done");
     update(
         &mut s,
         Msg::ToolDone {
+            run,
+            host: PresentationHost::LocalTui,
             tool_id: "test.live.done",
             outcome: Outcome::Success(success),
         },
@@ -488,14 +518,14 @@ fn tool_done은_실행_중_보기를_결과로_교체한다() {
             assert_eq!(*tool_id, "test.live.done");
             assert!(!*is_error);
         }
-        other => panic!("Result를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected Result but got {other:?}"),
     }
 }
 
 #[test]
-fn 실행_중_보기는_오른쪽_pane을_지배한다() {
-    // 실행 중에도 렌더/마우스/포커스가 같은 body 형태를 보도록,
-    // Form/Result와 같은 presentation을 선언해야 한다.
+fn running_view_dominates_right_pane() {
+    // Running must declare the same presentation as Form/Result so
+    // render/mouse/focus see the same body shape while running.
     let running = running_state("test.live.presentation");
     let result = State {
         view: View::Result {
@@ -513,12 +543,13 @@ fn 실행_중_보기는_오른쪽_pane을_지배한다() {
     );
 }
 
-// ─── 실행 상태는 View가 아니라 State가 쥔다 ──────────────────────
+// ─── Run state is held by State, not View ──────────────────────
 
 #[test]
-fn 실행_중_pane을_떠나도_모델은_실행을_붙들고_있다() {
-    // 취소 확인 overlay를 열었다가 물리면 목록으로 돌아오지만, 워커는
-    // 계속 돌고 있다. 모델이 여기서 실행을 잊으면 이벤트 루프와 어긋난다.
+fn model_keeps_run_alive_after_leaving_running_pane() {
+    // Opening then dismissing the cancel-confirm overlay returns to the
+    // list, but the worker keeps running. If the model forgot the run
+    // here it would diverge from the event loop.
     let tools = fixture_tools();
     let tools = tools.as_slice();
     let (mut s, run) = running_state_with_run("test.live.keeps_run");
@@ -531,63 +562,59 @@ fn 실행_중_pane을_떠나도_모델은_실행을_붙들고_있다() {
     assert_eq!(
         s.active_run.map(|active| active.run),
         Some(run),
-        "pane을 떠나도 실행은 계속된다"
+        "the run continues even after leaving the pane"
     );
 }
 
 #[test]
-fn 실행이_남아_있으면_두_번째_실행은_거절된다() {
+fn second_run_is_rejected_while_run_remains() {
     let (mut s, run) = left_running_pane("test.live.first");
 
     let effect = dispatch_or_confirm(&mut s, "test.simple", json!({}));
 
-    assert_eq!(
-        effect,
-        Action::None,
-        "두 번째 dispatch는 아예 나가지 않는다"
-    );
+    assert_eq!(effect, Action::None, "the second dispatch never goes out");
     assert_eq!(
         s.active_run.map(|active| active.run),
         Some(run),
-        "먼저 시작한 실행이 그대로 유지된다"
+        "the earlier run stays intact"
     );
-    assert!(
-        s.status_message.is_some(),
-        "무엇이 실행 중인지 사람에게 말해 준다"
-    );
+    assert!(s.status_message.is_some(), "tells the user what is running");
     match &s.view {
         View::Running { tool_id, .. } => assert_eq!(
             *tool_id, "test.live.first",
-            "새 도구가 아니라 실행 중인 도구의 pane으로 돌아간다"
+            "returns to the running tool's pane, not the new tool"
         ),
-        other => panic!("Running 보기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the Running view but got {other:?}"),
     }
 }
 
 #[test]
-fn 거절된_두_번째_실행의_pane에는_이전_run의_출력이_섞이지_않는다() {
-    // 회귀: 예전에는 두 번째 Run이 새 View::Running을 열고, 이벤트 루프는
-    // 그 dispatch를 조용히 버렸다. 그러면 새 pane이 *옛* run의 chunk로
-    // 채워지고 옛 run의 결과가 새 도구의 결과인 양 렌더됐다.
+fn rejected_second_run_pane_is_not_mixed_with_previous_run_output() {
+    // Regression: previously a second Run opened a new View::Running
+    // and the event loop silently dropped that dispatch. The new pane
+    // then filled with the *old* run's chunks and the old run's result
+    // rendered as if it were the new tool's.
     let (mut s, first_run) = left_running_pane("test.live.mixed_first");
 
     dispatch_or_confirm(&mut s, "test.simple", json!({}));
-    update(&mut s, tool_progress(first_run, "먼저 시작한 출력\n"));
+    update(&mut s, tool_progress(first_run, "earlier run output\n"));
 
     match &s.view {
         View::Running { tool_id, .. } => assert_eq!(*tool_id, "test.live.mixed_first"),
-        other => panic!("Running 보기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the Running view but got {other:?}"),
     }
-    assert_eq!(tail_lines(&s), ["먼저 시작한 출력"]);
+    assert_eq!(tail_lines(&s), ["earlier run output"]);
 }
 
 #[test]
-fn 지난_run의_진행_이벤트는_다음_run의_tail에_들어가지_않는다() {
+fn stale_run_progress_events_do_not_enter_next_run_tail() {
     let (mut s, first_run) = running_state_with_run("test.live.stale_first");
     let success = crate::domain::execution::dispatch::text_success("done");
     update(
         &mut s,
         Msg::ToolDone {
+            run: first_run,
+            host: PresentationHost::LocalTui,
             tool_id: "test.live.stale_first",
             outcome: Outcome::Success(success),
         },
@@ -600,35 +627,83 @@ fn 지난_run의_진행_이벤트는_다음_run의_tail에_들어가지_않는�
         cancelling: false,
     };
 
-    update(&mut s, tool_progress(first_run, "지난 run의 출력\n"));
-    assert!(tail_lines(&s).is_empty(), "지난 run의 chunk는 버려진다");
+    update(&mut s, tool_progress(first_run, "stale run output\n"));
+    assert!(tail_lines(&s).is_empty(), "stale run chunks are dropped");
 
-    update(&mut s, tool_progress(second_run, "지금 run의 출력\n"));
-    assert_eq!(tail_lines(&s), ["지금 run의 출력"]);
+    update(&mut s, tool_progress(second_run, "current run output\n"));
+    assert_eq!(tail_lines(&s), ["current run output"]);
 }
 
 #[test]
-fn 최종_봉투가_도착하면_모델은_실행을_놓아준다() {
-    let (mut s, _) = running_state_with_run("test.live.release");
+fn stale_final_envelope_cannot_replace_a_newer_run() {
+    let (mut s, stale_run) = running_state_with_run("test.live.same_tool");
+    let current_run = s.start_active_run("test.live.same_tool");
+    s.view = View::Running {
+        tool_id: "test.live.same_tool",
+        tail: LiveTail::default(),
+        cancelling: false,
+    };
+
+    let effect = update(
+        &mut s,
+        Msg::ToolDone {
+            run: stale_run,
+            host: PresentationHost::LocalTui,
+            tool_id: "test.live.same_tool",
+            outcome: Outcome::Success(crate::domain::execution::dispatch::text_success("stale")),
+        },
+    );
+
+    assert_eq!(effect, Action::None);
+    assert_eq!(
+        s.active_run.expect("new run remains active").run,
+        current_run
+    );
+    assert!(matches!(s.view, View::Running { .. }));
+}
+
+#[test]
+fn completed_result_records_an_unverified_attached_host() {
+    let (mut s, run) = running_state_with_run("test.live.attached");
+    update(
+        &mut s,
+        Msg::ToolDone {
+            run,
+            host: PresentationHost::AttachedUnverified,
+            tool_id: "test.live.attached",
+            outcome: Outcome::Success(crate::domain::execution::dispatch::text_success("done")),
+        },
+    );
+
+    assert_eq!(s.result_host, Some(PresentationHost::AttachedUnverified));
+}
+
+#[test]
+fn model_releases_run_when_final_envelope_arrives() {
+    let (mut s, run) = running_state_with_run("test.live.release");
 
     let success = crate::domain::execution::dispatch::text_success("done");
     update(
         &mut s,
         Msg::ToolDone {
+            run,
+            host: PresentationHost::LocalTui,
             tool_id: "test.live.release",
             outcome: Outcome::Success(success),
         },
     );
 
-    assert!(s.active_run.is_none(), "끝난 실행은 붙들고 있지 않는다");
+    assert!(s.active_run.is_none(), "a finished run is not held");
 }
 
 #[test]
-fn 실행이_끝난_뒤에는_다시_실행할_수_있다() {
-    let (mut s, _) = running_state_with_run("test.live.rerun");
+fn can_run_again_after_run_finishes() {
+    let (mut s, run) = running_state_with_run("test.live.rerun");
     update(
         &mut s,
         Msg::ToolDone {
+            run,
+            host: PresentationHost::LocalTui,
             tool_id: "test.live.rerun",
             outcome: Outcome::NotFound,
         },
@@ -644,6 +719,6 @@ fn 실행이_끝난_뒤에는_다시_실행할_수_있다() {
                 ..
             }
         ),
-        "끝난 뒤의 Run은 정상적으로 나간다"
+        "a Run after completion goes out normally"
     );
 }

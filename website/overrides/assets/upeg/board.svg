@@ -1,0 +1,77 @@
+<svg class="upeg-board__svg" viewBox="0 0 640 420" role="img"
+     aria-labelledby="upeg-board-title upeg-board-desc"
+     xmlns="http://www.w3.org/2000/svg">
+  <title id="upeg-board-title">Illustration of a UPeg board</title>
+  <desc id="upeg-board-desc">A pegboard grid holding five pinned tool cards:
+    a hex-to-decimal converter, a PDF-to-Markdown extractor, a git log
+    command, a scratch notepad, and a chain of three steps.</desc>
+  <defs>
+    <pattern id="upeg-holes" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2" class="upeg-board__hole"/>
+    </pattern>
+  </defs>
+  <rect x="8" y="8" width="624" height="404" rx="16" class="upeg-board__bg"/>
+  <rect x="8" y="8" width="624" height="404" rx="16" fill="url(#upeg-holes)"/>
+
+  <g class="upeg-pin">
+    <rect x="48" y="48" width="208" height="118" rx="10" class="upeg-pin__card upeg-pin__card--accent"/>
+    <circle cx="60" cy="60" r="4" class="upeg-pin__dot"/>
+    <text x="72" y="65" class="upeg-pin__name">num.hex_to_decimal</text>
+    <rect x="60" y="80" width="184" height="26" rx="6" class="upeg-pin__field"/>
+    <text x="70" y="98" class="upeg-pin__mono">0xff</text>
+    <rect x="60" y="114" width="184" height="26" rx="6" class="upeg-pin__result"/>
+    <text x="70" y="132" class="upeg-pin__mono upeg-pin__mono--accent">255</text>
+  </g>
+
+  <g class="upeg-pin">
+    <rect x="280" y="48" width="200" height="150" rx="10" class="upeg-pin__card"/>
+    <circle cx="292" cy="60" r="4" class="upeg-pin__dot"/>
+    <text x="304" y="65" class="upeg-pin__name">media.pdf_to_markdown</text>
+    <rect x="292" y="80" width="176" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="292" y="98" width="150" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="292" y="116" width="164" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="292" y="140" width="176" height="44" rx="6" class="upeg-pin__result"/>
+    <text x="302" y="166" class="upeg-pin__mono">report.md</text>
+  </g>
+
+  <g class="upeg-pin">
+    <rect x="504" y="48" width="96" height="72" rx="10" class="upeg-pin__card"/>
+    <circle cx="516" cy="60" r="4" class="upeg-pin__dot"/>
+    <text x="528" y="65" class="upeg-pin__name">time.iso_now</text>
+    <text x="516" y="96" class="upeg-pin__mono">2026-09-15</text>
+  </g>
+
+  <g class="upeg-pin">
+    <rect x="48" y="196" width="176" height="96" rx="10" class="upeg-pin__card"/>
+    <circle cx="60" cy="208" r="4" class="upeg-pin__dot"/>
+    <text x="72" y="213" class="upeg-pin__name">git.log</text>
+    <rect x="60" y="224" width="152" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="60" y="242" width="118" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="60" y="260" width="136" height="10" rx="5" class="upeg-pin__line"/>
+  </g>
+
+  <g class="upeg-pin">
+    <rect x="248" y="228" width="228" height="130" rx="10" class="upeg-pin__card"/>
+    <circle cx="260" cy="240" r="4" class="upeg-pin__dot"/>
+    <text x="272" y="245" class="upeg-pin__name">chain.release_check</text>
+    <rect x="260" y="258" width="60" height="26" rx="13" class="upeg-pin__chip"/>
+    <text x="272" y="276" class="upeg-pin__chip-label">lint</text>
+    <line x1="320" y1="271" x2="336" y2="271" class="upeg-pin__wire"/>
+    <rect x="336" y="258" width="60" height="26" rx="13" class="upeg-pin__chip"/>
+    <text x="348" y="276" class="upeg-pin__chip-label">test</text>
+    <line x1="396" y1="271" x2="412" y2="271" class="upeg-pin__wire"/>
+    <rect x="412" y="258" width="52" height="26" rx="13" class="upeg-pin__chip"/>
+    <text x="424" y="276" class="upeg-pin__chip-label">pack</text>
+    <rect x="260" y="300" width="204" height="10" rx="5" class="upeg-pin__line"/>
+    <rect x="260" y="318" width="164" height="10" rx="5" class="upeg-pin__line"/>
+  </g>
+
+  <g class="upeg-pin">
+    <rect x="504" y="152" width="96" height="118" rx="10" class="upeg-pin__card"/>
+    <circle cx="516" cy="164" r="4" class="upeg-pin__dot"/>
+    <text x="528" y="169" class="upeg-pin__name">memo</text>
+    <rect x="516" y="182" width="72" height="8" rx="4" class="upeg-pin__line"/>
+    <rect x="516" y="198" width="72" height="8" rx="4" class="upeg-pin__line"/>
+    <rect x="516" y="214" width="48" height="8" rx="4" class="upeg-pin__line"/>
+  </g>
+</svg>

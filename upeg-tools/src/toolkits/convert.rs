@@ -89,8 +89,8 @@ pub fn base32_decode(input: &str) -> Result<String, &'static str> {
 }
 
 /// `convert.nfc` — Unicode-normalize a string to NFC (composed form),
-/// e.g. macOS's decomposed Hangul (ㅎ+ㅏ+ㄴ) → Windows's composed
-/// Hangul (한).
+/// e.g. macOS's decomposed Hangul jamo sequence → Windows's composed
+/// Hangul syllable block.
 #[tool(
     id = "convert.nfc",
     display_label = "To NFC (Windows)",
@@ -109,8 +109,8 @@ pub fn convert_nfc(input: &str) -> String {
 }
 
 /// `convert.nfd` — Unicode-normalize a string to NFD (decomposed form),
-/// e.g. Windows's composed Hangul (한) → macOS's decomposed Hangul
-/// (ㅎ+ㅏ+ㄴ).
+/// e.g. Windows's composed Hangul syllable block → macOS's decomposed
+/// Hangul jamo sequence.
 #[tool(
     id = "convert.nfd",
     display_label = "To NFD (macOS)",
@@ -401,7 +401,7 @@ mod tests {
     // ─── base64 ─────────────────────────────────────────────────
 
     #[test]
-    fn base64_인코딩은_알려진_벡터와_일치한다() {
+    fn base64_encode_matches_known_vectors() {
         assert_eq!(base64_encode(""), "");
         assert_eq!(base64_encode("f"), "Zg==");
         assert_eq!(base64_encode("fo"), "Zm8=");
@@ -410,7 +410,7 @@ mod tests {
     }
 
     #[test]
-    fn base64_디코딩은_알려진_벡터와_일치한다() {
+    fn base64_decode_matches_known_vectors() {
         assert_eq!(base64_decode("").as_deref(), Ok(""));
         assert_eq!(base64_decode("Zg==").as_deref(), Ok("f"));
         assert_eq!(base64_decode("Zm8=").as_deref(), Ok("fo"));
@@ -419,12 +419,12 @@ mod tests {
     }
 
     #[test]
-    fn base64_디코딩은_주변_공백을_제거한다() {
+    fn base64_decode_trims_surrounding_whitespace() {
         assert_eq!(base64_decode("  Zg==  \n").as_deref(), Ok("f"));
     }
 
     #[test]
-    fn base64_왕복은_임의_텍스트를_보존한다() {
+    fn base64_roundtrip_preserves_arbitrary_text() {
         let inputs = [
             "",
             "x",
@@ -443,13 +443,13 @@ mod tests {
     }
 
     #[test]
-    fn base64_디코딩은_쓰레기값을_거부한다() {
+    fn base64_decode_rejects_garbage() {
         assert_eq!(base64_decode("!!!"), Err("invalid base64"));
         assert_eq!(base64_decode("not_b64"), Err("invalid base64"));
     }
 
     #[test]
-    fn base64_디코딩은_utf8이_아닌_바이트를_거부한다() {
+    fn base64_decode_rejects_non_utf8_bytes() {
         assert_eq!(
             base64_decode("//79"),
             Err("decoded bytes are not valid UTF-8"),
@@ -459,21 +459,21 @@ mod tests {
     // ─── nfc / nfd ──────────────────────────────────────────────
 
     #[test]
-    fn nfc_변환은_분해형_한글을_조합형으로_합친다() {
+    fn nfc_composes_decomposed_hangul() {
         let decomposed = "\u{1112}\u{1161}\u{11AB}"; // ㅎ + ㅏ + ㄴ
         assert_eq!(convert_nfc(decomposed), "한");
         assert_eq!(convert_nfc(decomposed), "\u{D55C}");
     }
 
     #[test]
-    fn nfd_변환은_조합형_한글을_분해형으로_쪼갠다() {
+    fn nfd_decomposes_composed_hangul() {
         let composed = "한"; // U+D55C
         let expected = "\u{1112}\u{1161}\u{11AB}";
         assert_eq!(convert_nfd(composed), expected);
     }
 
     #[test]
-    fn nfc와_nfd는_한글에_대해_서로를_왕복한다() {
+    fn nfc_and_nfd_roundtrip_each_other_for_hangul() {
         let composed = "한글 파일명.txt";
         let decomposed = convert_nfd(composed);
         assert_ne!(decomposed, composed, "NFD form must actually decompose");
@@ -482,13 +482,13 @@ mod tests {
     }
 
     #[test]
-    fn nfc_변환은_아스키_문자열을_그대로_둔다() {
+    fn nfc_leaves_ascii_strings_unchanged() {
         assert_eq!(convert_nfc("hello world"), "hello world");
         assert_eq!(convert_nfd("hello world"), "hello world");
     }
 
     #[test]
-    fn nfc_변환은_빈_문자열을_처리한다() {
+    fn nfc_handles_empty_string() {
         assert_eq!(convert_nfc(""), "");
         assert_eq!(convert_nfd(""), "");
     }
@@ -496,28 +496,28 @@ mod tests {
     // ─── url_encode / url_decode ────────────────────────────────
 
     #[test]
-    fn url_인코딩은_알려진_벡터와_일치한다() {
+    fn url_encode_matches_known_vectors() {
         assert_eq!(url_encode("hello world"), "hello%20world");
         assert_eq!(url_encode("a&b=c"), "a%26b%3Dc");
         assert_eq!(url_encode(""), "");
     }
 
     #[test]
-    fn url_인코딩의_유니코드는_utf8_바이트를_사용한다() {
+    fn url_encode_uses_utf8_bytes_for_unicode() {
         let encoded = url_encode("한글");
         assert!(encoded.starts_with('%'));
         assert!(encoded.chars().all(|c| c == '%' || c.is_ascii_hexdigit()));
     }
 
     #[test]
-    fn url_디코딩은_알려진_벡터와_일치한다() {
+    fn url_decode_matches_known_vectors() {
         assert_eq!(url_decode("hello%20world").as_deref(), Ok("hello world"));
         assert_eq!(url_decode("a%26b%3Dc").as_deref(), Ok("a&b=c"));
         assert_eq!(url_decode("").as_deref(), Ok(""));
     }
 
     #[test]
-    fn url_왕복은_텍스트를_보존한다() {
+    fn url_roundtrip_preserves_text() {
         for s in ["", "x", "hello world", "한글 텍스트", "a&b=c&d=e", "100%"] {
             assert_eq!(
                 url_decode(&url_encode(s)).as_deref(),
@@ -528,38 +528,38 @@ mod tests {
     }
 
     #[test]
-    fn url_디코딩은_잘못된_형식의_퍼센트를_그대로_통과시킨다() {
+    fn url_decode_passes_malformed_percents_through() {
         assert_eq!(url_decode("%2").as_deref(), Ok("%2"));
         assert_eq!(url_decode("%ZZ").as_deref(), Ok("%ZZ"));
     }
 
     #[test]
-    fn url_디코딩은_utf8이_아닌_퍼센트_시퀀스를_거부한다() {
+    fn url_decode_rejects_non_utf8_percent_sequences() {
         assert_eq!(url_decode("%FF"), Err("invalid percent encoding"));
     }
 
     // ─── base32 ─────────────────────────────────────────────────
 
     #[test]
-    fn base32_왕복은_아스키를_보존한다() {
+    fn base32_roundtrip_preserves_ascii() {
         let enc = base32_encode("foo");
         let dec = base32_decode(&enc).expect("round trip");
         assert_eq!(dec, "foo");
     }
 
     #[test]
-    fn base32_인코딩은_대문자와_패딩이_있는_알려진_벡터와_일치한다() {
+    fn base32_encode_matches_known_vectors_with_uppercase_and_padding() {
         assert_eq!(base32_encode("foo"), "MZXW6===");
     }
 
     #[test]
-    fn base32_디코더는_소문자를_허용한다() {
+    fn base32_decoder_allows_lowercase() {
         let dec = base32_decode("mzxw6===").expect("lowercase ok");
         assert_eq!(dec, "foo");
     }
 
     #[test]
-    fn base32_디코딩은_유효하지_않은_입력에_오류를_반환한다() {
+    fn base32_decode_errors_on_invalid_input() {
         match base32_decode("not-valid-base32!") {
             Err(msg) => assert!(msg.contains("invalid base32")),
             Ok(_) => panic!("expected invalid"),
@@ -569,7 +569,7 @@ mod tests {
     // ─── json_format ────────────────────────────────────────────
 
     #[test]
-    fn json_형식은_두_칸_공백으로_예쁘게_출력한다() {
+    fn json_format_pretty_prints_with_two_spaces() {
         let out = json_format(r#"{"x":1,"y":[2,3]}"#).expect("format");
         assert!(out.contains("\"x\""));
         assert!(
@@ -580,27 +580,27 @@ mod tests {
     }
 
     #[test]
-    fn json_형식은_중첩된_구조를_처리한다() {
+    fn json_format_handles_nested_structures() {
         let out = json_format(r#"{"a":{"b":{"c":42}}}"#).expect("format");
         assert!(out.contains("    \"b\""));
         assert!(out.contains("      \"c\""));
     }
 
     #[test]
-    fn json_형식은_유니코드를_보존한다() {
+    fn json_format_preserves_unicode() {
         let out = json_format(r#"{"k":"한글"}"#).expect("format");
         assert!(out.contains("한글"));
     }
 
     #[test]
-    fn json_형식은_유효하지_않은_json을_거부한다() {
+    fn json_format_rejects_invalid_json() {
         assert_eq!(json_format("not json"), Err("invalid JSON"));
         assert_eq!(json_format("{trailing,}"), Err("invalid JSON"));
         assert_eq!(json_format(""), Err("invalid JSON"));
     }
 
     #[test]
-    fn json_형식은_이미_예쁘게_출력된_입력에_대해_멱등이다() {
+    fn json_format_is_idempotent_on_pretty_input() {
         let pretty = "{\n  \"x\": 1\n}";
         assert_eq!(json_format(pretty).as_deref(), Ok(pretty));
     }
@@ -608,21 +608,21 @@ mod tests {
     // ─── json_minify ────────────────────────────────────────────
 
     #[test]
-    fn json_압축은_공백을_제거한다() {
+    fn json_minify_removes_whitespace() {
         let pretty = "{\n  \"a\": 1,\n  \"b\": [2, 3]\n}";
         let mini = json_minify(pretty).unwrap();
         assert_eq!(mini, r#"{"a":1,"b":[2,3]}"#);
     }
 
     #[test]
-    fn json_압축은_문자열_내부_공백을_보존한다() {
+    fn json_minify_preserves_whitespace_inside_strings() {
         let v = r#"{"msg": "hello world"}"#;
         let mini = json_minify(v).unwrap();
         assert_eq!(mini, r#"{"msg":"hello world"}"#);
     }
 
     #[test]
-    fn json_압축은_유효하지_않은_입력을_거부한다() {
+    fn json_minify_rejects_invalid_input() {
         match json_minify("totally not json") {
             Err(msg) => assert!(msg.contains("invalid JSON")),
             Ok(_) => panic!("expected error"),
@@ -630,7 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn json_압축과_형식_사이의_왕복은_안정적이다() {
+    fn json_minify_format_roundtrip_is_stable() {
         let original = r#"{"b":2,"a":1}"#;
         let pretty = json_format(original).unwrap();
         let mini = json_minify(&pretty).unwrap();
@@ -640,7 +640,7 @@ mod tests {
     // ─── url_query_parse / format ─────────────────
 
     #[test]
-    fn url_쿼리는_기본을_파싱한다() {
+    fn url_query_parses_basics() {
         let s = url_query_parse("a=1&b=2").unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["a"], "1");
@@ -648,14 +648,14 @@ mod tests {
     }
 
     #[test]
-    fn url_쿼리_파싱은_앞의_물음표_표시를_제거한다() {
+    fn url_query_parse_strips_leading_question_mark() {
         let s = url_query_parse("?x=hello").unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["x"], "hello");
     }
 
     #[test]
-    fn url_쿼리_파싱은_퍼센트_인코딩을_디코딩한다() {
+    fn url_query_parse_decodes_percent_encoding() {
         let s = url_query_parse("greeting=hello%20world&%E1%84%82=k").unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["greeting"], "hello world");
@@ -667,7 +667,7 @@ mod tests {
     }
 
     #[test]
-    fn url_쿼리_파싱은_값이_없는_키와_빈_쌍을_처리한다() {
+    fn url_query_parse_handles_valueless_keys_and_empty_pairs() {
         let s = url_query_parse("a&b=&&c=1").unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["a"], "");
@@ -676,14 +676,14 @@ mod tests {
     }
 
     #[test]
-    fn url_쿼리_파싱은_반복된_키에_대해_마지막_값을_우선한다() {
+    fn url_query_parse_prefers_last_value_for_repeated_keys() {
         let s = url_query_parse("k=first&k=second&k=third").unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["k"], "third");
     }
 
     #[test]
-    fn url_쿼리_형식은_문자열_값을_왕복한다() {
+    fn url_query_format_roundtrips_string_values() {
         let qs = "name=alice&age=30&note=hello+world";
         let _parsed = url_query_parse(qs).unwrap();
         let original_obj = url_query_parse(qs).unwrap();
@@ -695,13 +695,13 @@ mod tests {
     }
 
     #[test]
-    fn url_쿼리_형식은_객체가_아닌_것을_거부한다() {
+    fn url_query_format_rejects_non_objects() {
         assert!(url_query_format(r#"["a","b"]"#).is_err());
         assert!(url_query_format("not json").is_err());
     }
 
     #[test]
-    fn url_쿼리_형식은_특수_문자를_인코딩한다() {
+    fn url_query_format_encodes_special_chars() {
         let json = r#"{"key":"a b/c?d"}"#;
         let s = url_query_format(json).unwrap();
         let back = url_query_parse(&s).unwrap();
@@ -712,7 +712,7 @@ mod tests {
     // ─── html_encode / html_decode ─────────────────────────────
 
     #[test]
-    fn html_인코딩은_다섯개_표준_엔티티들을_이스케이프한다() {
+    fn html_encode_escapes_five_standard_entities() {
         assert_eq!(html_encode("a & b"), "a &amp; b");
         assert_eq!(html_encode("<p>hi</p>"), "&lt;p&gt;hi&lt;/p&gt;");
         assert_eq!(html_encode(r#"say "hi""#), "say &quot;hi&quot;");
@@ -720,12 +720,12 @@ mod tests {
     }
 
     #[test]
-    fn html_인코딩은_앰퍼샌드_안전한이다() {
+    fn html_encode_is_ampersand_safe() {
         assert_eq!(html_encode("&amp;"), "&amp;amp;");
     }
 
     #[test]
-    fn html_인코딩과_디코딩은_표준_집합에_대해_왕복된다() {
+    fn html_encode_decode_roundtrip_on_standard_set() {
         for s in ["plain", "a & b", "<p>", r#""hi""#, "don't"] {
             let round_trip = html_decode(&html_encode(s)).unwrap();
             assert_eq!(round_trip, s, "round-trip failed for {s:?}");
@@ -733,7 +733,7 @@ mod tests {
     }
 
     #[test]
-    fn html_디코딩은_숫자_와_hex_엔티티들을_처리한다() {
+    fn html_decode_handles_numeric_and_hex_entities() {
         assert_eq!(html_decode("&#42;").unwrap(), "*");
         assert_eq!(html_decode("&#x2A;").unwrap(), "*");
         assert_eq!(html_decode("&#x1F600;").unwrap(), "😀");
@@ -741,13 +741,13 @@ mod tests {
     }
 
     #[test]
-    fn html_디코딩은_알수없는_엔티티를_그대로_통과시킨다() {
+    fn html_decode_passes_unknown_entities_through() {
         assert_eq!(html_decode("&nbsp;").unwrap(), "&nbsp;");
         assert_eq!(html_decode("&copy; 2026").unwrap(), "&copy; 2026");
     }
 
     #[test]
-    fn html_디코딩은_잘못된형식_숫자를_거부한다() {
+    fn html_decode_rejects_malformed_numerics() {
         assert!(html_decode("&#xZZ;").is_err());
         assert!(
             html_decode("&#9999999999;").is_err(),
@@ -756,7 +756,7 @@ mod tests {
     }
 
     #[test]
-    fn html_디코딩은_그대로의_앰퍼샌드를_처리한다() {
+    fn html_decode_handles_bare_ampersands() {
         assert_eq!(html_decode("M&Ms").unwrap(), "M&Ms");
     }
 }

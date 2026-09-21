@@ -40,6 +40,8 @@ fn fixture_meta_with_outputs(
         input_spec: InputSpec::empty(),
         output_spec,
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: Source::UserInput,
         pin,
         pegboard_units: units,
@@ -50,7 +52,7 @@ fn fixture_meta_with_outputs(
 }
 
 #[test]
-fn tool_dto_가_pin_kind_embed를_올바르게_노출한다() {
+fn tool_dto_exposes_pin_kind_embed_correctly() {
     let meta = fixture_meta(
         "frb_tool_test.embed_one",
         PinKind::Embed,
@@ -66,7 +68,7 @@ fn tool_dto_가_pin_kind_embed를_올바르게_노출한다() {
 }
 
 #[test]
-fn 승인_장벽이_없는_도구의_dto는_확인을_요구하지_않는다() {
+fn ungated_tool_dto_does_not_require_confirmation() {
     let meta = fixture_meta(
         "frb_tool_test.no_gate",
         PinKind::Inline,
@@ -80,14 +82,14 @@ fn 승인_장벽이_없는_도구의_dto는_확인을_요구하지_않는다() {
     assert!(!dto.requires_approval);
     assert!(
         dto.approval_surfaces.is_empty(),
-        "승인할 것이 없으면 승인자를 지목하지 않는다"
+        "nothing to approve means no approver surfaces are named"
     );
 }
 
 #[test]
-fn 게이트된_도구의_dto는_확인_필요와_승인_가능_표면을_함께_싣는다() {
-    // Dart가 dispatch **전에** 읽는 두 값이다: "확인을 띄워야 하나",
-    // 그리고 "내 표면의 확인이 인정되나".
+fn gated_tool_dto_carries_requires_approval_and_approval_surfaces() {
+    // The two values Dart reads **before** dispatch: "must I show a
+    // confirmation", and "is a confirmation on my surface honored".
     let meta = fixture_meta(
         "frb_tool_test.gated",
         PinKind::Chain,
@@ -113,7 +115,7 @@ fn 게이트된_도구의_dto는_확인_필요와_승인_가능_표면을_함께
 }
 
 #[test]
-fn tool_dto_가_pegboard_units_u2t를_올바르게_노출한다() {
+fn tool_dto_exposes_pegboard_units_u2t_correctly() {
     let meta = fixture_meta(
         "frb_tool_test.tall_one",
         PinKind::Inline,
@@ -126,7 +128,7 @@ fn tool_dto_가_pegboard_units_u2t를_올바르게_노출한다() {
 }
 
 #[test]
-fn tool_dto는_output_fields를_타입과_라벨까지_노출한다() {
+fn tool_dto_exposes_output_fields_with_type_and_label() {
     let spec = OutputSpec::new(vec![
         OutputFieldSpec {
             name: "decimal".to_string(),
@@ -181,7 +183,7 @@ fn tool_dto는_output_fields를_타입과_라벨까지_노출한다() {
 }
 
 #[test]
-fn canonical_tool_result는_성공_스키마를_정규_output으로_노출한다() {
+fn canonical_tool_result_exposes_success_schema_as_canonical_output() {
     let outcome = dispatch_tool(
         "num.hex_to_decimal".to_string(),
         r#"{"input":"0xff"}"#.to_string(),
@@ -202,7 +204,7 @@ fn canonical_tool_result는_성공_스키마를_정규_output으로_노출한다
 }
 
 #[test]
-fn canonical_tool_result는_실패_스키마를_정규_error로_노출한다() {
+fn canonical_tool_result_exposes_failure_schema_as_canonical_error() {
     let outcome = dispatch_tool(
         "nonexistent.tool".to_string(),
         "{}".to_string(),
@@ -220,7 +222,7 @@ fn canonical_tool_result는_실패_스키마를_정규_error로_노출한다() {
 }
 
 #[test]
-fn dispatch_tool은_비정규_tool_id를_거부한다() {
+fn dispatch_tool_rejects_noncanonical_tool_id() {
     let outcome = dispatch_tool(
         " num.hex_to_decimal ".to_string(),
         "{}".to_string(),
@@ -234,7 +236,7 @@ fn dispatch_tool은_비정규_tool_id를_거부한다() {
 }
 
 #[test]
-fn dispatch_tool은_output_spec이_있으면_정규_output_entry를_반환한다() {
+fn dispatch_tool_returns_canonical_output_entry_when_output_spec_present() {
     let outcome = dispatch_tool(
         "num.hex_to_decimal".to_string(),
         r#"{"input":"0xff"}"#.to_string(),
@@ -249,7 +251,7 @@ fn dispatch_tool은_output_spec이_있으면_정규_output_entry를_반환한다
 }
 
 #[test]
-fn dispatch_tool_core는_cli없이_내장_dispatcher를_실행한다() {
+fn dispatch_tool_core_runs_builtin_dispatcher_without_cli() {
     let outcome = dispatch_tool_impl("num.hex_to_decimal", r#"{"input":"0xff"}"#, None, false);
 
     assert!(outcome.ok, "unexpected error: {:?}", outcome.error);
@@ -260,7 +262,7 @@ fn dispatch_tool_core는_cli없이_내장_dispatcher를_실행한다() {
 }
 
 #[test]
-fn tool_dto는_timer_source를_노출한다() {
+fn tool_dto_exposes_timer_source() {
     let mut meta = fixture_meta(
         "frb_tool_test.timer_source",
         PinKind::Live,
@@ -281,7 +283,7 @@ fn tool_dto는_timer_source를_노출한다() {
 }
 
 #[test]
-fn tool_dto는_user_input_source를_기본으로_노출한다() {
+fn tool_dto_exposes_user_input_source_by_default() {
     let meta = fixture_meta(
         "frb_tool_test.userinput_source",
         PinKind::Inline,
@@ -294,7 +296,7 @@ fn tool_dto는_user_input_source를_기본으로_노출한다() {
 }
 
 #[test]
-fn tool_dto_가_모든_invoker_변형을_매핑한다() {
+fn tool_dto_maps_all_invoker_variants() {
     let cases = [
         (Invoker::Function, InvokerDto::Function),
         (Invoker::External, InvokerDto::External),
@@ -310,7 +312,7 @@ fn tool_dto_가_모든_invoker_변형을_매핑한다() {
 }
 
 #[test]
-fn 실패_결과는_구조화된_details를_json_문자열로_넘긴다() {
+fn failure_result_carries_structured_details_as_json_string() {
     // The External invoker packs the child's exit code and both
     // captured streams into `ToolError::details`; the bridge has to
     // carry them across so the Flutter outcome block can show the
@@ -342,7 +344,7 @@ fn 실패_결과는_구조화된_details를_json_문자열로_넘긴다() {
 }
 
 #[test]
-fn details가_없는_실패는_널로_남는다() {
+fn failure_without_details_stays_null() {
     let result = CanonicalToolResult::from(ToolResult::Failure(upeg_core::ToolFailure {
         error: upeg_core::ToolError {
             code: "invalid_args".to_string(),
@@ -359,13 +361,14 @@ fn details가_없는_실패는_널로_남는다() {
     );
 }
 
-// ─── 승인 인자 정형화 ──────────────────────────────────────────
+// ─── Approval-argument shaping ─────────────────────────────────
 //
-// 데스크톱 dispatch가 승인되는 경로는 타입 있는 `approve` 플래그 하나뿐이다.
-// Dart가 직접 만든 args 맵이 예약 키를 심어 스스로를 승인하지 못한다.
+// The only way a desktop dispatch is approved is the typed `approve`
+// flag. An args map Dart built itself cannot self-approve by planting
+// the reserved key.
 
 #[test]
-fn approve가_거짓이면_호출자가_넣은_예약_키를_지운다() {
+fn approve_false_strips_caller_supplied_reserved_key() {
     let args = serde_json::json!({ "input": "0xff", APPROVE_RESERVED_ARG: true });
 
     let shaped = shape_approval_arg(args, false);
@@ -374,12 +377,12 @@ fn approve가_거짓이면_호출자가_넣은_예약_키를_지운다() {
     assert_eq!(
         shaped.get("input").and_then(serde_json::Value::as_str),
         Some("0xff"),
-        "다른 인자는 그대로 지나간다"
+        "other args pass through unchanged"
     );
 }
 
 #[test]
-fn approve가_참이면_예약_키를_참으로_넣는다() {
+fn approve_true_sets_reserved_key_true() {
     let shaped = shape_approval_arg(serde_json::json!({ "input": "0xff" }), true);
 
     assert_eq!(
@@ -389,7 +392,7 @@ fn approve가_참이면_예약_키를_참으로_넣는다() {
 }
 
 #[test]
-fn approve가_참이면_호출자의_거짓_예약_키를_덮어쓴다() {
+fn approve_true_overrides_caller_false_reserved_key() {
     let args = serde_json::json!({ APPROVE_RESERVED_ARG: false });
 
     let shaped = shape_approval_arg(args, true);
@@ -401,19 +404,23 @@ fn approve가_참이면_호출자의_거짓_예약_키를_덮어쓴다() {
 }
 
 #[test]
-fn 객체가_아닌_args는_승인_정형화를_그대로_통과한다() {
+fn non_object_args_pass_approval_shaping_through_unchanged() {
     let args = serde_json::json!([1, 2, 3]);
 
     let shaped = shape_approval_arg(args.clone(), true);
 
-    assert_eq!(shaped, args, "넣을 자리가 없는 값은 건드리지 않는다");
+    assert_eq!(
+        shaped, args,
+        "a value with nowhere to put it is left untouched"
+    );
 }
 
 #[test]
-fn 정형화는_호출자가_넣은_approved_steps도_지운다() {
-    // 승인 레버는 둘이다. `approve`만 지우면 나머지 하나가 데이터
-    // 경로로 남는다 — 그리고 `_upeg.approvedSteps`는 예약 블록의
-    // wipe에서 살아남는 유일한 키다(`upeg-runtime/src/execution.rs`).
+fn shaping_also_strips_caller_supplied_approved_steps() {
+    // There are two approval levers. Removing only `approve` leaves the
+    // other on the data path — and `_upeg.approvedSteps` is the only
+    // key that survives the reserved-block wipe
+    // (`upeg-runtime/src/execution.rs`).
     let args = serde_json::json!({
         "input": "0xff",
         upeg_core::EXECUTION_CONTEXT_ARG: {
@@ -432,14 +439,15 @@ fn 정형화는_호출자가_넣은_approved_steps도_지운다() {
     assert_eq!(
         context[upeg_core::EXECUTION_CONTEXT_SURFACE],
         "desktop",
-        "각인된 나머지 블록은 그대로 남는다"
+        "the rest of the recorded block remains unchanged"
     );
 }
 
 #[test]
-fn approve가_참이어도_approved_steps는_다시_쓰이지_않는다() {
-    // 타입 있는 플래그가 두 레버의 유일한 필자다. 그리고 그것이 쓰는
-    // 것은 `approve` 하나 — GUI의 확인은 언제나 "이 호출 전체"다.
+fn approved_steps_is_not_reused_even_when_approve_is_true() {
+    // The typed flag is the only writer of the two levers. And what it
+    // writes is `approve` alone — a GUI confirmation always covers
+    // "this entire call".
     let args = serde_json::json!({
         upeg_core::EXECUTION_CONTEXT_ARG: {
             upeg_core::EXECUTION_CONTEXT_APPROVED_STEPS: ["gate"],

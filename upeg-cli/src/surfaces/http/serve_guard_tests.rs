@@ -1,43 +1,25 @@
 //! Tests for the HTTP serve-side guards and startup-log presentation.
 //!
-//! Lives in a sibling file (attached via `#[path = ...]` from `http.rs`)
-//! to keep `http.rs` under the workspace's 1000-line-per-file budget.
+//! Lives in a sibling file (`mod serve_guard_tests;` in `mod.rs`) to keep
+//! `mod.rs` under the workspace's 1000-line-per-file budget.
 //! `super::` resolves to `crate::surfaces::http`, so private helpers
 //! (`effective_publish`, `startup_log`, ...) remain accessible without
-//! widening their visibility.
+//! widening their visibility. The pure bind-policy table is covered next
+//! to its implementation in `bind_policy.rs`; the tests here pin the
+//! wiring — that `serve_inner` actually consults it — and the log lines.
+
+use std::time::Duration;
 
 use super::{
-    PublishFailure, ServerOptions, effective_publish, guard_http_bind_with_consent,
-    is_loopback_bind, publish_failure_action, startup_log,
+    PublishFailure, ServerOptions, effective_publish, publish_failure_action, serve_with_ready,
+    startup_log,
 };
 use crate::infrastructure::auth::{ResolvedToken, TokenSource};
 use crate::infrastructure::discovery::HostOrigin;
 
-#[test]
-fn 루프백_http_바인드는_추가_동의_없이도_허용된다() {
-    for addr in ["127.0.0.1:7173", "[::1]:7173", "localhost:7173"] {
-        assert!(is_loopback_bind(addr), "{addr} should be loopback");
-        assert!(
-            guard_http_bind_with_consent(addr, false).is_ok(),
-            "{addr} should be allowed"
-        );
-    }
-}
-
-#[test]
-fn 루프백이_아닌_http_바인드는_추가_동의를_요구한다() {
-    let err = guard_http_bind_with_consent("0.0.0.0:7173", false)
-        .expect_err("wildcard bind must be refused");
-    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
-    assert!(
-        err.to_string().contains("UPEG_HTTP_ALLOW_NON_LOOPBACK"),
-        "error should name the consent switch; got {err}"
-    );
-    assert!(
-        guard_http_bind_with_consent("0.0.0.0:7173", true).is_ok(),
-        "explicit consent should allow non-loopback bind"
-    );
-}
+/// Obviously fake credential for assertions that a token is *not*
+/// echoed. Never a real secret.
+const FAKE_TOKEN: &str = "not-a-real-token";
 
 fn opts_with(token: &str, source: TokenSource, publish_discovery: bool) -> ServerOptions {
     ServerOptions {
@@ -60,24 +42,59 @@ fn render(opts: &ServerOptions, publish: bool) -> String {
     String::from_utf8(buf).expect("utf8")
 }
 
+/// Wiring pin: the serve path must refuse a non-loopback bind whose token
+/// was auto-generated *before* touching the network, even when consent
+/// is present. Run on a helper thread so a regression (the server coming
+/// up) surfaces as a failed assertion instead of a hung test.
 #[test]
-fn 유효한_공개_루프백은_의도를_유지한다() {
-    let opts_yes = opts_with("t", TokenSource::Generated, true);
-    let opts_no = opts_with("t", TokenSource::Generated, false);
+fn serve_refuses_non_loopback_bind_with_generated_token_before_binding() {
+    let opts = ServerOptions {
+        addr: "0.0.0.0:0".into(),
+        allow_non_loopback: true,
+        ..opts_with(FAKE_TOKEN, TokenSource::Generated, false)
+    };
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+
+    let server = std::thread::spawn(move || serve_with_ready(opts, ready_tx));
+    let ready = ready_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("serve must report readiness or refusal");
+
+    let err = ready.expect_err("a generated token must never reach a non-loopback listener");
+    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(
+        err.to_string().contains("UPEG_HTTP_TOKEN"),
+        "refusal must point at token injection; got {err}"
+    );
+    assert!(
+        !err.to_string().contains(FAKE_TOKEN),
+        "refusal must not echo the token"
+    );
+    let returned = server.join().expect("serve thread must not panic");
+    assert!(
+        returned.is_err(),
+        "serve must return the same refusal it signalled"
+    );
+}
+
+#[test]
+fn effective_publish_keeps_caller_intent_on_loopback() {
+    let opts_yes = opts_with(FAKE_TOKEN, TokenSource::Generated, true);
+    let opts_no = opts_with(FAKE_TOKEN, TokenSource::Generated, false);
     assert!(effective_publish(&opts_yes, false));
     assert!(!effective_publish(&opts_no, false));
 }
 
 #[test]
-fn 토큰_공개가_유효하면_시작_로그는_게시된_토큰을_알린다() {
-    let opts = opts_with("secret-abc", TokenSource::Generated, true);
+fn startup_log_announces_publication_without_echoing_the_token() {
+    let opts = opts_with(FAKE_TOKEN, TokenSource::Generated, true);
     let out = render(&opts, true);
     assert!(
         out.contains("bearer token published to server.json"),
         "must announce publication; got {out}"
     );
     assert!(
-        !out.contains("secret-abc"),
+        !out.contains(FAKE_TOKEN),
         "must not leak the token when it was published"
     );
     assert!(
@@ -86,19 +103,21 @@ fn 토큰_공개가_유효하면_시작_로그는_게시된_토큰을_알린다(
     );
 }
 
+/// Under `--daemon` stderr is the log file, so the token must never be
+/// written there — not even when the caller asked for publish and the
+/// gate said no. A non-loopback bind always runs on an injected token
+/// (`bind_policy`), so no operator is left without credentials by this.
 #[test]
-fn 토큰_공개가_억제되면_시작_로그는_생성된_토큰만_출력한다() {
-    // The reported P1: caller asked for publish, gate said no, operator
-    // must still receive the credential.
-    let opts = opts_with("secret-xyz", TokenSource::Generated, true);
+fn startup_log_never_prints_the_bearer_token_even_when_publish_is_suppressed() {
+    let opts = opts_with(FAKE_TOKEN, TokenSource::Generated, true);
     let out = render(&opts, false);
     assert!(
         out.contains("discovery publish suppressed"),
         "must explain why publish did not happen; got {out}"
     );
     assert!(
-        out.contains("bearer token (this run): secret-xyz"),
-        "must print the generated token so operators have credentials; got {out}"
+        !out.contains(FAKE_TOKEN),
+        "the bearer token must never be logged; got {out}"
     );
     assert!(
         !out.contains("published to server.json"),
@@ -107,11 +126,11 @@ fn 토큰_공개가_억제되면_시작_로그는_생성된_토큰만_출력한�
 }
 
 #[test]
-fn 시작_로그는_제공된_토큰에_대해_조용히_유지된다() {
-    let opts = opts_with("provided-token", TokenSource::Provided, true);
+fn startup_log_stays_silent_about_a_provided_token() {
+    let opts = opts_with(FAKE_TOKEN, TokenSource::Provided, true);
     let out = render(&opts, false);
     assert!(
-        !out.contains("provided-token"),
+        !out.contains(FAKE_TOKEN),
         "explicit tokens must not be echoed; got {out}"
     );
     assert!(
@@ -121,7 +140,7 @@ fn 시작_로그는_제공된_토큰에_대해_조용히_유지된다() {
 }
 
 #[test]
-fn publish_failure_action은_live_owner의_alreadyexists만_abort한다() {
+fn publish_failure_action_aborts_only_when_a_live_owner_holds_discovery() {
     assert_eq!(
         publish_failure_action(true, std::io::ErrorKind::AlreadyExists),
         PublishFailure::Abort,

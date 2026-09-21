@@ -115,11 +115,14 @@ mod tests {
 
     impl ProgressSink for RecordingSink {
         fn emit(&self, event: ProgressEvent) {
-            self.chunks.lock().expect("기록 잠금").push(event.chunk);
+            self.chunks
+                .lock()
+                .expect("recording lock")
+                .push(event.chunk);
         }
     }
 
-    fn 전달기() -> (Arc<RecordingSink>, ProgressForwarder) {
+    fn recording_forwarder() -> (Arc<RecordingSink>, ProgressForwarder) {
         let sink = Arc::new(RecordingSink::default());
         let shared: SharedProgressSink = Arc::clone(&sink) as SharedProgressSink;
         (
@@ -128,63 +131,63 @@ mod tests {
         )
     }
 
-    fn 청크(sink: &RecordingSink) -> Vec<String> {
-        sink.chunks.lock().expect("기록 잠금").clone()
+    fn chunks(sink: &RecordingSink) -> Vec<String> {
+        sink.chunks.lock().expect("recording lock").clone()
     }
 
     #[test]
-    fn 완성된_줄만_먼저_나가고_꼬리는_남는다() {
-        let (기록, mut forwarder) = 전달기();
+    fn complete_lines_emit_first_tail_stays() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(b"first\nsecond");
-        assert_eq!(청크(&기록), vec!["first\n".to_string()]);
+        assert_eq!(chunks(&recorded), vec!["first\n".to_string()]);
 
         forwarder.finish();
         assert_eq!(
-            청크(&기록),
+            chunks(&recorded),
             vec!["first\n".to_string(), "second".to_string()]
         );
     }
 
     #[test]
-    fn 여러_줄은_한_청크로_묶인다() {
-        let (기록, mut forwarder) = 전달기();
+    fn multiple_lines_bundle_into_one_chunk() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(b"a\nb\nc\n");
-        assert_eq!(청크(&기록), vec!["a\nb\nc\n".to_string()]);
+        assert_eq!(chunks(&recorded), vec!["a\nb\nc\n".to_string()]);
     }
 
     #[test]
-    fn 캐리지리턴_진행바도_바로_흘러나간다() {
-        let (기록, mut forwarder) = 전달기();
+    fn carriage_return_progress_bar_streams_immediately() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(b"building 10%\rbuilding 20%\r");
         assert_eq!(
-            청크(&기록),
+            chunks(&recorded),
             vec!["building 10%\rbuilding 20%\r".to_string()]
         );
     }
 
     #[test]
-    fn crlf는_줄바꿈_경계로_한_번에_끊는다() {
-        let (기록, mut forwarder) = 전달기();
+    fn crlf_breaks_once_at_newline_boundary() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(b"line\r\n");
-        assert_eq!(청크(&기록), vec!["line\r\n".to_string()]);
+        assert_eq!(chunks(&recorded), vec!["line\r\n".to_string()]);
     }
 
     #[test]
-    fn 종결자가_없어도_상한에_닿으면_흘려보낸다() {
-        let (기록, mut forwarder) = 전달기();
+    fn unterminated_run_flushes_at_size_cap() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(&vec![b'x'; MAX_PROGRESS_CHUNK_BYTES]);
-        assert_eq!(청크(&기록).len(), 1);
+        assert_eq!(chunks(&recorded).len(), 1);
     }
 
     #[test]
-    fn 잘린_utf8은_손실없이_대체문자로_바뀐다() {
-        let (기록, mut forwarder) = 전달기();
+    fn cut_utf8_becomes_replacement_char() {
+        let (recorded, mut forwarder) = recording_forwarder();
         forwarder.push(&[0xF0, 0x9F, b'\n']);
-        assert_eq!(청크(&기록).len(), 1);
+        assert_eq!(chunks(&recorded).len(), 1);
     }
 
     #[test]
-    fn sink이_없으면_아무것도_모으지_않는다() {
+    fn without_sink_nothing_is_buffered() {
         let mut forwarder = ProgressForwarder::new(None, OutputStream::Stderr);
         forwarder.push(b"ignored\n");
         forwarder.finish();

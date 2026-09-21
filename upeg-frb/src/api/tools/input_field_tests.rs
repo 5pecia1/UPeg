@@ -15,7 +15,7 @@ use upeg_core::{
 };
 
 fn input_name(raw: &str) -> InputName {
-    InputName::new(raw).expect("테스트 입력 이름은 유효해야 한다")
+    InputName::new(raw).expect("test input name must be valid")
 }
 
 fn choice(value: &str, label: Option<&str>, description: Option<&str>) -> ChoiceOption {
@@ -24,7 +24,7 @@ fn choice(value: &str, label: Option<&str>, description: Option<&str>) -> Choice
         label.map(str::to_string),
         description.map(str::to_string),
     )
-    .expect("테스트 선택지는 유효해야 한다")
+    .expect("test choice must be valid")
 }
 
 fn choices() -> ChoiceSpec {
@@ -32,7 +32,7 @@ fn choices() -> ChoiceSpec {
         choice("fast", Some("Fast"), Some("lower quality")),
         choice("safe", None, None),
     ])
-    .expect("테스트 선택지 목록은 유효해야 한다")
+    .expect("test choice list must be valid")
 }
 
 fn expected_choice_dtos() -> Vec<ChoiceOptionDto> {
@@ -60,11 +60,11 @@ fn field(name: &str, kind: InputKind, constraints: FieldConstraints) -> InputFie
         kind,
         constraints,
     )
-    .expect("테스트 입력 필드는 유효해야 한다")
+    .expect("test input field must be valid")
 }
 
 #[test]
-fn 입력_종류는_모든_변형이_고유한_dto로_매핑된다() {
+fn input_kind_maps_every_variant_to_a_distinct_dto() {
     let cases: Vec<(InputKind, InputFieldType)> = vec![
         (InputKind::String, InputFieldType::Text),
         (InputKind::Number, InputFieldType::Number),
@@ -93,7 +93,7 @@ fn 입력_종류는_모든_변형이_고유한_dto로_매핑된다() {
         assert_eq!(
             InputFieldType::from(&kind),
             expected,
-            "입력 종류 `{}` 매핑이 어긋났다",
+            "input kind `{}` mapped to the wrong DTO",
             kind.label(),
         );
     }
@@ -107,16 +107,16 @@ fn 입력_종류는_모든_변형이_고유한_dto로_매핑된다() {
 }
 
 #[test]
-fn number와_integer는_서로_다른_dto_변형으로_남는다() {
+fn number_and_integer_stay_distinct_dto_variants() {
     assert_ne!(
         InputFieldType::from(&InputKind::Number),
         InputFieldType::from(&InputKind::Integer),
-        "Number와 Integer를 하나로 접으면 Dart가 정수 전용 키보드/파싱을 고를 수 없다",
+        "folding Number and Integer together would stop Dart from choosing an integer-only keyboard/parser",
     );
 }
 
 #[test]
-fn 입력_필드_dto는_설명을_그대로_전달한다() {
+fn input_field_dto_passes_description_through() {
     let dto = InputFieldDto::from(&field(
         "count",
         InputKind::Integer,
@@ -131,9 +131,9 @@ fn 입력_필드_dto는_설명을_그대로_전달한다() {
 }
 
 #[test]
-fn 라벨이_없는_입력_필드는_이름으로_대체된다() {
+fn input_field_without_label_falls_back_to_name() {
     let spec = InputFieldSpec::new(input_name("input"), None, None, false, InputKind::String)
-        .expect("테스트 입력 필드는 유효해야 한다");
+        .expect("test input field must be valid");
 
     let dto = InputFieldDto::from(&spec);
 
@@ -143,7 +143,7 @@ fn 라벨이_없는_입력_필드는_이름으로_대체된다() {
 }
 
 #[test]
-fn 숫자_제약은_최소_최대_기본값을_함께_전달한다() {
+fn number_constraints_carry_min_max_default() {
     let dto = InputFieldDto::from(&field(
         "count",
         InputKind::Integer,
@@ -171,7 +171,7 @@ fn 숫자_제약은_최소_최대_기본값을_함께_전달한다() {
 }
 
 #[test]
-fn 문자열_제약은_정규식_플레이스홀더_기본값을_함께_전달한다() {
+fn string_constraints_carry_regex_placeholder_default() {
     let dto = InputFieldDto::from(&field(
         "slug",
         InputKind::String,
@@ -199,7 +199,7 @@ fn 문자열_제약은_정규식_플레이스홀더_기본값을_함께_전달�
 }
 
 #[test]
-fn 선택지_라벨과_설명은_dto까지_살아남는다() {
+fn choice_labels_and_descriptions_survive_to_dto() {
     let dto = InputFieldDto::from(&field(
         "mode",
         InputKind::Options(choices()),
@@ -207,7 +207,7 @@ fn 선택지_라벨과_설명은_dto까지_살아남는다() {
     ));
 
     let InputFieldType::Select { options } = dto.field_type else {
-        panic!("Options 입력은 Select DTO로 변환되어야 한다");
+        panic!("Options input must convert to a Select DTO");
     };
     assert_eq!(options, expected_choice_dtos());
 }

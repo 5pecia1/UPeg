@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn 보드_연결은_지침_조회_방법을_안내한다() {
+fn board_connection_advertises_how_to_query_guidance() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-initialize",
         |_| {},
@@ -26,7 +26,7 @@ fn 보드_연결은_지침_조회_방법을_안내한다() {
 }
 
 #[test]
-fn 보드_목록은_프리셋으로_충족한_입력을_선택으로_보여준다() {
+fn board_list_marks_preset_filled_inputs_as_optional() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-schema",
         |state| {
@@ -72,7 +72,7 @@ fn 보드_목록은_프리셋으로_충족한_입력을_선택으로_보여준�
 }
 
 #[test]
-fn 보드_지침_조회는_선택한_보드와_실제_기본값만_반환한다() {
+fn board_guidance_query_returns_selected_board_and_real_defaults() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-context",
         |state| {
@@ -114,7 +114,7 @@ fn 보드_지침_조회는_선택한_보드와_실제_기본값만_반환한다(
 }
 
 #[test]
-fn 없는_보드는_초기화와_목록에서_명확히_거부한다() {
+fn missing_board_is_rejected_clearly_by_initialize_and_list() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-missing",
         |_| {},
@@ -140,7 +140,7 @@ fn 없는_보드는_초기화와_목록에서_명확히_거부한다() {
 }
 
 #[test]
-fn 프리셋이_바뀐_연결은_실행을_멈추고_재연결을_요구한다() {
+fn connection_with_changed_preset_stops_execution_and_requires_reconnect() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-reconnect",
         |state| {
@@ -171,7 +171,7 @@ fn 프리셋이_바뀐_연결은_실행을_멈추고_재연결을_요구한다()
 }
 
 #[test]
-fn 검증한_snapshot으로_호출하면_이후_store의_프리셋을_다시_읽지_않는다() {
+fn call_with_verified_snapshot_does_not_reread_store_presets() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-snapshot-dispatch",
         |state| {
@@ -212,7 +212,7 @@ fn 검증한_snapshot으로_호출하면_이후_store의_프리셋을_다시_읽
 }
 
 #[test]
-fn 핀의_배치만_바꾸면_기존_연결을_계속_사용한다() {
+fn layout_only_change_keeps_existing_connection() {
     const TOOL: &str = "num.hex_to_decimal";
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-layout-change",
@@ -251,7 +251,7 @@ fn 핀의_배치만_바꾸면_기존_연결을_계속_사용한다() {
 }
 
 #[test]
-fn 보드의_알_수_없는_프리셋_입력은_실행_전에_거부한다() {
+fn unknown_preset_input_on_board_is_rejected_before_execution() {
     crate::test_support::with_seeded_pegboard_home(
         "board-guide-invalid-preset",
         |state| {

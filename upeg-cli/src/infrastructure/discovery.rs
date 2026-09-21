@@ -152,8 +152,10 @@ pub fn read_reachable() -> Option<ServerInfo> {
 /// (potentially live) host already published — caller should re-run
 /// [`read_reachable`] to decide attach-or-bail.
 ///
-/// Unix: file is chmod'd to `0600`. Windows: relies on the user's
-/// `%APPDATA%` ACL being user-only by default.
+/// Unix: the file is created with mode `0600` by the same `open(2)` that
+/// creates it ([`create_owner_only`]), so the bearer token never sits in
+/// a group/other-readable file, not even briefly. Windows: relies on the
+/// user's `%APPDATA%` ACL being user-only by default.
 pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
     let path = paths::server_json_path().ok_or_else(|| {
         std::io::Error::new(
@@ -172,21 +174,14 @@ pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
 
     // Atomic publish: `create_new` rejects an existing file. Two
     // hosts racing produce one winner and one AlreadyExists error.
-    let mut file = match std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&path)
-    {
+    let mut file = match create_owner_only(&path) {
         Ok(f) => f,
         Err(e) if e.kind() == ErrorKind::AlreadyExists => {
             // Probe: maybe the existing file is stale and we can clean it
             // up before the caller retries.
             if read_reachable().is_none() {
                 // `read_reachable` removed the stale file; retry once.
-                std::fs::OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(&path)?
+                create_owner_only(&path)?
             } else {
                 return Err(e);
             }
@@ -196,18 +191,27 @@ pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
     file.write_all(content.as_bytes())?;
     file.flush()?;
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perm = file.metadata()?.permissions();
-        perm.set_mode(0o600);
-        std::fs::set_permissions(&path, perm)?;
-    }
-
     Ok(DiscoveryGuard {
         path,
         pid: info.pid,
     })
+}
+
+/// Create the discovery file exclusively, owner-only from the first
+/// instant it exists. `create_new` gives the mutual exclusion; on Unix
+/// the `0600` mode is applied by the same `open(2)` call (subject to the
+/// umask, which can only tighten it), so there is no window in which a
+/// wider-readable file holds the bearer token. Windows has no mode bits
+/// here — the config root's user-only ACL is inherited instead.
+fn create_owner_only(path: &Path) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
 }
 
 /// Force-remove the discovery file. Used by `upeg http stop` after
@@ -348,8 +352,23 @@ mod tests {
         }
     }
 
+    /// Obviously fake credential for round-trip fixtures. Never a real
+    /// secret.
+    const FAKE_TOKEN: &str = "not-a-real-token";
+
+    fn info_with(pid: u32, origin: HostOrigin) -> ServerInfo {
+        ServerInfo {
+            endpoint: "http://127.0.0.1:1".into(),
+            mcp_endpoint: "http://127.0.0.1:1/mcp".into(),
+            token: FAKE_TOKEN.into(),
+            pid,
+            started_at_ms: 1,
+            origin,
+        }
+    }
+
     #[test]
-    fn 엔드포인트_파싱은_ipv4_ipv6_접두사를_모두_처리한다() {
+    fn endpoint_parsing_handles_ipv4_ipv6_and_path_prefix() {
         assert_eq!(
             parse_endpoint("http://127.0.0.1:49317"),
             Some(("127.0.0.1".into(), 49317, String::new()))
@@ -363,15 +382,15 @@ mod tests {
     }
 
     #[test]
-    fn 서버_정보는_mcp_엔드포인트를_채운다() {
-        let info = ServerInfo::new("http://127.0.0.1:1234", "tok");
+    fn server_info_fills_in_the_mcp_endpoint() {
+        let info = ServerInfo::new("http://127.0.0.1:1234", FAKE_TOKEN);
         assert_eq!(info.mcp_endpoint, "http://127.0.0.1:1234/mcp");
         assert_eq!(info.pid, std::process::id());
         assert!(info.started_at_ms > 0);
     }
 
     #[test]
-    fn 상태확인_확인_대상으로_죽은_port는_거짓이다() {
+    fn health_check_against_a_dead_port_is_false() {
         // Bind a listener, immediately drop, leaving the port unused.
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
@@ -382,33 +401,27 @@ mod tests {
     }
 
     #[test]
-    fn http_응답_접두사_읽기는_interrupted와_partial_read를_처리한다() {
-        // Given: 첫 read는 signal로 중단되고 HTTP 접두사는 두 chunk로 나뉜다.
+    fn http_response_prefix_read_survives_interrupted_and_partial_reads() {
+        // Given: the first read is interrupted by a signal and the HTTP
+        // prefix arrives in two chunks.
         let chunks = std::io::Cursor::new(b"HT").chain(std::io::Cursor::new(b"TP/"));
         let mut reader = InterruptOnce {
             inner: chunks,
             interrupt_pending: true,
         };
 
-        // When: health-check 응답 접두사를 읽는다.
+        // When: the health-check response prefix is read.
         let result = read_http_response_prefix(&mut reader);
 
-        // Then: Interrupted를 재시도하고 partial read를 합쳐 HTTP를 인식한다.
+        // Then: Interrupted is retried and the partial reads add up to HTTP.
         assert!(matches!(result, Ok(true)));
     }
 
     #[test]
-    fn discovery_guard_만은_자신의_pid를_제거한다() {
+    fn discovery_guard_only_removes_a_file_naming_its_own_pid() {
         // Smoke test: a different pid's file must not be deleted on drop.
         let tmp = std::env::temp_dir().join("upeg-discovery-test.json");
-        let other = ServerInfo {
-            endpoint: "http://127.0.0.1:1".into(),
-            mcp_endpoint: "http://127.0.0.1:1/mcp".into(),
-            token: "x".into(),
-            pid: std::process::id().wrapping_add(7777),
-            started_at_ms: 1,
-            origin: HostOrigin::default(),
-        };
+        let other = info_with(std::process::id().wrapping_add(7777), HostOrigin::default());
         std::fs::write(&tmp, serde_json::to_string(&other).unwrap()).unwrap();
         let guard = DiscoveryGuard {
             path: tmp.clone(),
@@ -419,8 +432,68 @@ mod tests {
         let _ = std::fs::remove_file(&tmp);
     }
 
+    /// The token lives in this file, so it must be owner-only from the
+    /// `open(2)` that creates it — a create-then-chmod sequence leaves a
+    /// window in which the umask decides who can read the secret.
+    #[cfg(unix)]
     #[test]
-    fn socket_addr_str는_ipv6를_브래킷으로_감싼다() {
+    fn discovery_file_is_owner_only_from_the_instant_it_is_created() {
+        use std::os::unix::fs::PermissionsExt;
+        let path =
+            std::env::temp_dir().join(format!("upeg-discovery-mode-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+
+        let file = create_owner_only(&path).expect("create discovery file");
+        let mode = file.metadata().expect("metadata").permissions().mode() & 0o777;
+
+        assert_eq!(
+            mode & 0o077,
+            0,
+            "group/other bits must be clear before anything is written; got {mode:o}"
+        );
+        assert!(
+            create_owner_only(&path).is_err_and(|e| e.kind() == ErrorKind::AlreadyExists),
+            "exclusive creation must still reject a second publisher"
+        );
+        drop(file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn publish_writes_an_owner_only_file_that_its_guard_removes() {
+        crate::test_support::with_seeded_pegboard_home(
+            "discovery-publish",
+            |_| {},
+            || {
+                let path = paths::server_json_path().expect("server.json path under UPEG_HOME");
+                let info =
+                    ServerInfo::with_origin("http://127.0.0.1:1", FAKE_TOKEN, HostOrigin::Explicit);
+
+                let guard = publish(&info).expect("publish into an empty config root");
+
+                let written = read_from(&path).expect("published file parses");
+                assert_eq!(written, info);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+                    assert_eq!(
+                        mode & 0o077,
+                        0,
+                        "published file must stay owner-only; got {mode:o}"
+                    );
+                }
+                drop(guard);
+                assert!(
+                    !path.exists(),
+                    "guard drop must remove the file it published"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn socket_addr_str_brackets_ipv6_literals() {
         use std::net::SocketAddr;
         // IPv4 stays bare and parses.
         assert_eq!(socket_addr_str("127.0.0.1", 49317), "127.0.0.1:49317");
@@ -439,33 +512,19 @@ mod tests {
     }
 
     #[test]
-    fn should_reap는_live_pid_레코드는_보존한다() {
+    fn should_reap_preserves_a_record_with_a_live_pid() {
         // Our own pid is definitely alive; an unreachable-but-live host is
         // transiently unresponsive (starting/busy/IPv6), NOT stale.
-        let info = ServerInfo {
-            endpoint: "http://127.0.0.1:1".into(),
-            mcp_endpoint: "http://127.0.0.1:1/mcp".into(),
-            token: "x".into(),
-            pid: std::process::id(),
-            started_at_ms: 1,
-            origin: HostOrigin::default(),
-        };
+        let info = info_with(std::process::id(), HostOrigin::default());
         assert!(!should_reap(&info, false), "live pid must never be reaped");
         assert!(!should_reap(&info, true), "reachable is never reaped");
     }
 
     #[test]
-    fn should_reap는_dead_pid_레코드만_stale로_본다() {
+    fn should_reap_treats_only_a_dead_pid_record_as_stale() {
         // 99_999_999 is above the default max pid on Linux and not a real
         // process — the same sentinel instance_lock's tests use.
-        let info = ServerInfo {
-            endpoint: "http://127.0.0.1:1".into(),
-            mcp_endpoint: "http://127.0.0.1:1/mcp".into(),
-            token: "x".into(),
-            pid: 99_999_999,
-            started_at_ms: 1,
-            origin: HostOrigin::default(),
-        };
+        let info = info_with(99_999_999, HostOrigin::default());
         assert!(should_reap(&info, false), "dead pid + unreachable is stale");
         assert!(
             !should_reap(&info, true),
@@ -474,16 +533,9 @@ mod tests {
     }
 
     #[test]
-    fn server_info는_origin을_라운드트립하고_레거시는_explicit로_기본한다() {
+    fn server_info_round_trips_origin_and_legacy_files_default_to_explicit() {
         for origin in [HostOrigin::Explicit, HostOrigin::Embedded] {
-            let info = ServerInfo {
-                endpoint: "http://127.0.0.1:1".into(),
-                mcp_endpoint: "http://127.0.0.1:1/mcp".into(),
-                token: "x".into(),
-                pid: 1,
-                started_at_ms: 1,
-                origin,
-            };
+            let info = info_with(1, origin);
             let json = serde_json::to_string(&info).expect("serialize");
             let back: ServerInfo = serde_json::from_str(&json).expect("deserialize");
             assert_eq!(back.origin, origin, "origin must round-trip through JSON");

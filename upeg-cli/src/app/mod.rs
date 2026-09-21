@@ -718,14 +718,13 @@ fn run_http_start(
                     "cannot resolve log path; set UPEG_HTTP_LOG_PATH or pass --log-file",
                 )
             })?;
+        // `--token` is deliberately absent here: the child receives it
+        // through its environment (`daemonize::detach_and_exit`), never
+        // on a `ps`-readable command line.
         let mut extra: Vec<String> = Vec::new();
         if let Some(a) = &addr {
             extra.push("--addr".into());
             extra.push(a.clone());
-        }
-        if let Some(t) = &token {
-            extra.push("--token".into());
-            extra.push(t.clone());
         }
         if let Some(tf) = &token_file {
             extra.push("--token-file".into());
@@ -739,7 +738,7 @@ fn run_http_start(
             extra.push("--cors-origin".into());
             extra.push(origin.clone());
         }
-        daemonize::detach_and_exit(log_path, &extra)
+        daemonize::detach_and_exit(log_path, &extra, token.as_deref())
             .map_err(|e| CliError::tool_failed(format!("detach: {e}")))?;
         // Marker env saw a re-entry: fall through to foreground.
     }

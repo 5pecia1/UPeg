@@ -1,6 +1,16 @@
-# 가이드
+# Guides
 
-* [도구 작성자 가이드](tool-author.md) - `#[tool(...)]` 매크로로 새 Tool을 정의할 때 쓸 수 있는 키와 변형, 그리고 검증 절차.
+- [Installation](installation.md) — toolchains for the CLI, desktop app, PWA,
+  Chrome extension, and packaging.
+- [Quick start](quick-start.md) — first call, boards and pins, MCP and HTTP
+  in a few minutes.
+- [Tool author guide](tool-author.md) — the `#[tool(...)]` macro keys and
+  variants, and the validation checklist.
+- [Development](development.md) — the dev toolchain, `just` gates, and
+  generated-artifact drift checks.
+- [Troubleshooting](troubleshooting.md) — `upeg doctor`, hosts, tokens,
+  manifest detection, headless browsers.
 
-TOML 매니페스트 작성자는 [매니페스트 계약](/architecture/manifest.md)과 생성된
-[External Tool Manifest Guide](/TOOL_MANIFEST.md)를 함께 본다.
+TOML manifest authors should read the
+[manifest contract](../architecture/manifest.md) together with the generated
+[External Tool Manifest Guide](../TOOL_MANIFEST.md).

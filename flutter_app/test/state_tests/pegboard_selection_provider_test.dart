@@ -21,7 +21,7 @@ const _boards = [
 void main() {
   group('pegboardSelectionProvider', () {
     test(
-      'pegboardSelectionProvider는_restore에서_shared_selection을_읽는다',
+      'pegboardSelectionProvider_reads_shared_selection_on_restore',
       () async {
         final container = _makeContainer(
           overrides: [
@@ -45,7 +45,7 @@ void main() {
       },
     );
 
-    test('pegboardSelectionProvider는_board_변경시_유효한_tag를_유지한다', () async {
+    test('pegboardSelectionProvider_keeps_valid_tag_on_board_change', () async {
       final saved = <PegboardSelectionDto>[];
       final container = _makeContainer(
         overrides: [
@@ -73,34 +73,39 @@ void main() {
       );
     });
 
-    test('pegboardSelectionProvider는_board_변경시_없는_tag만_all로_정규화한다', () async {
-      final saved = <PegboardSelectionDto>[];
-      final container = _makeContainer(
-        overrides: [
-          pegboardSelectionLoaderProvider.overrideWithValue(
-            () => const PegboardSelectionDto(boardKey: 'dev', tag: 'pure'),
-          ),
-          pegboardSelectionSaverProvider.overrideWithValue(saved.add),
-          pegboardSelectionTagOptionsLoaderProvider.overrideWithValue(
-            (boardKey) => boardKey == BoardKey.parse('ops')
-                ? const ['all']
-                : const ['all', 'pure'],
-          ),
-        ],
-      );
-      await container.read(pegboardSelectionProvider.notifier).restore(_boards);
+    test(
+      'pegboardSelectionProvider_normalizes_only_missing_tag_to_all_on_board_change',
+      () async {
+        final saved = <PegboardSelectionDto>[];
+        final container = _makeContainer(
+          overrides: [
+            pegboardSelectionLoaderProvider.overrideWithValue(
+              () => const PegboardSelectionDto(boardKey: 'dev', tag: 'pure'),
+            ),
+            pegboardSelectionSaverProvider.overrideWithValue(saved.add),
+            pegboardSelectionTagOptionsLoaderProvider.overrideWithValue(
+              (boardKey) => boardKey == BoardKey.parse('ops')
+                  ? const ['all']
+                  : const ['all', 'pure'],
+            ),
+          ],
+        );
+        await container
+            .read(pegboardSelectionProvider.notifier)
+            .restore(_boards);
 
-      container
-          .read(pegboardSelectionProvider.notifier)
-          .selectBoard(BoardKey.parse('ops'));
+        container
+            .read(pegboardSelectionProvider.notifier)
+            .selectBoard(BoardKey.parse('ops'));
 
-      final state = container.read(pegboardSelectionProvider);
-      expect(state.boardKey, BoardKey.parse('ops'));
-      expect(state.tag, const TagAll());
-      expect(
-        saved.single,
-        const PegboardSelectionDto(boardKey: 'ops', tag: 'all'),
-      );
-    });
+        final state = container.read(pegboardSelectionProvider);
+        expect(state.boardKey, BoardKey.parse('ops'));
+        expect(state.tag, const TagAll());
+        expect(
+          saved.single,
+          const PegboardSelectionDto(boardKey: 'ops', tag: 'all'),
+        );
+      },
+    );
   });
 }

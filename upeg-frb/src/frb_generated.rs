@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -859224938;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2094419923;
 
 // Section: executor
 
@@ -1941,6 +1941,82 @@ fn wire__crate__api__embed__resolve_embed_url_impl(
         },
     )
 }
+fn wire__crate__api__tools__resolve_tool_action_bindings_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resolve_tool_action_bindings",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_action_id = <String>::sse_decode(&mut deserializer);
+            let api_current_inputs_json = <String>::sse_decode(&mut deserializer);
+            let api_selected_row_json = <Option<String>>::sse_decode(&mut deserializer);
+            let api_outputs_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::tools::resolve_tool_action_bindings(
+                        api_tool_id,
+                        api_action_id,
+                        api_current_inputs_json,
+                        api_selected_row_json,
+                        api_outputs_json,
+                    ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__tools__resolve_tool_presentation_rows_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resolve_tool_presentation_rows",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_outputs_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::tools::resolve_tool_presentation_rows(
+                        api_tool_id,
+                        api_outputs_json,
+                    ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__board_details__save_board_guidance_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2844,6 +2920,43 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::api::tools::ActionBindingResolutionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_valuesJson = <String>::sse_decode(deserializer);
+        let mut var_diagnostics = <Vec<String>>::sse_decode(deserializer);
+        let mut var_unboundRequiredInputs = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::tools::ActionBindingResolutionDto {
+            values_json: var_valuesJson,
+            diagnostics: var_diagnostics,
+            unbound_required_inputs: var_unboundRequiredInputs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::ActionScopeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tools::ActionScopeDto::Row,
+            1 => crate::api::tools::ActionScopeDto::Result,
+            _ => unreachable!("Invalid variant for ActionScopeDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::ActionSuccessDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tools::ActionSuccessDto::RefreshOrigin,
+            _ => unreachable!("Invalid variant for ActionSuccessDto: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::boot::AppInitReport {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2896,6 +3009,20 @@ impl SseDecode for crate::api::embed::BindingRoleDto {
             1 => crate::api::embed::BindingRoleDto::Trigger,
             2 => crate::api::embed::BindingRoleDto::Output,
             _ => unreachable!("Invalid variant for BindingRoleDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::BindingSourceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tools::BindingSourceDto::Input,
+            1 => crate::api::tools::BindingSourceDto::Row,
+            2 => crate::api::tools::BindingSourceDto::Output,
+            3 => crate::api::tools::BindingSourceDto::Constant,
+            _ => unreachable!("Invalid variant for BindingSourceDto: {}", inner),
         };
     }
 }
@@ -4161,6 +4288,62 @@ impl SseDecode for Vec<crate::api::pegboard::PlacementDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::tools::PresentationActionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tools::PresentationActionDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tools::PresentationBindingDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tools::PresentationBindingDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tools::PresentationColumnDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tools::PresentationColumnDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tools::PresentationRowDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tools::PresentationRowDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4326,6 +4509,19 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<crate::api::tools::ActionSuccessDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::tools::ActionSuccessDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::embed::BindingWaitDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4474,6 +4670,19 @@ impl SseDecode for Option<crate::api::tools::input_field::StringConstraintsDto> 
             return Some(
                 <crate::api::tools::input_field::StringConstraintsDto>::sse_decode(deserializer),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::tools::ToolPresentationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::tools::ToolPresentationDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -4740,6 +4949,84 @@ impl SseDecode for crate::api::pegboard::PlacementDto {
     }
 }
 
+impl SseDecode for crate::api::tools::PresentationActionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_scope = <crate::api::tools::ActionScopeDto>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_targetTool = <String>::sse_decode(deserializer);
+        let mut var_onSuccess =
+            <Option<crate::api::tools::ActionSuccessDto>>::sse_decode(deserializer);
+        let mut var_bindings =
+            <Vec<crate::api::tools::PresentationBindingDto>>::sse_decode(deserializer);
+        return crate::api::tools::PresentationActionDto {
+            id: var_id,
+            scope: var_scope,
+            label: var_label,
+            target_tool: var_targetTool,
+            on_success: var_onSuccess,
+            bindings: var_bindings,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::PresentationBindingDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_target = <String>::sse_decode(deserializer);
+        let mut var_source = <crate::api::tools::BindingSourceDto>::sse_decode(deserializer);
+        let mut var_pointer = <Option<String>>::sse_decode(deserializer);
+        let mut var_valueJson = <Option<String>>::sse_decode(deserializer);
+        return crate::api::tools::PresentationBindingDto {
+            target: var_target,
+            source: var_source,
+            pointer: var_pointer,
+            value_json: var_valueJson,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::PresentationColumnDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_pointer = <String>::sse_decode(deserializer);
+        return crate::api::tools::PresentationColumnDto {
+            label: var_label,
+            pointer: var_pointer,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::PresentationRowDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_key = <String>::sse_decode(deserializer);
+        let mut var_valueJson = <String>::sse_decode(deserializer);
+        let mut var_cellsJson = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::tools::PresentationRowDto {
+            key: var_key,
+            value_json: var_valueJson,
+            cells_json: var_cellsJson,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::PresentationRowsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rows = <Vec<crate::api::tools::PresentationRowDto>>::sse_decode(deserializer);
+        let mut var_diagnostics = <Vec<String>>::sse_decode(deserializer);
+        let mut var_rowActionsEnabled = <bool>::sse_decode(deserializer);
+        return crate::api::tools::PresentationRowsDto {
+            rows: var_rows,
+            diagnostics: var_diagnostics,
+            row_actions_enabled: var_rowActionsEnabled,
+        };
+    }
+}
+
 impl SseDecode for (String, String) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4878,6 +5165,9 @@ impl SseDecode for crate::api::tools::ToolDto {
         let mut var_credentialName = <Option<String>>::sse_decode(deserializer);
         let mut var_requiresApproval = <bool>::sse_decode(deserializer);
         let mut var_approvalSurfaces = <Vec<String>>::sse_decode(deserializer);
+        let mut var_effect = <crate::api::tools::ToolEffectDto>::sse_decode(deserializer);
+        let mut var_presentation =
+            <Option<crate::api::tools::ToolPresentationDto>>::sse_decode(deserializer);
         return crate::api::tools::ToolDto {
             id: var_id,
             toolkit: var_toolkit,
@@ -4893,6 +5183,43 @@ impl SseDecode for crate::api::tools::ToolDto {
             credential_name: var_credentialName,
             requires_approval: var_requiresApproval,
             approval_surfaces: var_approvalSurfaces,
+            effect: var_effect,
+            presentation: var_presentation,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::ToolEffectDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tools::ToolEffectDto::Read,
+            1 => crate::api::tools::ToolEffectDto::Write,
+            2 => crate::api::tools::ToolEffectDto::Unknown,
+            _ => unreachable!("Invalid variant for ToolEffectDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tools::ToolPresentationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_version = <u16>::sse_decode(deserializer);
+        let mut var_output = <Option<String>>::sse_decode(deserializer);
+        let mut var_rows = <Option<String>>::sse_decode(deserializer);
+        let mut var_rowKey = <Option<String>>::sse_decode(deserializer);
+        let mut var_columns =
+            <Vec<crate::api::tools::PresentationColumnDto>>::sse_decode(deserializer);
+        let mut var_actions =
+            <Vec<crate::api::tools::PresentationActionDto>>::sse_decode(deserializer);
+        return crate::api::tools::ToolPresentationDto {
+            version: var_version,
+            output: var_output,
+            rows: var_rows,
+            row_key: var_rowKey,
+            columns: var_columns,
+            actions: var_actions,
         };
     }
 }
@@ -5113,13 +5440,13 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__board_details__save_board_guidance_impl(
+        60 => wire__crate__api__board_details__save_board_guidance_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__webview__webview_execution_stream_impl(
+        85 => wire__crate__api__webview__webview_execution_stream_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5202,36 +5529,44 @@ fn pde_ffi_dispatcher_sync_impl(
         55 => wire__crate__api__pegboard__rename_board_impl(ptr, rust_vec_len, data_len),
         56 => wire__crate__api__pegboard__reorder_pin_impl(ptr, rust_vec_len, data_len),
         57 => wire__crate__api__embed__resolve_embed_url_impl(ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__memos__save_memos_impl(ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__pegboard__save_pegboard_selection_impl(ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__tweaks__save_tweaks_impl(ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__palette__search_tools_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__embed__selector_bindings_for_impl(ptr, rust_vec_len, data_len),
-        64 => {
-            wire__crate__api__embed__set_controlled_embed_settings_impl(ptr, rust_vec_len, data_len)
+        58 => {
+            wire__crate__api__tools__resolve_tool_action_bindings_impl(ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__pegboard__set_pin_args_preset_impl(ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__pegboard__set_pin_color_impl(ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__pegboard__set_pin_span_impl(ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__embed__set_selector_bindings_impl(ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__boot__shutdown_impl(ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__status__status_snapshot_impl(ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__pegboard__suggestions_for_empty_board_impl(
+        59 => wire__crate__api__tools__resolve_tool_presentation_rows_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__tweaks__supported_accents_impl(ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__tweaks__supported_locales_impl(ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__tweaks__supported_themes_impl(ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__pegboard__tag_options_impl(ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__pegboard__tag_options_for_board_impl(ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__pause__toggle_paused_impl(ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__pegboard__tools_for_tag_impl(ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__i18n__translate_impl(ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__i18n__translate_args_impl(ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__pegboard__unpin_tool_impl(ptr, rust_vec_len, data_len),
-        82 => {
+        61 => wire__crate__api__memos__save_memos_impl(ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__pegboard__save_pegboard_selection_impl(ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__tweaks__save_tweaks_impl(ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__palette__search_tools_impl(ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__embed__selector_bindings_for_impl(ptr, rust_vec_len, data_len),
+        66 => {
+            wire__crate__api__embed__set_controlled_embed_settings_impl(ptr, rust_vec_len, data_len)
+        }
+        67 => wire__crate__api__pegboard__set_pin_args_preset_impl(ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__pegboard__set_pin_color_impl(ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__pegboard__set_pin_span_impl(ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__embed__set_selector_bindings_impl(ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__boot__shutdown_impl(ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__status__status_snapshot_impl(ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__pegboard__suggestions_for_empty_board_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        74 => wire__crate__api__tweaks__supported_accents_impl(ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__tweaks__supported_locales_impl(ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__tweaks__supported_themes_impl(ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__pegboard__tag_options_impl(ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__pegboard__tag_options_for_board_impl(ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__pause__toggle_paused_impl(ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__pegboard__tools_for_tag_impl(ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__i18n__translate_impl(ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__i18n__translate_args_impl(ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__pegboard__unpin_tool_impl(ptr, rust_vec_len, data_len),
+        84 => {
             wire__crate__api__webview__unregister_webview_provider_impl(ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -5240,6 +5575,69 @@ fn pde_ffi_dispatcher_sync_impl(
 
 // Section: rust2dart
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::ActionBindingResolutionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.values_json.into_into_dart().into_dart(),
+            self.diagnostics.into_into_dart().into_dart(),
+            self.unbound_required_inputs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::ActionBindingResolutionDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ActionBindingResolutionDto>
+    for crate::api::tools::ActionBindingResolutionDto
+{
+    fn into_into_dart(self) -> crate::api::tools::ActionBindingResolutionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::ActionScopeDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Row => 0.into_dart(),
+            Self::Result => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::ActionScopeDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ActionScopeDto>
+    for crate::api::tools::ActionScopeDto
+{
+    fn into_into_dart(self) -> crate::api::tools::ActionScopeDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::ActionSuccessDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::RefreshOrigin => 0.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::ActionSuccessDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ActionSuccessDto>
+    for crate::api::tools::ActionSuccessDto
+{
+    fn into_into_dart(self) -> crate::api::tools::ActionSuccessDto {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::boot::AppInitReport {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -5325,6 +5723,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::embed::BindingRoleDto>
     for crate::api::embed::BindingRoleDto
 {
     fn into_into_dart(self) -> crate::api::embed::BindingRoleDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::BindingSourceDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Input => 0.into_dart(),
+            Self::Row => 1.into_dart(),
+            Self::Output => 2.into_dart(),
+            Self::Constant => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::BindingSourceDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::BindingSourceDto>
+    for crate::api::tools::BindingSourceDto
+{
+    fn into_into_dart(self) -> crate::api::tools::BindingSourceDto {
         self
     }
 }
@@ -6913,6 +7334,119 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::pegboard::PlacementDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::PresentationActionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.scope.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.target_tool.into_into_dart().into_dart(),
+            self.on_success.into_into_dart().into_dart(),
+            self.bindings.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::PresentationActionDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationActionDto>
+    for crate::api::tools::PresentationActionDto
+{
+    fn into_into_dart(self) -> crate::api::tools::PresentationActionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::PresentationBindingDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.target.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.pointer.into_into_dart().into_dart(),
+            self.value_json.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::PresentationBindingDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationBindingDto>
+    for crate::api::tools::PresentationBindingDto
+{
+    fn into_into_dart(self) -> crate::api::tools::PresentationBindingDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::PresentationColumnDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.pointer.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::PresentationColumnDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationColumnDto>
+    for crate::api::tools::PresentationColumnDto
+{
+    fn into_into_dart(self) -> crate::api::tools::PresentationColumnDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::PresentationRowDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key.into_into_dart().into_dart(),
+            self.value_json.into_into_dart().into_dart(),
+            self.cells_json.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::PresentationRowDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationRowDto>
+    for crate::api::tools::PresentationRowDto
+{
+    fn into_into_dart(self) -> crate::api::tools::PresentationRowDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::PresentationRowsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.rows.into_into_dart().into_dart(),
+            self.diagnostics.into_into_dart().into_dart(),
+            self.row_actions_enabled.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::PresentationRowsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationRowsDto>
+    for crate::api::tools::PresentationRowsDto
+{
+    fn into_into_dart(self) -> crate::api::tools::PresentationRowsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::keyboard::ScopeBindingsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -7070,6 +7604,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::tools::ToolDto {
             self.credential_name.into_into_dart().into_dart(),
             self.requires_approval.into_into_dart().into_dart(),
             self.approval_surfaces.into_into_dart().into_dart(),
+            self.effect.into_into_dart().into_dart(),
+            self.presentation.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7077,6 +7613,53 @@ impl flutter_rust_bridge::IntoDart for crate::api::tools::ToolDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::tools::ToolDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ToolDto> for crate::api::tools::ToolDto {
     fn into_into_dart(self) -> crate::api::tools::ToolDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::ToolEffectDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Read => 0.into_dart(),
+            Self::Write => 1.into_dart(),
+            Self::Unknown => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::ToolEffectDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ToolEffectDto>
+    for crate::api::tools::ToolEffectDto
+{
+    fn into_into_dart(self) -> crate::api::tools::ToolEffectDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tools::ToolPresentationDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.version.into_into_dart().into_dart(),
+            self.output.into_into_dart().into_dart(),
+            self.rows.into_into_dart().into_dart(),
+            self.row_key.into_into_dart().into_dart(),
+            self.columns.into_into_dart().into_dart(),
+            self.actions.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tools::ToolPresentationDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::ToolPresentationDto>
+    for crate::api::tools::ToolPresentationDto
+{
+    fn into_into_dart(self) -> crate::api::tools::ToolPresentationDto {
         self
     }
 }
@@ -7303,6 +7886,46 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for crate::api::tools::ActionBindingResolutionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.values_json, serializer);
+        <Vec<String>>::sse_encode(self.diagnostics, serializer);
+        <Vec<String>>::sse_encode(self.unbound_required_inputs, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::ActionScopeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tools::ActionScopeDto::Row => 0,
+                crate::api::tools::ActionScopeDto::Result => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tools::ActionSuccessDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tools::ActionSuccessDto::RefreshOrigin => 0,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::boot::AppInitReport {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7338,6 +7961,24 @@ impl SseEncode for crate::api::embed::BindingRoleDto {
                 crate::api::embed::BindingRoleDto::Input => 0,
                 crate::api::embed::BindingRoleDto::Trigger => 1,
                 crate::api::embed::BindingRoleDto::Output => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tools::BindingSourceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tools::BindingSourceDto::Input => 0,
+                crate::api::tools::BindingSourceDto::Row => 1,
+                crate::api::tools::BindingSourceDto::Output => 2,
+                crate::api::tools::BindingSourceDto::Constant => 3,
                 _ => {
                     unimplemented!("");
                 }
@@ -8403,6 +9044,46 @@ impl SseEncode for Vec<crate::api::pegboard::PlacementDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::tools::PresentationActionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tools::PresentationActionDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tools::PresentationBindingDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tools::PresentationBindingDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tools::PresentationColumnDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tools::PresentationColumnDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tools::PresentationRowDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tools::PresentationRowDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8549,6 +9230,16 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<crate::api::tools::ActionSuccessDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::tools::ActionSuccessDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::embed::BindingWaitDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8665,6 +9356,16 @@ impl SseEncode for Option<crate::api::tools::input_field::StringConstraintsDto> 
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::tools::input_field::StringConstraintsDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::tools::ToolPresentationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::tools::ToolPresentationDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -8906,6 +9607,54 @@ impl SseEncode for crate::api::pegboard::PlacementDto {
     }
 }
 
+impl SseEncode for crate::api::tools::PresentationActionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <crate::api::tools::ActionScopeDto>::sse_encode(self.scope, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.target_tool, serializer);
+        <Option<crate::api::tools::ActionSuccessDto>>::sse_encode(self.on_success, serializer);
+        <Vec<crate::api::tools::PresentationBindingDto>>::sse_encode(self.bindings, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::PresentationBindingDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.target, serializer);
+        <crate::api::tools::BindingSourceDto>::sse_encode(self.source, serializer);
+        <Option<String>>::sse_encode(self.pointer, serializer);
+        <Option<String>>::sse_encode(self.value_json, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::PresentationColumnDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.pointer, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::PresentationRowDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key, serializer);
+        <String>::sse_encode(self.value_json, serializer);
+        <Vec<String>>::sse_encode(self.cells_json, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::PresentationRowsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::tools::PresentationRowDto>>::sse_encode(self.rows, serializer);
+        <Vec<String>>::sse_encode(self.diagnostics, serializer);
+        <bool>::sse_encode(self.row_actions_enabled, serializer);
+    }
+}
+
 impl SseEncode for (String, String) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9013,6 +9762,37 @@ impl SseEncode for crate::api::tools::ToolDto {
         <Option<String>>::sse_encode(self.credential_name, serializer);
         <bool>::sse_encode(self.requires_approval, serializer);
         <Vec<String>>::sse_encode(self.approval_surfaces, serializer);
+        <crate::api::tools::ToolEffectDto>::sse_encode(self.effect, serializer);
+        <Option<crate::api::tools::ToolPresentationDto>>::sse_encode(self.presentation, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tools::ToolEffectDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tools::ToolEffectDto::Read => 0,
+                crate::api::tools::ToolEffectDto::Write => 1,
+                crate::api::tools::ToolEffectDto::Unknown => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tools::ToolPresentationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u16>::sse_encode(self.version, serializer);
+        <Option<String>>::sse_encode(self.output, serializer);
+        <Option<String>>::sse_encode(self.rows, serializer);
+        <Option<String>>::sse_encode(self.row_key, serializer);
+        <Vec<crate::api::tools::PresentationColumnDto>>::sse_encode(self.columns, serializer);
+        <Vec<crate::api::tools::PresentationActionDto>>::sse_encode(self.actions, serializer);
     }
 }
 

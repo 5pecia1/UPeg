@@ -194,7 +194,7 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "tui.quit.confirm.title"           => " upeg 종료 ",
     "tui.quit.confirm.prompt"          => "upeg를 종료할까요? 입력 중이던 내용은 사라집니다.",
     "tui.quit.confirm.options"         => "[y/F1] 종료  ·  [n] 유지",
-    // Chain 승인 장벽 (upeg_runtime::tool_approval_policy).
+    // Chain approval barrier (upeg_runtime::tool_approval_policy).
     "tui.approval.confirm.title"       => " 승인 필요 ",
     "tui.approval.confirm.prompt"      => "이 chain에는 승인이 필요한 step이 있습니다. '{tool_id}'을 실행할까요?",
     "tui.approval.confirm.options"     => "[↵/y/F1] 승인  ·  [esc/n] 취소",
@@ -264,7 +264,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 모든_영어_키는_하나의_한국어_번역을_가진다() {
+    fn every_english_key_has_a_korean_translation() {
         let missing: Vec<&str> = EN
             .keys()
             .copied()
@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn 고아_한국어_키는_없다() {
+    fn no_orphan_korean_keys() {
         let orphans: Vec<&str> = KO
             .keys()
             .copied()
@@ -290,12 +290,12 @@ mod tests {
     }
 
     #[test]
-    fn 한국어_로케일은_한국어_카탈로그를_반환한다() {
+    fn korean_locale_returns_korean_catalog() {
         assert_eq!(catalog(Locale::Ko, "tui.boards.title"), Some(" 보드 "));
     }
 
     #[test]
-    fn 영어_로케일은_영어_카탈로그를_반환한다() {
+    fn english_locale_returns_english_catalog() {
         assert_eq!(catalog(Locale::En, "tui.boards.title"), Some(" Boards "));
     }
 }

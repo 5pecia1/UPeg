@@ -18,7 +18,7 @@ class _SeededCurrentBoardNotifier extends CurrentBoardNotifier {
 
 void main() {
   group('ReorderPinProvider', () {
-    test('reorderPin_기본구현은_atomic_reorder_mutator를_한번_호출한다', () async {
+    test('reorderPin_default_calls_atomic_reorder_mutator_once', () async {
       BoardKey? observedBoard;
       ToolId? observedTool;
       OrderDirectionDto? observedDirection;
@@ -52,28 +52,31 @@ void main() {
       expect(observedDirection, OrderDirectionDto.next);
     });
 
-    test('reorderPin_기본구현은_current_board가_없으면_mutator를_호출하지_않는다', () async {
-      var callCount = 0;
-      final container = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier(null),
-          ),
-          reorderPinMutatorProvider.overrideWith(
-            (ref) => (_, _, _) {
-              callCount += 1;
-            },
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'reorderPin_default_does_not_call_mutator_without_current_board',
+      () async {
+        var callCount = 0;
+        final container = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier(null),
+            ),
+            reorderPinMutatorProvider.overrideWith(
+              (ref) => (_, _, _) {
+                callCount += 1;
+              },
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(reorderPinFnProvider)(
-        ToolId.parse('num.hex_to_decimal'),
-        OrderDirectionDto.next,
-      );
+        await container.read(reorderPinFnProvider)(
+          ToolId.parse('num.hex_to_decimal'),
+          OrderDirectionDto.next,
+        );
 
-      expect(callCount, 0);
-    });
+        expect(callCount, 0);
+      },
+    );
   });
 }

@@ -12,7 +12,9 @@ import 'package:upeg/src/pages/splash_page.dart';
 
 void main() {
   group('SplashPage', () {
-    testWidgets('스플래시는_upeg_워드마크와_로딩_인디케이터를_렌더한다', (tester) async {
+    testWidgets('splash_renders_the_upeg_wordmark_and_loading_indicator', (
+      tester,
+    ) async {
       await tester.pumpWidget(const MaterialApp(home: SplashPage()));
       await tester.pump();
 
@@ -21,7 +23,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('스플래시는_개발자용_문구를_노출하지_않는다', (tester) async {
+    testWidgets('splash_does_not_expose_developer_wording', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: SplashPage()));
       await tester.pump();
 

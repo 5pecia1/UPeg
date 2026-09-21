@@ -6,28 +6,29 @@ mod tests {
         InputSpecError, NumberConstraints,
     };
 
-    fn 숫자_필드(
-        이름: &str,
-        종류: InputKind,
-        숫자_제약: NumberConstraints,
+    fn numeric_field(
+        name: &str,
+        kind: InputKind,
+        number_constraints: NumberConstraints,
     ) -> Result<InputFieldSpec, InputSpecError> {
         InputFieldSpec::with_constraints(
-            InputName::new(이름)?,
+            InputName::new(name)?,
             None,
             None,
             true,
-            종류,
+            kind,
             FieldConstraints {
-                number: Some(숫자_제약),
+                number: Some(number_constraints),
                 string: None,
             },
         )
     }
 
     #[test]
-    fn 숫자와_정수_제약은_json_schema에서_왕복된다() -> Result<(), InputAdapterError> {
-        let 명세 = InputSpec::new(vec![
-            숫자_필드(
+    fn number_and_integer_constraints_roundtrip_through_json_schema()
+    -> Result<(), InputAdapterError> {
+        let spec = InputSpec::new(vec![
+            numeric_field(
                 "ratio",
                 InputKind::Number,
                 NumberConstraints {
@@ -36,7 +37,7 @@ mod tests {
                     default: Some(1.5),
                 },
             )?,
-            숫자_필드(
+            numeric_field(
                 "max_output_bytes",
                 InputKind::Integer,
                 NumberConstraints {
@@ -47,7 +48,7 @@ mod tests {
             )?,
         ])?;
 
-        let json_schema = 명세.to_json_schema_value();
+        let json_schema = spec.to_json_schema_value();
         assert_eq!(
             json_schema["properties"]["ratio"],
             json!({
@@ -69,17 +70,17 @@ mod tests {
                 "default": 1_048_576,
             })
         );
-        let 복원된_명세 = InputSpec::try_from(&json_schema)?;
+        let restored_spec = InputSpec::try_from(&json_schema)?;
 
-        assert_eq!(복원된_명세, 명세);
+        assert_eq!(restored_spec, spec);
         Ok(())
     }
 
     #[test]
-    fn 정수_입력은_자신이_광고한_기본값을_스스로_받아들인다() -> Result<(), InputAdapterError> {
+    fn integer_input_accepts_the_default_it_advertises() -> Result<(), InputAdapterError> {
         // The bug this pins: `password_generate` advertised
         // `"default": 20.0` and then rejected 20.0 as "not an integer".
-        let 명세 = InputSpec::new(vec![숫자_필드(
+        let spec = InputSpec::new(vec![numeric_field(
             "length",
             InputKind::Integer,
             NumberConstraints {
@@ -88,30 +89,30 @@ mod tests {
                 default: Some(20.0),
             },
         )?])?;
-        let 기본값 = 명세.to_json_schema_value()["properties"]["length"]["default"].clone();
-        let 인자 = |값: serde_json::Value| {
+        let default_value = spec.to_json_schema_value()["properties"]["length"]["default"].clone();
+        let args = |value: serde_json::Value| {
             let mut map = serde_json::Map::new();
-            map.insert("length".to_string(), 값);
+            map.insert("length".to_string(), value);
             map
         };
 
         assert!(
-            명세.validate_json_args(&인자(기본값)).is_ok(),
+            spec.validate_json_args(&args(default_value)).is_ok(),
             "the advertised default must validate",
         );
         assert!(
-            명세.validate_json_args(&인자(json!(20.0))).is_ok(),
+            spec.validate_json_args(&args(json!(20.0))).is_ok(),
             "JSON has one number type: 20.0 denotes the same integer as 20",
         );
         assert!(
-            명세.validate_json_args(&인자(json!(20.5))).is_err(),
+            spec.validate_json_args(&args(json!(20.5))).is_err(),
             "a genuine fraction is still not an integer",
         );
         Ok(())
     }
 
     #[test]
-    fn 숫자가_아닌_json_schema_제약값은_거부된다() {
+    fn non_numeric_json_schema_constraint_values_are_rejected() {
         let json_schema = json!({
             "type": "object",
             "properties": {
@@ -133,7 +134,7 @@ mod tests {
     }
 
     #[test]
-    fn 숫자가_아닌_필드의_json_schema_숫자_제약은_거부된다() {
+    fn json_schema_numeric_constraints_on_non_numeric_fields_are_rejected() {
         let json_schema = json!({
             "type": "object",
             "properties": {

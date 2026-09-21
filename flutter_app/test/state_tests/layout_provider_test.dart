@@ -17,7 +17,7 @@ import 'package:upeg/src/state/tag_provider.dart';
 
 void main() {
   group('layoutProvider', () {
-    test('layoutProvider는_보드키별_스냅샷을_반환한다', () async {
+    test('layoutProvider_returns_per_board_key_snapshots', () async {
       final container = ProviderContainer(
         overrides: [
           layoutLoaderProvider.overrideWith(
@@ -43,7 +43,7 @@ void main() {
       expect(prod.boardKey, 'prod');
     });
 
-    test('layoutProvider는_같은_키에_대해_로더를_한_번만_호출한다', () async {
+    test('layoutProvider_calls_loader_once_for_the_same_key', () async {
       final calls = <LayoutQuery>[];
       final container = ProviderContainer(
         overrides: [
@@ -69,7 +69,7 @@ void main() {
       expect(calls, [query]);
     });
 
-    test('layoutProvider는_tag_filter를_loader에_전달한다', () async {
+    test('layoutProvider_passes_tag_filter_to_loader', () async {
       late LayoutQuery observed;
       final container = ProviderContainer(
         overrides: [

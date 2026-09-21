@@ -52,9 +52,10 @@ impl ProjectContext for RegistryProjectContext {
     }
 }
 
-/// Where a tool call enters the system. `Board` totalizes the "board면
-/// preset 병합" rule: a board-scoped call always carries the pin's
-/// preset (possibly empty), so no call path can forget the merge.
+/// Where a tool call enters the system. `Board` totalizes the
+/// "board-scoped preset merge" rule: a board-scoped call always carries
+/// the pin's preset (possibly empty), so no call path can forget the
+/// merge.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExecutionContext {
     /// Surface-only call — no board scope.
@@ -391,11 +392,11 @@ mod tests {
     }
 
     fn board_key(key: &str) -> BoardKey {
-        BoardKey::parse(key).expect("테스트 보드 키")
+        BoardKey::parse(key).expect("test board key")
     }
 
     #[test]
-    fn 표면_맥락_적용은_호출자가_제공한_예약된_맥락을_버린다() {
+    fn surface_context_application_drops_caller_supplied_reserved_context() {
         let args = serde_json::json!({
             EXECUTION_CONTEXT_ARG: {
                 "boardEnv": { "PATH": "/tmp/evil" },
@@ -415,10 +416,11 @@ mod tests {
     }
 
     #[test]
-    fn 표면_맥락_적용은_호출자가_제공한_승인된_단계목록을_보존한다() {
-        // E-3/B-2: `_upeg.approvedSteps`는 authoritative-from-surface가
-        // 아니라 caller가 들고 오는 값이다 — 예약 맥락을 버리는 와중에도
-        // 살아남아야 chain approval이 동작한다.
+    fn surface_context_application_preserves_caller_supplied_approved_steps() {
+        // E-3/B-2: `_upeg.approvedSteps` is not authoritative-from-surface —
+        // it is a value the caller brings in, so it must survive even while
+        // the rest of the reserved context is dropped, or chain approval
+        // stops working.
         let args = serde_json::json!({
             EXECUTION_CONTEXT_ARG: { "approvedSteps": ["step1", "step2"] },
             "input": "hello"
@@ -437,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn 표면_맥락_적용은_호출자가_제공한_cwd를_보존한다() {
+    fn surface_context_application_preserves_caller_supplied_cwd() {
         let args = serde_json::json!({
             EXECUTION_CONTEXT_ARG: { "cwd": "/home/user/project" },
         });
@@ -454,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_맥락_적용도_호출자가_제공한_승인된_단계목록을_보존한다() {
+    fn board_context_application_also_preserves_caller_supplied_approved_steps() {
         let args = serde_json::json!({
             EXECUTION_CONTEXT_ARG: {
                 "approvedSteps": ["gate"],
@@ -476,8 +478,9 @@ mod tests {
             .get(EXECUTION_CONTEXT_ARG)
             .and_then(Value::as_object)
             .expect("runtime context object");
-        // 진짜 board 주석(dev)이 승인 목록과 함께 살아 있어야 하고,
-        // 호출자가 스푸핑하려던 값(spoofed/evil)은 여전히 버려져야 한다.
+        // The real board annotation (dev) must survive alongside the
+        // approved-steps list, while the caller-spoofed values
+        // (spoofed/evil) must still be dropped.
         assert_eq!(context.get("board"), Some(&Value::String("dev".into())));
         assert_eq!(
             context.get("approvedSteps"),
@@ -486,12 +489,12 @@ mod tests {
         assert!(
             context.get("boardEnv").and_then(Value::as_object).is_none()
                 || context["boardEnv"].as_object().unwrap().is_empty(),
-            "호출자가 준 boardEnv 스푸핑은 버려져야 한다: {context:?}"
+            "caller-supplied boardEnv spoofing must be dropped: {context:?}"
         );
     }
 
     #[test]
-    fn 추가_표면_맥락은_runtime_보드_맥락을_보존한다() {
+    fn added_surface_context_preserves_runtime_board_context() {
         let mut env = BTreeMap::new();
         env.insert("PROFILE".to_string(), "dev".to_string());
         let args = apply_board_context(
@@ -514,9 +517,10 @@ mod tests {
     }
 
     #[test]
-    fn 하위_호출은_부모_호출의_예약_맥락을_그대로_물려받는다() {
-        // Chain step의 args는 매니페스트 템플릿이 만든 새 객체다 —
-        // 부모 호출이 각인받은 surface/board가 거기 있을 리 없다.
+    fn sub_call_inherits_parent_call_reserved_context_verbatim() {
+        // A chain step's args are a fresh object built by the manifest
+        // template — the surface/board stamped on the parent call cannot
+        // possibly be in there.
         let call = serde_json::json!({
             EXECUTION_CONTEXT_ARG: {
                 "surface": "cli",
@@ -541,9 +545,9 @@ mod tests {
     }
 
     #[test]
-    fn 하위_호출이_스스로_적은_surface는_부모의_것으로_덮인다() {
-        // 템플릿에 `{{input.*}}`로 스며든 호출자 텍스트가 `_upeg.surface`를
-        // 지어내도, 각인은 surface의 몫이지 호출자의 몫이 아니다.
+    fn sub_call_self_written_surface_is_overridden_by_parent() {
+        // Even if caller text smuggled in via `{{input.*}}` fabricates
+        // `_upeg.surface`, stamping is the surface's job, not the caller's.
         let call = serde_json::json!({ EXECUTION_CONTEXT_ARG: { "surface": "mcp" } });
         let spoofed = serde_json::json!({
             EXECUTION_CONTEXT_ARG: { "surface": "cli", "board": "spoofed" },
@@ -560,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn 예약_맥락이_없는_부모의_하위_호출은_빈_맥락을_받는다() {
+    fn sub_call_of_parent_without_reserved_context_gets_empty_context() {
         let out = inherit_call_context(
             serde_json::json!({ EXECUTION_CONTEXT_ARG: { "surface": "cli" } }),
             &serde_json::json!({}),
@@ -568,24 +572,24 @@ mod tests {
 
         assert!(
             out.get(EXECUTION_CONTEXT_ARG).is_none(),
-            "부모가 신원을 갖지 않으면 하위 호출의 인자에 예약 키 자체가 없다: {out}"
+            "when the parent has no identity, the sub call's args have no reserved key at all: {out}"
         );
     }
 
     #[test]
-    fn preset_병합은_preset을_기본값으로_호출자_인자가_덮어쓴다() {
-        let preset = ArgsPreset::parse(r#"{"city":"Seoul","days":3}"#).expect("유효 preset");
+    fn preset_merge_uses_preset_as_defaults_and_caller_args_override() {
+        let preset = ArgsPreset::parse(r#"{"city":"Seoul","days":3}"#).expect("valid preset");
 
         let merged = merge_args_with_preset(serde_json::json!({ "days": 7, "unit": "C" }), &preset);
 
-        assert_eq!(merged["city"], "Seoul", "preset 기본값 유지");
-        assert_eq!(merged["days"], 7, "호출자 인자가 preset을 덮어쓴다");
-        assert_eq!(merged["unit"], "C", "호출자 고유 인자 유지");
+        assert_eq!(merged["city"], "Seoul", "preset default preserved");
+        assert_eq!(merged["days"], 7, "caller arg overrides the preset");
+        assert_eq!(merged["unit"], "C", "caller-only arg preserved");
     }
 
     #[test]
-    fn preset_병합은_null_인자를_preset만으로_채운다() {
-        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+    fn preset_merge_fills_null_args_from_preset_alone() {
+        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
 
         let merged = merge_args_with_preset(Value::Null, &preset);
 
@@ -593,8 +597,8 @@ mod tests {
     }
 
     #[test]
-    fn 보드_맥락은_preset_병합과_보드_주석을_모두_적용한다() {
-        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+    fn board_context_applies_both_preset_merge_and_board_annotation() {
+        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
         let context = ExecutionContext::board(Surface::Cli, board_key("dev"), preset);
         let probe = StaticProbe(BoardExecutionContext::new("dev"));
 
@@ -610,7 +614,7 @@ mod tests {
     }
 
     #[test]
-    fn 모든_실행_맥락은_주체를_각인한다() {
+    fn every_execution_context_stamps_a_principal() {
         let probe = RegistryProjectContext;
         for surface in upeg_core::ALL_SURFACES {
             let context = ExecutionContext::global(*surface);
@@ -626,9 +630,10 @@ mod tests {
     }
 
     #[test]
-    fn 호출자가_적어온_주체는_각인_전에_버려진다() {
-        // 주체는 authoritative-from-surface다: 호출자가 operator라고
-        // 적어와도 표면이 각인한 값으로 덮인다.
+    fn caller_written_principal_is_dropped_before_stamping() {
+        // The principal is authoritative-from-surface: even if the caller
+        // writes in "operator", it is overridden by the value the surface
+        // stamps.
         let probe = RegistryProjectContext;
         let spoofed = serde_json::json!({
             EXECUTION_CONTEXT_ARG: {
@@ -645,18 +650,18 @@ mod tests {
 
         let stamped =
             Principal::from_json(&out[EXECUTION_CONTEXT_ARG][EXECUTION_CONTEXT_PRINCIPAL])
-                .expect("각인된 주체");
+                .expect("stamped principal");
         assert_eq!(stamped, Principal::for_surface(Surface::Http));
         assert!(
             !stamped.may_approve(),
-            "스푸핑으로 승인 권한을 얻을 수 없다"
+            "spoofing must not grant approval authority"
         );
     }
 
     #[test]
-    fn 인증한_표면이_알려준_주체가_표면_기본값을_덮는다() {
-        // HTTP 리스너만 아는 사실이다: 같은 문으로 들어온 두 호출자를
-        // 토큰이 구분한다.
+    fn principal_reported_by_authenticating_surface_overrides_surface_default() {
+        // A fact only the HTTP listener knows: a token distinguishes two
+        // callers that entered through the same door.
         let probe = RegistryProjectContext;
         let operator = Principal::new(upeg_core::PrincipalRole::Operator, Surface::Cli);
         let context = ExecutionContext::global(Surface::Cli).with_principal(operator);
@@ -670,13 +675,13 @@ mod tests {
         assert_eq!(
             context.surface(),
             Surface::Cli,
-            "주체 지정이 표면을 바꾸지 않는다"
+            "specifying a principal must not change the surface"
         );
     }
 
     #[test]
-    fn 보드_맥락도_주체를_잃지_않는다() {
-        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+    fn board_context_also_keeps_the_principal() {
+        let preset = ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
         let agent = Principal::new(upeg_core::PrincipalRole::Agent, Surface::Http);
         let context =
             ExecutionContext::board(Surface::Http, board_key("dev"), preset).with_principal(agent);
@@ -691,11 +696,11 @@ mod tests {
             Principal::from_json(&annotated[EXECUTION_CONTEXT_PRINCIPAL]),
             Some(agent)
         );
-        assert_eq!(out["input"], "0xff", "preset 병합은 그대로다");
+        assert_eq!(out["input"], "0xff", "preset merge stays intact");
     }
 
     #[test]
-    fn 하위_호출은_부모의_주체를_물려받는다() {
+    fn sub_call_inherits_parent_principal() {
         let call = serde_json::json!({
             EXECUTION_CONTEXT_ARG: {
                 "surface": "http",
@@ -711,12 +716,12 @@ mod tests {
                 upeg_core::PrincipalRole::Agent,
                 Surface::Http
             )),
-            "중첩된 체인 step도 바깥 호출자의 권한을 그대로 본다"
+            "a nested chain step sees the outer caller's authority verbatim"
         );
     }
 
     #[test]
-    fn 전역_맥락은_표면만_주석하고_trigger를_추가한다() {
+    fn global_context_annotates_only_surface_and_adds_trigger() {
         let context = ExecutionContext::global(Surface::Http);
         let probe = RegistryProjectContext;
 
@@ -743,7 +748,7 @@ mod tests {
     }
 
     #[test]
-    fn 선택적_보드_생성자는_보드가_없으면_전역이_된다() {
+    fn optional_board_constructor_is_global_without_a_board() {
         assert_eq!(
             ExecutionContext::for_optional_board(Surface::Tui, None, None),
             ExecutionContext::global(Surface::Tui)
@@ -753,9 +758,15 @@ mod tests {
         assert_eq!(scoped.board_key().map(BoardKey::as_str), Some("dev"));
         match scoped {
             ExecutionContext::Board { preset, .. } => {
-                assert_eq!(preset, empty_args_preset(), "preset 없음은 빈 preset");
+                assert_eq!(
+                    preset,
+                    empty_args_preset(),
+                    "no preset means an empty preset"
+                );
             }
-            ExecutionContext::Global { .. } => panic!("보드 지정은 Board 변형이어야 한다"),
+            ExecutionContext::Global { .. } => {
+                panic!("a board-scoped context must be the Board variant")
+            }
         }
     }
 }

@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    fn 클립보드_트리거는_시작_시점_내용으로_발화하지_않는다() {
+    fn clipboard_trigger_does_not_fire_on_content_present_at_start() {
         let mut gate = ClipboardChangeGate::default();
         let key = clipboard_key("demo.tool");
         // The clipboard already holds content when the watch starts.
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn 클립보드_트리거는_값이_변하지_않으면_재발화하지_않는다() {
+    fn clipboard_trigger_does_not_refire_when_value_unchanged() {
         let mut gate = ClipboardChangeGate::default();
         let key = clipboard_key("demo.tool");
         // Baseline capture (silent), then a real change fires once.
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn 클립보드_트리거는_빈_값으로는_발화하지_않는다() {
+    fn clipboard_trigger_does_not_fire_on_empty_value() {
         let mut gate = ClipboardChangeGate::default();
         let key = clipboard_key("demo.tool");
         assert_eq!(gate.evaluate(&key, "value"), None); // baseline
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn 클립보드_상태는_트리거별로_분리된다() {
+    fn clipboard_state_is_scoped_per_trigger() {
         // A single shared baseline let the first trigger evaluated in a poll
         // consume the change and starved every other clipboard trigger.
         let mut gate = ClipboardChangeGate::default();
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn now_스케줄은_감시_시작에_한_번만_발화한다() {
+    fn now_schedule_fires_once_at_watch_start() {
         let mut gate = ScheduleGate::default();
         let key = trigger_key("schedule", "now");
         let start = Instant::now();
@@ -252,13 +252,13 @@ mod tests {
                     ScheduleCondition::Now,
                     start + Duration::from_secs(tick)
                 ),
-                "{tick}초 폴에서 now가 다시 발화하면 안 된다"
+                "now must not re-fire on the {tick}-second poll"
             );
         }
     }
 
     #[test]
-    fn every_스케줄은_주기가_지난_폴에서만_발화한다() {
+    fn every_schedule_fires_only_on_polls_after_interval() {
         let mut gate = ScheduleGate::default();
         let key = trigger_key("schedule", "every:2s");
         let every_2s = ScheduleCondition::Every(Duration::from_secs(2));
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn every_스케줄은_늦게_발화해도_주기가_밀리지_않는다() {
+    fn every_schedule_does_not_drift_when_firing_late() {
         // The watch notices a due moment only on its next poll. Re-anchoring to
         // that poll would fold the lateness into the schedule and let it
         // accumulate (2s → 3s → 4s → …); the grid must stay where it was.
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn 멈췄던_감시는_밀린_주기를_한_번만_발화한다() {
+    fn stalled_watch_fires_missed_intervals_only_once() {
         // A suspended host must not produce a burst of catch-up dispatches for
         // moments that have long passed.
         let mut gate = ScheduleGate::default();
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn 스케줄_상태는_트리거별로_분리된다() {
+    fn schedule_state_is_scoped_per_trigger() {
         let mut gate = ScheduleGate::default();
         let fast = trigger_key("schedule", "every:1s");
         let slow = trigger_key("schedule", "every:10s");
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_트리거는_생성될_때_발화한다() {
+    fn path_trigger_fires_on_creation() {
         let mut gate = PathChangeGate::default();
         let key = trigger_key("file", "/tmp/demo.txt");
         let created = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
@@ -347,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_트리거는_이미_있는_경로로_시작해도_발화하지_않는다() {
+    fn path_trigger_does_not_fire_for_preexisting_path() {
         let mut gate = PathChangeGate::default();
         let key = trigger_key("file", "/tmp/demo.txt");
         let mtime = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_트리거는_mtime이_바뀌면_발화한다() {
+    fn path_trigger_fires_when_mtime_changes() {
         let mut gate = PathChangeGate::default();
         let key = trigger_key("directory", "/tmp/inbox");
         let first = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_트리거는_삭제로는_발화하지_않는다() {
+    fn path_trigger_does_not_fire_on_removal() {
         let mut gate = PathChangeGate::default();
         let key = trigger_key("file", "/tmp/demo.txt");
         let mtime = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn 경로_상태는_트리거별로_분리된다() {
+    fn path_state_is_scoped_per_trigger() {
         let mut gate = PathChangeGate::default();
         let one = trigger_key("file", "/tmp/one.txt");
         let two = trigger_key("file", "/tmp/two.txt");

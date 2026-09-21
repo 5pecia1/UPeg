@@ -2,13 +2,13 @@ use super::common::parse;
 use crate::*;
 
 #[test]
-fn 도구_표시_알수없는_id는_오류를_반환한다() {
+fn tool_show_returns_an_error_for_an_unknown_id() {
     let result = run(parse(&["upeg", "tool", "show", "no.such.tool"]));
     assert_eq!(result, Err(CliError::UnknownTool("no.such.tool".into())));
 }
 
 #[test]
-fn 알수없는_도구_오류_메시지는_가까운_id를_제안한다() {
+fn unknown_tool_error_suggests_a_similar_id() {
     // a typo like `num.hex_to_decimai` should produce a "did
     // you mean num.hex_to_decimal?" hint via Levenshtein. The error
     // type itself is unchanged; the message rendering enriches it.
@@ -25,7 +25,7 @@ fn 알수없는_도구_오류_메시지는_가까운_id를_제안한다() {
 }
 
 #[test]
-fn 너무_많이_벗어나면_알수없는_도구_메시지는_제안을_생략한다() {
+fn unknown_tool_message_omits_suggestions_for_distant_input() {
     // A wildly-different input shouldn't get noise. Threshold 4 means
     // a long random string finds no close-enough match → no hint.
     let err = CliError::UnknownTool("xqzaaapoiuyt.nonexistent_far_off".into());
@@ -37,7 +37,7 @@ fn 너무_많이_벗어나면_알수없는_도구_메시지는_제안을_생략�
 }
 
 #[test]
-fn 알수없는_도구_메시지는_여러_가까운_일치를_나열한다() {
+fn unknown_tool_message_lists_similar_matches() {
     // For inputs that are equidistant from several real ids, list up
     // to 3 — sorted by distance then by id.
     let err = CliError::UnknownTool("hash.sha".into());
@@ -54,7 +54,7 @@ fn 알수없는_도구_메시지는_여러_가까운_일치를_나열한다() {
 }
 
 #[test]
-fn 표시_id는_긴_id를_줄인다() {
+fn display_id_truncates_long_ids() {
     // Pin both behaviours: short id passes through,
     // long id gets truncated with marker + length suffix.
     assert_eq!(
@@ -106,7 +106,7 @@ fn 표시_id는_긴_id를_줄인다() {
 }
 
 #[test]
-fn 표시_id는_멀티바이트_문자들을_처리한다() {
+fn display_id_handles_multibyte_characters() {
     // `display_id` is char-boundary-safe: `&id[..MAX]` byte-slicing
     // would panic when MAX (=64 bytes) falls in the middle of a
     // multibyte UTF-8 char. Worst case: id containing emojis (4 bytes
@@ -151,7 +151,7 @@ fn 표시_id는_멀티바이트_문자들을_처리한다() {
 }
 
 #[test]
-fn 표시_줄임은_임의_최대값을_받는다() {
+fn truncate_for_display_accepts_arbitrary_character_limits() {
     // the helper is now parameterised over `max_chars` so
     // both display_id (MAX=64) and display_value (MAX=200) share one
     // implementation. Pin the arbitrary-max case with values neither
@@ -211,7 +211,7 @@ fn 표시_줄임은_임의_최대값을_받는다() {
 }
 
 #[test]
-fn 도구_id_제안은_쿼리_길이에_상한을_둔다() {
+fn tool_id_suggestions_enforce_the_query_length_limit() {
     // A megabyte-long query would trigger O(query_len × tool_id_len)
     // Levenshtein matrices for every registered tool — a DoS surface
     // on the unknown-tool hint path. Cap at MAX_QUERY_LEN (256 chars);
@@ -257,7 +257,7 @@ fn 도구_id_제안은_쿼리_길이에_상한을_둔다() {
 }
 
 #[test]
-fn 도구_id_제안은_일치가_없으면_빈_결과를_반환한다() {
+fn tool_id_suggestions_return_empty_when_nothing_matches() {
     // Direct test of the helper — far input means empty Vec.
     let suggestions = crate::suggest_tool_ids("zzzzzzzzz_no_match_zzzzzz", 3, None);
     assert!(
@@ -267,25 +267,24 @@ fn 도구_id_제안은_일치가_없으면_빈_결과를_반환한다() {
 }
 
 #[test]
-fn 도구_id_제안은_질의와_똑같은_id를_되돌려주지_않는다() {
-    // D-1: a project-manifest tool registered locally can still come
-    // back `NotFound` when the CLI auto-attached to a host that never
-    // loaded it. Before the fix the hint read "unknown tool
-    // `num.hex_to_decimal` — did you mean `num.hex_to_decimal`?".
+fn tool_id_suggestions_exclude_the_exact_query_id() {
+    // A locally registered project-manifest tool can still return `NotFound`
+    // when the CLI attaches to a host that never loaded it. The hint must not
+    // suggest the same ID that the host just rejected.
     let exact = "num.hex_to_decimal";
     let suggestions = crate::suggest_tool_ids(exact, 5, None);
     assert!(
         !suggestions.iter().any(|s| s == exact),
-        "정확히 같은 id는 제안에서 빠져야 한다; got {suggestions:?}"
+        "the exact query id must be excluded from suggestions; got {suggestions:?}"
     );
     assert!(
         !crate::unknown_tool_hint(exact, None).contains(exact),
-        "힌트 문자열에도 자기 자신이 들어가면 안 된다"
+        "the hint string must not suggest the query id itself"
     );
 }
 
 #[test]
-fn 도구_id_제안은_최대_개수에_상한을_둔다() {
+fn tool_id_suggestions_respect_the_maximum_result_count() {
     // A short query like "a" might match many short ids. The cap
     // prevents the error message from listing every tool. Pin the
     // cap at the API boundary.
@@ -297,7 +296,7 @@ fn 도구_id_제안은_최대_개수에_상한을_둔다() {
 }
 
 #[test]
-fn 도구_id_제안은_부분문자열_일치를_먼_레벤슈타인보다_먼저_보여준다() {
+fn tool_id_suggestions_rank_a_unique_substring_match_ahead_of_levenshtein_matches() {
     // substring matches must surface before Levenshtein-only    // matches. Use a query unique to one tool id to make ranking
     // deterministic — `nanoid` is a substring of `id.nanoid` only.
     let suggestions = crate::suggest_tool_ids("nanoid", 5, None);
@@ -310,7 +309,7 @@ fn 도구_id_제안은_부분문자열_일치를_먼_레벤슈타인보다_먼�
 }
 
 #[test]
-fn 도구_id_제안에서_부분문자열_단계는_레벤슈타인_단독을_이긴다() {
+fn tool_id_suggestions_rank_all_substring_matches_ahead_of_levenshtein_only_matches() {
     // When multiple ids share the same substring (e.g., "hex_to"    // is in both `num.hex_to_decimal` and `color.hex_to_rgb`),
     // both should appear at tier 0; tier-0 entries must beat any
     // tier-1 (Levenshtein-only) candidates. Pin the property without
@@ -342,7 +341,7 @@ fn 도구_id_제안에서_부분문자열_단계는_레벤슈타인_단독을_�
 }
 
 #[test]
-fn 제안_도구_ids_빈_쿼리는_없음을_반환한다() {
+fn tool_id_suggestions_return_empty_for_an_empty_query() {
     // empty query is meaningless — without an explicit guard the
     // tier-0 substring rule (`c.contains("")` is always true) would
     // make every candidate a tier-0 match. The guard returns no
@@ -355,7 +354,7 @@ fn 제안_도구_ids_빈_쿼리는_없음을_반환한다() {
 }
 
 #[test]
-fn 빈_id의_알수없는_도구_메시지는_힌트가_없다() {
+fn unknown_tool_message_has_no_hint_for_an_empty_id() {
     // Verify the hint suffix is suppressed for an empty tool id —    // otherwise the user would see misleading garbage like
     // "upeg: unknown tool `` — did you mean `hash.md5`, ...".
     let err = CliError::UnknownTool(String::new());
@@ -367,7 +366,7 @@ fn 빈_id의_알수없는_도구_메시지는_힌트가_없다() {
 }
 
 #[test]
-fn 도구_id_제안은_짧은_후보를_과다_일치시키지_않는다() {
+fn tool_id_suggestions_do_not_overmatch_short_candidates() {
     // The tier-1 threshold scales with candidate length so short
     // names (`id`, `xyz`) need closer matches. (A fixed threshold
     // of 4 would let a query like `encod` match the short Toolkit
@@ -384,6 +383,8 @@ fn 도구_id_제안은_짧은_후보를_과다_일치시키지_않는다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -401,7 +402,7 @@ fn 도구_id_제안은_짧은_후보를_과다_일치시키지_않는다() {
 }
 
 #[test]
-fn 도구_id_제안은_표면을_기준으로_필터한다() {
+fn tool_id_suggestions_filter_candidates_by_surface() {
     // an HTTP caller suggesting a CLI-only tool would
     // mislead. Pin that the surface filter actually narrows the
     // candidate set. Register an off-surface tool and confirm it
@@ -416,6 +417,8 @@ fn 도구_id_제안은_표면을_기준으로_필터한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

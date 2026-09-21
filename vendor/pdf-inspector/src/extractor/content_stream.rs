@@ -250,10 +250,9 @@ pub(crate) fn extract_page_text_items(
     // Get XObjects (images) from page resources
     let xobjects = get_page_xobjects(doc, page_id);
 
-    // Get content
-    let content_data = doc
-        .get_page_content(page_id)
-        .map_err(|e| PdfError::Parse(e.to_string()))?;
+    // Get content (infallible since lopdf 0.44 — the old Result only wrapped
+    // Vec writes that cannot fail)
+    let content_data = doc.get_page_content(page_id);
 
     // Strip PDF comments (% to end of line) from the content stream.
     // Some PDF generators (e.g. PD4ML) embed comments that confuse lopdf's

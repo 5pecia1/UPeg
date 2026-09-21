@@ -12,7 +12,7 @@ const String _zeroByteQuartet = 'AAAA';
 void main() {
   group('CanonicalFileValue root tree budget', () {
     test(
-      '각 leaf가 허용 범위여도 decode raw 합계가 64 MiB보다 한 byte 크면 거부한다',
+      'rejects when decode raw total exceeds 64 MiB by one byte even if every leaf is within limits',
       () {
         final regularChunk = _zeroBytesBase64(_rawChunkBytes);
         final oversizedAggregateChunk = _zeroBytesBase64(_rawChunkBytes + 1);
@@ -28,17 +28,17 @@ void main() {
             isA<CanonicalFileValueCodecException>()
                 .having(
                   (error) => error.code,
-                  '오류 코드',
+                  'error code',
                   CanonicalFileValueCodecErrorCode.maximumRawBytesExceeded,
                 )
                 .having(
                   (error) => error.actualBytes,
-                  'root tree raw byte 합계',
+                  'root tree raw byte total',
                   canonicalFileMaximumRawBytes + 1,
                 )
                 .having(
                   (error) => error.limitBytes,
-                  'raw byte 제한',
+                  'raw byte limit',
                   canonicalFileMaximumRawBytes,
                 ),
           ),
@@ -48,7 +48,7 @@ void main() {
     );
 
     test(
-      '각 leaf가 허용 범위여도 encode raw 합계가 64 MiB보다 한 byte 크면 거부한다',
+      'rejects when encode raw total exceeds 64 MiB by one byte even if every leaf is within limits',
       () {
         final sharedBytes = Uint8List(_rawChunkBytes + 1);
         final regularChunk = Uint8List.view(
@@ -73,12 +73,12 @@ void main() {
             isA<CanonicalFileValueCodecException>()
                 .having(
                   (error) => error.code,
-                  '오류 코드',
+                  'error code',
                   CanonicalFileValueCodecErrorCode.maximumRawBytesExceeded,
                 )
                 .having(
                   (error) => error.actualBytes,
-                  'root tree raw byte 합계',
+                  'root tree raw byte total',
                   canonicalFileMaximumRawBytes + 1,
                 ),
           ),
@@ -87,132 +87,144 @@ void main() {
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
-    test('decode는 root를 포함한 128개 node까지 허용하고 129번째를 거부한다', () {
-      final exactEntries = <Object?>[
-        for (var index = 0; index < canonicalFileMaximumNodes - 1; index += 1)
-          _jsonBytesFile('$index.bin', ''),
-      ];
-      final oversizedEntries = <Object?>[
-        ...exactEntries,
-        _jsonBytesFile('overflow.bin', ''),
-      ];
+    test(
+      'decode allows up to 128 nodes including root and rejects the 129th',
+      () {
+        final exactEntries = <Object?>[
+          for (var index = 0; index < canonicalFileMaximumNodes - 1; index += 1)
+            _jsonBytesFile('$index.bin', ''),
+        ];
+        final oversizedEntries = <Object?>[
+          ...exactEntries,
+          _jsonBytesFile('overflow.bin', ''),
+        ];
 
-      expect(
-        canonicalFileValueFromJson(_jsonDirectory(exactEntries)),
-        isNotNull,
-      );
-      expect(
-        () => canonicalFileValueFromJson(_jsonDirectory(oversizedEntries)),
-        throwsA(
-          isA<CanonicalFileValueCodecException>()
-              .having(
-                (error) => error.code,
-                '오류 코드',
-                CanonicalFileValueCodecErrorCode.maximumNodesExceeded,
-              )
-              .having(
-                (error) => error.actualNodes,
-                '실제 node 수',
-                canonicalFileMaximumNodes + 1,
-              )
-              .having(
-                (error) => error.limitNodes,
-                'node 제한',
-                canonicalFileMaximumNodes,
-              ),
-        ),
-      );
-    });
+        expect(
+          canonicalFileValueFromJson(_jsonDirectory(exactEntries)),
+          isNotNull,
+        );
+        expect(
+          () => canonicalFileValueFromJson(_jsonDirectory(oversizedEntries)),
+          throwsA(
+            isA<CanonicalFileValueCodecException>()
+                .having(
+                  (error) => error.code,
+                  'error code',
+                  CanonicalFileValueCodecErrorCode.maximumNodesExceeded,
+                )
+                .having(
+                  (error) => error.actualNodes,
+                  'actual node count',
+                  canonicalFileMaximumNodes + 1,
+                )
+                .having(
+                  (error) => error.limitNodes,
+                  'node limit',
+                  canonicalFileMaximumNodes,
+                ),
+          ),
+        );
+      },
+    );
 
-    test('encode는 root를 포함한 128개 node까지 허용하고 129번째를 거부한다', () {
-      final exactEntries = <CanonicalFileValue>[
-        for (var index = 0; index < canonicalFileMaximumNodes - 1; index += 1)
-          _canonicalBytesFile('$index.bin', Uint8List(0)),
-      ];
-      final oversizedEntries = <CanonicalFileValue>[
-        ...exactEntries,
-        _canonicalBytesFile('overflow.bin', Uint8List(0)),
-      ];
+    test(
+      'encode allows up to 128 nodes including root and rejects the 129th',
+      () {
+        final exactEntries = <CanonicalFileValue>[
+          for (var index = 0; index < canonicalFileMaximumNodes - 1; index += 1)
+            _canonicalBytesFile('$index.bin', Uint8List(0)),
+        ];
+        final oversizedEntries = <CanonicalFileValue>[
+          ...exactEntries,
+          _canonicalBytesFile('overflow.bin', Uint8List(0)),
+        ];
 
-      expect(
-        () => canonicalFileValueToJson(_canonicalDirectory(exactEntries)),
-        returnsNormally,
-      );
-      expect(
-        () => canonicalFileValueToJson(_canonicalDirectory(oversizedEntries)),
-        throwsA(
-          isA<CanonicalFileValueCodecException>()
-              .having(
-                (error) => error.code,
-                '오류 코드',
-                CanonicalFileValueCodecErrorCode.maximumNodesExceeded,
-              )
-              .having(
-                (error) => error.actualNodes,
-                '실제 node 수',
-                canonicalFileMaximumNodes + 1,
-              ),
-        ),
-      );
-    });
+        expect(
+          () => canonicalFileValueToJson(_canonicalDirectory(exactEntries)),
+          returnsNormally,
+        );
+        expect(
+          () => canonicalFileValueToJson(_canonicalDirectory(oversizedEntries)),
+          throwsA(
+            isA<CanonicalFileValueCodecException>()
+                .having(
+                  (error) => error.code,
+                  'error code',
+                  CanonicalFileValueCodecErrorCode.maximumNodesExceeded,
+                )
+                .having(
+                  (error) => error.actualNodes,
+                  'actual node count',
+                  canonicalFileMaximumNodes + 1,
+                ),
+          ),
+        );
+      },
+    );
 
-    test('decode는 UTF-8 name과 MIME 합계 16 KiB까지 허용하고 한 byte 초과를 거부한다', () {
-      final exactName = _utf8Text(canonicalFileMaximumMetadataBytes);
-      final exact = _jsonBytesFile(exactName, '');
-      final oversized = <String, Object?>{...exact, 'mime': 'a'};
+    test(
+      'decode allows up to 16 KiB of UTF-8 name plus MIME and rejects one byte over',
+      () {
+        final exactName = _utf8Text(canonicalFileMaximumMetadataBytes);
+        final exact = _jsonBytesFile(exactName, '');
+        final oversized = <String, Object?>{...exact, 'mime': 'a'};
 
-      expect(canonicalFileValueFromJson(exact), isNotNull);
-      expect(
-        () => canonicalFileValueFromJson(oversized),
-        throwsA(
-          isA<CanonicalFileValueCodecException>()
-              .having(
-                (error) => error.code,
-                '오류 코드',
-                CanonicalFileValueCodecErrorCode.maximumMetadataBytesExceeded,
-              )
-              .having(
-                (error) => error.actualBytes,
-                '실제 metadata byte 수',
-                canonicalFileMaximumMetadataBytes + 1,
-              )
-              .having(
-                (error) => error.limitBytes,
-                'metadata byte 제한',
-                canonicalFileMaximumMetadataBytes,
-              ),
-        ),
-      );
-    });
+        expect(canonicalFileValueFromJson(exact), isNotNull);
+        expect(
+          () => canonicalFileValueFromJson(oversized),
+          throwsA(
+            isA<CanonicalFileValueCodecException>()
+                .having(
+                  (error) => error.code,
+                  'error code',
+                  CanonicalFileValueCodecErrorCode.maximumMetadataBytesExceeded,
+                )
+                .having(
+                  (error) => error.actualBytes,
+                  'actual metadata byte count',
+                  canonicalFileMaximumMetadataBytes + 1,
+                )
+                .having(
+                  (error) => error.limitBytes,
+                  'metadata byte limit',
+                  canonicalFileMaximumMetadataBytes,
+                ),
+          ),
+        );
+      },
+    );
 
-    test('encode는 UTF-8 name과 MIME 합계 16 KiB까지 허용하고 한 byte 초과를 거부한다', () {
-      final exactName = _utf8Text(canonicalFileMaximumMetadataBytes);
-      final exact = _canonicalBytesFile(exactName, Uint8List(0));
-      final oversized = CanonicalFileValue(
-        name: exactName,
-        isDir: false,
-        mime: 'a',
-        content: CanonicalFileContent.bytes(bytes: Uint8List(0)),
-      );
+    test(
+      'encode allows up to 16 KiB of UTF-8 name plus MIME and rejects one byte over',
+      () {
+        final exactName = _utf8Text(canonicalFileMaximumMetadataBytes);
+        final exact = _canonicalBytesFile(exactName, Uint8List(0));
+        final oversized = CanonicalFileValue(
+          name: exactName,
+          isDir: false,
+          mime: 'a',
+          content: CanonicalFileContent.bytes(bytes: Uint8List(0)),
+        );
 
-      expect(() => canonicalFileValueToJson(exact), returnsNormally);
-      expect(
-        () => canonicalFileValueToJson(oversized),
-        throwsA(
-          isA<CanonicalFileValueCodecException>()
-              .having(
-                (error) => error.code,
-                '오류 코드',
-                CanonicalFileValueCodecErrorCode.maximumMetadataBytesExceeded,
-              )
-              .having(
-                (error) => error.actualBytes,
-                '실제 metadata byte 수',
-                canonicalFileMaximumMetadataBytes + 1,
-              ),
-        ),
-      );
-    });
+        expect(() => canonicalFileValueToJson(exact), returnsNormally);
+        expect(
+          () => canonicalFileValueToJson(oversized),
+          throwsA(
+            isA<CanonicalFileValueCodecException>()
+                .having(
+                  (error) => error.code,
+                  'error code',
+                  CanonicalFileValueCodecErrorCode.maximumMetadataBytesExceeded,
+                )
+                .having(
+                  (error) => error.actualBytes,
+                  'actual metadata byte count',
+                  canonicalFileMaximumMetadataBytes + 1,
+                ),
+          ),
+        );
+      },
+    );
   });
 }
 

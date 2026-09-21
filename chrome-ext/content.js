@@ -22,15 +22,17 @@
 (() => {
   'use strict';
 
-  // 한 프레임에 한 번만 산다.
+  // Lives at most once per frame.
   //
-  // 이 파일은 두 경로로 들어온다: `chrome.scripting.registerContentScripts`의
-  // 동적 등록(다음 로드부터)과 popup의 `executeScript`(지금 보고 있는 탭).
-  // 두 경로가 같은 프레임에서 겹치거나 사용자가 토글을 두 번 누르면 같은
-  // 프레임에서 다시 평가되고, 그때마다 `chrome.runtime.onMessage` 리스너와
-  // `MutationObserver`가 하나씩 더 붙는다 — PING에 여러 번 답하고 DOM 변경
-  // 하나를 여러 번 스캔한다. content script는 isolated world를 프레임 단위로
-  // 공유하므로 그 world의 전역에 표식을 남기면 재평가를 여기서 끊을 수 있다.
+  // This file arrives by two paths: `chrome.scripting.registerContentScripts`
+  // dynamic registration (from the next load) and the popup's
+  // `executeScript` (the tab being looked at right now). If both paths hit
+  // the same frame, or the user toggles twice, the file is re-evaluated in
+  // that frame — each time adding one more `chrome.runtime.onMessage`
+  // listener and `MutationObserver`, answering PING multiple times and
+  // scanning every DOM change multiple times. Content scripts share an
+  // isolated world per frame, so a mark on that world's global cuts
+  // re-evaluation off right here.
   const CONTENT_SCRIPT_SENTINEL = 'upegContentScriptActive';
   if (window[CONTENT_SCRIPT_SENTINEL]) return;
   window[CONTENT_SCRIPT_SENTINEL] = true;

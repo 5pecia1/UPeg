@@ -8,7 +8,7 @@ use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 
 #[test]
-fn 상세_보기는_embed_메타데이터를_표시한다() {
+fn detail_view_shows_embed_metadata() {
     // Iter 142: parity with `upeg tool show` text (iter 91/93/124).    // An Embed tool inspected via TUI Detail must show its URL +    // bindings; pre-iter-142 they were silently absent.
     let id = "test.iter142.tui_embed";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
@@ -23,6 +23,8 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -78,7 +80,7 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
 }
 
 #[test]
-fn 상세_보기는_입력_schema를_표시한다() {
+fn detail_view_shows_the_input_schema() {
     // Iter 181: TUI Detail must show the tool's inputs section    // (mirroring the iter-180 CLI text fix). Pre-iter-181 users    // could see the schema only by pressing 'r' to enter Form
     // view, committing to run for what's just inspection.
     let tools = list_tools();
@@ -108,7 +110,7 @@ fn 상세_보기는_입력_schema를_표시한다() {
 }
 
 #[test]
-fn schema가_비어_있으면_상세_보기는_입력_없음을_알린다() {
+fn detail_view_shows_no_inputs_for_an_empty_schema() {
     // Iter 181 sibling case: zero-arg tools (id.uuid_v7) get the    // "(none)" placeholder, same convention as boards and the CLI text fix.
     let tools = list_tools();
     let cursor = tools

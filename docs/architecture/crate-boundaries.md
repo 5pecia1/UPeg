@@ -1,97 +1,103 @@
 ---
 type: Architecture Contract
-title: 크레이트 경계
-description: 도메인 / 런타임 / 어댑터 / surface 네 계층의 소유 범위와 금지 사항.
+title: Crate Boundaries
+description: The owned scope and the prohibitions of the four layers — domain / runtime / adapter / surface.
 tags: [architecture, soc, crates]
 status: stable
 sources:
   - id: cargo-workspace
     resource: ../../Cargo.toml
-    title: 워크스페이스 멤버 목록
+    title: Workspace member list
   - id: boundary-gate
     resource: ../../upeg-core/tests/crate_boundaries.rs
-    title: 크레이트 의존 그래프 게이트
+    title: Crate dependency-graph gate
 ---
 
-# 계층
+# Layers
 
-의존은 항상 안쪽을 향한다: `surface → adapter → runtime → domain`.
+Dependencies always point inward: `surface → adapter → runtime → domain`.
 
-![크레이트 계층 — Surface / Adapter / Runtime / Domain](../diagrams/crate-layers.drawio.svg)
+![Crate layers — Surface / Adapter / Runtime / Domain](../diagrams/crate-layers.drawio.svg)
 
-이 그림은 계층 소속을 보여줄 뿐, 실제 엣지 목록은 아래
-[강제](#강제)의 게이트가 소유한다.
+The diagram only shows which layer each crate belongs to; the real edge
+list is owned by the gate in [Enforcement](#enforcement) below.
 
-| Crate | 역할 | 소유 | 소유하지 않음 |
+| Crate | Role | Owns | Does not own |
 |---|---|---|---|
-| `upeg-core` | 도메인 | Toolkit/Tool/Chain/Board 값 타입, 스키마 계약, 순수 검증, 순수 positional 바인딩, capability 판정 | 런타임 toolbox, dispatch, 호스트 I/O, UX 라벨 |
-| `upeg-runtime` | 애플리케이션/런타임 경계 | toolbox overlay, dispatch, Trigger 바인딩·실행, embed 바인딩, manifest lowering, 충돌 정책 | 소스 포맷 파싱 세부, surface UI 흐름 |
-| `upeg-loader` | 어댑터 | `upeg.toml` 등 소스 포맷 파싱 후 runtime lowering 호출 | 독자적인 toolbox/dispatch 의미론 |
-| `upeg-wasm` | 어댑터 | WASM 소스 파싱·호스팅 후 runtime lowering 호출 | 독자적인 toolbox/충돌 정책 |
-| `upeg-sources` | 애플리케이션 소스 경계 | 런타임 소스 발견·등록: 사용자 Toolkit, 프로젝트 매니페스트, WASM 플러그인, upstream MCP 서버 | surface UI 흐름, 파서 내부 |
-| `upeg-cli` | Surface + 애플리케이션/호스트 | CLI/TUI/HTTP/MCP 진입점과 사용자 I/O, 그리고 **호스트 런타임**: 발견(`server.json`), bearer 인증, 데몬 감독, 임베디드 HTTP 서버, pause 상태, MCP import 로딩, 프로세스 생존 확인(`pid_alive`) | core/runtime에서 복제한 도메인 정책, 순수 경로 해석(→ `upeg-core::paths`) |
-| `upeg-pegboard-ui` | UI 상태 | UI 프레임워크 비의존 pegboard 상태(보드/레이아웃/tweak/메모/백업), deep-link 계약, pin chrome, i18n 카탈로그 | 렌더링, 프레임워크별 위젯 코드, surface 크레이트 의존, 그리드 **기하**(셀 크기·포인터 앵커 — Flutter 셸의 Dart가 소유), 그리드 배치 알고리즘(→ `upeg-runtime`) |
-| `upeg-frb` | Surface 경계 | Rust↔Dart `flutter_rust_bridge` 표면, 호스트 부트스트랩, 인스턴스 락 | 도메인/런타임 정책 |
-| `flutter_app/` | Surface | Flutter desktop/PWA UI 흐름 | toolbox 의미론, 도메인 검증 |
+| `upeg-core` | Domain | Toolkit/Tool/Chain/Board value types, schema contracts, pure validation, pure positional binding, capability verdicts | Runtime toolbox, dispatch, host I/O, UX labels |
+| `upeg-runtime` | Application/runtime boundary | Toolbox overlay, dispatch, Trigger binding/execution, embed binding, manifest lowering, conflict policy | Source-format parsing details, surface UI flow |
+| `upeg-loader` | Adapter | Parses source formats such as `upeg.toml`, then calls runtime lowering | Its own toolbox/dispatch semantics |
+| `upeg-wasm` | Adapter | Parses and hosts WASM sources, then calls runtime lowering | Its own toolbox/conflict policy |
+| `upeg-sources` | Application source boundary | Runtime source discovery and registration: user Toolkits, the project manifest, WASM plugins, upstream MCP servers | Surface UI flow, parser internals |
+| `upeg-cli` | Surface + application/host | CLI/TUI/HTTP/MCP entry points and user I/O, plus the **host runtime**: discovery (`server.json`), bearer auth, daemon supervision, embedded HTTP server, pause state, MCP import loading, process liveness checks (`pid_alive`) | Domain policy duplicated from core/runtime, pure path resolution (→ `upeg-core::paths`) |
+| `upeg-pegboard-ui` | UI state | UI-framework-independent pegboard state (boards/layouts/tweaks/memos/backups), deep-link contract, pin chrome, i18n catalog | Rendering, framework-specific widget code, surface-crate dependencies, grid **geometry** (cell size, pointer anchors — owned by Dart in the Flutter shell), grid placement algorithm (→ `upeg-runtime`) |
+| `upeg-frb` | Surface boundary | The Rust↔Dart `flutter_rust_bridge` surface, host bootstrap, instance lock | Domain/runtime policy |
+| `flutter_app/` | Surface | Flutter desktop/PWA UI flow | Toolbox semantics, domain validation |
 
-`flutter_app/`은 `upeg-frb`를 통해 `upeg-pegboard-ui` 위에 얹힌다. Flutter가 유일한 GUI
-surface이며, 이전 Dioxus `desktop-ui/` 크레이트는 제거되었다.
+`flutter_app/` sits on top of `upeg-pegboard-ui` through `upeg-frb`. Flutter is the
+only GUI surface; the earlier Dioxus `desktop-ui/` crate has been removed.
 
-# surface 사이의 유일한 엣지
+# The only edge between surfaces
 
-`upeg-cli`는 두 얼굴을 가진다. 사용자 진입점(CLI/TUI/HTTP/MCP)이면서 동시에
-**호스트 애플리케이션 계층**이다 — 데스크톱 셸이 별도 프로세스를 띄우지 않고
-호스트를 *임베드*하기 때문이다(PRD §5.9). 그래서 딱 하나의 surface→surface
-엣지가 존재한다:
+`upeg-cli` has two faces. It is the user entry point (CLI/TUI/HTTP/MCP) and at the
+same time the **host application layer** — because the desktop shell embeds the
+host instead of spawning a separate process. That is why exactly one
+surface→surface edge exists:
 
-- **`upeg-frb → upeg-cli` (허용, 문서화된 예외).** `embedded_http_with_ready`,
+- **`upeg-frb → upeg-cli` (allowed, documented exception).** `embedded_http_with_ready`,
   `current_host`/`ServerInfo`/`HostOrigin`, `is_paused`/`toggle_paused`,
-  `load_mcp_imports_for_host`, `pid_alive` — 모두 호스트 런타임 그 자체다.
-  이 엣지는 좁게 유지한다: 순수 경로 해석(`config_root`, `desktop.lock`)은
-  `upeg-core::paths`에서 온다.
-- **`upeg-frb → upeg-loader`는 테스트에만 있다.** `[target.'cfg(not(target_arch =
-  "wasm32"))'.dev-dependencies]`에만 적혀 있어 출하 그래프에는 들어가지 않는다.
-  승인 관문은 로더가 등록 시점에 설치하므로 "deep link는 스스로 승인할 수 없다"를
-  끝까지 증명하려면 진짜로 등록된 Chain이 필요하고, 부팅 요약의 건너뛴-도구 줄도
-  이 호스트가 실제로 건너뛰지 않는 이상 `SkippedTool`을 손으로 만들어야 한다.
-  surface→어댑터 방향이라 계층 규칙 자체는 어기지 않는다.
-- **`upeg-pegboard-ui → upeg-cli`는 더 이상 존재하지 않는다.** 이 크레이트가
-  `upeg-cli`를 필요로 한 이유는 `config_root()` 하나뿐이었고, 그 해석은 원래부터
-  `upeg-core::paths`가 소유하고 있었다. UI 상태 크레이트는 이제 공유 저장소
-  어댑터(`upeg-sources`)와 도메인/런타임까지만 내려간다.
+  `load_mcp_imports_for_host`, `pid_alive` — all of them are the host runtime
+  itself. The edge stays narrow: pure path resolution (`config_root`,
+  `desktop.lock`) comes from `upeg-core::paths`.
+- **`upeg-frb → upeg-loader` exists only in tests.** It is declared solely under
+  `[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]`, so it never
+  enters the shipped graph. Because the loader installs approval gates at
+  registration time, proving "a deep link cannot approve itself" end to end
+  requires a genuinely registered Chain, and the boot summary's skipped-tool row
+  likewise needs a `SkippedTool` that this host did not actually skip by hand.
+  The edge runs surface→adapter, so it does not violate the layering rule itself.
+- **`upeg-pegboard-ui → upeg-cli` no longer exists.** The only reason that crate
+  needed `upeg-cli` was `config_root()`, and that resolution was owned by
+  `upeg-core::paths` all along. The UI-state crate now reaches only the shared
+  store adapter (`upeg-sources`) and domain/runtime.
 
-프로세스 생존 확인(`pid_alive`)의 소유자도 하나다: `upeg-cli`의
-`infrastructure::process`. 발견 파일 회수(`server.json` staleness)와 데스크톱
-단일 인스턴스 락(`upeg-frb`)이 같은 구현을 호출한다 — 예전처럼 두 벌을 두고
-Windows `tasklist` 파싱이 서로 다르게 흘러가는 일은 없다.
+Process liveness (`pid_alive`) also has exactly one owner: `upeg-cli`'s
+`infrastructure::process`. Discovery-file reaping (`server.json` staleness) and
+the desktop single-instance lock (`upeg-frb`) call the same implementation —
+there is no second copy whose Windows `tasklist` parsing could drift.
 
-# 강제
+# Enforcement
 
-계층은 리뷰 관습이 아니라 테스트다. `upeg-core/tests/crate_boundaries.rs`가
-모든 워크스페이스 멤버의 `Cargo.toml`(`[dependencies]`, `[dev-dependencies]`,
-`[build-dependencies]`, `[target.*]` 포함)을 읽어 `upeg-*` 엣지 집합을 만들고
-세 가지를 확인한다.
+The layering is a test, not a review convention.
+`upeg-core/tests/crate_boundaries.rs` reads the `Cargo.toml` of every workspace
+member (including `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`,
+and `[target.*]`), builds the set of `upeg-*` edges, and checks three things.
 
-1. 엣지 집합이 `ALLOWED_EDGES` 표와 **정확히 일치**한다. 새 엣지도, 표에만 남은
-   낡은 엣지도 실패한다.
-2. 모든 엣지가 같거나 더 안쪽 계층을 향한다(`LAYERS`의 rank).
-3. 진입점을 소유한 크레이트(`upeg-cli`, `upeg-frb`)를 향하는 엣지는
-   `DOCUMENTED_EXCEPTIONS`에 등록된 것뿐이다 — 현재 `upeg-frb → upeg-cli` 하나.
+1. The edge set matches the `ALLOWED_EDGES` table **exactly**. A new edge fails,
+   and so does a stale edge that only remains in the table.
+2. Every edge points at the same or an inner layer (the rank in `LAYERS`).
+3. The only edges toward crates that own entry points (`upeg-cli`, `upeg-frb`)
+   are the ones registered in `DOCUMENTED_EXCEPTIONS` — currently just
+   `upeg-frb → upeg-cli`.
 
-의존을 새로 추가하려면 코드와 함께 그 표를 갱신하고, 이 문서도 같이 고친다.
+To add a dependency, update that table together with the code, and update this
+document with it.
 
 # Runtime lowering
 
-로더는 자기만의 런타임 진실을 만들지 않는다. 소스별 문법을 타입화된 입력으로 파싱한 뒤
-`upeg-runtime` lowering을 호출한다. overlay 우선순위, static id 보호, 런타임 중복 교체,
-Trigger 등록, embed 바인딩 정규화, manifest→toolbox 변환은 **오직 lowering에서만** 적용된다.
+The loader never creates its own runtime truth. It parses each source's grammar
+into typed input and then calls `upeg-runtime` lowering. Overlay precedence,
+static-id protection, runtime-duplicate replacement, Trigger registration,
+embed-binding normalization, and manifest→toolbox conversion are applied **only
+in lowering**.
 
-# 아키텍처 스타일
+# Architecture style
 
-- 백엔드는 실제 I/O 이음매에서만 Hexagonal을 적용한다: CLI 인자, 파일 시스템, 환경변수,
-  HTTP, WASM 호스트, credential 해석, 프로세스 실행. 순수 도메인 함수에는 trait 래퍼를 두지 않는다.
-- TUI는 `ratatui` + `crossterm` 위의 직접 TEA(update/view)를 쓴다. `tui-realm`은 프레임워크
-  상태 기계를 더할 뿐 이득이 부족해 거부되었다.
-- `Justfile`이 명령·CI 미러다.
+- The backend applies Hexagonal only at real I/O seams: CLI arguments, the file
+  system, environment variables, HTTP, the WASM host, credential resolution, and
+  process execution. Pure domain functions get no trait wrappers.
+- The TUI uses direct TEA (update/view) on `ratatui` + `crossterm`. `tui-realm`
+  was rejected: it adds a framework state machine where the benefit is thin.
+- The `Justfile` is the command and CI mirror.
 
-관련: 모듈 레이아웃 규칙, [Toolkit과 Tool](/architecture/toolkit-and-tool.md)
+Related: [Toolkit and Tool](toolkit-and-tool.md)

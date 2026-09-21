@@ -1,71 +1,71 @@
 use super::*;
 
 #[test]
-fn file_인라인_정책은_모든_필드를_파싱한다() {
+fn file_inline_policy_parses_all_fields() {
     let parsed = syn::parse_str::<ToolInput>(
         r#"required input: File(max_total_bytes=2097152, extensions=["png", "jpg"], max_file_bytes=1048576, max_count=3)"#,
     )
-    .expect("File 인라인 정책의 모든 필드를 파싱해야 한다");
+    .expect("must parse every field of the File inline policy");
 
     assert_eq!(parsed.ty.to_string(), "File");
     assert!(
         parsed.params.is_some(),
-        "File 인라인 정책은 KindParams로 보존되어야 한다"
+        "the File inline policy must be preserved as KindParams"
     );
 }
 
 #[test]
-fn file_인라인_정책은_중복된_파라미터를_거부한다() {
+fn file_inline_policy_rejects_duplicate_parameters() {
     let err = match syn::parse_str::<ToolInput>(
         r#"required input: File(max_count=2, extensions=["png"], max_count=3)"#,
     ) {
-        Ok(_) => panic!("중복된 File 파라미터를 거부해야 한다"),
+        Ok(_) => panic!("duplicate File parameters must be rejected"),
         Err(err) => err,
     };
 
     assert!(
         err.to_string()
             .contains("duplicate file parameter `max_count`"),
-        "오류는 중복된 File 파라미터를 식별해야 한다: {err}"
+        "the error must identify the duplicate File parameter: {err}"
     );
 }
 
 #[test]
-fn file_인라인_정책은_알_수_없는_파라미터를_거부한다() {
+fn file_inline_policy_rejects_unknown_parameters() {
     let err = match syn::parse_str::<ToolInput>(
         r#"required input: File(extensions=["png"], content_types=["image/png"])"#,
     ) {
-        Ok(_) => panic!("알 수 없는 File 파라미터를 거부해야 한다"),
+        Ok(_) => panic!("unknown File parameters must be rejected"),
         Err(err) => err,
     };
 
     assert!(
         err.to_string()
             .contains("unknown file parameter `content_types`"),
-        "오류는 알 수 없는 File 파라미터를 식별해야 한다: {err}"
+        "the error must identify the unknown File parameter: {err}"
     );
 }
 
 #[test]
-fn file_extensions는_문자열_배열이_아니면_거부한다() {
+fn file_extensions_rejects_non_string_array() {
     let err = match syn::parse_str::<ToolInput>(r#"required input: File(extensions="png")"#) {
-        Ok(_) => panic!("extensions의 문자열 단일 값을 거부해야 한다"),
+        Ok(_) => panic!("a single string value for extensions must be rejected"),
         Err(err) => err,
     };
 
     assert!(
         err.to_string()
             .contains("`extensions` expects an array of string literals"),
-        "오류는 extensions의 문자열 배열 계약을 설명해야 한다: {err}"
+        "the error must explain the extensions string-array contract: {err}"
     );
 }
 
 #[test]
-fn file_정수_제한은_unsigned_정수가_아니면_거부한다() {
+fn file_integer_limits_reject_non_unsigned_integers() {
     for parameter in ["max_count", "max_file_bytes", "max_total_bytes"] {
         let source = format!(r#"required input: File({parameter}="unbounded")"#);
         let err = match syn::parse_str::<ToolInput>(&source) {
-            Ok(_) => panic!("File 정수 제한의 문자열 값을 거부해야 한다"),
+            Ok(_) => panic!("a string value for a File integer limit must be rejected"),
             Err(err) => err,
         };
 
@@ -73,7 +73,7 @@ fn file_정수_제한은_unsigned_정수가_아니면_거부한다() {
             err.to_string().contains(&format!(
                 "`{parameter}` expects an unsigned integer literal"
             )),
-            "오류는 {parameter}의 unsigned 정수 계약을 설명해야 한다: {err}"
+            "the error must explain the unsigned-integer contract of {parameter}: {err}"
         );
     }
 }

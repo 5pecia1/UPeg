@@ -49,7 +49,7 @@ mod unix {
 
     impl Fixture {
         fn new() -> Self {
-            let temporary = tempfile::tempdir().expect("격리 임시 디렉터리");
+            let temporary = tempfile::tempdir().expect("isolated temp directory");
             let repository = temporary.path().join("repository");
             let other_directory = temporary.path().join("client-cwd");
             let home = temporary.path().join("home");
@@ -64,7 +64,7 @@ mod unix {
                 &empty_wasm,
                 &empty_imports,
             ] {
-                std::fs::create_dir_all(directory).expect("fixture 디렉터리 생성");
+                std::fs::create_dir_all(directory).expect("create fixture directory");
             }
             let manifest = repository.join("upeg.toml");
             let fixture = Self {
@@ -82,7 +82,7 @@ mod unix {
             assert_eq!(
                 registered.loaded.len(),
                 1,
-                "테스트 프로세스의 preset 편집에도 외부 Tool 메타데이터가 필요하다: {:?}",
+                "the test process needs the external Tool metadata to edit presets: {:?}",
                 registered.failed,
             );
             fixture
@@ -118,7 +118,7 @@ required = true
 "#,
                 ),
             )
-            .expect("프로젝트 manifest 쓰기");
+            .expect("write project manifest");
         }
 
         fn command(&self, args: &[&str]) -> Command {
@@ -135,23 +135,23 @@ required = true
         }
 
         fn success(&self, args: &[&str]) -> String {
-            let output = self.command(args).output().expect("upeg 실행");
+            let output = self.command(args).output().expect("run upeg");
             assert_success(&output, args);
             String::from_utf8(output.stdout).expect("upeg stdout UTF-8")
         }
 
         fn connection(&self, board: &str) -> ConnectionSpec {
             let output = self.success(&["board", board, "connect"]);
-            let config: Value = serde_json::from_str(&output).expect("연결 JSON");
+            let config: Value = serde_json::from_str(&output).expect("connection JSON");
             serde_json::from_value(config["mcpServers"][format!("upeg-{board}")].clone())
-                .expect("MCP 서버 설정")
+                .expect("MCP server config")
         }
 
         fn set_personal_preset(&self, message: &str) {
             let path = upeg_sources::pegboard::state_path_from_root(&self.home);
             let visibility = upeg_sources::pegboard::BoardVisibility::global_only();
             let mut state = upeg_sources::pegboard::load_state_from_path_in(&path, &visibility)
-                .expect("개인 Board 상태 읽기");
+                .expect("read personal Board state");
             let placement = state
                 .layouts
                 .get_mut(PERSONAL_BOARD)
@@ -160,13 +160,13 @@ required = true
                         .iter_mut()
                         .find(|placement| placement.tool_id == TOOL_ID)
                 })
-                .expect("개인 Board의 workflow tool 핀");
+                .expect("workflow tool pin on the personal Board");
             placement.args_preset = Some(
                 upeg_core::ArgsPreset::parse(&json!({"message": message}).to_string())
                     .expect("preset"),
             );
             upeg_sources::pegboard::save_state_to_path_in(&path, &state, &visibility)
-                .expect("preset 저장");
+                .expect("save preset");
         }
     }
 
@@ -187,7 +187,7 @@ required = true
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit())
                 .spawn()
-                .expect("생성된 MCP 설정으로 서버 실행");
+                .expect("spawn server with the generated MCP config");
             let stdin = child.stdin.take().expect("MCP stdin");
             let stdout = child.stdout.take().expect("MCP stdout");
             let (sender, responses) = mpsc::channel();
@@ -224,8 +224,8 @@ required = true
                 let response = self
                     .responses
                     .recv_timeout(RESPONSE_TIMEOUT)
-                    .unwrap_or_else(|error| panic!("MCP id {id} 응답 대기 실패: {error}"))
-                    .unwrap_or_else(|error| panic!("MCP stdout 읽기 실패: {error}"));
+                    .unwrap_or_else(|error| panic!("timed out waiting for MCP id {id}: {error}"))
+                    .unwrap_or_else(|error| panic!("failed to read MCP stdout: {error}"));
                 if response["id"] == id {
                     return response;
                 }
@@ -233,10 +233,10 @@ required = true
         }
 
         fn write(&mut self, request: &Value) {
-            let stdin = self.stdin.as_mut().expect("열린 MCP stdin");
-            serde_json::to_writer(&mut *stdin, request).expect("MCP 요청 쓰기");
-            stdin.write_all(b"\n").expect("MCP 요청 구분자 쓰기");
-            stdin.flush().expect("MCP 요청 flush");
+            let stdin = self.stdin.as_mut().expect("open MCP stdin");
+            serde_json::to_writer(&mut *stdin, request).expect("write MCP request");
+            stdin.write_all(b"\n").expect("write MCP request separator");
+            stdin.flush().expect("flush MCP request");
         }
     }
 
@@ -254,7 +254,7 @@ required = true
     fn assert_success(output: &Output, args: &[&str]) {
         assert!(
             output.status.success(),
-            "upeg {args:?} 실패\nstdout: {}\nstderr: {}",
+            "upeg {args:?} failed\nstdout: {}\nstderr: {}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr),
         );
@@ -263,10 +263,10 @@ required = true
     fn tool<'a>(listing: &'a Value, name: &str) -> &'a Value {
         listing["result"]["tools"]
             .as_array()
-            .expect("tools/list 배열")
+            .expect("tools/list array")
             .iter()
             .find(|tool| tool["name"] == name)
-            .unwrap_or_else(|| panic!("tools/list에 {name}이 없다: {listing}"))
+            .unwrap_or_else(|| panic!("{name} missing from tools/list: {listing}"))
     }
 
     fn call(session: &mut McpSession, id: u64, name: &str, arguments: Option<Value>) -> Value {
@@ -278,7 +278,7 @@ required = true
     }
 
     #[test]
-    fn 생성된_board_연결은_안내와_도구_실행_계약을_끝까지_지킨다() {
+    fn a_generated_board_connection_honours_the_guidance_and_tool_execution_contract_end_to_end() {
         let fixture = Fixture::new();
         fixture.success(&[
             "board",
@@ -294,7 +294,7 @@ required = true
 
         let context: Value =
             serde_json::from_str(&fixture.success(&["board", PERSONAL_BOARD, "context", "--json"]))
-                .expect("개인 Board context JSON");
+                .expect("personal Board context JSON");
         assert_eq!(context["description"], "개인 릴리스 작업");
         assert_eq!(context["instructions"], "preset을 먼저 검토한다.");
         let configured_tool = context["tools"]
@@ -302,10 +302,13 @@ required = true
             .expect("context tools")
             .iter()
             .find(|tool| tool["id"] == TOOL_ID)
-            .expect("context의 workflow tool");
+            .expect("workflow tool in context");
         assert_eq!(configured_tool["defaults"]["message"], "preset-message");
         assert_eq!(configured_tool["readiness"]["status"], "ready");
-        let repository = fixture.repository.canonicalize().expect("저장소 실제 경로");
+        let repository = fixture
+            .repository
+            .canonicalize()
+            .expect("repository canonical path");
         assert_eq!(
             configured_tool["working_directory"].as_str(),
             repository.to_str(),
@@ -322,7 +325,7 @@ required = true
             personal_connection
                 .command
                 .canonicalize()
-                .expect("연결 command"),
+                .expect("connection command"),
             Path::new(env!("CARGO_BIN_EXE_upeg"))
                 .canonicalize()
                 .expect("Cargo upeg binary"),
@@ -361,7 +364,7 @@ required = true
         assert!(
             !listed_tool["inputSchema"]["required"]
                 .as_array()
-                .expect("required 배열")
+                .expect("required array")
                 .contains(&json!("message")),
         );
         tool(&listing, CONTEXT_TOOL_ID);
@@ -386,10 +389,10 @@ required = true
         let preset_call = call(&mut personal, 4, TOOL_ID, None);
         let preset_text = preset_call["result"]["content"][0]["text"]
             .as_str()
-            .expect("preset 호출 결과");
+            .expect("preset call result");
         assert!(
             preset_text.contains(&fixture.repository.to_string_lossy().to_string()),
-            "실행 경로가 repository가 아니다: {preset_text}",
+            "the execution path is not the repository: {preset_text}",
         );
         assert!(preset_text.contains("preset-message"), "{preset_text}");
 
@@ -401,7 +404,7 @@ required = true
         );
         let override_text = override_call["result"]["content"][0]["text"]
             .as_str()
-            .expect("override 호출 결과");
+            .expect("override call result");
         assert!(
             override_text.contains("explicit-message"),
             "{override_text}"
@@ -409,7 +412,7 @@ required = true
         assert!(!override_text.contains("preset-message"), "{override_text}");
         assert_eq!(
             std::fs::read_to_string(fixture.repository.join(EXECUTION_LOG))
-                .expect("실행 기록")
+                .expect("execution log")
                 .lines()
                 .count(),
             2,
@@ -425,14 +428,14 @@ required = true
         assert!(
             unpinned["error"]["message"]
                 .as_str()
-                .expect("미핀 오류")
+                .expect("unpinned error")
                 .contains(TOOL_ID),
         );
         drop(personal);
 
         let project_context: Value =
             serde_json::from_str(&fixture.success(&["board", PROJECT_BOARD, "context", "--json"]))
-                .expect("프로젝트 Board context JSON");
+                .expect("project Board context JSON");
         assert_eq!(project_context["description"], "원본 프로젝트 안내");
         assert_eq!(project_context["instructions"], "원본 지침을 따른다.");
         assert_eq!(
@@ -449,7 +452,7 @@ required = true
                 "저장소에서 덮어쓸 안내",
             ])
             .output()
-            .expect("프로젝트 Board describe 실행");
+            .expect("run project Board describe");
         assert!(!rejected_edit.status.success());
         assert!(
             String::from_utf8_lossy(&rejected_edit.stderr)
@@ -482,11 +485,11 @@ required = true
         assert_eq!(stale["error"]["data"]["reconnectRequired"], true);
         assert_eq!(
             std::fs::read_to_string(fixture.repository.join(EXECUTION_LOG))
-                .expect("stale notification 이후 실행 기록")
+                .expect("execution log after the stale notification")
                 .lines()
                 .count(),
             2,
-            "응답 없는 tools/call도 변경된 세션에서는 실행되면 안 된다",
+            "even a tools/call left without a response must not run once the session changed",
         );
         drop(project);
 

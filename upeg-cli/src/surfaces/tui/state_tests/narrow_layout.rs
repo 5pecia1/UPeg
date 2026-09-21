@@ -1,21 +1,22 @@
-//! PR #13 회귀 방어: narrow 화면에서 마우스 라우팅과 focus 가
-//! 렌더와 정렬되어야 한다.
+//! PR #13 regression guard: on narrow screens mouse routing and focus
+//! must stay aligned with the render.
 //!
-//! - P1 (Critical): handle_mouse 가 layout.left / layout.right 기반으로
-//!   hit-test 하면 narrow + Form 에서 body 가 layout.left 전체를 덮어
-//!   클릭이 grid hit 으로 새고 View::Detail 로 점프 (Form 입력 손실).
-//!   body_rects + is_dialog 가드로 막는다.
-//! - P2: narrow + List 에서 RightPane focus 가 남으면 키 입력이
-//!   invisible 패널로 흘러 grid 무응답. clamp_state_to_area 가 매-프레임
-//!   focus 를 visible surface 로 재조정하고, Tab 사이클이 invisible pane
-//!   을 skip 한다.
+//! - P1 (Critical): if handle_mouse hit-tests against layout.left /
+//!   layout.right, then in narrow + Form the body covers all of
+//!   layout.left and clicks leak into grid hits, jumping to
+//!   View::Detail (Form input loss). Guarded by body_rects + the
+//!   is_dialog check.
+//! - P2: in narrow + List a leftover RightPane focus sends key input
+//!   to the invisible panel and the grid stops responding.
+//!   clamp_state_to_area re-adjusts focus to a visible surface every
+//!   frame, and the Tab cycle skips invisible panes.
 
 use super::*;
 
-// ─────────────────── P1: mouse routing 정렬 ───────────────────
+// ─────────────────── P1: mouse routing alignment ───────────────────
 
 #[test]
-fn narrow_form_위_클릭은_form_을_떠나지_않는다() {
+fn click_over_narrow_form_does_not_leave_form() {
     let mut s = State {
         cursor: 0,
         view: View::Form {
@@ -26,14 +27,15 @@ fn narrow_form_위_클릭은_form_을_떠나지_않는다() {
     };
     let t = fixture_tools();
     let t = t.as_slice();
-    // 폭 50 < MIN_DUAL_PANE_WIDTH(60) → narrow. Form 은 right_pane_dominates
-    // 이므로 body 전체가 우측 패널처럼 동작해야 한다.
+    // Width 50 < MIN_DUAL_PANE_WIDTH(60) → narrow. Form is
+    // right_pane_dominates, so the whole body must behave like the
+    // right pane.
     let area = Rect::new(0, 0, 50, 30);
     let layout = tui_layout(area);
-    assert!(layout.is_narrow(), "전제: 폭 50은 narrow 여야 한다");
+    assert!(layout.is_narrow(), "precondition: width 50 must be narrow");
 
-    // 옛 코드 경로 (layout.left 기반) 라면 이 좌표는 grid hit 으로 처리되어
-    // state.view 를 Detail 로 바꿨을 것.
+    // Under the old code path (layout.left-based) this coordinate would
+    // have been treated as a grid hit and changed state.view to Detail.
     handle_mouse(
         &mut s,
         Mouse {
@@ -47,15 +49,16 @@ fn narrow_form_위_클릭은_form_을_떠나지_않는다() {
 
     assert!(
         matches!(s.view, View::Form { .. }),
-        "narrow + Form 에서 body 클릭이 Form 을 벗어나면 안 된다. got: {:?}",
+        "in narrow + Form a body click must not leave the Form. got: {:?}",
         s.view,
     );
-    // Form 본문은 right pane 으로 라우팅되어 focus 가 RightPane 으로 가야.
+    // The Form body is routed as the right pane, so focus must go to
+    // RightPane.
     assert_eq!(s.focus, FocusArea::RightPane);
 }
 
 #[test]
-fn narrow_form_위_휠스크롤은_right_scroll을_움직인다() {
+fn wheel_scroll_over_narrow_form_moves_right_scroll() {
     let mut s = State {
         cursor: 0,
         view: View::Form {
@@ -82,19 +85,20 @@ fn narrow_form_위_휠스크롤은_right_scroll을_움직인다() {
     );
     assert!(
         s.right_scroll > before.get(),
-        "narrow + Form 에서 휠은 right_scroll 을 진행시켜야 한다. before={:?} after={:?}",
+        "in narrow + Form the wheel must advance right_scroll. before={:?} after={:?}",
         before,
         s.right_scroll,
     );
 }
 
 #[test]
-fn narrow_list_에서_body_클릭은_그리드를_여전히_선택한다() {
-    // body_rects 도입이 narrow + List 의 그리드 클릭을 깨뜨리지 않는지.
+fn body_click_in_narrow_list_still_selects_grid() {
+    // Verify the body_rects introduction did not break grid clicks in
+    // narrow + List.
     let mut s = fresh();
     let t = fixture_tools();
     let t = t.as_slice();
-    let area = Rect::new(0, 0, 50, 30); // narrow + View::List → 보드가 본진
+    let area = Rect::new(0, 0, 50, 30); // narrow + View::List → the board is home base
     let layout = tui_layout(area);
 
     handle_mouse(
@@ -111,7 +115,7 @@ fn narrow_list_에서_body_클릭은_그리드를_여전히_선택한다() {
 }
 
 #[test]
-fn dialog_뷰_위_body_클릭은_focus를_바꾸지_않는다() {
+fn body_click_over_dialog_view_does_not_change_focus() {
     use crate::surfaces::tui::model::SettingsField;
     let mut s = State {
         view: View::Settings {
@@ -137,37 +141,37 @@ fn dialog_뷰_위_body_클릭은_focus를_바꾸지_않는다() {
     );
     assert!(
         matches!(s.view, View::Settings { .. }),
-        "Settings 위 클릭은 view 를 바꾸면 안 된다"
+        "a click over Settings must not change the view"
     );
     assert_eq!(
         s.focus,
         FocusArea::Boards,
-        "dialog 위 body 클릭은 focus 도 건드리면 안 된다"
+        "a body click over a dialog must not touch focus either"
     );
 }
 
-// ─────────────────── P2: focus 재조정 + Tab skip ───────────────────
+// ─────────────────── P2: focus re-adjustment + Tab skip ───────────────────
 
 #[test]
-fn narrow_list로_resize되면_right_pane_focus가_grid로_재조정된다() {
+fn resize_to_narrow_list_readjusts_right_pane_focus_to_grid() {
     let mut s = State {
         focus: FocusArea::RightPane,
         ..State::default()
     };
     let t = fixture_tools();
     let t = t.as_slice();
-    let area = Rect::new(0, 0, 50, 30); // narrow + List → grid 본진
+    let area = Rect::new(0, 0, 50, 30); // narrow + List → grid home base
 
     clamp_state_to_area(&mut s, t, area);
     assert_eq!(
         s.focus,
         FocusArea::Grid,
-        "narrow + List 에서 RightPane focus 는 Grid 로 재조정되어야 한다"
+        "in narrow + List, RightPane focus must be re-adjusted to Grid"
     );
 }
 
 #[test]
-fn narrow_form으로_resize되면_grid_focus가_right_pane으로_재조정된다() {
+fn resize_to_narrow_form_readjusts_grid_focus_to_right_pane() {
     let mut s = State {
         focus: FocusArea::Grid,
         view: View::Form {
@@ -184,12 +188,12 @@ fn narrow_form으로_resize되면_grid_focus가_right_pane으로_재조정된다
     assert_eq!(
         s.focus,
         FocusArea::RightPane,
-        "narrow + Form 에서 Grid focus 는 RightPane 으로 재조정되어야 한다"
+        "in narrow + Form, Grid focus must be re-adjusted to RightPane"
     );
 }
 
 #[test]
-fn 넓은_화면에서는_clamp가_focus를_보존한다() {
+fn clamp_preserves_focus_on_wide_screen() {
     let mut s = State {
         focus: FocusArea::RightPane,
         ..State::default()
@@ -202,21 +206,21 @@ fn 넓은_화면에서는_clamp가_focus를_보존한다() {
     assert_eq!(
         s.focus,
         FocusArea::RightPane,
-        "wide-mode 에서는 RightPane focus 가 유지되어야 한다"
+        "in wide mode RightPane focus must be preserved"
     );
 }
 
 #[test]
-fn narrow_list_에서_tab은_invisible_right_pane을_건너뛴다() {
+fn tab_in_narrow_list_skips_invisible_right_pane() {
     let mut s = State {
         focus: FocusArea::Tags,
         ..State::default()
     };
     let t = fixture_tools();
     let t = t.as_slice();
-    let area = Rect::new(0, 0, 50, 30); // narrow + List → right 안 보임
+    let area = Rect::new(0, 0, 50, 30); // narrow + List → right pane not visible
 
-    // Tags → (next: RightPane, 건너뜀) → Grid
+    // Tags → (next: RightPane, skipped) → Grid
     update(
         &mut s,
         Msg::KeyPress {
@@ -228,33 +232,36 @@ fn narrow_list_에서_tab은_invisible_right_pane을_건너뛴다() {
     assert_eq!(
         s.focus,
         FocusArea::Grid,
-        "narrow + List 의 Tab 은 RightPane 을 건너뛰고 Grid 로 와야 한다"
+        "Tab in narrow + List must skip RightPane and land on Grid"
     );
 }
 
-// Form view 에서 Tab 은 폼 필드 이동을 담당 (handle_focus_command 호출이
-// 차단되어 있음 — update.rs 의 `!matches!(state.view, View::Form {..})` 가드).
-// 따라서 narrow + Form 의 surface skip 은 Tab 으로는 도달되지 않는다.
-// 대응되는 회귀 방어는 clamp_state_to_area 가 Grid focus 를
-// RightPane 으로 재조정한다는 위의 `narrow_form으로_resize되면…` 테스트가 담당.
+// In the Form view, Tab handles form-field movement (the
+// handle_focus_command call is blocked — the
+// `!matches!(state.view, View::Form {..})` guard in update.rs). So the
+// narrow + Form surface skip is unreachable via Tab. The corresponding
+// regression guard is covered by the
+// `resize_to_narrow_form_readjusts…` test above, where
+// clamp_state_to_area re-adjusts Grid focus to RightPane.
 
-// ─────────────────── cycle-back 종료 가드 ───────────────────
+// ─────────────────── cycle-back termination guard ───────────────────
 
 #[test]
-fn narrow_list_에서_grid_focus_상태로_tab을_누르면_cycle은_정확히_한_바퀴안에_종료한다() {
-    // next_focus 는 cycle-back termination 으로 무한루프를 방지한다.
-    // FocusArea variant 가 추가되어도 magic number(0..4) 가 아니라
-    // `cursor != focus` 가 종료를 보장하므로, 이 회귀 가드는 단순히
-    // "cycle 이 panic/hang 없이 끝난다" 를 단정한다.
+fn tab_cycle_in_narrow_list_terminates_within_one_cycle() {
+    // next_focus prevents infinite loops via cycle-back termination.
+    // Since `cursor != focus` guarantees termination even if a
+    // FocusArea variant is added (rather than a magic number like
+    // 0..4), this regression guard simply asserts "the cycle ends
+    // without panic/hang".
     let mut s = State {
         focus: FocusArea::Grid,
         ..State::default()
     };
     let t = fixture_tools();
     let t = t.as_slice();
-    let area = Rect::new(0, 0, 50, 30); // narrow + List → grid 본진, right 접힘
+    let area = Rect::new(0, 0, 50, 30); // narrow + List → grid home base, right collapsed
 
-    // Grid → (next: Boards, 보임) → Boards
+    // Grid → (next: Boards, visible) → Boards
     update(
         &mut s,
         Msg::KeyPress {
@@ -266,10 +273,10 @@ fn narrow_list_에서_grid_focus_상태로_tab을_누르면_cycle은_정확히_�
     assert_eq!(
         s.focus,
         FocusArea::Boards,
-        "Grid → Boards 첫 visible 로 이동해야 한다"
+        "must move Grid → Boards, the first visible"
     );
 
-    // Boards → Tags → (RightPane, 안 보임 → skip) → (Grid, 보임) → Grid
+    // Boards → Tags → (RightPane, not visible → skip) → (Grid, visible) → Grid
     update(
         &mut s,
         Msg::KeyPress {
@@ -289,6 +296,6 @@ fn narrow_list_에서_grid_focus_상태로_tab을_누르면_cycle은_정확히_�
     assert_eq!(
         s.focus,
         FocusArea::Grid,
-        "Tab 두 번에 Tags → Grid (RightPane skip) 으로 와야 한다"
+        "two Tabs must go Tags → Grid (RightPane skip)"
     );
 }

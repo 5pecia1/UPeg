@@ -114,7 +114,7 @@ List<Override> _boardPageOverrides() {
 
 void main() {
   group('UpegApp', () {
-    test('appInitProvider는_AppInitReport_로그를_남기고_ERROR를_쓰지_않는다', () async {
+    test('appInitProvider_logs_the_AppInitReport_and_writes_no_ERROR', () async {
       final logs = <String>[];
       var integrationsInstalled = false;
       final container = ProviderContainer(
@@ -154,7 +154,7 @@ void main() {
       expect(logs.any((line) => line.contains('ERROR')), isFalse);
     });
 
-    testWidgets('UpegApp_은_초기_로딩_상태에서_SplashPage를_표시한다', (tester) async {
+    testWidgets('UpegApp_shows_the_SplashPage_while_loading', (tester) async {
       await tester.pumpWidget(
         _harness(initState: const AsyncValue<AppInitReport>.loading()),
       );
@@ -172,7 +172,9 @@ void main() {
       expect(find.byType(TrayMenuSync), findsOneWidget);
     });
 
-    testWidgets('UpegApp_은_에러_상태에서_안내_텍스트를_표시한다', (tester) async {
+    testWidgets('UpegApp_shows_guidance_text_in_the_error_state', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -188,7 +190,9 @@ void main() {
       expect(find.textContaining('boot fail'), findsOneWidget);
     });
 
-    testWidgets('UpegApp_은_AlreadyRunning_부트오류를_명확히_표시한다', (tester) async {
+    testWidgets('UpegApp_surfaces_the_AlreadyRunning_boot_error_clearly', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _harness(
           initState: const AsyncValue<AppInitReport>.error(
@@ -205,7 +209,7 @@ void main() {
       expect(find.textContaining('FrbError'), findsNothing);
     });
 
-    testWidgets('UpegApp_은_AppInitReport_data에서_BoardPage로_전환한다', (
+    testWidgets('UpegApp_transitions_to_BoardPage_on_AppInitReport_data', (
       tester,
     ) async {
       await tester.pumpWidget(

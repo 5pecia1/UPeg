@@ -31,8 +31,8 @@ const _placement = PlacementDto(
   h: 1,
 );
 
-/// 사용자 span override가 있는 placement — "reset size" 항목이 노출되는
-/// 전제 조건.
+/// A placement carrying a user span override — the precondition for the
+/// "reset size" menu item to appear.
 const _resizedPlacement = PlacementDto(
   toolId: 'num.hex_to_decimal',
   x: 0,
@@ -93,11 +93,11 @@ class _SeededCurrentBoard extends CurrentBoardNotifier {
 
 void main() {
   group('Pin context menu (F03)', () {
-    testWidgets('Pin_우클릭은_unpin_메뉴_항목을_표시한다', (tester) async {
+    testWidgets('a_pin_right_click_shows_the_unpin_menu_item', (tester) async {
       await tester.pumpWidget(_harness(boardKey: 'dev'));
       await tester.pump();
 
-      // 우클릭(secondary tap) 으로 context menu 를 띄운다.
+      // A right-click (secondary tap) raises the context menu.
       await tester.tapAt(
         tester.getCenter(find.byType(Pin)),
         buttons: kSecondaryButton,
@@ -107,7 +107,9 @@ void main() {
       expect(find.text('unpin'), findsOneWidget);
     });
 
-    testWidgets('Pin_unpin_메뉴_탭은_unpinTool을_호출한다', (tester) async {
+    testWidgets('tapping_the_pin_unpin_menu_item_calls_unpintool', (
+      tester,
+    ) async {
       BoardKey? observedBoard;
       ToolId? observedTool;
       void recorder(BoardKey boardKey, ToolId toolId) {
@@ -130,7 +132,7 @@ void main() {
       expect(observedTool, ToolId.parse('num.hex_to_decimal'));
     });
 
-    testWidgets('핀_우클릭은_확장_모달을_연다', (tester) async {
+    testWidgets('a_pin_right_click_opens_the_expanded_modal', (tester) async {
       PlacementDto? opened;
       var tapped = false;
       await tester.pumpWidget(
@@ -142,7 +144,8 @@ void main() {
       );
       await tester.pump();
 
-      // 우클릭(secondary tap) → context menu → "open" → 확장 모달 핸들러 호출.
+      // Right-click (secondary tap) → context menu → "open" → invokes the
+      // expanded-modal handler.
       await tester.tapAt(
         tester.getCenter(find.byType(Pin)),
         buttons: kSecondaryButton,
@@ -153,11 +156,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(opened?.toolId, 'num.hex_to_decimal');
-      // 우클릭 경로는 Run(onTap) 을 발동하지 않는다.
+      // The right-click path never fires Run (onTap).
       expect(tapped, isFalse);
     });
 
-    testWidgets('span_override가_있는_핀은_reset_size_메뉴를_보여준다', (tester) async {
+    testWidgets('a_pin_with_a_span_override_shows_the_reset_size_menu_item', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _harness(boardKey: 'dev', placement: _resizedPlacement),
       );
@@ -173,20 +178,25 @@ void main() {
       expect(find.text(i18nEn('pin.menu.reset_size')), findsOneWidget);
     });
 
-    testWidgets('span_override가_없는_핀은_reset_size_메뉴를_숨긴다', (tester) async {
-      await tester.pumpWidget(_harness(boardKey: 'dev'));
-      await tester.pump();
+    testWidgets(
+      'a_pin_without_a_span_override_hides_the_reset_size_menu_item',
+      (tester) async {
+        await tester.pumpWidget(_harness(boardKey: 'dev'));
+        await tester.pump();
 
-      await tester.tapAt(
-        tester.getCenter(find.byType(Pin)),
-        buttons: kSecondaryButton,
-      );
-      await tester.pumpAndSettle();
+        await tester.tapAt(
+          tester.getCenter(find.byType(Pin)),
+          buttons: kSecondaryButton,
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pin-context-reset-size')), findsNothing);
-    });
+        expect(find.byKey(const Key('pin-context-reset-size')), findsNothing);
+      },
+    );
 
-    testWidgets('reset_size_메뉴_탭은_clearPinSpan을_호출한다', (tester) async {
+    testWidgets('tapping_the_reset_size_menu_item_calls_clearpinspan', (
+      tester,
+    ) async {
       BoardKey? observedBoard;
       ToolId? observedTool;
       void recorder(BoardKey boardKey, ToolId toolId) {
@@ -215,8 +225,10 @@ void main() {
       expect(observedTool, ToolId.parse('num.hex_to_decimal'));
     });
 
-    testWidgets('컨텍스트_메뉴_항목은_대응_키_라벨을_병기한다', (tester) async {
-      // 키 라벨은 하드코딩이 아니라 binding catalog 조회 결과다
+    testWidgets('context_menu_items_annotate_their_bound_key_labels', (
+      tester,
+    ) async {
+      // The key labels come from the binding catalog, not hard-coding
       // (open→o, edit color→c, reset size→e, unpin→p).
       await tester.pumpWidget(
         _harness(
@@ -240,11 +252,12 @@ void main() {
       expect(capInItem('pin-context-open', 'o'), findsOneWidget);
       expect(capInItem('pin-context-edit-color', 'c'), findsOneWidget);
       expect(capInItem('pin-context-reset-size', 'e'), findsOneWidget);
-      // unpin 항목은 위젯 키가 없다 — 메뉴 안에서 `p` 캡은 unpin 뿐이다.
+      // The unpin item has no widget key — inside the menu the `p` cap
+      // can only be unpin's.
       expect(find.text('p'), findsOneWidget);
     });
 
-    testWidgets('핀_탭은_모달을_열지_않고_실행한다', (tester) async {
+    testWidgets('a_pin_tap_runs_without_opening_the_modal', (tester) async {
       PlacementDto? opened;
       var tapped = false;
       await tester.pumpWidget(
@@ -259,7 +272,7 @@ void main() {
       await tester.tap(find.byType(Pin));
       await tester.pumpAndSettle();
 
-      // Inline-first: 탭은 Run 만 하고 모달은 열지 않는다.
+      // Inline-first: a tap only runs; it never opens the modal.
       expect(tapped, isTrue);
       expect(opened, isNull);
       expect(find.text('open'), findsNothing);

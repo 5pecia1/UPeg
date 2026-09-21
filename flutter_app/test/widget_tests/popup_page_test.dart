@@ -19,7 +19,9 @@ import '../test_helpers/popup_page_harness.dart';
 
 void main() {
   group('PopupPage', () {
-    testWidgets('PopupPage_는_검색_필드와_빈_결과_안내를_표시한다', (tester) async {
+    testWidgets('popuppage_shows_the_search_field_and_empty_result_hint', (
+      tester,
+    ) async {
       await tester.pumpWidget(popupPageHarness());
       await tester.pumpAndSettle();
 
@@ -39,7 +41,7 @@ void main() {
       expect(find.byKey(const Key('popup-no-results')), findsOneWidget);
     });
 
-    testWidgets('PopupPage_는_검색_결과를_리스트로_렌더한다', (tester) async {
+    testWidgets('popuppage_renders_search_results_as_a_list', (tester) async {
       const hits = [
         PaletteHit(
           id: 'num.hex_to_decimal',
@@ -72,7 +74,9 @@ void main() {
       );
     });
 
-    testWidgets('Popup_open_desktop_탭은_windowMode를_full로_전환한다', (tester) async {
+    testWidgets('the_popup_open_desktop_tab_switches_windowmode_to_full', (
+      tester,
+    ) async {
       WindowMode? observed;
       await tester.pumpWidget(
         popupPageHarness(
@@ -91,7 +95,7 @@ void main() {
       expect(observed, WindowMode.full);
     });
 
-    testWidgets('Popup_hits는_2열_그리드로_렌더된다', (tester) async {
+    testWidgets('popup_hits_render_as_a_two_column_grid', (tester) async {
       const hits = [
         PaletteHit(
           id: 'a.one',
@@ -135,10 +139,73 @@ void main() {
       expect(delegate.crossAxisCount, popupGridCols);
     });
 
-    testWidgets('Popup_empty_query는_등록된_전체_도구_카탈로그를_표시한다', (tester) async {
-      final fakeHits = paletteHits(8);
-      await tester.pumpWidget(
-        ProviderScope(
+    testWidgets(
+      'an_empty_popup_query_shows_the_full_registered_tool_catalogue',
+      (tester) async {
+        final fakeHits = paletteHits(8);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              ...basePopupOverrides(),
+              paletteBrowseOverride(fakeHits),
+              boardsLoaderProvider.overrideWith(
+                (ref) =>
+                    () => const <BoardDto>[],
+              ),
+            ],
+            child: const MaterialApp(home: PopupPage()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Empty query: shows the full registered catalogue, not a 6-item slice.
+        final grid = tester.widget<GridView>(find.byType(GridView));
+        final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
+        expect(delegate.childCount, 8);
+      },
+    );
+
+    testWidgets(
+      'a_cold_boot_popup_shows_catalogue_tools_without_a_board_selection',
+      (tester) async {
+        // After removing the 6-pin cap, empty query uses the desktop-filtered
+        // palette browse path instead of board placements. This verifies the
+        // popup shows catalogue hits even without a pre-seeded board selection.
+        final fakeHits = paletteHits(8);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              ...basePopupOverrides(),
+              paletteBrowseOverride(fakeHits),
+              boardsLoaderProvider.overrideWith(
+                (ref) =>
+                    () => const <BoardDto>[],
+              ),
+              // Deliberately NO currentBoardKeyProvider override — the
+              // catalogue does not depend on board selection.
+            ],
+            child: const MaterialApp(home: PopupPage()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Catalogue tools rendered (8), no empty hint shown.
+        final grid = tester.widget<GridView>(find.byType(GridView));
+        final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
+        expect(delegate.childCount, 8);
+        expect(find.byKey(const Key('popup-empty-hint')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'tapping_a_popup_cell_switches_windowmode_to_full_and_queues_the_pin_as_pending',
+      (tester) async {
+        WindowMode? observedMode;
+        final fakeHits = [paletteHit('num.hex_to_decimal', 'Hex → Dec')];
+
+        final container = ProviderContainer(
           overrides: [
             ...i18nTestOverrides,
             ...basePopupOverrides(),
@@ -147,90 +214,35 @@ void main() {
               (ref) =>
                   () => const <BoardDto>[],
             ),
-          ],
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Empty query: shows the full registered catalogue, not a 6-item slice.
-      final grid = tester.widget<GridView>(find.byType(GridView));
-      final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
-      expect(delegate.childCount, 8);
-    });
-
-    testWidgets('Popup_콜드부트는_보드_선택_없이도_카탈로그_도구를_표시한다', (tester) async {
-      // After removing the 6-pin cap, empty query uses the desktop-filtered
-      // palette browse path instead of board placements. This verifies the
-      // popup shows catalogue hits even without a pre-seeded board selection.
-      final fakeHits = paletteHits(8);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            ...basePopupOverrides(),
-            paletteBrowseOverride(fakeHits),
-            boardsLoaderProvider.overrideWith(
-              (ref) =>
-                  () => const <BoardDto>[],
+            windowModeProvider.overrideWith(
+              () => RecordingWindowModeNotifier(
+                onChange: (m) => observedMode = m,
+              ),
             ),
-            // Deliberately NO currentBoardKeyProvider override — the
-            // catalogue does not depend on board selection.
           ],
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        addTearDown(container.dispose);
 
-      // Catalogue tools rendered (8), no empty hint shown.
-      final grid = tester.widget<GridView>(find.byType(GridView));
-      final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
-      expect(delegate.childCount, 8);
-      expect(find.byKey(const Key('popup-empty-hint')), findsNothing);
-    });
-
-    testWidgets('Popup_cell_탭은_windowMode를_full로_바꾸고_pin을_pending에_큐잉한다', (
-      tester,
-    ) async {
-      WindowMode? observedMode;
-      final fakeHits = [paletteHit('num.hex_to_decimal', 'Hex → Dec')];
-
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...basePopupOverrides(),
-          paletteBrowseOverride(fakeHits),
-          boardsLoaderProvider.overrideWith(
-            (ref) =>
-                () => const <BoardDto>[],
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: PopupPage()),
           ),
-          windowModeProvider.overrideWith(
-            () =>
-                RecordingWindowModeNotifier(onChange: (m) => observedMode = m),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.tap(find.byType(PopupHitCell).first);
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(PopupHitCell).first);
-      await tester.pumpAndSettle();
+        expect(observedMode, WindowMode.full);
+        expect(
+          container.read(pendingActivationProvider),
+          ToolId.parse('num.hex_to_decimal'),
+        );
+      },
+    );
 
-      expect(observedMode, WindowMode.full);
-      expect(
-        container.read(pendingActivationProvider),
-        ToolId.parse('num.hex_to_decimal'),
-      );
-    });
-
-    testWidgets('Popup_헤더는_보드_탭_strip을_렌더한다', (tester) async {
+    testWidgets('the_popup_header_renders_the_board_tab_strip', (tester) async {
       const boards = <BoardDto>[
         BoardDto(key: 'a', title: 'Alpha'),
         BoardDto(key: 'b', title: 'Bravo'),
@@ -245,7 +257,9 @@ void main() {
       expect(find.text('Charlie'), findsOneWidget);
     });
 
-    testWidgets('Popup_보드탭_탭은_currentBoardKeyProvider를_갱신한다', (tester) async {
+    testWidgets('tapping_a_popup_board_tab_updates_currentboardkeyprovider', (
+      tester,
+    ) async {
       const boards = <BoardDto>[
         BoardDto(key: 'a', title: 'Alpha'),
         BoardDto(key: 'b', title: 'Bravo'),
@@ -280,7 +294,9 @@ void main() {
       expect(container.read(currentBoardKeyProvider), BoardKey.parse('b'));
     });
 
-    testWidgets('Popup_보드탭은_키보드로_선택을_이동한다', (tester) async {
+    testWidgets('the_popup_board_tabs_move_the_selection_via_the_keyboard', (
+      tester,
+    ) async {
       const boards = <BoardDto>[
         BoardDto(key: 'a', title: 'Alpha'),
         BoardDto(key: 'b', title: 'Bravo'),
@@ -328,7 +344,7 @@ void main() {
       expect(container.read(currentBoardKeyProvider), BoardKey.parse('a'));
     });
 
-    testWidgets('Popup_Enter는_선택된_hit을_activate한다', (tester) async {
+    testWidgets('popup_enter_activates_the_selected_hit', (tester) async {
       final fakeHits = [
         paletteHit('test.tool_zero', 'Tool Zero'),
         paletteHit('test.tool_one', 'Tool One'),
@@ -371,7 +387,9 @@ void main() {
       );
     });
 
-    testWidgets('Popup_arrowDown은_아래_행의_hit으로_이동한다', (tester) async {
+    testWidgets('popup_arrowdown_moves_to_the_hit_on_the_next_row', (
+      tester,
+    ) async {
       final fakeHits = paletteHits(4);
       final container = ProviderContainer(
         overrides: [
@@ -411,56 +429,57 @@ void main() {
       );
     });
 
-    testWidgets('Popup_검색_field_focus중_q는_close가_아니라_text_input에_맡긴다', (
-      tester,
-    ) async {
-      final hider = RecordingWindowHider();
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...basePopupOverrides(),
-          paletteBrowseOverride(paletteHits(3)),
-          boardsLoaderProvider.overrideWith(
-            (ref) =>
-                () => const <BoardDto>[],
-          ),
-          windowModeProvider.overrideWith(
-            () => RecordingWindowModeNotifier(
-              initial: WindowMode.popup,
-              onChange: (_) {},
+    testWidgets(
+      'q_while_the_popup_search_field_is_focused_goes_to_text_input_not_close',
+      (tester) async {
+        final hider = RecordingWindowHider();
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...basePopupOverrides(),
+            paletteBrowseOverride(paletteHits(3)),
+            boardsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => const <BoardDto>[],
             ),
+            windowModeProvider.overrideWith(
+              () => RecordingWindowModeNotifier(
+                initial: WindowMode.popup,
+                onChange: (_) {},
+              ),
+            ),
+            popupWindowHiderProvider.overrideWithValue(hider),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: PopupPage()),
           ),
-          popupWindowHiderProvider.overrideWithValue(hider),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
+        await tester.showKeyboard(find.byKey(const Key('popup-search-field')));
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.showKeyboard(find.byKey(const Key('popup-search-field')));
+        final focus = tester.widget<Focus>(popupRootFocusFinder());
+        final result = focus.onKeyEvent!(
+          focus.focusNode!,
+          KeyDownEvent(
+            physicalKey: PhysicalKeyboardKey.keyQ,
+            logicalKey: LogicalKeyboardKey.keyQ,
+            character: 'q',
+            timeStamp: Duration.zero,
+          ),
+        );
 
-      final focus = tester.widget<Focus>(popupRootFocusFinder());
-      final result = focus.onKeyEvent!(
-        focus.focusNode!,
-        KeyDownEvent(
-          physicalKey: PhysicalKeyboardKey.keyQ,
-          logicalKey: LogicalKeyboardKey.keyQ,
-          character: 'q',
-          timeStamp: Duration.zero,
-        ),
-      );
+        expect(result, KeyEventResult.ignored);
+        expect(hider.hideCount, 0);
+        expect(container.read(windowModeProvider), WindowMode.popup);
+      },
+    );
 
-      expect(result, KeyEventResult.ignored);
-      expect(hider.hideCount, 0);
-      expect(container.read(windowModeProvider), WindowMode.popup);
-    });
-
-    testWidgets('빈_검색은_등록된_모든_도구를_보여준다', (tester) async {
+    testWidgets('an_empty_search_shows_every_registered_tool', (tester) async {
       // Register more tools than the old 6-item cap.
       final fakeHits = paletteHits(10, prefix: 'test.tool_');
       await tester.pumpWidget(

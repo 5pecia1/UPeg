@@ -5,7 +5,7 @@ use crate::{LoadError, parse_toolkit_full};
 use upeg_core::{InputKind, Invoker, OutputKind, PinKind, Surface};
 
 #[test]
-fn 평면_도구_toml은_v2_1_manifest로_허용되지_않는다() {
+fn flat_tool_toml_is_not_accepted_as_v2_1_manifest() {
     let flat = r#"
             id = "test.minimal"
             toolkit = "test"
@@ -21,7 +21,7 @@ fn 평면_도구_toml은_v2_1_manifest로_허용되지_않는다() {
 }
 
 #[test]
-fn v2_1_manifest는_도구킷과_도구_태그를_병합하고_중복을_제거한다() {
+fn v2_1_manifest_merges_toolkit_and_tool_tags_deduped() {
     let s = r#"
             id = "tagkit"
             tags = ["pure", "text"]
@@ -48,7 +48,7 @@ fn v2_1_manifest는_도구킷과_도구_태그를_병합하고_중복을_제거�
 }
 
 #[test]
-fn 도구킷_manifest는_점이_있는_도구킷과_로컬_이름을_허용한다() {
+fn toolkit_manifest_allows_dotted_toolkit_and_local_names() {
     let s = r#"
             id = "github.com"
             description = "Dotted toolkit"
@@ -69,7 +69,7 @@ fn 도구킷_manifest는_점이_있는_도구킷과_로컬_이름을_허용한�
 }
 
 #[test]
-fn 최소_필수_필드를_파싱한다() {
+fn minimal_required_fields_parse() {
     let s = r#"
             id = "test.minimal"
             toolkit = "test"
@@ -86,7 +86,7 @@ fn 최소_필수_필드를_파싱한다() {
 }
 
 #[test]
-fn 전체_형태를_파싱한다() {
+fn full_shape_parses() {
     // Iter 242: External invoker now requires a `command` field —
     // included here so the test's intent (exercising the full
     // schema) survives the new validation.
@@ -110,7 +110,7 @@ fn 전체_형태를_파싱한다() {
 }
 
 #[test]
-fn 전체_파싱은_메타와_선언형_필드를_반환한다() {
+fn full_parse_returns_meta_and_declarative_fields() {
     let s = r#"
             id = "automation.demo"
             toolkit = "automation"
@@ -136,7 +136,7 @@ fn 전체_파싱은_메타와_선언형_필드를_반환한다() {
 }
 
 #[test]
-fn 최소_설명은_빈값을_기본값으로_파싱한다() {
+fn minimal_description_defaults_to_empty() {
     let s = r#"
             id = "test.minimal_desc"
             toolkit = "test"
@@ -148,7 +148,7 @@ fn 최소_설명은_빈값을_기본값으로_파싱한다() {
 }
 
 #[test]
-fn 파싱은_알수없는_pin_종류를_거부한다() {
+fn parsing_rejects_unknown_pin_kind() {
     let s = r#"
             id = "y.x"
             toolkit = "y"
@@ -163,7 +163,7 @@ fn 파싱은_알수없는_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 파싱은_알수없는_호출자를_거부한다() {
+fn parsing_rejects_unknown_invoker() {
     let s = r#"
             id = "y.x"
             toolkit = "y"
@@ -176,7 +176,7 @@ fn 파싱은_알수없는_호출자를_거부한다() {
 }
 
 #[test]
-fn 파싱은_모든_pin_종류_변형을_허용한다() {
+fn parsing_accepts_all_pin_kind_variants() {
     // Iter 188: companion to iter 187's invoker-variant coverage.
     // Pre-iter-188 the loader tests covered Inline (default),
     // Launcher (full-shape), Live (in a single mid-file test),
@@ -208,7 +208,7 @@ fn 파싱은_모든_pin_종류_변형을_허용한다() {
 }
 
 #[test]
-fn 파싱은_모든_표면_변형을_허용한다() {
+fn parsing_accepts_all_surface_variants() {
     // Iter 188: end-to-end coverage of every Surface label through
     // the loader. Pre-iter-188 only Cli/Tui/Http were explicitly
     // exercised. Surfaces flow through `parse_surface` (loader-local
@@ -241,7 +241,7 @@ fn 파싱은_모든_표면_변형을_허용한다() {
 }
 
 #[test]
-fn 파싱은_모든_runtime_호출자_변형을_허용한다() {
+fn parsing_accepts_all_runtime_invoker_variants() {
     // Iter 165 added `Invoker::parse` and the loader migrated to use
     // it. Runtime TOML can only declare executable dynamic adapters:
     // `Function` belongs to link-time `#[tool]` inventory and is covered by
@@ -272,7 +272,7 @@ fn 파싱은_모든_runtime_호출자_변형을_허용한다() {
 }
 
 #[test]
-fn 파싱은_runtime_toml의_함수_호출자를_거부한다() {
+fn parsing_rejects_function_invoker_in_runtime_toml() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "Function""#;
@@ -285,7 +285,7 @@ fn 파싱은_runtime_toml의_함수_호출자를_거부한다() {
 }
 
 #[test]
-fn 파싱은_알수없는_표면을_거부한다() {
+fn parsing_rejects_unknown_surface() {
     let s = r#"
             id = "y.x"
             toolkit = "y"
@@ -300,7 +300,7 @@ fn 파싱은_알수없는_표면을_거부한다() {
 }
 
 #[test]
-fn 파싱은_잘못된_toml을_거부한다() {
+fn parsing_rejects_invalid_toml() {
     assert!(matches!(
         parse_fixture_tool("totally :: not :: toml"),
         Err(LoadError::Toml(_))
@@ -308,14 +308,14 @@ fn 파싱은_잘못된_toml을_거부한다() {
 }
 
 #[test]
-fn 파싱은_누락된_필수_id_필드에서_오류를_낸다() {
+fn parsing_errors_on_missing_required_id_field() {
     let s = r#"toolkit = "x""#;
     // serde's `id: String` (non-Option) requirement is enforced at parse time.
     assert!(matches!(parse_fixture_tool(s), Err(LoadError::Toml(_))));
 }
 
 #[test]
-fn 파싱은_누락된_필수_페그보드_단위에서_오류를_낸다() {
+fn parsing_errors_on_missing_required_pegboard_units() {
     let s = r#"
             id = "test"
 
@@ -331,7 +331,7 @@ fn 파싱은_누락된_필수_페그보드_단위에서_오류를_낸다() {
 }
 
 #[test]
-fn 파싱은_비어있거나_알수없는_페그보드_단위를_거부한다() {
+fn parsing_rejects_empty_or_unknown_pegboard_units() {
     for (toml_value, expected) in [
         (r#"pegboard_units = """#, "EmptyPegboardUnits"),
         (r#"pegboard_units = "  ""#, "EmptyPegboardUnits"),
@@ -355,7 +355,7 @@ fn 파싱은_비어있거나_알수없는_페그보드_단위를_거부한다() 
 }
 
 #[test]
-fn 파싱은_빈_체인을_거부한다() {
+fn parsing_rejects_empty_chain() {
     let s = r#"id = "y.x"
             toolkit = "y"
             steps = []"#;
@@ -366,7 +366,7 @@ fn 파싱은_빈_체인을_거부한다() {
 }
 
 #[test]
-fn 파싱은_빈_문자열_체인_단계를_거부한다() {
+fn parsing_rejects_empty_string_chain_step() {
     // Iter 195: pre-iter-195 the loader accepted `steps = [{ tool = "" }]`
     // (and whitespace-only steps). The dispatcher would then fail
     // at first call with `step ``: tool not found in registry` —
@@ -399,7 +399,7 @@ fn 파싱은_빈_문자열_체인_단계를_거부한다() {
 }
 
 #[test]
-fn 파싱은_공백이_붙은_열거형_값을_거부한다() {
+fn parsing_rejects_padded_enum_values() {
     // Manifest enum values are canonical strings. Empty/all-whitespace
     // values get dedicated Empty* errors, but padded non-empty values
     // must not be silently normalized.
@@ -451,7 +451,7 @@ fn 파싱은_공백이_붙은_열거형_값을_거부한다() {
 }
 
 #[test]
-fn 파싱은_빈_호출자와_pin_종류를_거부한다() {
+fn parsing_rejects_empty_invoker_and_pin_kind() {
     // Iter 205: present-but-empty invoker / pin get
     // distinct error variants instead of falling through to
     // UnknownInvoker("  ") / UnknownPinKind("  ") with
@@ -477,7 +477,7 @@ fn 파싱은_빈_호출자와_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 파싱은_빈_표면_항목을_거부한다() {
+fn parsing_rejects_empty_surface_entry() {
     // Iter 207: empty surface entries get the dedicated
     // EmptyInSurfaces error variant with position info, instead
     // of falling through to UnknownSurface("") with empty backticks.
@@ -504,7 +504,7 @@ fn 파싱은_빈_표면_항목을_거부한다() {
 }
 
 #[test]
-fn 파싱은_작성자용_입력_schema_필드를_거부한다() {
+fn parsing_rejects_author_facing_input_schema_field() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -522,7 +522,7 @@ fn 파싱은_작성자용_입력_schema_필드를_거부한다() {
 }
 
 #[test]
-fn 누락되거나_빈_입력은_허용된다() {
+fn missing_or_empty_inputs_are_allowed() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -540,7 +540,7 @@ fn 누락되거나_빈_입력은_허용된다() {
 }
 
 #[test]
-fn 파싱은_입력을_허용하고_입력_명세를_생성한다() {
+fn parsing_accepts_inputs_and_builds_input_spec() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -589,7 +589,7 @@ fn 파싱은_입력을_허용하고_입력_명세를_생성한다() {
 }
 
 #[test]
-fn 파싱은_모든_입력_유형을_허용한다() {
+fn parsing_accepts_all_input_types() {
     for ty in [
         "string",
         "number",
@@ -615,7 +615,7 @@ fn 파싱은_모든_입력_유형을_허용한다() {
 }
 
 #[test]
-fn 파싱은_잘못된_입력을_거부한다() {
+fn parsing_rejects_invalid_inputs() {
     let unknown_type = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -670,7 +670,7 @@ fn 파싱은_잘못된_입력을_거부한다() {
 mod outputs;
 
 #[test]
-fn 누락된_호출자는_runtime_도구에서_거부된다() {
+fn missing_invoker_is_rejected_for_runtime_tools() {
     // Runtime Toolkit TOML is dynamic: without an explicit executable adapter
     // there is no compile-time `#[tool]` dispatcher to call. Do not preserve the
     // old implicit Function default because it created visible-but-uncallable
@@ -684,7 +684,7 @@ fn 누락된_호출자는_runtime_도구에서_거부된다() {
 }
 
 #[test]
-fn 호출자가_선언되면_누락된_pin_종류는_여전히_기본값을_쓴다() {
+fn declared_invoker_keeps_missing_pin_kind_default() {
     let s = r#"id = "y.x"
                    toolkit = "y"
                    invoker = "External"
@@ -694,7 +694,7 @@ fn 호출자가_선언되면_누락된_pin_종류는_여전히_기본값을_쓴�
 }
 
 #[test]
-fn 파싱은_빈_id와_도구킷을_거부한다() {
+fn parsing_rejects_empty_id_and_toolkit() {
     // Iter 196: pre-iter-196 the loader accepted `id = ""` and
     // `toolkit = ""` because serde only enforced presence, not
     // content. Empty-id tools would register and silently shadow
@@ -726,7 +726,7 @@ fn 파싱은_빈_id와_도구킷을_거부한다() {
 }
 
 #[test]
-fn 파싱은_공백이_붙은_manifest_정체성을_거부한다() {
+fn parsing_rejects_padded_manifest_identities() {
     let padded_toolkit = r#"
             id = " kit "
 
@@ -762,7 +762,7 @@ fn 파싱은_공백이_붙은_manifest_정체성을_거부한다() {
 }
 
 #[test]
-fn 빈_id와_도구킷_메시지는_명확하다() {
+fn empty_id_and_toolkit_messages_are_clear() {
     let id_msg = format!("{}", LoadError::EmptyId);
     let toolkit_msg = format!("{}", LoadError::EmptyToolkit);
     assert!(id_msg.contains("`id`") && id_msg.contains("non-empty"));
@@ -770,7 +770,7 @@ fn 빈_id와_도구킷_메시지는_명확하다() {
 }
 
 #[test]
-fn id가_내장을_가릴_때_메시지는_이름변경_경로를_설명한다() {
+fn id_shadows_builtin_message_explains_rename_path() {
     // Iter 249/256: parallel to upeg-wasm iter-252 + mcp_import
     // iter-250 message-format pins. Pre-iter-256 the loader's
     // IdShadowsBuiltIn Display message wasn't unit-tested in
@@ -804,7 +804,7 @@ fn id가_내장을_가릴_때_메시지는_이름변경_경로를_설명한다()
 }
 
 #[test]
-fn 파싱은_공백이_붙은_id와_도구킷과_보드를_거부한다() {
+fn parsing_rejects_padded_id_toolkit_and_boards() {
     let s = r#"id = " iter241.padded_id "
                    toolkit = "  iter241  "
                    invoker = "External"
@@ -833,7 +833,7 @@ fn 파싱은_공백이_붙은_id와_도구킷과_보드를_거부한다() {
 }
 
 #[test]
-fn 파싱은_공백이_붙은_태그를_거부한다() {
+fn parsing_rejects_padded_tags() {
     let s = r#"id = "iter241.tags"
                    toolkit = "iter241"
                    tags = [" dev "]

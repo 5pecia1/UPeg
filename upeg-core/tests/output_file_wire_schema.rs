@@ -8,7 +8,7 @@ use serde_json::json;
 use upeg_core::{FieldConstraints, OutputFieldSpec, OutputKind, OutputSpec};
 
 #[test]
-fn 파일_출력_schema는_정식_file_wire_계약을_노출한다() {
+fn file_output_schema_exposes_the_canonical_file_wire_contract() {
     let spec = OutputSpec::new(vec![OutputFieldSpec {
         name: "artifact".to_string(),
         label: None,
@@ -16,7 +16,7 @@ fn 파일_출력_schema는_정식_file_wire_계약을_노출한다() {
         kind: OutputKind::File,
         constraints: FieldConstraints::default(),
     }])
-    .expect("File 출력 명세가 유효해야 한다");
+    .expect("File output spec must be valid");
 
     let schema = spec.to_json_schema_value();
 

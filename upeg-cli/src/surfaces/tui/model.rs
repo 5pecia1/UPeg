@@ -293,6 +293,50 @@ impl TuiFormState {
         }
     }
 
+    pub(crate) fn with_initial_values(input_spec: InputSpec, values: &serde_json::Value) -> Self {
+        let mut form = Self::new(input_spec);
+        let Some(values) = values.as_object() else {
+            return form;
+        };
+        for field in &mut form.fields {
+            let Some(value) = values.get(field.name.as_str()) else {
+                continue;
+            };
+            let kind = form
+                .input_spec
+                .fields
+                .iter()
+                .find(|spec| spec.name == field.name)
+                .map(|spec| &spec.kind);
+            field.draft = match (kind, value) {
+                (Some(InputKind::Options(_)), serde_json::Value::String(value)) => {
+                    DraftInputValue::Options(Some(value.clone()))
+                }
+                (Some(InputKind::MultiOptions(_)), serde_json::Value::Array(values)) => {
+                    DraftInputValue::Text(
+                        values
+                            .iter()
+                            .filter_map(serde_json::Value::as_str)
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    )
+                }
+                (_, serde_json::Value::Bool(value)) => DraftInputValue::Boolean(*value),
+                (_, serde_json::Value::String(value)) => DraftInputValue::Text(value.clone()),
+                (_, serde_json::Value::Number(value)) => DraftInputValue::Text(value.to_string()),
+                (_, serde_json::Value::Array(values)) => DraftInputValue::Text(
+                    values
+                        .iter()
+                        .filter_map(serde_json::Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join(","),
+                ),
+                (_, other) => DraftInputValue::Text(other.to_string()),
+            };
+        }
+        form
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.fields.len()
     }
@@ -468,6 +512,49 @@ pub struct State {
     /// over the crate; go through [`State::start_active_run`] rather
     /// than minting by hand, so the mint and `active_run` cannot drift.
     pub run_tokens: RunTokenMint,
+    /// Inputs for the current transient result. Follow-up bindings never
+    /// consult persisted Tool-id-only result caches.
+    pub result_inputs: serde_json::Value,
+    /// Selected presentation row in the current result.
+    pub result_row: usize,
+    /// Selected action among the actions enabled for the current result/row.
+    pub result_action: usize,
+    /// Read invocation established by a collection row action.
+    pub presentation_origin: Option<PresentationOrigin>,
+    /// Follow-up tool whose successful result refreshes the origin once.
+    pub refresh_after_tool: Option<&'static str>,
+    /// Row identity to restore when a refreshed origin result arrives.
+    pub restore_result_row_key: Option<String>,
+    /// Generation that produced the currently displayed transient result.
+    pub result_run: Option<RunToken>,
+    /// Execution host class that produced the current result.
+    pub result_host: Option<PresentationHost>,
+    /// Result pages suspended while a presentation follow-up is open.
+    pub presentation_frames: Vec<PresentationFrame>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PresentationHost {
+    LocalTui,
+    AttachedUnverified,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PresentationOrigin {
+    pub tool_id: &'static str,
+    pub inputs: serde_json::Value,
+    pub selected_row_key: Option<String>,
+    pub host: PresentationHost,
+    pub result_run: RunToken,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PresentationFrame {
+    pub view: View,
+    pub inputs: serde_json::Value,
+    pub selected_row: usize,
+    pub selected_action: usize,
+    pub result_run: Option<RunToken>,
 }
 
 impl State {

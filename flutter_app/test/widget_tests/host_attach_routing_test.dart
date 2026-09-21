@@ -2,7 +2,7 @@
 ///
 /// On the wasm runtime an in-process-unsupported tool routes through the
 /// paired daemon when a host is configured, and falls back to the honest
-/// "미지원" state (with a pairing nudge) when it is not. A fake
+/// "unsupported" state (with a pairing nudge) when it is not. A fake
 /// [AttachClient] + provider overrides keep every case off the network and
 /// off the native dylib.
 library;
@@ -47,6 +47,7 @@ ToolDto _remoteTool() => ToolDto(
   source: const SourceDto.userInput(),
   requiresApproval: false,
   approvalSurfaces: const <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 const LayoutSnapshotDto _snapshot = LayoutSnapshotDto(
@@ -130,40 +131,45 @@ Future<void> _pump(
 
 void main() {
   group('host attach routing', () {
-    testWidgets('설정된_host로_미지원_도구를_원격_실행한다', (tester) async {
-      final client = _FakeAttachClient(
-        dispatchResult: AttachDispatchOk(_okResult('done')),
-      );
-      await _pump(
-        tester,
-        overrides: [
-          isWasmRuntimeProvider.overrideWithValue(true),
-          toolCapabilityFnProvider.overrideWithValue(
-            (_) => const DispatchCapabilityDto.unsupported(
-              reason: UnsupportedReasonDto.noProcessSpawn,
-            ),
-          ),
-          hostAttachStoreProvider.overrideWithValue(
-            _FakeStore(
-              const HostAttachConfig(
-                baseUrl: 'http://127.0.0.1:7173',
-                token: 'tok',
+    testWidgets(
+      'an_unsupported_tool_runs_remotely_against_the_configured_host',
+      (tester) async {
+        final client = _FakeAttachClient(
+          dispatchResult: AttachDispatchOk(_okResult('done')),
+        );
+        await _pump(
+          tester,
+          overrides: [
+            isWasmRuntimeProvider.overrideWithValue(true),
+            toolCapabilityFnProvider.overrideWithValue(
+              (_) => const DispatchCapabilityDto.unsupported(
+                reason: UnsupportedReasonDto.noProcessSpawn,
               ),
             ),
-          ),
-          attachClientProvider.overrideWithValue(client),
-        ],
-      );
+            hostAttachStoreProvider.overrideWithValue(
+              _FakeStore(
+                const HostAttachConfig(
+                  baseUrl: 'http://127.0.0.1:7173',
+                  token: 'tok',
+                ),
+              ),
+            ),
+            attachClientProvider.overrideWithValue(client),
+          ],
+        );
 
-      // Configured host: no unsupported notice, and tapping dispatches
-      // remotely instead of opening the in-process path.
-      expect(find.byKey(surfaceUnsupportedBodyKey), findsNothing);
-      await tester.tap(find.byType(Pin));
-      await tester.pumpAndSettle();
-      expect(client.dispatchCalls, 1);
-    });
+        // Configured host: no unsupported notice, and tapping dispatches
+        // remotely instead of opening the in-process path.
+        expect(find.byKey(surfaceUnsupportedBodyKey), findsNothing);
+        await tester.tap(find.byType(Pin));
+        await tester.pumpAndSettle();
+        expect(client.dispatchCalls, 1);
+      },
+    );
 
-    testWidgets('원격_결과는_핀_바디에_인라인_렌더된다', (tester) async {
+    testWidgets('a_remote_result_renders_inline_in_the_pin_body', (
+      tester,
+    ) async {
       final client = _FakeAttachClient(
         dispatchResult: AttachDispatchOk(_okResult('42')),
       );
@@ -191,7 +197,9 @@ void main() {
       expect(find.byKey(hostAttachNoticeBodyKey), findsNothing);
     });
 
-    testWidgets('host_미설정시_미지원_안내에_연결_힌트를_보여준다', (tester) async {
+    testWidgets('without_a_host_the_unsupported_notice_shows_a_connect_hint', (
+      tester,
+    ) async {
       await _pump(
         tester,
         overrides: [
@@ -214,7 +222,9 @@ void main() {
       );
     });
 
-    testWidgets('unauthorized는_토큰_안내를_보여준다', (tester) async {
+    testWidgets('an_unauthorized_result_shows_the_token_guidance', (
+      tester,
+    ) async {
       final client = _FakeAttachClient(
         dispatchResult: const AttachDispatchUnauthorized(),
       );
@@ -242,8 +252,10 @@ void main() {
       expect(find.text(i18nEn(kHostAttachUnauthorizedHintKey)), findsOneWidget);
     });
 
-    testWidgets('호스트_503_응답은_힌트를_보여준다', (tester) async {
-      const hint = 'host temporarily unavailable';
+    testWidgets('a_host_503_response_shows_its_hint', (tester) async {
+      // Daemon-authored hint text passes through verbatim; only the
+      // client's own kHostUnavailableDefaultHint fallback localizes.
+      const hint = 'daemon is restarting, retry shortly';
       final client = _FakeAttachClient(
         dispatchResult: const AttachDispatchUnavailable(hint),
       );
@@ -269,7 +281,9 @@ void main() {
       expect(find.text(hint), findsOneWidget);
     });
 
-    testWidgets('native_only_도구도_host_연결시_원격_실행된다', (tester) async {
+    testWidgets('a_native_only_tool_runs_remotely_once_the_host_is_connected', (
+      tester,
+    ) async {
       // A native-only built-in (eth.gas-style): the browser has no
       // dispatcher, but a paired daemon links the native one. NativeOnlyTool
       // is now attach-solvable, so a configured host routes it remotely.
@@ -302,7 +316,9 @@ void main() {
       expect(find.text('12'), findsOneWidget);
     });
 
-    testWidgets('호스트가_미지원_보고시_정직하게_알린다', (tester) async {
+    testWidgets('a_host_reporting_unsupported_is_surfaced_honestly', (
+      tester,
+    ) async {
       // The daemon answered but reports the tool isn't runnable on its
       // surface — surface the tool error honestly instead of crashing.
       final client = _FakeAttachClient(
@@ -335,7 +351,7 @@ void main() {
       expect(find.text('tool not available on host surface'), findsOneWidget);
     });
 
-    testWidgets('native_런타임은_attach를_사용하지_않는다', (tester) async {
+    testWidgets('the_native_runtime_never_uses_attach', (tester) async {
       final client = _FakeAttachClient(
         dispatchResult: AttachDispatchOk(_okResult('x')),
       );
@@ -364,11 +380,19 @@ void main() {
         ],
       );
 
-      expect(consulted, isFalse, reason: 'native 런타임은 capability 를 조회하지 않는다');
+      expect(
+        consulted,
+        isFalse,
+        reason: 'the native runtime must not consult capabilities',
+      );
       expect(find.byKey(surfaceUnsupportedBodyKey), findsNothing);
       await tester.tap(find.byType(Pin));
       await tester.pumpAndSettle();
-      expect(client.dispatchCalls, 0, reason: 'native 는 attach 로 라우팅하지 않는다');
+      expect(
+        client.dispatchCalls,
+        0,
+        reason: 'native must not route through attach',
+      );
     });
   });
 }

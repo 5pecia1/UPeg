@@ -20,7 +20,7 @@ import 'package:upeg/src/state/pause_control_provider.dart';
 
 void main() {
   group('isPauseControllable', () {
-    test('isPauseControllable은_embedded에서만_참이다', () {
+    test('isPauseControllable_is_true_only_for_embedded', () {
       const cases = <(HostStateEvent, bool)>[
         (HostStateEvent.embedded(endpoint: 'unix:/tmp/embed'), true),
         (HostStateEvent.attached(endpoint: 'unix:/tmp/daemon'), false),
@@ -39,7 +39,7 @@ void main() {
   });
 
   group('pauseControllableProvider', () {
-    test('pauseControllableProvider는_embedded_상태에서_참이다', () async {
+    test('pauseControllableProvider_is_true_in_embedded_state', () async {
       final controller = StreamController<HostStateEvent>();
       addTearDown(controller.close);
 
@@ -59,28 +59,34 @@ void main() {
       expect(container.read(pauseControllableProvider), isTrue);
     });
 
-    test('pauseControllableProvider는_로딩_중이거나_attached면_거짓이다', () async {
-      final controller = StreamController<HostStateEvent>();
-      addTearDown(controller.close);
+    test(
+      'pauseControllableProvider_is_false_while_loading_or_attached',
+      () async {
+        final controller = StreamController<HostStateEvent>();
+        addTearDown(controller.close);
 
-      final container = ProviderContainer(
-        overrides: [
-          hostStateStreamProvider.overrideWith((ref) => controller.stream),
-        ],
-      );
-      addTearDown(container.dispose);
+        final container = ProviderContainer(
+          overrides: [
+            hostStateStreamProvider.overrideWith((ref) => controller.stream),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final sub = container.listen<bool>(pauseControllableProvider, (_, _) {});
-      addTearDown(sub.close);
+        final sub = container.listen<bool>(
+          pauseControllableProvider,
+          (_, _) {},
+        );
+        addTearDown(sub.close);
 
-      // No event has arrived yet — the provider must default to false
-      // rather than assume controllability.
-      expect(container.read(pauseControllableProvider), isFalse);
+        // No event has arrived yet — the provider must default to false
+        // rather than assume controllability.
+        expect(container.read(pauseControllableProvider), isFalse);
 
-      controller.add(const HostStateEvent.attached(endpoint: 'unix:/tmp/d'));
-      await Future<void>.delayed(Duration.zero);
+        controller.add(const HostStateEvent.attached(endpoint: 'unix:/tmp/d'));
+        await Future<void>.delayed(Duration.zero);
 
-      expect(container.read(pauseControllableProvider), isFalse);
-    });
+        expect(container.read(pauseControllableProvider), isFalse);
+      },
+    );
   });
 }

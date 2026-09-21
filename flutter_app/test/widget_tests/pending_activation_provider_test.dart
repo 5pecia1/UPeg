@@ -15,14 +15,14 @@ import 'package:upeg/src/state/pending_activation_provider.dart';
 
 void main() {
   group('PendingActivationNotifier', () {
-    test('초기값은_null이다', () {
+    test('the_initial_value_is_null', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       expect(container.read(pendingActivationProvider), isNull);
     });
 
-    test('set는_toolId를_저장한다', () {
+    test('set_stores_the_toolid', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -32,7 +32,7 @@ void main() {
       expect(container.read(pendingActivationProvider), toolId);
     });
 
-    test('clear는_상태를_null로_되돌린다', () {
+    test('clear_returns_the_state_to_null', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

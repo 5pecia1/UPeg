@@ -18,7 +18,9 @@ void main() {
     await RustLib.init();
   });
 
-  testWidgets('앱_부팅은_AppInitReport를_받고_BoardPage로_라우팅한다', (tester) async {
+  testWidgets('app_boot_receives_AppInitReport_and_routes_to_BoardPage', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: UpegApp()));
     await tester.pumpAndSettle(const Duration(seconds: 3));
 

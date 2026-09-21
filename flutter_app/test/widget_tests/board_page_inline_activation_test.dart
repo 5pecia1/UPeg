@@ -1,7 +1,7 @@
 /// Widget tests for the BoardPage keyboard wiring (G5).
 ///
 /// The keyboard FRB itself is exercised in upeg-frb Rust unit tests
-/// (`keyboard_command_for_가_*`). Here we verify that the Dart side
+/// (`keyboard_command_for_maps_*`). Here we verify that the Dart side
 /// translates Flutter `KeyEvent`s into the right FRB call, and that
 /// the resulting [`KeyboardCommandDto`] drives the right page-level
 /// side effect (open palette / open settings / cycle tag / …).
@@ -31,51 +31,58 @@ import '../test_helpers/dispatch_stream_fixture.dart';
 
 void main() {
   group('inline-first activation', () {
-    testWidgets('인자없는_inline_핀은_탭_한번에_인라인_결과를_렌더하고_모달을_열지_않는다', (tester) async {
-      const toolId = 'demo.inline';
-      await tester.pumpWidget(
-        boardPageHarness(
-          currentBoardKey: 'dev',
-          tools: [fixtureToolDto(id: toolId, label: 'Inline demo')],
-          layoutLoader: (query) => LayoutSnapshotDto(
-            boardKey: query.boardKey.value,
-            boardCols: 6,
-            placements: const <PlacementDto>[
-              PlacementDto(toolId: toolId, x: 0, y: 0, w: 1, h: 1),
+    testWidgets(
+      'a_zero_arg_inline_pin_renders_the_inline_result_on_a_single_tap_without_opening_the_modal',
+      (tester) async {
+        const toolId = 'demo.inline';
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: 'dev',
+            tools: [fixtureToolDto(id: toolId, label: 'Inline demo')],
+            layoutLoader: (query) => LayoutSnapshotDto(
+              boardKey: query.boardKey.value,
+              boardCols: 6,
+              placements: const <PlacementDto>[
+                PlacementDto(toolId: toolId, x: 0, y: 0, w: 1, h: 1),
+              ],
+            ),
+            pinActivation: ({required toolId, required argsJson}) =>
+                PinActivationDto.dispatchImmediate(toolId: toolId.value),
+            resolver: noKeyboardCommand,
+            extraOverrides: [
+              ...dispatchOverrides(
+                ({required ToolId toolId, required ToolArgs args}) async =>
+                    const CanonicalToolResult(
+                      ok: true,
+                      primaryOutputId: 'out',
+                      outputs: [
+                        CanonicalOutputEntry(
+                          id: 'out',
+                          kind: 'string',
+                          value: CanonicalOutputValue.string(
+                            value: 'INLINE-42',
+                          ),
+                        ),
+                      ],
+                    ),
+              ),
             ],
           ),
-          pinActivation: ({required toolId, required argsJson}) =>
-              PinActivationDto.dispatchImmediate(toolId: toolId.value),
-          resolver: noKeyboardCommand,
-          extraOverrides: [
-            ...dispatchOverrides(
-              ({required ToolId toolId, required ToolArgs args}) async =>
-                  const CanonicalToolResult(
-                    ok: true,
-                    primaryOutputId: 'out',
-                    outputs: [
-                      CanonicalOutputEntry(
-                        id: 'out',
-                        kind: 'string',
-                        value: CanonicalOutputValue.string(value: 'INLINE-42'),
-                      ),
-                    ],
-                  ),
-            ),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(Pin));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byType(Pin));
+        await tester.pumpAndSettle();
 
-      // Result is rendered inline in the pin body, no modal opened.
-      expect(find.text('INLINE-42'), findsOneWidget);
-      expect(find.byType(ExpandedModalPage), findsNothing);
-    });
+        // Result is rendered inline in the pin body, no modal opened.
+        expect(find.text('INLINE-42'), findsOneWidget);
+        expect(find.byType(ExpandedModalPage), findsNothing);
+      },
+    );
 
-    testWidgets('모달은_명시적_Open_제스처로만_열린다', (tester) async {
+    testWidgets('the_modal_opens_only_on_an_explicit_Open_gesture', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardPageHarness(
           currentBoardKey: 'dev',
@@ -122,7 +129,9 @@ void main() {
       expect(find.byType(ExpandedModalPage), findsOneWidget);
     });
 
-    testWidgets('memo_create가_Cmd_Shift_N으로_새_메모를_만든다', (tester) async {
+    testWidgets('memo_create_creates_a_new_memo_on_Cmd_Shift_N', (
+      tester,
+    ) async {
       final saved = <List<MemoEntry>>[];
       await tester.pumpWidget(
         boardPageHarness(

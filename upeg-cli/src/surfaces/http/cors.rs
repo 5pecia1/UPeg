@@ -205,13 +205,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 확장_프로그램_오리진은_기본으로_허용된다() {
+    fn extension_origins_are_allowed_by_default() {
         let policy = OriginPolicy::default();
         assert!(policy.allows("chrome-extension://abcdefghijklmnop"));
     }
 
     #[test]
-    fn 루프백_웹_오리진은_기본으로_허용된다() {
+    fn loopback_web_origins_are_allowed_by_default() {
         let policy = OriginPolicy::default();
         assert!(policy.allows("http://127.0.0.1:5173"));
         assert!(policy.allows("http://localhost:5173"));
@@ -219,13 +219,13 @@ mod tests {
     }
 
     #[test]
-    fn 설정되지_않은_외부_웹_오리진은_거부된다() {
+    fn unconfigured_external_web_origins_are_rejected() {
         let policy = OriginPolicy::default();
         assert!(!policy.allows("https://example.com"));
     }
 
     #[test]
-    fn 설정된_웹_오리진은_허용된다() {
+    fn configured_web_origins_are_allowed() {
         let policy =
             OriginPolicy::new(vec!["https://app.example.com".to_string()]).expect("valid origin");
         assert!(policy.allows("https://app.example.com"));
@@ -233,41 +233,41 @@ mod tests {
     }
 
     #[test]
-    fn 와일드카드_오리진은_설정에서_거부된다() {
+    fn wildcard_origins_are_rejected_in_configuration() {
         let err = OriginPolicy::new(vec!["*".to_string()]).expect_err("wildcard must be rejected");
         assert!(matches!(err, OriginPolicyError::Wildcard));
     }
 
     #[test]
-    fn 스킴이_없는_오리진은_설정에서_거부된다() {
+    fn schemeless_origins_are_rejected_in_configuration() {
         let err =
             OriginPolicy::new(vec!["app.example.com".to_string()]).expect_err("missing scheme");
         assert!(matches!(err, OriginPolicyError::MissingScheme(_)));
     }
 
     #[test]
-    fn mcp_세션_헤더는_보내는_것도_읽는_것도_허용된다() {
-        // 브라우저는 preflight에서 허용되지 않은 요청 헤더를 막고,
-        // expose되지 않은 응답 헤더를 스크립트에서 숨긴다. 세션 id는
-        // 서버가 발급하고 클라이언트가 되돌려 보내야 하므로 양쪽 다
-        // 필요하다.
+    fn mcp_session_header_is_allowed_for_sending_and_reading() {
+        // Browsers block request headers not allowed at preflight and
+        // hide response headers not exposed from scripts. The session id
+        // is issued by the server and echoed back by the client, so both
+        // directions are needed.
         let session = HeaderName::from_static(MCP_SESSION_HEADER);
         assert!(allowed_headers().contains(&session));
         assert!(exposed_headers().contains(&session));
     }
 
     #[test]
-    fn 원점_surface_헤더는_브라우저에_열리지_않는다() {
-        // `cli`/`tui` + operator 토큰에서만 인정되는 헤더다. 브라우저로
-        // 배달되는 surface는 둘 다 될 수 없으므로 여는 것은 작동하지
-        // 않는 레버를 광고하는 일이다.
+    fn origin_surface_header_is_not_exposed_to_browsers() {
+        // The header is honored only for `cli`/`tui` + operator token.
+        // A browser-delivered surface can be neither, so exposing it
+        // would advertise a lever that cannot work.
         let origin_surface = HeaderName::from_static(super::super::ORIGIN_SURFACE_HEADER);
         assert!(!allowed_headers().contains(&origin_surface));
         assert!(!exposed_headers().contains(&origin_surface));
     }
 
     #[test]
-    fn 경로가_포함된_오리진은_설정에서_거부된다() {
+    fn origins_with_paths_are_rejected_in_configuration() {
         let err = OriginPolicy::new(vec!["https://app.example.com/path".to_string()])
             .expect_err("origin must not carry a path");
         assert!(matches!(err, OriginPolicyError::Malformed(_)));

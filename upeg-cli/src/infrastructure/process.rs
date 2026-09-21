@@ -75,37 +75,37 @@ mod tests {
     const DEAD_PID: u32 = 99_999_999;
 
     #[test]
-    fn pid_alive는_자신의_pid에_대해_참을_반환한다() {
+    fn pid_alive_returns_true_for_own_pid() {
         assert!(pid_alive(std::process::id()));
     }
 
     #[test]
-    fn pid_alive는_명백히_죽은_pid에_대해_거짓을_반환한다() {
+    fn pid_alive_returns_false_for_an_obviously_dead_pid() {
         assert!(!pid_alive(DEAD_PID));
     }
 
     #[test]
-    fn tasklist_파싱은_정확한_pid_컬럼만_매칭한다() {
+    fn tasklist_parsing_matches_only_the_exact_pid_column() {
         let row = "\"upeg.exe\",\"1234\",\"Console\",\"1\",\"10,000 K\"";
         assert!(tasklist_reports_pid(row, 1234));
     }
 
     #[test]
-    fn tasklist_파싱은_부분_문자열_pid를_살아있다고_오판하지_않는다() {
-        // 5123 만 나열된 출력에서 123 을 살아있다고 보면 안 된다.
+    fn tasklist_parsing_does_not_misjudge_a_partial_string_pid_as_alive() {
+        // Output listing only 5123 must not read 123 as alive.
         let row = "\"upeg.exe\",\"5123\",\"Console\",\"1\",\"10,000 K\"";
         assert!(!tasklist_reports_pid(row, 123));
     }
 
     #[test]
-    fn tasklist_파싱은_이미지_이름에_섞인_pid를_무시한다() {
-        // PID 컬럼이 아닌 곳에 같은 숫자가 있어도 살아있다고 보면 안 된다.
+    fn tasklist_parsing_ignores_a_pid_embedded_in_the_image_name() {
+        // The same digits outside the PID column must not read as alive.
         let row = "\"1234.exe\",\"5678\",\"Console\",\"1\",\"10,000 K\"";
         assert!(!tasklist_reports_pid(row, 1234));
     }
 
     #[test]
-    fn tasklist_파싱은_빈_결과를_거짓으로_처리한다() {
+    fn tasklist_parsing_treats_an_empty_result_as_false() {
         let info = "INFO: No tasks are running which match the specified criteria.";
         assert!(!tasklist_reports_pid(info, 1234));
     }

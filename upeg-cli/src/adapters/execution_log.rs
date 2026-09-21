@@ -3,7 +3,7 @@
 //! The log is intentionally narrower than a generic audit trail: it records
 //! which Tool ran, from which surface/Board/Trigger, how it ended, and how
 //! long it took. It never persists Tool arguments, outputs, error messages, or
-//! credential values. This keeps the PRD v2.1 "Execution Log" useful for
+//! credential values. This keeps the Execution Log useful for
 //! history/debugging without turning upeg into a secret store.
 //!
 //! Storage is the shared SQLite store (`upeg-sources::store`,
@@ -213,15 +213,15 @@ mod tests {
     use serde_json::json;
     use upeg_core::RecentSignal;
 
-    /// 2026-11-01T06:00:00Z — 미국 동부가 DST를 해제하는 시각(로컬 02:00 EDT).
+    /// 2026-11-01T06:00:00Z — when US Eastern exits DST (02:00 EDT local).
     const DST_TRANSITION_MS: i64 = 1_793_512_800_000;
-    /// 전환 30분 전: 2026-11-01T05:30:00Z, 로컬로는 01:30 EDT.
+    /// 30 minutes before the transition: 2026-11-01T05:30:00Z, 01:30 EDT local.
     const BEFORE_DST_TRANSITION_MS: u64 = 1_793_511_000_000;
-    /// 전환 30분 후: 2026-11-01T06:30:00Z, 로컬로는 (되감긴) 01:30 EST.
+    /// 30 minutes after the transition: 2026-11-01T06:30:00Z, (rewound) 01:30 EST local.
     const AFTER_DST_TRANSITION_MS: u64 = 1_793_514_600_000;
-    /// 여름 시간(EDT) 오프셋.
+    /// Daylight time (EDT) offset.
     const SUMMER_OFFSET_SECONDS: i32 = -4 * 3_600;
-    /// 겨울 시간(EST) 오프셋.
+    /// Standard time (EST) offset.
     const WINTER_OFFSET_SECONDS: i32 = -5 * 3_600;
 
     fn test_record(tool_id: &str, started_at_ms: u64) -> ExecutionLogRecord {
@@ -249,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    fn 기록_에서_dispatch는_메타데이터_만이다() {
+    fn record_from_dispatch_keeps_metadata_only() {
         let record = record_from_dispatch(
             "missing.tool",
             &json!({
@@ -275,13 +275,13 @@ mod tests {
         assert_eq!(
             record.principal.as_deref(),
             Some("agent"),
-            "각인된 주체의 역할은 기록되어야 한다 — 토큰은 절대 아니다"
+            "the stamped principal's role must be recorded — never the token"
         );
         assert_eq!(record.status, "tool_error");
     }
 
     #[test]
-    fn 주체가_없는_호출의_기록은_역할을_지어내지_않는다() {
+    fn record_without_principal_does_not_fabricate_role() {
         let record = record_from_dispatch(
             "missing.tool",
             &json!({ "_upeg": { "surface": "cli" } }),
@@ -293,14 +293,15 @@ mod tests {
         let encoded = serde_json::to_string(&record).unwrap();
         assert!(
             !encoded.contains("principal"),
-            "빈 principal은 wire에서 생략된다: {encoded}"
+            "an absent principal is omitted from the wire: {encoded}"
         );
     }
 
     #[test]
-    fn 실행_맥락이_각인한_주체가_그대로_기록된다() {
-        // 파이프라인 전체를 한 번에 건다: 표면이 맥락을 적용하면서 주체를
-        // 각인하고, 로그는 그 역할만 읽어 간다. 토큰은 어디에도 없다.
+    fn principal_stamped_by_execution_context_is_recorded_verbatim() {
+        // Run the whole pipeline at once: the surface stamps the principal
+        // while applying the context, and the log reads only that role.
+        // The token appears nowhere.
         let args = upeg_runtime::apply_execution_context(
             &upeg_runtime::RegistryProjectContext,
             json!({ "input": "SECRET" }),
@@ -326,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn 사람이_읽는_출력은_주체_역할을_보여준다() {
+    fn human_output_shows_principal_role() {
         let mut record = test_record("principal.render", 1_786_957_503_000);
         record.principal = Some("operator".to_string());
 
@@ -336,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn 스토어_기반_기록을_필터와_제한으로_읽는다() {
+    fn store_records_are_read_with_filters_and_limits() {
         let path = temp_log_db_path("execution_log_filter");
         let _ = std::fs::remove_file(&path);
         append_record_to_path(&path, &test_record("a.one", 1)).unwrap();
@@ -363,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn execution_log_recent_signal은_newest_first_unique로_만든다() {
+    fn execution_log_recent_signal_is_newest_first_unique() {
         let path = temp_log_db_path("execution_log_recent");
         let _ = std::fs::remove_file(&path);
         for record in [
@@ -399,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn execution_log_missing과_unreadable_로그는_recent_signal을_빈값으로_반환한다() {
+    fn missing_and_unreadable_log_returns_empty_recent_signals() {
         let missing_path = temp_log_db_path("execution_log_missing_recent");
         let _ = std::fs::remove_file(&missing_path);
         let _ = std::fs::remove_dir_all(&missing_path);
@@ -410,7 +411,7 @@ mod tests {
         );
         assert!(
             !missing_path.exists(),
-            "recent signal 조회가 데이터베이스를 만들면 안 된다"
+            "recent-signal lookup must not create the database"
         );
 
         let unreadable_path = temp_log_db_path("execution_log_unreadable_recent");
@@ -426,7 +427,7 @@ mod tests {
     }
 
     #[test]
-    fn json_출력은_원시_epoch_ms_값을_그대로_유지한다() {
+    fn json_output_preserves_raw_epoch_ms_values() {
         // 2026-08-17T09:05:03Z
         let record = test_record("time.check", 1_786_957_503_000);
         let out = format_records(&[record], true);
@@ -441,7 +442,7 @@ mod tests {
     }
 
     #[test]
-    fn 사람이_읽는_출력은_epoch_ms_대신_rfc3339_타임스탬프를_렌더링한다() {
+    fn human_output_renders_rfc3339_timestamp_instead_of_epoch_ms() {
         // 2026-08-17T09:05:03Z
         let record = test_record("time.check", 1_786_957_503_000);
         let out = format_records(&[record], false);
@@ -456,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn dst_전환을_사이에_둔_기록은_각_시점의_오프셋으로_렌더링된다() {
+    fn records_spanning_dst_transition_render_with_each_instants_offset() {
         let out = format_records_human(
             &[
                 test_record("dst.before", BEFORE_DST_TRANSITION_MS),
@@ -475,11 +476,11 @@ mod tests {
         assert_eq!(lines.len(), 2, "got:\n{out}");
         assert!(
             lines[0].starts_with("2026-11-01T01:30:00-04:00\t"),
-            "전환 이전 행은 그 시점에 실제로 적용되던 여름 오프셋으로 렌더링돼야 한다; got:\n{out}"
+            "the pre-transition row must render with the summer offset actually in effect at that instant; got:\n{out}"
         );
         assert!(
             lines[1].starts_with("2026-11-01T01:30:00-05:00\t"),
-            "전환 이후 행은 첫 행의 오프셋을 물려받지 않고 자기 시점의 겨울 오프셋으로 렌더링돼야 한다; got:\n{out}"
+            "the post-transition row must render with its own instant's winter offset, not inherit the first row's; got:\n{out}"
         );
     }
 }

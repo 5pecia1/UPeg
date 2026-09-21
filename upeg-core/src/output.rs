@@ -296,6 +296,15 @@ fn output_value_to_json_value(value: &OutputValue) -> serde_json::Value {
     }
 }
 
+impl OutputValue {
+    /// Native JSON representation used by presentation bindings. Unlike
+    /// display text, this preserves number, boolean, array, object and file shapes.
+    #[must_use]
+    pub fn to_json_value(&self) -> serde_json::Value {
+        output_value_to_json_value(self)
+    }
+}
+
 impl OutputSpec {
     #[must_use]
     pub fn structured_content_from_text(&self, text: &str) -> Option<Value> {

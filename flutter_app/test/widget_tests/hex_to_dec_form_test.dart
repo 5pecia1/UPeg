@@ -57,7 +57,9 @@ Widget _harness({required HexToDecForm form}) {
 
 void main() {
   group('HexToDecForm', () {
-    testWidgets('HexToDecForm은_입력에_따라_decimal을_즉시_표시한다', (tester) async {
+    testWidgets('hextodecform_shows_the_decimal_immediately_on_input', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _harness(
           form: HexToDecForm(tool: _hexTool(), onSubmit: (_) {}),
@@ -68,28 +70,29 @@ void main() {
       expect(find.text('255'), findsOneWidget);
     });
 
-    testWidgets('HexToDecForm은_initialInput을_입력에_prefill하고_즉시_decode한다', (
-      tester,
-    ) async {
-      // 딥링크 `upeg://open?...&input=0x2a` 가 raw scalar 를 실어오면
-      // 모달이 빈 폼이 아니라 그 값으로 열려야 한다.
-      await tester.pumpWidget(
-        _harness(
-          form: HexToDecForm(
-            tool: _hexTool(),
-            onSubmit: (_) {},
-            initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
-              'input': '0x2a',
-            }),
+    testWidgets(
+      'hextodecform_prefills_initialinput_into_the_input_and_decodes_immediately',
+      (tester) async {
+        // When a deep link `upeg://open?...&input=0x2a` carries a raw scalar,
+        // the modal must open with that value rather than an empty form.
+        await tester.pumpWidget(
+          _harness(
+            form: HexToDecForm(
+              tool: _hexTool(),
+              onSubmit: (_) {},
+              initialInput: ToolArgs.fromJsonObject(const <String, Object?>{
+                'input': '0x2a',
+              }),
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      expect(find.text('0x2a'), findsOneWidget);
-      expect(find.text('42'), findsOneWidget);
-    });
+        );
+        await tester.pump();
+        expect(find.text('0x2a'), findsOneWidget);
+        expect(find.text('42'), findsOneWidget);
+      },
+    );
 
-    testWidgets('HexToDecForm은_0x_접두사도_즉시_decode한다', (tester) async {
+    testWidgets('hextodecform_decodes_a_0x_prefix_immediately', (tester) async {
       await tester.pumpWidget(
         _harness(
           form: HexToDecForm(tool: _hexTool(), onSubmit: (_) {}),
@@ -100,7 +103,7 @@ void main() {
       expect(find.text('51966'), findsOneWidget);
     });
 
-    testWidgets('HexToDecForm_F1은_onSubmit을_호출한다', (tester) async {
+    testWidgets('hextodecform_f1_invokes_onsubmit', (tester) async {
       ToolArgs? observedArgs;
       await tester.pumpWidget(
         _harness(
@@ -120,7 +123,9 @@ void main() {
       expect(observedArgs!.toJsonObject(), {'input': 'ff'});
     });
 
-    testWidgets('HexToDecForm_run_버튼_탭도_onSubmit을_호출한다', (tester) async {
+    testWidgets('hextodecform_run_button_tap_also_invokes_onsubmit', (
+      tester,
+    ) async {
       ToolArgs? observedArgs;
       await tester.pumpWidget(
         _harness(
@@ -139,7 +144,7 @@ void main() {
       expect(observedArgs!.toJsonObject(), {'input': 'ff'});
     });
 
-    testWidgets('HexToDecForm_F2는_decoded_decimal을_clipboard에_복사한다', (
+    testWidgets('hextodecform_f2_copies_the_decoded_decimal_to_the_clipboard', (
       tester,
     ) async {
       final writer = _RecordingClipboardWriter();
@@ -159,7 +164,9 @@ void main() {
       expect(writer.writes, ['255']);
     });
 
-    testWidgets('HexToDecForm은_입력이_잘못되면_에러_메시지를_표시한다', (tester) async {
+    testWidgets('hextodecform_shows_an_error_message_for_invalid_input', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _harness(
           form: HexToDecForm(tool: _hexTool(), onSubmit: (_) {}),
@@ -170,7 +177,7 @@ void main() {
       expect(find.textContaining('not a valid hex'), findsOneWidget);
     });
 
-    testWidgets('HexToDecForm은_빈_입력에서_F1을_무시한다', (tester) async {
+    testWidgets('hextodecform_ignores_f1_on_empty_input', (tester) async {
       var calls = 0;
       await tester.pumpWidget(
         _harness(
@@ -187,7 +194,7 @@ void main() {
       expect(calls, 0);
     });
 
-    testWidgets('HexToDecForm은_잘못된_입력에서_F2를_무시한다', (tester) async {
+    testWidgets('hextodecform_ignores_f2_on_invalid_input', (tester) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
         _harness(
@@ -207,7 +214,7 @@ void main() {
   });
 
   group('bespokeRegistry hex_to_dec', () {
-    test('bespokeRegistry는_hex_to_dec_id로_HexToDecForm을_빌드한다', () {
+    test('bespokeregistry_builds_hextodecform_for_the_hex_to_dec_id', () {
       final builder = bespokeFor(ToolId.parse('num.hex_to_decimal'));
       expect(builder, isNotNull);
     });

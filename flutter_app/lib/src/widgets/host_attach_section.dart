@@ -1,7 +1,7 @@
 /// Settings → Host attach section (Task B3).
 ///
 /// Lets the user pair the PWA with a local `upeg` daemon: a base URL, a
-/// bearer token, and a "연결 확인" action that probes `/healthz` and reports
+/// bearer token, and a check-connection action that probes `/healthz` and reports
 /// whether the daemon answered. A reachable host always serves the REST
 /// data plane, so "connected" is the whole answer. Once
 /// paired, the board routes in-process-unsupported tools through the daemon

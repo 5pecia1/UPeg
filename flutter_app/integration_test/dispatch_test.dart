@@ -19,7 +19,7 @@ void main() {
     await RustLib.init();
   });
 
-  test('FRB_dispatch_tool은_convert_hex_to_dec를_실행한다', () async {
+  test('FRB_dispatch_tool_runs_convert_hex_to_dec', () async {
     final outcome = dispatchTool(
       toolId: 'num.hex_to_decimal',
       argsJson: '{"input":"0xff"}',

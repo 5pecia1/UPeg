@@ -53,6 +53,7 @@ ToolDto _fixtureTool() => const ToolDto(
   source: SourceDto.manual(),
   requiresApproval: false,
   approvalSurfaces: <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 /// Fixture resolution wrapping a data URL.
@@ -137,7 +138,7 @@ void main() {
   });
 
   group('macOS real WebView controlled-embed', () {
-    testWidgets('macOS_실제_WebView는_data_uri_도구를_실행해_output을_표시한다', (
+    testWidgets('macOS_real_WebView_runs_a_data_uri_tool_and_displays_output', (
       tester,
     ) async {
       if (!io.Platform.isMacOS) {
@@ -183,75 +184,76 @@ void main() {
       robot.expectTextAbsent('Result of JavaScript execution returned');
     });
 
-    testWidgets('macOS_실제_WebView는_잘못된_선택자_예외를_error_strip으로_표시한다', (
-      tester,
-    ) async {
-      if (!io.Platform.isMacOS) {
-        debugPrint(
-          'skipping macOS controlled embed probe on ${io.Platform.operatingSystem}',
-        );
-        return;
-      }
+    testWidgets(
+      'macOS_real_WebView_shows_an_invalid_selector_exception_in_the_error_strip',
+      (tester) async {
+        if (!io.Platform.isMacOS) {
+          debugPrint(
+            'skipping macOS controlled embed probe on ${io.Platform.operatingSystem}',
+          );
+          return;
+        }
 
-      final robot = _ControlledEmbedMacosRobot(tester);
+        final robot = _ControlledEmbedMacosRobot(tester);
 
-      // data: URL with minimal body — the trigger selector '[' is invalid CSS,
-      // forcing a JS error at querySelector time.
-      final url = _dataUrl('''
+        // data: URL with minimal body — the trigger selector '[' is invalid CSS,
+        // forcing a JS error at querySelector time.
+        final url = _dataUrl('''
 <!DOCTYPE html>
 <html><body><div>hello</div></body></html>
 ''');
 
-      final bindings = <SelectorBindingDto>[
-        const SelectorBindingDto(
-          role: BindingRoleDto.trigger,
-          field: '',
-          selector: kInvalidSelector,
-          triggerAction: ControlledEmbedTriggerActionDto.click,
-        ),
-      ];
+        final bindings = <SelectorBindingDto>[
+          const SelectorBindingDto(
+            role: BindingRoleDto.trigger,
+            field: '',
+            selector: kInvalidSelector,
+            triggerAction: ControlledEmbedTriggerActionDto.click,
+          ),
+        ];
 
-      await robot.pumpTile(url, bindings: bindings);
-      await robot.tapRunAndWait();
-      robot.expectErrorMatches(kInvalidSelector);
-    });
+        await robot.pumpTile(url, bindings: bindings);
+        await robot.tapRunAndWait();
+        robot.expectErrorMatches(kInvalidSelector);
+      },
+    );
 
-    testWidgets('macOS_실제_WebView는_error_후_성공_재실행으로_outputs를_회복한다', (
-      tester,
-    ) async {
-      if (!io.Platform.isMacOS) {
-        debugPrint(
-          'skipping macOS controlled embed probe on ${io.Platform.operatingSystem}',
-        );
-        return;
-      }
+    testWidgets(
+      'macOS_real_WebView_recovers_outputs_with_a_successful_rerun_after_an_error',
+      (tester) async {
+        if (!io.Platform.isMacOS) {
+          debugPrint(
+            'skipping macOS controlled embed probe on ${io.Platform.operatingSystem}',
+          );
+          return;
+        }
 
-      final robot = _ControlledEmbedMacosRobot(tester);
+        final robot = _ControlledEmbedMacosRobot(tester);
 
-      // Phase 1: invalid selector to force error.
-      final badUrl = _dataUrl('''
+        // Phase 1: invalid selector to force error.
+        final badUrl = _dataUrl('''
 <!DOCTYPE html>
 <html><body><div>hello</div></body></html>
 ''');
 
-      final badBindings = <SelectorBindingDto>[
-        const SelectorBindingDto(
-          role: BindingRoleDto.trigger,
-          field: '',
-          selector: kInvalidSelector,
-          triggerAction: ControlledEmbedTriggerActionDto.click,
-        ),
-      ];
+        final badBindings = <SelectorBindingDto>[
+          const SelectorBindingDto(
+            role: BindingRoleDto.trigger,
+            field: '',
+            selector: kInvalidSelector,
+            triggerAction: ControlledEmbedTriggerActionDto.click,
+          ),
+        ];
 
-      await robot.pumpTile(badUrl, bindings: badBindings);
-      await robot.tapRunAndWait();
-      robot.expectErrorMatches(kInvalidSelector);
+        await robot.pumpTile(badUrl, bindings: badBindings);
+        await robot.tapRunAndWait();
+        robot.expectErrorMatches(kInvalidSelector);
 
-      // Reset the tree to mount a fresh tile with valid bindings.
-      await robot.resetTree();
+        // Reset the tree to mount a fresh tile with valid bindings.
+        await robot.resetTree();
 
-      // Phase 2: valid selector to verify recovery.
-      final goodUrl = _dataUrl('''
+        // Phase 2: valid selector to verify recovery.
+        final goodUrl = _dataUrl('''
 <!DOCTYPE html>
 <html>
 <body>
@@ -261,25 +263,26 @@ void main() {
 </html>
 ''');
 
-      final goodBindings = <SelectorBindingDto>[
-        const SelectorBindingDto(
-          role: BindingRoleDto.trigger,
-          field: '',
-          selector: '#trigger',
-          triggerAction: ControlledEmbedTriggerActionDto.click,
-        ),
-        const SelectorBindingDto(
-          role: BindingRoleDto.output,
-          field: 'result',
-          selector: '#result',
-          triggerAction: ControlledEmbedTriggerActionDto.click,
-        ),
-      ];
+        final goodBindings = <SelectorBindingDto>[
+          const SelectorBindingDto(
+            role: BindingRoleDto.trigger,
+            field: '',
+            selector: '#trigger',
+            triggerAction: ControlledEmbedTriggerActionDto.click,
+          ),
+          const SelectorBindingDto(
+            role: BindingRoleDto.output,
+            field: 'result',
+            selector: '#result',
+            triggerAction: ControlledEmbedTriggerActionDto.click,
+          ),
+        ];
 
-      await robot.pumpTile(goodUrl, bindings: goodBindings);
-      await robot.tapRunAndWait();
-      robot.expectNoError();
-      robot.expectOutputContains(kSuccessText);
-    });
+        await robot.pumpTile(goodUrl, bindings: goodBindings);
+        await robot.tapRunAndWait();
+        robot.expectNoError();
+        robot.expectOutputContains(kSuccessText);
+      },
+    );
   });
 }

@@ -476,19 +476,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn keyboard_command_for_가_cmd_k를_search로_매핑한다() {
+    fn keyboard_command_for_maps_cmd_k_to_search() {
         let cmd = keyboard_command_for("k".to_string(), false, true, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::Search));
     }
 
     #[test]
-    fn keyboard_command_for_가_ctrl_k를_search로_매핑한다() {
+    fn keyboard_command_for_maps_ctrl_k_to_search() {
         let cmd = keyboard_command_for("k".to_string(), true, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::Search));
     }
 
     #[test]
-    fn keyboard_command_for_가_esc를_close로_매핑한다() {
+    fn keyboard_command_for_maps_esc_to_close() {
         let cmd = keyboard_command_for(
             "Escape".to_string(),
             false,
@@ -502,47 +502,48 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_f1을_run으로_매핑한다() {
+    fn keyboard_command_for_maps_f1_to_run() {
         let cmd = keyboard_command_for("F1".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::Run));
     }
 
     #[test]
-    fn keyboard_command_for_가_space_label을_run으로_매핑한다() {
+    fn keyboard_command_for_maps_space_label_to_run() {
         let cmd =
             keyboard_command_for("Space".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::Run));
     }
 
     #[test]
-    fn keyboard_command_for_가_b를_cycle_board_filter로_매핑한다() {
+    fn keyboard_command_for_maps_b_to_cycle_board_filter() {
         let cmd = keyboard_command_for("b".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::CycleBoardFilter));
     }
 
     #[test]
-    fn keyboard_command_for_가_t를_cycle_tag_filter로_매핑한다() {
+    fn keyboard_command_for_maps_t_to_cycle_tag_filter() {
         let cmd = keyboard_command_for("t".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::CycleTagFilter));
     }
 
     #[test]
-    fn keyboard_command_for_가_숫자_3을_switch_board_3으로_매핑한다() {
+    fn keyboard_command_for_maps_digit_3_to_switch_board_3() {
         let cmd = keyboard_command_for("3".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::SwitchBoard { slot: 3 }));
     }
 
     #[test]
-    fn keyboard_command_for_가_n을_new_board로_매핑한다() {
-        // Modeless: 보드 관리 키는 포커스 없이도 항상 활성.
+    fn keyboard_command_for_maps_n_to_new_board() {
+        // Modeless: board-management keys are always active, even
+        // without focus.
         let cmd = keyboard_command_for("n".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::NewBoard));
     }
 
     #[test]
-    fn keyboard_command_for_가_포커스_없이_p를_거부한다() {
-        // Modeless 이후 유일하게 남은 게이트: 핀 대상 키(p)는 포커스가 없으면
-        // 아무 핀도 대상으로 삼을 수 없어 None으로 떨어진다.
+    fn keyboard_command_for_rejects_p_without_focus() {
+        // The only gate left after Modeless: the pin-target key (p)
+        // cannot target any pin without focus, so it falls to None.
         let without_focus =
             keyboard_command_for("p".to_string(), false, false, false, false, None, false);
         assert_eq!(without_focus, None);
@@ -553,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_arrow_up을_move_up으로_매핑한다() {
+    fn keyboard_command_for_maps_arrow_up_to_move_up() {
         let cmd = keyboard_command_for(
             "ArrowUp".to_string(),
             false,
@@ -572,7 +573,7 @@ mod tests {
     }
 
     #[test]
-    fn board_slot_is_valid는_1부터_9까지_허용한다() {
+    fn board_slot_is_valid_allows_1_through_9() {
         assert!(!board_slot_is_valid(0));
         assert!(board_slot_is_valid(1));
         assert!(board_slot_is_valid(9));
@@ -580,7 +581,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_cmd_left_bracket을_move_pin_prev로_매핑한다() {
+    fn keyboard_command_for_maps_cmd_left_bracket_to_move_pin_prev() {
         let cmd = keyboard_command_for(
             "[".to_string(),
             false,
@@ -594,7 +595,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_cmd_right_bracket을_move_pin_next로_매핑한다() {
+    fn keyboard_command_for_maps_cmd_right_bracket_to_move_pin_next() {
         let cmd = keyboard_command_for(
             "]".to_string(),
             false,
@@ -608,18 +609,21 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_물음표를_show_cheatsheet로_매핑한다() {
-        // Shift+/ 로 입력된 '?' — Dart는 character '?'와 shift=true를 보낸다.
+    fn keyboard_command_for_maps_question_mark_to_show_cheatsheet() {
+        // '?' entered via Shift+/ — Dart sends character '?' with
+        // shift=true.
         let cmd = keyboard_command_for("?".to_string(), false, false, true, false, None, false);
         assert_eq!(cmd, Some(KeyboardCommandDto::ShowCheatsheet));
     }
 
     #[test]
-    fn keyboard_command_for_는_display_전용_명령을_반환하지_않는다() {
-        // F2(Copy)는 modal-local 처리라 이벤트가 계속 전파되어야 한다.
+    fn keyboard_command_for_does_not_return_display_only_commands() {
+        // F2 (Copy) is handled modal-locally, so the event must keep
+        // propagating.
         let cmd = keyboard_command_for("F2".to_string(), false, false, false, false, None, false);
         assert_eq!(cmd, None);
-        // Ctrl+U(ClearInput)도 텍스트 필드 네이티브 편집에 양보한다.
+        // Ctrl+U (ClearInput) also yields to the text field's native
+        // editing.
         let cmd = keyboard_command_for(
             "u".to_string(),
             true,
@@ -633,7 +637,7 @@ mod tests {
     }
 
     #[test]
-    fn binding_catalog은_모든_스코프를_미러링한다() {
+    fn binding_catalog_mirrors_all_scopes() {
         let catalog = keyboard_binding_catalog();
         let core = upeg_core::binding_catalog();
         assert_eq!(catalog.len(), core.len());
@@ -645,12 +649,12 @@ mod tests {
     }
 
     #[test]
-    fn binding_catalog의_보드_스코프는_치트시트_바인딩을_포함한다() {
+    fn binding_catalog_board_scope_includes_cheatsheet_binding() {
         let catalog = keyboard_binding_catalog();
         let board = catalog
             .iter()
             .find(|s| s.scope == KeyboardScopeDto::Board)
-            .expect("보드 스코프가 있어야 한다");
+            .expect("board scope must exist");
         let cheatsheet = board
             .entries
             .iter()
@@ -659,7 +663,7 @@ mod tests {
                     .iter()
                     .any(|b| b.command == KeyboardCommandDto::ShowCheatsheet)
             })
-            .expect("치트시트 엔트리가 있어야 한다");
+            .expect("cheatsheet entry must exist");
         assert_eq!(cheatsheet.label_key, "keys.cmd.cheatsheet");
         assert_eq!(
             cheatsheet.bindings[0].chord.key,
@@ -668,13 +672,14 @@ mod tests {
     }
 
     #[test]
-    fn binding_catalog은_display_전용_copy_바인딩도_노출한다() {
-        // 해석 경로에서는 걸러지지만(F2 → None) 치트시트에는 보여야 한다.
+    fn binding_catalog_also_exposes_display_only_copy_binding() {
+        // Filtered out on the resolution path (F2 → None) but must
+        // still appear on the cheatsheet.
         let catalog = keyboard_binding_catalog();
         let board = catalog
             .iter()
             .find(|s| s.scope == KeyboardScopeDto::Board)
-            .expect("보드 스코프가 있어야 한다");
+            .expect("board scope must exist");
         assert!(board.entries.iter().any(|e| {
             e.bindings
                 .iter()
@@ -683,7 +688,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_가_ctrl_left_bracket을_move_pin_prev로_매핑한다() {
+    fn keyboard_command_for_maps_ctrl_left_bracket_to_move_pin_prev() {
         let cmd = keyboard_command_for(
             "[".to_string(),
             true, // ctrl (non-mac primary)

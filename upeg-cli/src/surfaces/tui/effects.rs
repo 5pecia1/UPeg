@@ -131,11 +131,20 @@ pub fn serve_with_filters(board: Option<&str>, tag: Option<&str>) -> io::Result<
         loop {
             // Fold the worker's output into State before this frame is
             // drawn, so the live tail is at most one poll interval old.
-            let finished = in_flight
-                .as_ref()
-                .and_then(|run| run.pump(&mut state).map(|outcome| (run.tool_id(), outcome)));
-            if let Some((tool_id, outcome)) = finished {
-                let _ = update(&mut state, Msg::ToolDone { tool_id, outcome });
+            let finished = in_flight.as_ref().and_then(|run| {
+                run.pump(&mut state)
+                    .map(|outcome| (run.run(), run.presentation_host(), run.tool_id(), outcome))
+            });
+            if let Some((run, host, tool_id, outcome)) = finished {
+                let _ = update(
+                    &mut state,
+                    Msg::ToolDone {
+                        run,
+                        host,
+                        tool_id,
+                        outcome,
+                    },
+                );
                 in_flight = None;
             }
             reload_external_pegboard_if_changed(
@@ -391,6 +400,7 @@ fn dispatch_through_host_or_local(
     args: Value,
     board: Option<upeg_core::BoardKey>,
     preset: Option<upeg_core::ArgsPreset>,
+    attached_host: Option<crate::infrastructure::discovery::ServerInfo>,
 ) -> crate::domain::execution::dispatch::Outcome {
     // D-3: attaching does not turn the TUI into an HTTP client, so the
     // context is the same on both routes. The origin-surface header tells
@@ -404,9 +414,7 @@ fn dispatch_through_host_or_local(
     // (the host resolved its own `upeg.toml`, or none), so it never
     // auto-attaches — same rule the CLI's `dispatch_local_or_attached`
     // applies.
-    if !crate::domain::execution::context::requires_local_dispatch(tool_id)
-        && let Some(host) = crate::infrastructure::attach::current_host()
-    {
+    if let Some(host) = attached_host {
         // D-2: the host would otherwise run External tools from the
         // daemon's working directory.
         let args = crate::domain::execution::context::with_caller_cwd(args);
@@ -672,7 +680,7 @@ mod tweaks_bootstrap_tests {
     }
 
     #[test]
-    fn upeg_로케일_env는_랭과_엘시올보다_우선한다() {
+    fn upeg_locale_env_beats_lang_and_lc_all() {
         let lookup = fake_env(&[
             ("UPEG_LOCALE", "ko"),
             ("LC_ALL", "en_US.UTF-8"),
@@ -682,20 +690,21 @@ mod tweaks_bootstrap_tests {
     }
 
     #[test]
-    fn upeg_로케일이_없으면_엘시올이_랭보다_우선한다() {
+    fn lc_all_beats_lang_when_upeg_locale_absent() {
         let lookup = fake_env(&[("LC_ALL", "ko_KR.UTF-8"), ("LANG", "en_US.UTF-8")]);
         assert_eq!(pick_locale_hint(lookup), "ko_KR.UTF-8");
     }
 
     #[test]
-    fn lang_환경변수는_마지막_대안으로_사용된다() {
+    fn lang_env_var_is_last_resort() {
         let lookup = fake_env(&[("LANG", "ko_KR.UTF-8")]);
         assert_eq!(pick_locale_hint(lookup), "ko_KR.UTF-8");
     }
 
     #[test]
-    fn 빈값이나_공백값은_건너뛴다() {
-        // 내보냈지만 빈 UPEG_LOCALE은 LANG으로의 폴백을 막으면 안 된다.
+    fn empty_or_blank_values_are_skipped() {
+        // An exported-but-empty UPEG_LOCALE must not block the fallback
+        // to LANG.
         let lookup = fake_env(&[
             ("UPEG_LOCALE", "   "),
             ("LC_ALL", ""),
@@ -705,18 +714,18 @@ mod tweaks_bootstrap_tests {
     }
 
     #[test]
-    fn env가_없으면_빈_문자열을_반환한다() {
+    fn missing_env_returns_empty_string() {
         let lookup = |_: &str| None;
         assert_eq!(pick_locale_hint(lookup), "");
     }
 
     #[test]
-    fn 우선순위_상수는_문서화된_순서와_일치한다() {
+    fn precedence_constant_matches_documented_order() {
         assert_eq!(TUI_LOCALE_ENV_PRECEDENCE, ["UPEG_LOCALE", "LC_ALL", "LANG"]);
     }
 
     #[test]
-    fn mtime이_바뀌면_외부_설정을_state에_반영한다() {
+    fn mtime_change_reflects_external_settings_into_state() {
         let mut state = State {
             tweaks: Tweaks {
                 locale: Locale::En,
@@ -740,7 +749,7 @@ mod tweaks_bootstrap_tests {
     }
 
     #[test]
-    fn 설정_화면에서는_외부_설정_reload를_보류한다() {
+    fn settings_view_defers_external_settings_reload() {
         let mut state = State {
             view: View::Settings {
                 focused_field: SettingsField::Locale,
@@ -752,7 +761,7 @@ mod tweaks_bootstrap_tests {
         let mut seen = Some(old);
 
         reload_external_tweaks_if_changed(&mut state, &mut seen, Some(new), || {
-            panic!("설정 편집 중에는 외부 설정을 로드하면 안 된다")
+            panic!("must not load external settings while editing settings")
         });
 
         assert_eq!(seen, Some(old));
@@ -786,7 +795,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn 시작_filter는_cli_인자가_없으면_shared_selection을_사용한다() {
+    fn startup_filters_use_shared_selection_without_cli_args() {
         let mut pegboard = one_board_state("gui");
         pegboard.selection = pegboard::PegboardSelection {
             board_key: Some("gui".into()),
@@ -800,7 +809,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn 시작_filter는_cli_인자가_shared_selection보다_우선한다() {
+    fn startup_filters_cli_args_beat_shared_selection() {
         let mut pegboard = one_board_state("gui");
         pegboard.selection = pegboard::PegboardSelection {
             board_key: Some("gui".into()),
@@ -814,7 +823,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn rev가_바뀌면_외부_pegboard를_state에_반영한다() {
+    fn rev_change_reflects_external_pegboard_into_state() {
         let mut state = State::default();
         let mut seen = OLD_REV;
 
@@ -831,7 +840,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn 외부_pegboard_reload는_shared_selection도_반영한다() {
+    fn external_pegboard_reload_also_reflects_shared_selection() {
         let mut state = State::with_filters(initial_tui_filters(Some("dev"), Some("all")));
         let mut seen = OLD_REV;
         let mut next = one_board_state("gui");
@@ -847,7 +856,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn 편집_대화상자에서는_rev를_소비하지_않고_reload를_보류한다() {
+    fn edit_dialog_defers_reload_without_consuming_rev() {
         let mut state = State {
             view: View::BoardEditor {
                 mode: BoardEditMode::AddBoard,
@@ -858,7 +867,7 @@ mod pegboard_reload_tests {
         let mut seen = OLD_REV;
 
         reload_external_pegboard_if_changed(&mut state, &mut seen, NEW_REV, || {
-            panic!("보류 중에는 pegboard를 로드하면 안 된다")
+            panic!("must not load pegboard while deferred")
         });
 
         assert_eq!(seen, OLD_REV);
@@ -866,7 +875,7 @@ mod pegboard_reload_tests {
     }
 
     #[test]
-    fn 외부_pegboard_읽기에_실패하면_rev를_소비하지_않는다() {
+    fn failed_external_pegboard_read_does_not_consume_rev() {
         let mut state = State::default();
         let mut seen = OLD_REV;
 

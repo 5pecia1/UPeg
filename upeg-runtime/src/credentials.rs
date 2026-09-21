@@ -42,7 +42,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn credential_이름은_등록_순서대로_조회된다() {
+    fn credential_names_are_looked_up_in_registration_order() {
         let id = "test.credentials.weather";
         set_tool_credential_names(id, vec!["weather_api_key".into(), "backup_key".into()]);
         assert_eq!(
@@ -54,7 +54,7 @@ mod tests {
     }
 
     #[test]
-    fn 미등록_도구의_credential_이름은_비어있다() {
+    fn unregistered_tool_credential_names_are_empty() {
         assert!(tool_credential_names("test.credentials.none").is_empty());
     }
 }

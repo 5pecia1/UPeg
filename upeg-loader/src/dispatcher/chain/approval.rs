@@ -402,19 +402,20 @@ mod tests {
     const STEP_TOOL: &str = "text.uppercase";
     const CHAIN_ID: &str = "dev.precommit";
 
-    fn 기본_인가() -> ApprovalSurfaces {
-        ApprovalSurfaces::parse(CHAIN_ID, None).expect("선언 없는 기본값은 유효하다")
+    fn default_authorization() -> ApprovalSurfaces {
+        ApprovalSurfaces::parse(CHAIN_ID, None).expect("the undeclared default is valid")
     }
 
-    fn 판정(args: &Value) -> StepApproval {
-        기본_인가().authorize(args, STEP_KEY, STEP_TOOL)
+    fn verdict(args: &Value) -> StepApproval {
+        default_authorization().authorize(args, STEP_KEY, STEP_TOOL)
     }
 
     #[test]
-    fn surface가_없는_호출의_승인은_인정되지_않는다() {
-        // 중첩 체인의 하위 step이 보는 모습이다: `_upeg`가 전파되지 않아
-        // 호출자 신원이 없다. 신원 없는 승인은 승인이 아니다.
-        let outcome = 판정(&json!({ "approve": true }));
+    fn approval_from_call_without_surface_is_rejected() {
+        // What a nested chain's inner step sees: `_upeg` was not
+        // propagated so the caller has no identity. An approval without
+        // identity is not an approval.
+        let outcome = verdict(&json!({ "approve": true }));
         assert!(matches!(
             outcome,
             StepApproval::DeniedForSurface {
@@ -425,10 +426,11 @@ mod tests {
     }
 
     #[test]
-    fn 알수없는_surface_라벨의_승인은_인정되지_않는다() {
-        let outcome = 판정(&json!({ "approve": true, "_upeg": { "surface": "carrier-pigeon" } }));
+    fn approval_with_unknown_surface_label_is_rejected() {
+        let outcome =
+            verdict(&json!({ "approve": true, "_upeg": { "surface": "carrier-pigeon" } }));
         let StepApproval::DeniedForSurface { caller, .. } = outcome else {
-            panic!("알 수 없는 surface는 거부되어야 한다");
+            panic!("an unknown surface must be denied");
         };
         assert_eq!(
             caller,
@@ -437,33 +439,38 @@ mod tests {
     }
 
     #[test]
-    fn approved_steps는_step_id와_tool_id_모두를_지목할_수_있다() {
+    fn approved_steps_may_name_step_id_or_tool_id() {
         for approved in [STEP_KEY, STEP_TOOL] {
             let args = json!({ "_upeg": { "surface": "cli", "approvedSteps": [approved] } });
-            assert_eq!(판정(&args), StepApproval::Approved, "approved={approved}");
+            assert_eq!(
+                verdict(&args),
+                StepApproval::Approved,
+                "approved={approved}"
+            );
         }
     }
 
     #[test]
-    fn 기본_승인_surface는_사람이_앉아있는_세_표면이다() {
-        let default = 기본_인가();
+    fn default_approval_surfaces_are_the_three_attended_surfaces() {
+        let default = default_authorization();
         for surface in [Surface::Cli, Surface::Tui, Surface::Desktop] {
             assert!(default.honors(surface), "{}", surface.label());
         }
         for surface in [Surface::Mcp, Surface::Http, Surface::Pwa, Surface::Ext] {
             assert!(
                 !default.honors(surface),
-                "프로그램이 채우는 envelope은 기본값이 아니다: {}",
+                "a program-filled envelope is not a default: {}",
                 surface.label()
             );
         }
     }
 
     #[test]
-    fn 기본_승인_surface는_모두_operator_주체를_가진다() {
-        // 기본값의 근거다: 이 셋은 OS 사용자 계정 자체가 호출자라서
-        // 토큰 없이도 operator다. 하나라도 아니면 principal 게이트가
-        // 자기 자신의 기본값을 막게 된다.
+    fn default_approval_surfaces_all_have_operator_principal() {
+        // The rationale for the default: for these three the OS user
+        // account itself is the caller, so they are operators without
+        // any token. If one were not, the principal gate would block
+        // its own default.
         for surface in DEFAULT_APPROVAL_SURFACES {
             assert!(
                 Principal::for_surface(*surface).may_approve(),
@@ -474,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn agent_주체의_승인은_인가된_surface에서도_거부된다() {
+    fn agent_principal_approval_denied_even_on_authorized_surface() {
         let args = json!({
             "approve": true,
             "_upeg": {
@@ -483,25 +490,26 @@ mod tests {
             },
         });
 
-        let outcome = 판정(&args);
+        let outcome = verdict(&args);
 
         let StepApproval::DeniedForPrincipal { principal, .. } = outcome else {
-            panic!("agent 주체는 surface와 무관하게 거부되어야 한다: {outcome:?}");
+            panic!("an agent principal must be denied regardless of surface: {outcome:?}");
         };
         assert_eq!(principal.role, upeg_core::PrincipalRole::Agent);
-        let rejection = 판정(&args)
+        let rejection = verdict(&args)
             .rejection(STEP_KEY)
-            .expect("거부에는 메시지가 있다");
+            .expect("a denial carries a message");
         assert_eq!(rejection.code, APPROVAL_DENIED_FOR_PRINCIPAL_ERROR_CODE);
         assert!(rejection.message.contains("agent"), "{}", rejection.message);
     }
 
     #[test]
-    fn local_주체는_체인이_그_표면을_인가했다면_승인할_수_있다() {
-        // stdio MCP은 OS 사용자가 띄운 프로그램이다 — 주체 게이트는
-        // 통과시키고, 어디서 승인할 수 있는지는 표면 게이트가 정한다.
-        let mcp만 = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
-            .expect("mcp만 인가하는 선언은 유효하다");
+    fn local_principal_may_approve_when_chain_authorizes_surface() {
+        // stdio MCP is a program the OS user launched — it passes the
+        // principal gate, and the surface gate decides where it may
+        // approve.
+        let mcp_only = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
+            .expect("an mcp-only declaration is valid");
         let args = json!({
             "approve": true,
             "_upeg": {
@@ -511,18 +519,22 @@ mod tests {
         });
 
         assert_eq!(
-            mcp만.authorize(&args, STEP_KEY, STEP_TOOL),
+            mcp_only.authorize(&args, STEP_KEY, STEP_TOOL),
             StepApproval::Approved
         );
-        // 같은 주체라도 기본 인가(cli/tui/desktop)에서는 표면 게이트에
-        // 걸린다 — 두 게이트가 서로를 대신하지 않는다.
-        assert!(matches!(판정(&args), StepApproval::DeniedForSurface { .. }));
+        // The same principal still hits the surface gate under the
+        // default authorization (cli/tui/desktop) — the two gates do
+        // not stand in for each other.
+        assert!(matches!(
+            verdict(&args),
+            StepApproval::DeniedForSurface { .. }
+        ));
     }
 
     #[test]
-    fn agent_주체는_체인이_그_표면을_인가해도_승인할_수_없다() {
-        let mcp만 = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
-            .expect("mcp만 인가하는 선언은 유효하다");
+    fn agent_principal_cannot_approve_even_on_authorized_surface() {
+        let mcp_only = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
+            .expect("an mcp-only declaration is valid");
         let args = json!({
             "approve": true,
             "_upeg": {
@@ -531,16 +543,16 @@ mod tests {
             },
         });
 
-        let rejection = mcp만
+        let rejection = mcp_only
             .authorize(&args, STEP_KEY, STEP_TOOL)
             .rejection(STEP_KEY)
-            .expect("거부에는 메시지가 있다");
+            .expect("a denial carries a message");
 
         assert_eq!(rejection.code, APPROVAL_DENIED_FOR_PRINCIPAL_ERROR_CODE);
     }
 
     #[test]
-    fn operator_주체는_인가된_surface에서_승인할_수_있다() {
+    fn operator_principal_may_approve_on_authorized_surface() {
         for surface in DEFAULT_APPROVAL_SURFACES {
             let label = surface.label();
             let args = json!({
@@ -550,13 +562,14 @@ mod tests {
                     "principal": { "role": "operator", "surface": label },
                 },
             });
-            assert_eq!(판정(&args), StepApproval::Approved, "{label}");
+            assert_eq!(verdict(&args), StepApproval::Approved, "{label}");
         }
     }
 
     #[test]
-    fn operator_주체라도_인가되지_않은_surface에서는_거부된다() {
-        // 두 게이트는 독립이다: 주체가 통과해도 표면 게이트가 남는다.
+    fn operator_principal_denied_on_unauthorized_surface() {
+        // The two gates are independent: a passing principal still
+        // leaves the surface gate.
         let args = json!({
             "approve": true,
             "_upeg": {
@@ -565,28 +578,31 @@ mod tests {
             },
         });
 
-        let rejection = 판정(&args)
+        let rejection = verdict(&args)
             .rejection(STEP_KEY)
-            .expect("거부에는 메시지가 있다");
+            .expect("a denial carries a message");
 
         assert_eq!(rejection.code, APPROVAL_DENIED_FOR_SURFACE_ERROR_CODE);
     }
 
     #[test]
-    fn 주체_블록이_없는_호출은_표면_게이트만으로_판정된다() {
-        // principal이 없다는 것은 권한이 아니라 정보의 부재다 —
-        // 게이트를 열지도, 표면 판정을 건너뛰지도 않는다.
+    fn call_without_principal_block_is_judged_by_surface_gate_only() {
+        // No principal is not authority, it is missing information — it
+        // neither opens the gate nor skips the surface check.
         let args = json!({ "approve": true, "_upeg": { "surface": "cli" } });
-        assert_eq!(판정(&args), StepApproval::Approved);
+        assert_eq!(verdict(&args), StepApproval::Approved);
 
         let args = json!({ "approve": true, "_upeg": { "surface": "mcp" } });
-        assert!(matches!(판정(&args), StepApproval::DeniedForSurface { .. }));
+        assert!(matches!(
+            verdict(&args),
+            StepApproval::DeniedForSurface { .. }
+        ));
     }
 
     #[test]
-    fn 등록된_정책은_체인이_인가한_표면_전체를_공개한다() {
+    fn registered_policy_exposes_all_chain_authorized_surfaces() {
         let surfaces = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
-            .expect("mcp만 인가하는 선언은 유효하다");
+            .expect("an mcp-only declaration is valid");
 
         let policy = surfaces.policy();
 
@@ -596,11 +612,11 @@ mod tests {
     }
 
     #[test]
-    fn cli를_인가하는_체인의_거부는_실행할_명령을_그대로_알려준다() {
-        let outcome = 판정(&json!({ "approve": true, "_upeg": { "surface": "mcp" } }));
+    fn cli_honoring_chain_rejection_names_the_runnable_command() {
+        let outcome = verdict(&json!({ "approve": true, "_upeg": { "surface": "mcp" } }));
         let message = outcome
             .rejection(STEP_KEY)
-            .expect("거부에는 메시지가 있다")
+            .expect("a denial carries a message")
             .message;
         assert!(
             message.contains(&format!("upeg call {CHAIN_ID} -a approve=true")),
@@ -609,9 +625,9 @@ mod tests {
     }
 
     #[test]
-    fn cli를_인가하지_않는_체인의_거부는_명령을_지어내지_않는다() {
+    fn non_cli_chain_rejection_does_not_invent_a_command() {
         let surfaces = ApprovalSurfaces::parse(CHAIN_ID, Some(&["mcp".to_string()]))
-            .expect("mcp만 인가하는 선언은 유효하다");
+            .expect("an mcp-only declaration is valid");
         let outcome = surfaces.authorize(
             &json!({ "approve": true, "_upeg": { "surface": "cli" } }),
             STEP_KEY,
@@ -619,7 +635,7 @@ mod tests {
         );
         let message = outcome
             .rejection(STEP_KEY)
-            .expect("거부에는 메시지가 있다")
+            .expect("a denial carries a message")
             .message;
         assert!(!message.contains("upeg call"), "{message}");
         assert!(message.contains("mcp"), "{message}");

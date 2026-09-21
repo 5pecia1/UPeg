@@ -4,7 +4,7 @@ use super::common::parse;
 use crate::*;
 
 #[test]
-fn 사용자지정_길이의_랜덤_hex_바이트는_호출을_통해_dispatch된다() {
+fn call_dispatches_random_hex_bytes_with_a_custom_length() {
     // `upeg call` route accepts the `count` arg as a JSON integer.
     let out = run(parse(&[
         "upeg",
@@ -18,7 +18,7 @@ fn 사용자지정_길이의_랜덤_hex_바이트는_호출을_통해_dispatch�
 }
 
 #[test]
-fn 보안_비밀번호_도구는_call_하위명령으로_dispatch된다() {
+fn call_dispatches_password_generation_and_strength_estimation() {
     let generated = run(parse(&[
         "upeg",
         "call",
@@ -47,13 +47,13 @@ fn 보안_비밀번호_도구는_call_하위명령으로_dispatch된다() {
 // ─── text.reverse + html_encode/decode ────────────
 
 #[test]
-fn 텍스트_뒤집기_하위명령은_문자열을_역순으로_출력한다() {
+fn text_reverse_subcommand_outputs_the_reversed_string() {
     let out = run(parse(&["upeg", "text", "reverse", "Hello"])).unwrap();
     assert_eq!(out, "olleH\n");
 }
 
 #[test]
-fn html_인코딩과_디코딩_하위명령은_왕복이_보존된다() {
+fn html_encode_and_decode_subcommands_round_trip() {
     let enc = run(parse(&[
         "upeg",
         "convert",
@@ -73,13 +73,13 @@ fn html_인코딩과_디코딩_하위명령은_왕복이_보존된다() {
 }
 
 #[test]
-fn html_디코딩_유효하지_않은_숫자는_도구_실패를_반환한다() {
+fn html_decode_returns_tool_failure_for_invalid_numeric_entities() {
     let r = run(parse(&["upeg", "convert", "html-decode", "&#xZZ;"]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
 }
 
 #[test]
-fn 늦게_추가된_텍스트_및_html_도구는_목록과_dispatch_모두에_나타난다() {
+fn text_reverse_and_html_tools_are_listed_and_html_encode_has_call_parity() {
     let listed = run(parse(&["upeg", "tool", "list"])).unwrap();
     for expected in ["text.reverse", "convert.html_encode", "convert.html_decode"] {
         assert!(

@@ -143,7 +143,7 @@ mod tests {
     use crate::features::boards::default_boards;
 
     #[test]
-    fn 직렬화_뒤_역직렬화하면_원본이_복원된다() {
+    fn deserialize_after_serialize_restores_original() {
         let boards = default_boards();
         let mut layouts: BoardLayouts = HashMap::new();
         layouts.insert(
@@ -159,13 +159,13 @@ mod tests {
     }
 
     #[test]
-    fn 역직렬화_쓰레기값은_없음을_반환한다() {
+    fn deserialize_layouts_garbage_returns_none() {
         assert!(deserialize_layouts("not json", &default_boards()).is_none());
         assert!(deserialize_layouts("[]", &default_boards()).is_none());
     }
 
     #[test]
-    fn 드롭_알수없는_보드를_역직렬화한다() {
+    fn deserialize_drops_unknown_boards() {
         let boards = default_boards();
         let json = r#"{"dev":[{"tool_id":"num.hex_to_decimal","x":0,"y":0}],"obsolete_board":[]}"#;
         let back = deserialize_layouts(json, &boards).expect("parse");
@@ -174,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn 드롭_등록되지않은_도구를_역직렬화한다() {
+    fn deserialize_drops_unregistered_tools() {
         let boards = default_boards();
         let json = r#"{"dev":[{"tool_id":"num.hex_to_decimal","x":0,"y":0},{"tool_id":"nonexistent.tool","x":1,"y":0}]}"#;
         let back = deserialize_layouts(json, &boards).expect("parse");
@@ -184,14 +184,14 @@ mod tests {
     }
 
     #[test]
-    fn 역직렬화는_레거시_문자열_배열을_거부한다() {
+    fn deserialize_rejects_legacy_string_arrays() {
         let boards = default_boards();
         let json = r#"{"dev":["num.hex_to_decimal","id.uuid_v7"]}"#;
         assert!(deserialize_layouts(json, &boards).is_none());
     }
 
     #[test]
-    fn 도구가_레이아웃에_고정되었는지_올바르게_확인한다() {
+    fn correctly_detects_whether_tool_is_pinned_in_layout() {
         let mut layouts: BoardLayouts = HashMap::new();
         layouts.insert(
             "dev",
@@ -203,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn pinned_search_signals_for_board는_layout_map에서_랭킹을_만든다() {
+    fn pinned_search_signals_for_board_builds_ranking_from_layout_map() {
         let mut layouts: BoardLayouts = HashMap::new();
         layouts.insert(
             "dev",
@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn 태그_옵션은_전체와_고유_태그를_정렬해서_포함한다() {
+    fn tag_options_include_all_and_sorted_unique_tags() {
         // Minimal ToolMeta-like setup via real tools from the toolbox.
         let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
         let tags = tag_options(&tools);
@@ -242,14 +242,14 @@ mod tests {
     }
 
     #[test]
-    fn 전체_태그_필터는_전체_도구를_반환한다() {
+    fn all_tag_filter_returns_all_tools() {
         let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
         let filtered = tools_for_tag(&tools, ALL_TAG);
         assert_eq!(filtered.len(), tools.len());
     }
 
     #[test]
-    fn 특정_태그_필터는_해당_태그의_도구만_반환한다() {
+    fn specific_tag_filter_returns_only_tools_with_that_tag() {
         let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
         let filtered = tools_for_tag(&tools, "convert");
         for t in &filtered {
@@ -258,14 +258,14 @@ mod tests {
     }
 
     #[test]
-    fn 선택된_태그_정규화는_유효한_태그를_반환한다() {
+    fn selected_tag_normalization_returns_valid_tag() {
         let tags = vec!["all".into(), "convert".into(), "text".into()];
         assert_eq!(normalize_selected_tag(&tags, "convert"), "convert");
         assert_eq!(normalize_selected_tag(&tags, "missing"), "all");
     }
 
     #[test]
-    fn 태그별_개수는_필터_결과_길이와_일치한다() {
+    fn count_for_tag_matches_filtered_result_length() {
         let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
         let n = count_for_tag(&tools, ALL_TAG);
         assert_eq!(n, tools.len());

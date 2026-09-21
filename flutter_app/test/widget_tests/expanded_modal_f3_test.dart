@@ -76,7 +76,7 @@ Widget _harness({
 
 void main() {
   group('ExpandedModalPage F3 shortcut (Batch O2, I13 F3)', () {
-    testWidgets('ExpandedModalPage_F3는_pinTool을_호출한다', (tester) async {
+    testWidgets('ExpandedModalPage_F3_invokes_pinTool', (tester) async {
       BoardKey? observedBoard;
       ToolId? observedTool;
       await tester.pumpWidget(
@@ -94,26 +94,27 @@ void main() {
       expect(observedTool, equals(ToolId.parse('fixture.echo')));
     });
 
-    testWidgets('ExpandedModalPage_F3는_bespoke_form_안에서도_pinTool을_호출한다', (
-      tester,
-    ) async {
-      BoardKey? observedBoard;
-      ToolId? observedTool;
-      await tester.pumpWidget(
-        _harness(
-          tool: _hexToDecTool,
-          pinFn: (board, tool) {
-            observedBoard = board;
-            observedTool = tool;
-          },
-        ),
-      );
-      // The bespoke HexToDecForm autofocuses its own Focus node and
-      // binds F1+F2. F3 must propagate past it to the modal shell.
-      await tester.sendKeyEvent(LogicalKeyboardKey.f3);
-      await tester.pumpAndSettle();
-      expect(observedBoard, equals(BoardKey.parse('dev')));
-      expect(observedTool, equals(ToolId.parse(hexToDecToolId)));
-    });
+    testWidgets(
+      'ExpandedModalPage_F3_invokes_pinTool_even_inside_a_bespoke_form',
+      (tester) async {
+        BoardKey? observedBoard;
+        ToolId? observedTool;
+        await tester.pumpWidget(
+          _harness(
+            tool: _hexToDecTool,
+            pinFn: (board, tool) {
+              observedBoard = board;
+              observedTool = tool;
+            },
+          ),
+        );
+        // The bespoke HexToDecForm autofocuses its own Focus node and
+        // binds F1+F2. F3 must propagate past it to the modal shell.
+        await tester.sendKeyEvent(LogicalKeyboardKey.f3);
+        await tester.pumpAndSettle();
+        expect(observedBoard, equals(BoardKey.parse('dev')));
+        expect(observedTool, equals(ToolId.parse(hexToDecToolId)));
+      },
+    );
   });
 }

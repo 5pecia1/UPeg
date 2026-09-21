@@ -30,7 +30,7 @@ Widget _harness(CanonicalToolResult outcome, {ToolId? toolId}) {
 
 void main() {
   group('DispatchResultDialog', () {
-    testWidgets('DispatchResultDialog는_ok_상태_canonical_output을_표시한다', (
+    testWidgets('DispatchResultDialog_shows_canonical_output_on_ok', (
       tester,
     ) async {
       const outcome = CanonicalToolResult(
@@ -57,7 +57,7 @@ void main() {
       expect(find.text('primary'), findsOneWidget);
     });
 
-    testWidgets('DispatchResultDialog는_canonical_json_output을_표시한다', (
+    testWidgets('DispatchResultDialog_shows_canonical_json_output', (
       tester,
     ) async {
       const outcome = CanonicalToolResult(
@@ -81,7 +81,7 @@ void main() {
       expect(find.text('{"result":255}'), findsOneWidget);
     });
 
-    testWidgets('DispatchResultDialog는_실패_상태_error_message를_표시한다', (
+    testWidgets('DispatchResultDialog_shows_the_error_message_on_failure', (
       tester,
     ) async {
       const outcome = CanonicalToolResult(
@@ -103,14 +103,15 @@ void main() {
       expect(find.text('error:'), findsOneWidget);
     });
 
-    testWidgets('DispatchResultDialog는_빈_outcome에서_no_output_안내를_표시한다', (
-      tester,
-    ) async {
-      const outcome = CanonicalToolResult(ok: true, outputs: []);
-      await tester.pumpWidget(_harness(outcome));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'DispatchResultDialog_shows_a_no_output_hint_on_empty_outcome',
+      (tester) async {
+        const outcome = CanonicalToolResult(ok: true, outputs: []);
+        await tester.pumpWidget(_harness(outcome));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('no output'), findsOneWidget);
-    });
+        expect(find.textContaining('no output'), findsOneWidget);
+      },
+    );
   });
 }

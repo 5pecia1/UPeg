@@ -130,11 +130,11 @@ mod tests {
 
     const AGENT_TOKEN: &str = "origin-surface-test-agent-token";
 
-    fn 상태(token: &str) -> HttpState {
-        에이전트_있는_상태(token, Vec::new())
+    fn state(token: &str) -> HttpState {
+        state_with_agents(token, Vec::new())
     }
 
-    fn 에이전트_있는_상태(token: &str, agents: Vec<String>) -> HttpState {
+    fn state_with_agents(token: &str, agents: Vec<String>) -> HttpState {
         HttpState {
             tokens: Arc::new(crate::infrastructure::auth::HostTokens::with_agents(
                 token, agents,
@@ -145,40 +145,40 @@ mod tests {
         }
     }
 
-    fn 에이전트_상태() -> HttpState {
-        에이전트_있는_상태(TOKEN, vec![AGENT_TOKEN.to_string()])
+    fn state_with_agent() -> HttpState {
+        state_with_agents(TOKEN, vec![AGENT_TOKEN.to_string()])
     }
 
-    fn 에이전트_헤더(surface: &str) -> HeaderMap {
-        헤더(&[
+    fn agent_headers(surface: &str) -> HeaderMap {
+        headers(&[
             ("authorization", &format!("Bearer {AGENT_TOKEN}")),
             (ORIGIN_SURFACE_HEADER, surface),
         ])
     }
 
-    fn 헤더(entries: &[(&str, &str)]) -> HeaderMap {
+    fn headers(entries: &[(&str, &str)]) -> HeaderMap {
         let mut headers = HeaderMap::new();
         for (name, value) in entries {
             headers.insert(
-                axum::http::HeaderName::from_bytes(name.as_bytes()).expect("유효한 헤더 이름"),
-                value.parse().expect("유효한 헤더 값"),
+                axum::http::HeaderName::from_bytes(name.as_bytes()).expect("valid header name"),
+                value.parse().expect("valid header value"),
             );
         }
         headers
     }
 
-    fn 인증된_헤더(surface: &str) -> HeaderMap {
-        헤더(&[
+    fn operator_headers(surface: &str) -> HeaderMap {
+        headers(&[
             ("authorization", &format!("Bearer {TOKEN}")),
             (ORIGIN_SURFACE_HEADER, surface),
         ])
     }
 
     #[test]
-    fn 인증된_요청의_attach_surface는_그대로_인정된다() {
+    fn attach_surface_of_authenticated_request_is_honored() {
         for surface in ATTACH_ORIGIN_SURFACES {
             assert_eq!(
-                origin_surface_from_headers(&상태(TOKEN), &인증된_헤더(surface.label())),
+                origin_surface_from_headers(&state(TOKEN), &operator_headers(surface.label())),
                 *surface,
                 "{}",
                 surface.label()
@@ -187,38 +187,39 @@ mod tests {
     }
 
     #[test]
-    fn 헤더가_없으면_전송_surface인_http다() {
-        let headers = 헤더(&[("authorization", &format!("Bearer {TOKEN}"))]);
+    fn missing_header_falls_back_to_transport_surface_http() {
+        let headers = headers(&[("authorization", &format!("Bearer {TOKEN}"))]);
         assert_eq!(
-            origin_surface_from_headers(&상태(TOKEN), &headers),
+            origin_surface_from_headers(&state(TOKEN), &headers),
             Surface::Http
         );
     }
 
     #[test]
-    fn 인증되지_않은_요청의_헤더는_선언이_아니라_소음이다() {
-        // 토큰이 틀린 요청, 그리고 애초에 토큰을 요구하지 않는 라우터.
-        let 틀린_토큰 = 헤더(&[
+    fn headers_on_unauthenticated_requests_are_noise_not_declaration() {
+        // A request with a wrong token, and a router that requires no
+        // token at all.
+        let wrong_token = headers(&[
             ("authorization", "Bearer wrong-token"),
             (ORIGIN_SURFACE_HEADER, "cli"),
         ]);
         assert_eq!(
-            origin_surface_from_headers(&상태(TOKEN), &틀린_토큰),
+            origin_surface_from_headers(&state(TOKEN), &wrong_token),
             Surface::Http
         );
 
         assert_eq!(
-            origin_surface_from_headers(&상태(""), &인증된_헤더("cli")),
+            origin_surface_from_headers(&state(""), &operator_headers("cli")),
             Surface::Http,
-            "인증하지 않는 호스트는 아무도 믿을 수 없다"
+            "a host that does not authenticate can trust nobody"
         );
     }
 
     #[test]
-    fn 허용_목록_밖의_surface는_http로_떨어진다() {
+    fn surfaces_outside_the_allow_list_fall_back_to_http() {
         for surface in [Surface::Desktop, Surface::Pwa, Surface::Ext, Surface::Mcp] {
             assert_eq!(
-                origin_surface_from_headers(&상태(TOKEN), &인증된_헤더(surface.label())),
+                origin_surface_from_headers(&state(TOKEN), &operator_headers(surface.label())),
                 Surface::Http,
                 "{}",
                 surface.label()
@@ -227,30 +228,30 @@ mod tests {
     }
 
     #[test]
-    fn surface가_아닌_값은_오류가_아니라_http다() {
+    fn non_surface_values_are_http_not_an_error() {
         assert_eq!(
-            origin_surface_from_headers(&상태(TOKEN), &인증된_헤더("carrier-pigeon")),
+            origin_surface_from_headers(&state(TOKEN), &operator_headers("carrier-pigeon")),
             Surface::Http
         );
     }
 
     #[test]
-    fn operator_토큰은_operator_주체를_증명한다() {
-        let principal = principal_from_headers(&에이전트_상태(), &인증된_헤더("cli"));
+    fn operator_token_proves_an_operator_principal() {
+        let principal = principal_from_headers(&state_with_agent(), &operator_headers("cli"));
 
         assert_eq!(principal.role, PrincipalRole::Operator);
         assert_eq!(
             principal.surface,
             Surface::Cli,
-            "attach 헤더가 함께 인정된다"
+            "the attach header is honored along the way"
         );
     }
 
     #[test]
-    fn agent_토큰은_헤더가_있어도_http_surface의_agent다() {
-        // 이것이 agent 토큰의 전부다: 데이터 평면에 들어오지만
-        // 사람이 앉아있는 표면을 자칭할 수는 없다.
-        let principal = principal_from_headers(&에이전트_상태(), &에이전트_헤더("cli"));
+    fn agent_token_is_an_agent_on_http_surface_despite_the_header() {
+        // That is all an agent token is: it reaches the data plane but
+        // cannot claim the surface a person sits at.
+        let principal = principal_from_headers(&state_with_agent(), &agent_headers("cli"));
 
         assert_eq!(principal.role, PrincipalRole::Agent);
         assert_eq!(principal.surface, Surface::Http);
@@ -258,21 +259,21 @@ mod tests {
     }
 
     #[test]
-    fn 인증되지_않은_요청은_가장_낮은_권한을_받는다() {
-        let 틀린_토큰 = 헤더(&[
+    fn unauthenticated_requests_get_the_lowest_authority() {
+        let wrong_token = headers(&[
             ("authorization", "Bearer wrong-token"),
             (ORIGIN_SURFACE_HEADER, "cli"),
         ]);
 
-        let principal = principal_from_headers(&에이전트_상태(), &틀린_토큰);
+        let principal = principal_from_headers(&state_with_agent(), &wrong_token);
 
         assert_eq!(principal.role, PrincipalRole::Agent);
         assert_eq!(principal.surface, Surface::Http);
     }
 
     #[test]
-    fn 토큰을_요구하지_않는_호스트도_아무도_operator로_승격시키지_않는다() {
-        let principal = principal_from_headers(&상태(""), &인증된_헤더("cli"));
+    fn a_host_requiring_no_token_promotes_nobody_to_operator() {
+        let principal = principal_from_headers(&state(""), &operator_headers("cli"));
 
         assert_eq!(principal.role, PrincipalRole::Agent);
         assert_eq!(principal.surface, Surface::Http);

@@ -131,7 +131,7 @@ mod tests {
         Removed,
     }
 
-    fn 환경_지시(command: &Command, name: &str) -> EnvDirective {
+    fn env_directive(command: &Command, name: &str) -> EnvDirective {
         command
             .get_envs()
             .find(|(key, _)| *key == OsStr::new(name))
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn 선언이_없으면_상속이다() {
+    fn no_declaration_means_inherit() {
         assert_eq!(
             ColorPolicy::parse_declaration(None),
             Ok(ColorPolicy::Inherit)
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn force_선언은_강제_정책이_된다() {
+    fn force_declaration_becomes_force_policy() {
         assert_eq!(
             ColorPolicy::parse_declaration(Some("force")),
             Ok(ColorPolicy::Force)
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn 앞뒤_공백은_다듬어진다() {
+    fn surrounding_whitespace_is_trimmed() {
         assert_eq!(
             ColorPolicy::parse_declaration(Some("  force ")),
             Ok(ColorPolicy::Force)
@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn 알_수_없는_값은_타입_오류가_된다() {
+    fn unknown_value_becomes_typed_error() {
         assert_eq!(
             ColorPolicy::parse_declaration(Some("always")),
             Err(UnknownColorPolicy {
@@ -176,12 +176,12 @@ mod tests {
     }
 
     #[test]
-    fn 허용값_목록은_두_가지다() {
+    fn allowed_values_list_has_two_entries() {
         assert_eq!(COLOR_POLICIES, &["inherit", "force"]);
     }
 
     #[test]
-    fn force는_상속된_no_color를_자식에게서_지운다() {
+    fn force_removes_inherited_no_color_for_child() {
         // no-color.org ranks NO_COLOR above CLICOLOR_FORCE/FORCE_COLOR,
         // so leaving an inherited one in place would make `force` a
         // no-op for every CLI that honors the convention.
@@ -189,28 +189,31 @@ mod tests {
         ColorPolicy::Force.apply(&mut command);
 
         assert_eq!(
-            환경_지시(&command, NO_COLOR_ENV),
+            env_directive(&command, NO_COLOR_ENV),
             EnvDirective::Removed,
-            "force는 NO_COLOR를 제거 지시로 남겨야 한다"
+            "force must leave NO_COLOR as a removal directive"
         );
         assert_eq!(
-            환경_지시(&command, CLICOLOR_FORCE_ENV),
+            env_directive(&command, CLICOLOR_FORCE_ENV),
             EnvDirective::Set(COLOR_ENABLED_VALUE.to_string())
         );
         assert_eq!(
-            환경_지시(&command, FORCE_COLOR_ENV),
+            env_directive(&command, FORCE_COLOR_ENV),
             EnvDirective::Set(COLOR_ENABLED_VALUE.to_string())
         );
     }
 
     #[test]
-    fn inherit은_no_color에_손대지_않는다() {
+    fn inherit_leaves_no_color_alone() {
         let mut command = Command::new("true");
         ColorPolicy::Inherit.apply(&mut command);
 
-        assert_eq!(환경_지시(&command, NO_COLOR_ENV), EnvDirective::Untouched);
         assert_eq!(
-            환경_지시(&command, CLICOLOR_FORCE_ENV),
+            env_directive(&command, NO_COLOR_ENV),
+            EnvDirective::Untouched
+        );
+        assert_eq!(
+            env_directive(&command, CLICOLOR_FORCE_ENV),
             EnvDirective::Untouched
         );
     }

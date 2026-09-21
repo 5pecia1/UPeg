@@ -99,10 +99,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gui_surface는_이_빌드의_런타임_호스트를_따른다() {
-        // wasm32 빌드에서는 `pwa`, 그 밖에서는 `desktop`. 이 테스트는
-        // 두 타깃 모두에서 컴파일되고, `cargo test --target
-        // wasm32-unknown-unknown`이 아래쪽 분기를 증명한다.
+    fn gui_surface_follows_this_builds_runtime_host() {
+        // `pwa` on the wasm32 build, `desktop` otherwise. This test
+        // compiles on both targets, and `cargo test --target
+        // wasm32-unknown-unknown` proves the lower branch.
         let expected = if cfg!(target_arch = "wasm32") {
             Surface::Pwa
         } else {
@@ -112,19 +112,20 @@ mod tests {
     }
 
     #[test]
-    fn board가_없는_호출은_이_빌드의_surface로_전역_컨텍스트를_만든다() {
+    fn call_without_board_builds_global_context_with_this_builds_surface() {
         let context = gui_execution_context("num.hex_to_decimal", None)
-            .expect("board 없는 컨텍스트는 실패하지 않는다");
+            .expect("a board-less context cannot fail");
         assert_eq!(context.surface(), gui_surface());
         assert_eq!(context.principal().surface, gui_surface());
     }
 
     #[test]
-    fn 잘못된_board_key는_정본_오류_봉투로_거절된다() {
-        // 공백뿐인 키. 컨텍스트를 만들 수 없다는 사실이 조용한
-        // 전역 fallback이 아니라 정본 오류 봉투로 나가야 한다.
+    fn invalid_board_key_is_rejected_with_canonical_error_envelope() {
+        // A whitespace-only key. The failure to build a context must
+        // surface as the canonical error envelope, not a silent global
+        // fallback.
         let err = gui_execution_context("num.hex_to_decimal", Some("   "))
-            .expect_err("잘못된 board key는 거절되어야 한다");
+            .expect_err("invalid board key must be rejected");
         assert!(!err.ok);
     }
 }

@@ -75,7 +75,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn timeout_오류는_재시도_대상이다() {
+    fn timeout_error_is_retryable() {
         let err = ImportError::Timeout {
             server: "s".into(),
             method: "initialize",
@@ -85,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn 알수없는_명령_오류는_재시도_대상이_아니다() {
+    fn unknown_command_error_is_not_retryable() {
         let err = ImportError::Spawn {
             command: "definitely-not-a-real-binary".into(),
             source: std::io::Error::from(std::io::ErrorKind::NotFound),
@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn 명시적_rpc_오류는_재시도_대상이_아니다() {
+    fn explicit_rpc_error_is_not_retryable() {
         let err = ImportError::Rpc {
             method: "tools/list",
             code: -32000,

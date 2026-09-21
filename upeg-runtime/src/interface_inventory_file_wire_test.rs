@@ -1,13 +1,13 @@
 use super::*;
 
 #[test]
-fn 인터페이스_인벤토리는_file_wire_계약을_노출한다() {
+fn interface_inventory_exposes_file_wire_contract() {
     let id = "file_wire_test.upload";
     crate::toolbox_add_tool(ToolMeta {
         id,
         toolkit: "file_wire_test",
         local_id: upeg_core::ToolId::parse_canonical_in_toolkit(id, "file_wire_test")
-            .expect("테스트 도구 id가 정규 형식이어야 한다")
+            .expect("test tool id must be in canonical form")
             .local(),
         tags: &[],
         display_label: "File wire test",
@@ -21,9 +21,11 @@ fn 인터페이스_인벤토리는_file_wire_계약을_노출한다() {
                 }
             }
         }))
-        .expect("레거시 File schema를 가져와야 한다"),
+        .expect("legacy File schema must parse"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -38,12 +40,12 @@ fn 인터페이스_인벤토리는_file_wire_계약을_노출한다() {
                 && entry.surfaces.contains(&Surface::Http)
                 && entry.kind == InterfaceKind::Tool
         })
-        .expect("HTTP File wire 인벤토리 항목이 있어야 한다");
+        .expect("an HTTP File wire inventory entry must exist");
     let schema = entry
         .contract
         .input
         .and_then(|contract| contract.schema)
-        .expect("입력 schema가 있어야 한다");
+        .expect("input schema must be present");
 
     assert_eq!(
         schema["properties"]["upload"]["x-upeg-file-wire"],
@@ -58,13 +60,13 @@ fn 인터페이스_인벤토리는_file_wire_계약을_노출한다() {
 }
 
 #[test]
-fn 인터페이스_인벤토리는_파일_출력의_file_wire_계약을_노출한다() {
+fn interface_inventory_exposes_file_wire_contract_for_file_output() {
     let id = "file_wire_test.output";
     crate::toolbox_add_tool(ToolMeta {
         id,
         toolkit: "file_wire_test",
         local_id: upeg_core::ToolId::parse_canonical_in_toolkit(id, "file_wire_test")
-            .expect("테스트 도구 id가 정규 형식이어야 한다")
+            .expect("test tool id must be in canonical form")
             .local(),
         tags: &[],
         display_label: "File output wire test",
@@ -77,8 +79,10 @@ fn 인터페이스_인벤토리는_파일_출력의_file_wire_계약을_노출�
             kind: upeg_core::OutputKind::File,
             constraints: upeg_core::FieldConstraints::default(),
         }])
-        .expect("File 출력 명세가 유효해야 한다"),
+        .expect("File output spec must be valid"),
         primary_output_id: Some("artifact"),
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -93,12 +97,12 @@ fn 인터페이스_인벤토리는_파일_출력의_file_wire_계약을_노출�
                 && entry.surfaces.contains(&Surface::Http)
                 && entry.kind == InterfaceKind::Tool
         })
-        .expect("HTTP File 출력 wire 인벤토리 항목이 있어야 한다");
+        .expect("an HTTP File output wire inventory entry must exist");
     let schema = entry
         .contract
         .output
         .and_then(|contract| contract.schema)
-        .expect("출력 schema가 있어야 한다");
+        .expect("output schema must be present");
 
     assert_eq!(
         schema["x-upeg-output-fields"]["properties"]["artifact"]["x-upeg-file-wire"],
@@ -113,11 +117,11 @@ fn 인터페이스_인벤토리는_파일_출력의_file_wire_계약을_노출�
 }
 
 #[test]
-fn 인터페이스_인벤토리는_숫자_입력_제약을_보존한다() {
+fn interface_inventory_preserves_number_input_constraints() {
     let id = "file_wire_test.number_constraints";
     let input_spec = upeg_core::InputSpec::new(vec![
         upeg_core::InputFieldSpec::with_constraints(
-            upeg_core::InputName::new("limit").expect("입력 이름이 유효해야 한다"),
+            upeg_core::InputName::new("limit").expect("input name must be valid"),
             None,
             None,
             true,
@@ -131,14 +135,14 @@ fn 인터페이스_인벤토리는_숫자_입력_제약을_보존한다() {
                 string: None,
             },
         )
-        .expect("숫자 입력 제약이 유효해야 한다"),
+        .expect("number input constraints must be valid"),
     ])
-    .expect("입력 명세가 유효해야 한다");
+    .expect("input spec must be valid");
     crate::toolbox_add_tool(ToolMeta {
         id,
         toolkit: "file_wire_test",
         local_id: upeg_core::ToolId::parse_canonical_in_toolkit(id, "file_wire_test")
-            .expect("테스트 도구 id가 정규 형식이어야 한다")
+            .expect("test tool id must be in canonical form")
             .local(),
         tags: &[],
         display_label: "Number constraint test",
@@ -146,6 +150,8 @@ fn 인터페이스_인벤토리는_숫자_입력_제약을_보존한다() {
         input_spec,
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -162,7 +168,7 @@ fn 인터페이스_인벤토리는_숫자_입력_제약을_보존한다() {
         })
         .and_then(|entry| entry.contract.input)
         .and_then(|contract| contract.schema)
-        .expect("숫자 입력 schema가 있어야 한다");
+        .expect("number input schema must be present");
 
     assert_eq!(
         schema["properties"]["limit"],

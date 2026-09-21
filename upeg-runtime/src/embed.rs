@@ -226,7 +226,7 @@ mod controlled_embed_settings_tests {
     use super::*;
 
     #[test]
-    fn controlled_embed_settings는_미등록_도구에_기본값을_반환한다() {
+    fn controlled_embed_settings_returns_defaults_for_unregistered_tool() {
         let settings = controlled_embed_settings_for("settings.unregistered_tool");
 
         assert_eq!(settings, ControlledEmbedSettings::default());
@@ -235,7 +235,7 @@ mod controlled_embed_settings_tests {
     }
 
     #[test]
-    fn controlled_embed_settings는_같은_id를_다시_설정하면_교체한다() {
+    fn controlled_embed_settings_replaces_when_same_id_is_set_again() {
         let first = ControlledEmbedSettings {
             user_agent: Some(upeg_core::ControlledEmbedUserAgent::MobileSafari),
             viewport: Some(upeg_core::ControlledEmbedViewport::Preset(

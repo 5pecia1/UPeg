@@ -169,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    fn 없으면_획득은_잠금을_생성한다() {
+    fn acquire_creates_lock_when_absent() {
         let path = tmp_lock("acquire-fresh");
         let _ = std::fs::remove_file(&path);
         let outcome = acquire_at(path.clone()).expect("acquire");
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn 획득은_죽은_pid의_오래된_잠금을_정리한다() {
+    fn acquire_cleans_stale_lock_of_dead_pid() {
         let path = tmp_lock("stale");
         let _ = std::fs::write(&path, b"99999999\n");
         let outcome = acquire_at(path.clone()).expect("acquire");
@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn 살아있는_pid가_잠금을_소유하면_획득은_거부된다() {
+    fn acquire_is_refused_when_live_pid_owns_lock() {
         let path = tmp_lock("alive");
         let me = std::process::id();
         let _ = std::fs::write(&path, format!("{me}\n"));
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn 인스턴스_잠금_드롭은_자신의_pid만_제거한다() {
+    fn instance_lock_drop_removes_only_own_pid() {
         let path = tmp_lock("drop-other");
         let _ = std::fs::write(&path, "9999999\n");
         let lock = InstanceLock {

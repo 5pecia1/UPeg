@@ -148,18 +148,13 @@ actionlint:
 	@printf '\n\033[1;36m[verify]\033[0m actionlint -color -shellcheck= -pyflakes= .github/workflows/*.yml\n'
 	actionlint -color -shellcheck= -pyflakes= .github/workflows/*.yml
 
-# Licence policy gate. `deny.toml` at the repository root is the allow-list;
-# the root NOTICE file carries the attribution those licences require, so the
-# two change together. Reads Cargo.lock and the crate manifests only — no
-# compilation, so it belongs in the cheap lane. `cargo deny` is invoked
-# directly rather than through scripts/ci/ so the public mirror can run this
-# same recipe (scripts/ci/** is not exported).
+# Advisory, licence and source policy gate. `deny.toml` at the repository
+# root defines the policy; NOTICE carries the required attribution. No
+# compilation: the shared public lane checks the pinned cargo-deny version,
+# runs against the locked graph, and rejects lockfile drift.
 license-check:
-	@printf '\n\033[1;36m[verify]\033[0m cargo deny --all-features check licenses sources\n'
-	@command -v cargo-deny >/dev/null 2>&1 || { \
-		printf '\033[1;31m  cargo-deny is not installed\033[0m — cargo install cargo-deny --locked\n'; \
-		exit 1; }
-	cargo deny --all-features check licenses sources
+	@printf '\n\033[1;36m[verify]\033[0m cargo deny (advisories, licenses, sources)\n'
+	bash scripts/verify_public.sh licenses
 
 # Release build plus CLI smoke assertions.
 smoke:
@@ -422,13 +417,14 @@ flutter-theme-token-check:
 	fi
 	printf '\033[1;32m  ok\033[0m\n'
 
-# i18n hardcode lint. User-facing strings in flutter_app/lib/src/
-# {widgets,pages} must flow through t() (lib/src/i18n/t.dart) + the Rust
-# En/Ko catalog (upeg-pegboard-ui/src/i18n.rs), never as Text('...')/
-# labelText: literals. Heuristic detector + frozen baseline of the
-# pre-existing violations (fixtures/flutter-i18n-baseline.json): only
-# NEW hardcoded strings fail. After migrating a baselined string,
-# regenerate via:
+# i18n hardcode lint for flutter_app/lib/src/{widgets,pages,features/host_attach}.
+# UI copy belongs in t() + the Rust En/Ko catalog (upeg-pegboard-ui/src/i18n.rs).
+# Heuristic: Text literals/simple same-file variables, established presentation
+# named parameters, and Hangul literals anywhere. Generic protocol/error/debug
+# messages and cross-file data flow are not inferred to be UI. See the script
+# docstring for exact bounds. No per-line suppressions. Only NEW findings fail
+# against fixtures/flutter-i18n-baseline.json; do not expand it to hide new UI
+# copy. After migrating a baselined string, prune the snapshot via:
 #   python3 scripts/flutter_i18n_check.py write --baseline fixtures/flutter-i18n-baseline.json
 flutter-i18n-check:
 	@printf '\n\033[1;36m[flutter]\033[0m flutter-i18n-check (no new hardcoded user-facing strings)\n'
@@ -641,8 +637,13 @@ flutter-run-web-server: build-frb-wasm
 # assume the Flutter build for the target platform has already run
 # (or run flutter-build-X if not). Code signing is out of scope —
 # producing UNSIGNED artifacts. Phase 9+ can layer signing.
+# UPEG_PACKAGE_OUT redirects the `target/packages` root, e.g.
+# `UPEG_PACKAGE_OUT="$(mktemp -d)" just package-linux` for a fresh-dir run.
 
 # Linux .deb via fpm. Requires: just flutter-build-linux already ran.
+# The desktop app does NOT get a `upeg` PATH entry — that name belongs to the
+# CLI (`cargo build -p upeg-cli --bin upeg`, see README "Build and run"). The
+# GUI launches via the .desktop file at the absolute /opt path, or `upeg-app`.
 package-linux-deb: flutter-build-linux
 	#!/usr/bin/env bash
 	set -euo pipefail
@@ -651,7 +652,7 @@ package-linux-deb: flutter-build-linux
 	  echo "error: fpm not installed (gem install fpm)" >&2
 	  exit 1
 	fi
-	out="target/packages/linux"
+	out="${UPEG_PACKAGE_OUT:-target/packages}/linux"
 	mkdir -p "$out"
 	rm -f "$out"/upeg_*.deb
 	stage="$(mktemp -d)"
@@ -663,18 +664,20 @@ package-linux-deb: flutter-build-linux
 	    "$stage/usr/share/icons/hicolor/512x512/apps" \
 	    "$stage/usr/share/metainfo"
 	cp -a flutter_app/build/linux/x64/release/bundle/. "$stage/opt/upeg/"
-	ln -s /opt/upeg/upeg "$stage/usr/bin/upeg"
-	cp packaging/linux/upeg.desktop "$stage/usr/share/applications/upeg.desktop"
+	ln -s /opt/upeg/upeg "$stage/usr/bin/upeg-app"
+	sed 's|^Exec=upeg %u$|Exec=/opt/upeg/upeg %u|' packaging/linux/upeg.desktop \
+	    > "$stage/usr/share/applications/upeg.desktop"
 	cp packaging/linux/io.github._5pecia1.upeg.metainfo.xml "$stage/usr/share/metainfo/io.github._5pecia1.upeg.metainfo.xml"
 	cp flutter_app/web/icons/Icon-512.png "$stage/usr/share/icons/hicolor/512x512/apps/upeg.png"
-	version="$(git describe --tags --always --abbrev=8)"
+	bash packaging/release-files.sh stage "$stage/usr/share/doc/upeg"
+	version="$(bash packaging/release-files.sh version)"
 	version="${version#v}"
 	case "$version" in
 	  [0-9]*) ;;
 	  *) version="0.0.0+$version" ;;
 	esac
 	fpm -s dir -t deb \
-	    -n upeg -v "$version" \
+	    -n upeg -v "$version" --architecture amd64 \
 	    --depends libgtk-3-0 \
 	    --depends libkeybinder-3.0-0 \
 	    --depends libayatana-appindicator3-1 \
@@ -686,6 +689,11 @@ package-linux-deb: flutter-build-linux
 	    -C "$stage" \
 	    --package "$out/" \
 	    .
+	deb="$out/upeg_${version}_amd64.deb"
+	if command -v dpkg-deb >/dev/null 2>&1; then
+	  dpkg-deb -c "$deb" | grep 'usr/share/doc/upeg/NOTICE' \
+	    || { echo "error: $deb lacks staged notices" >&2; exit 1; }
+	fi
 	ls -la "$out"
 
 # Linux .AppImage via appimagetool. Requires: just flutter-build-linux.
@@ -697,15 +705,17 @@ package-linux-appimage: flutter-build-linux
 	printf '\n\033[1;36m[package]\033[0m linux .AppImage\n'
 	if ! command -v appimagetool >/dev/null 2>&1; then
 	  echo "error: appimagetool not installed" >&2
-	  echo "  fix: download from https://github.com/AppImage/AppImageKit/releases" >&2
+	  echo "  fix: download from https://github.com/AppImage/appimagetool/releases" >&2
 	  exit 1
 	fi
 	if ! command -v appstreamcli >/dev/null 2>&1; then
 	  echo "error: appstreamcli not installed (install the appstream package)" >&2
 	  exit 1
 	fi
-	appstreamcli validate packaging/linux/io.github._5pecia1.upeg.metainfo.xml
-	out="target/packages/linux"
+	# --no-net: the homepage check needs the public repo reachable, which a
+	# pre-release private mirror is not; structural validation stays local.
+	appstreamcli validate --no-net packaging/linux/io.github._5pecia1.upeg.metainfo.xml
+	out="${UPEG_PACKAGE_OUT:-target/packages}/linux"
 	mkdir -p "$out"
 	work="$(mktemp -d)"
 	trap 'rm -rf "$work"' EXIT
@@ -717,13 +727,27 @@ package-linux-appimage: flutter-build-linux
 	cp packaging/linux/upeg.desktop "$tmp/usr/share/applications/upeg.desktop"
 	cp packaging/linux/io.github._5pecia1.upeg.metainfo.xml "$tmp/usr/share/metainfo/io.github._5pecia1.upeg.metainfo.xml"
 	cp flutter_app/web/icons/Icon-512.png "$tmp/upeg.png"
+	bash packaging/release-files.sh stage "$tmp/usr/share/doc/upeg"
 	cat > "$tmp/AppRun" <<'EOF'
 	#!/bin/sh
 	HERE=$(dirname "$(readlink -f "$0")")
 	exec "$HERE/upeg" "$@"
 	EOF
 	chmod +x "$tmp/AppRun"
-	APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 appimagetool --no-appstream "$tmp" "$out/upeg-$(git describe --tags --always --abbrev=8)-x86_64.AppImage"
+	version="$(bash packaging/release-files.sh version)"
+	# Pin the AppImage runtime when the caller provides one; without it
+	# appimagetool downloads the moving `continuous` release at build time.
+	runtime_args=()
+	if [ -n "${UPEG_APPIMAGE_RUNTIME:-}" ]; then
+	  runtime_args=(--runtime-file "$UPEG_APPIMAGE_RUNTIME")
+	fi
+	APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 appimagetool --no-appstream "${runtime_args[@]}" \
+	    "$tmp" "$out/upeg-${version}-x86_64.AppImage"
+	# Self-check: extract the produced image and re-validate its payload.
+	probe="$work/extract"
+	mkdir -p "$probe"
+	( cd "$probe" && "$out/upeg-${version}-x86_64.AppImage" --appimage-extract >/dev/null )
+	bash packaging/release-files.sh check "$probe/squashfs-root/usr/share/doc/upeg"
 
 # macOS .dmg via create-dmg. Requires: just flutter-build-macos on macOS host.
 # cargokit wires the cdylib build via flutter_app/rust_builder/macos/upeg_frb.podspec,
@@ -736,12 +760,18 @@ package-macos-dmg: flutter-build-macos
 	  echo "error: create-dmg not installed (brew install create-dmg)" >&2
 	  exit 1
 	fi
-	out="target/packages/macos"
+	out="${UPEG_PACKAGE_OUT:-target/packages}/macos"
 	mkdir -p "$out"
+	work="$(mktemp -d)"
+	trap 'rm -rf "$work"' EXIT
+	# Stage the .app plus the legal set side by side in the .dmg window.
+	cp -a "flutter_app/build/macos/Build/Products/Release/." "$work/dmg/"
+	bash packaging/release-files.sh stage "$work/dmg/licenses"
+	version="$(bash packaging/release-files.sh version)"
 	create-dmg --overwrite \
 	    --dmg-title="upeg" \
-	    "$out/upeg-$(git describe --tags --always --abbrev=8).dmg" \
-	    "flutter_app/build/macos/Build/Products/Release"
+	    "$out/upeg-${version}.dmg" \
+	    "$work/dmg"
 
 # Windows MSIX via msix Dart pub global. Requires: just flutter-build-windows on Windows host.
 package-windows-msix: flutter-build-windows
@@ -754,8 +784,10 @@ package-windows-msix: flutter-build-windows
 	  echo "error: msix package not in pubspec.yaml" >&2
 	  exit 1
 	fi
+	# Everything under Release/ is packed into the MSIX install dir.
+	bash ../packaging/release-files.sh stage "build/windows/x64/runner/Release/licenses"
 	flutter pub run msix:create
-	out="../target/packages/windows"
+	out="${UPEG_PACKAGE_OUT:-../target/packages}/windows"
 	mkdir -p "$out"
 	cp build/windows/x64/runner/Release/*.msix "$out/" 2>/dev/null || true
 
@@ -764,10 +796,11 @@ package-web: flutter-build-web
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[package]\033[0m web pwa bundle\n'
-	out="target/packages/web"
+	out="${UPEG_PACKAGE_OUT:-target/packages}/web"
 	mkdir -p "$out"
 	rm -rf "$out"/*
 	cp -a flutter_app/build/web/. "$out/"
+	bash packaging/release-files.sh stage "$out/licenses"
 	# pre-gzip the main JS for static-host deployment
 	if command -v gzip >/dev/null 2>&1; then
 	  find "$out" -name '*.js' -exec gzip -k -9 {} \;

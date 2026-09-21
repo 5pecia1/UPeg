@@ -170,7 +170,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dto_왕복은_모든_필드를_보존한다() {
+    fn dto_round_trip_preserves_all_fields() {
         let original = Tweaks {
             theme: Theme::Dark,
             accent: Accent::Cyan,
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn 알려지지_않은_테마는_검증_오류로_거부된다() {
+    fn unknown_theme_is_rejected_with_validation_error() {
         let dto = TweaksDto {
             theme: "Mauve".to_string(),
             accent: "Green".to_string(),
@@ -206,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn 알려지지_않은_로케일은_검증_오류로_거부된다() {
+    fn unknown_locale_is_rejected_with_validation_error() {
         let dto = TweaksDto {
             theme: "Light".to_string(),
             accent: "Green".to_string(),
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn 지원되는_로케일은_영어와_한국어를_정확히_반환한다() {
+    fn supported_locales_returns_exactly_english_and_korean() {
         assert_eq!(
             supported_locales(),
             vec!["En".to_string(), "Ko".to_string()]
@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn 지원되는_테마와_accent_set_을_반환한다() {
+    fn returns_supported_theme_and_accent_sets() {
         assert_eq!(
             supported_themes(),
             vec!["Light".to_string(), "Dark".to_string()],

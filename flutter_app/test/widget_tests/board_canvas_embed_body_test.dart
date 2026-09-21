@@ -29,7 +29,9 @@ import '../test_helpers/controlled_embed_tile_harness.dart' as controlled;
 
 void main() {
   group('BoardCanvas', () {
-    testWidgets('Embed_핀은_body_자리에_WebViewPanel을_인라인_마운트한다', (tester) async {
+    testWidgets('an_Embed_pin_mounts_WebViewPanel_inline_in_its_body', (
+      tester,
+    ) async {
       final embedTool = ToolDto(
         id: 'embed.transform_tools',
         toolkit: 'embed',
@@ -44,6 +46,7 @@ void main() {
         source: const SourceDto.static_(),
         requiresApproval: false,
         approvalSurfaces: const <String>[],
+        effect: ToolEffectDto.unknown,
       );
 
       final originalBuilder = desktopWebViewBuilder;
@@ -114,7 +117,9 @@ void main() {
       expect(tapped, isFalse);
     });
 
-    testWidgets('임베드_바디는_탭을_받고_핸들은_드래그된다', (tester) async {
+    testWidgets('the_embed_body_receives_taps_and_the_handle_can_be_dragged', (
+      tester,
+    ) async {
       // Modeless coexistence contract (RISK AREA): an embed pin's live body
       // keeps its pointer events (deferToChild) AND the pin is still movable
       // — but drag originates ONLY from the move handle, so a body tap never
@@ -133,6 +138,7 @@ void main() {
         source: SourceDto.static_(),
         requiresApproval: false,
         approvalSurfaces: <String>[],
+        effect: ToolEffectDto.unknown,
       );
 
       final originalBuilder = desktopWebViewBuilder;
@@ -231,87 +237,91 @@ void main() {
       expect(movedTool, ToolId.parse('embed.transform_tools'));
     });
 
-    testWidgets('보드의 제어형 임베드 핀은 공통 실행 결과를 라벨과 값으로 표시한다', (tester) async {
-      final controlledTool = ToolDto(
-        id: 'embed.example_controlled',
-        toolkit: 'embed',
-        label: 'Example Controlled Embed',
-        description: '',
-        tags: const [],
-        inputFields: const [],
-        outputFields: const [
-          OutputFieldDto(
-            key: 'intro',
-            label: 'Intro',
-            fieldType: OutputFieldType.text(),
-          ),
-        ],
-        pinKind: PinKindDto.controlledEmbed,
-        invoker: InvokerDto.embed,
-        pegboardUnits: PegboardUnitsDto.u2,
-        source: const SourceDto.static_(),
-        requiresApproval: false,
-        approvalSurfaces: const <String>[],
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            controlledEmbedNativeSupportedProvider.overrideWithValue(true),
-            controlledEmbedToolExecutorProvider.overrideWithValue(
-              ({required toolId, required args, boardKey}) async =>
-                  controlledEmbedSuccessResult({'intro': 'board preview'}),
-            ),
-            toolsLoaderProvider.overrideWith(
-              (ref) =>
-                  () => [controlledTool],
-            ),
-            resolveEmbedFnProvider.overrideWith(
-              (ref) =>
-                  ({required ToolId toolId, required ToolArgs args}) =>
-                      const EmbedResolutionDto(
-                        url: 'https://example.test/controlled',
-                      ),
-            ),
-            selectorBindingsLoaderProvider.overrideWithValue(
-              (ToolId _) => const [],
-            ),
-            controlledEmbedSettingsLoaderProvider.overrideWithValue(
-              (ToolId _) => const ControlledEmbedSettingsDto(),
+    testWidgets(
+      'a controlled embed pin on the board shows shared execution results as labels and values',
+      (tester) async {
+        final controlledTool = ToolDto(
+          id: 'embed.example_controlled',
+          toolkit: 'embed',
+          label: 'Example Controlled Embed',
+          description: '',
+          tags: const [],
+          inputFields: const [],
+          outputFields: const [
+            OutputFieldDto(
+              key: 'intro',
+              label: 'Intro',
+              fieldType: OutputFieldType.text(),
             ),
           ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: debugBoardCanvasGrid(
-                snapshot: const LayoutSnapshotDto(
-                  boardKey: 'dev',
-                  boardCols: 6,
-                  placements: [
-                    PlacementDto(
-                      toolId: 'embed.example_controlled',
-                      x: 0,
-                      y: 0,
-                      w: 2,
-                      h: 1,
-                    ),
-                  ],
+          pinKind: PinKindDto.controlledEmbed,
+          invoker: InvokerDto.embed,
+          pegboardUnits: PegboardUnitsDto.u2,
+          source: const SourceDto.static_(),
+          requiresApproval: false,
+          approvalSurfaces: const <String>[],
+          effect: ToolEffectDto.unknown,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              controlledEmbedNativeSupportedProvider.overrideWithValue(true),
+              controlledEmbedToolExecutorProvider.overrideWithValue(
+                ({required toolId, required args, boardKey}) async =>
+                    controlledEmbedSuccessResult({'intro': 'board preview'}),
+              ),
+              toolsLoaderProvider.overrideWith(
+                (ref) =>
+                    () => [controlledTool],
+              ),
+              resolveEmbedFnProvider.overrideWith(
+                (ref) =>
+                    ({required ToolId toolId, required ToolArgs args}) =>
+                        const EmbedResolutionDto(
+                          url: 'https://example.test/controlled',
+                        ),
+              ),
+              selectorBindingsLoaderProvider.overrideWithValue(
+                (ToolId _) => const [],
+              ),
+              controlledEmbedSettingsLoaderProvider.overrideWithValue(
+                (ToolId _) => const ControlledEmbedSettingsDto(),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: debugBoardCanvasGrid(
+                  snapshot: const LayoutSnapshotDto(
+                    boardKey: 'dev',
+                    boardCols: 6,
+                    placements: [
+                      PlacementDto(
+                        toolId: 'embed.example_controlled',
+                        x: 0,
+                        y: 0,
+                        w: 2,
+                        h: 1,
+                      ),
+                    ],
+                  ),
+                  onPinTap: (_) {},
                 ),
-                onPinTap: (_) {},
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final robot = controlled.ControlledEmbedTileRobot(tester);
-      robot.expectRunHint();
-      await robot.tapRun();
-      robot.expectOutputRow(label: 'Intro', value: 'board preview');
-    });
+        final robot = controlled.ControlledEmbedTileRobot(tester);
+        robot.expectRunHint();
+        await robot.tapRun();
+        robot.expectOutputRow(label: 'Intro', value: 'board preview');
+      },
+    );
 
-    testWidgets('URL이_없는_embed_핀은_탭이_가능하다', (tester) async {
+    testWidgets('an_embed_pin_without_a_URL_is_tappable', (tester) async {
       final embedTool = ToolDto(
         id: 'embed.urlless_tool',
         toolkit: 'embed',
@@ -326,6 +336,7 @@ void main() {
         source: const SourceDto.static_(),
         requiresApproval: false,
         approvalSurfaces: const <String>[],
+        effect: ToolEffectDto.unknown,
       );
 
       var tapped = false;
@@ -378,7 +389,9 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('memo_notepad_핀은_인라인_편집_필드를_렌더하고_편집을_저장한다', (tester) async {
+    testWidgets('a_memo_notepad_pin_renders_an_inline_editor_and_saves_edits', (
+      tester,
+    ) async {
       final memoTool = ToolDto(
         id: 'memo.scratch',
         toolkit: 'memo',
@@ -399,6 +412,7 @@ void main() {
         source: const SourceDto.userInput(),
         requiresApproval: false,
         approvalSurfaces: const <String>[],
+        effect: ToolEffectDto.unknown,
       );
       final saved = <List<MemoEntry>>[];
 
@@ -449,61 +463,68 @@ void main() {
       expect(saved.last.single.body, 'hello memo');
     });
 
-    testWidgets('설정안된_live_http_핀은_설정_필요_상태를_표시한다', (tester) async {
-      final ethTool = ToolDto(
-        id: 'eth.gas',
-        toolkit: 'eth',
-        label: 'ETH gas',
-        description: 'Live Ethereum gas price (gwei).',
-        tags: const [],
-        inputFields: const [],
-        outputFields: const [
-          OutputFieldDto(
-            key: 'gwei',
-            label: 'gwei',
-            fieldType: OutputFieldType.number(),
-          ),
-        ],
-        pinKind: PinKindDto.live,
-        invoker: InvokerDto.http,
-        pegboardUnits: PegboardUnitsDto.u1,
-        source: const SourceDto.static_(),
-        requiresApproval: false,
-        approvalSurfaces: const <String>[],
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            // `i18nTestOverrides` serves both the Pin semantics strings
-            // and the provider-not-configured body copy from the shared
-            // fixture catalog, so no key-echo override is needed.
-            ...i18nTestOverrides,
-            toolsLoaderProvider.overrideWith(
-              (ref) =>
-                  () => [ethTool],
+    testWidgets(
+      'an_unconfigured_live_http_pin_shows_that_configuration_is_required',
+      (tester) async {
+        final ethTool = ToolDto(
+          id: 'eth.gas',
+          toolkit: 'eth',
+          label: 'ETH gas',
+          description: 'Live Ethereum gas price (gwei).',
+          tags: const [],
+          inputFields: const [],
+          outputFields: const [
+            OutputFieldDto(
+              key: 'gwei',
+              label: 'gwei',
+              fieldType: OutputFieldType.number(),
             ),
           ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: debugBoardCanvasGrid(
-                snapshot: const LayoutSnapshotDto(
-                  boardKey: 'dev',
-                  boardCols: 6,
-                  placements: [
-                    PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
-                  ],
+          pinKind: PinKindDto.live,
+          invoker: InvokerDto.http,
+          pegboardUnits: PegboardUnitsDto.u1,
+          source: const SourceDto.static_(),
+          requiresApproval: false,
+          approvalSurfaces: const <String>[],
+          effect: ToolEffectDto.unknown,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              // `i18nTestOverrides` serves both the Pin semantics strings
+              // and the provider-not-configured body copy from the shared
+              // fixture catalog, so no key-echo override is needed.
+              ...i18nTestOverrides,
+              toolsLoaderProvider.overrideWith(
+                (ref) =>
+                    () => [ethTool],
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: debugBoardCanvasGrid(
+                  snapshot: const LayoutSnapshotDto(
+                    boardKey: 'dev',
+                    boardCols: 6,
+                    placements: [
+                      PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
+                    ],
+                  ),
+                  onPinTap: (_) {},
                 ),
-                onPinTap: (_) {},
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(providerNotConfiguredBodyKey), findsOneWidget);
-      expect(find.text(i18nEn(providerNotConfiguredLabelKey)), findsOneWidget);
-    });
+        expect(find.byKey(providerNotConfiguredBodyKey), findsOneWidget);
+        expect(
+          find.text(i18nEn(providerNotConfiguredLabelKey)),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

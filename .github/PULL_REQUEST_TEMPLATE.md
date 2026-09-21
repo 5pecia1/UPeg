@@ -1,22 +1,21 @@
 <!--
-Thanks for contributing to UPeg. This repo is a squash-exported mirror of a
-private source-of-truth repo (see CONTRIBUTING.md) - an accepted PR is
-imported by the maintainer and lands in the next export commit, then this
-PR is closed (not merged) with a link to that commit.
+Thanks for contributing to UPeg. Development happens in a private source
+repository (see CONTRIBUTING.md): an accepted PR is imported by the
+maintainer and lands in a later exported update PR, then this PR is closed
+(not merged) with a link to it.
 -->
 
-## 변경 사항 요약 (Summary)
+## Summary
 
-<!-- 이 PR이 무엇을 바꾸는지, 왜 필요한지 간단히 설명해 주세요. -->
+<!-- What does this PR change, and why is it needed? -->
 
-## 체크리스트 (Checklist)
+## Checklist
 
-- [ ] 모든 커밋에 DCO 서명(`git commit -s`)이 되어 있습니다.
-- [ ] 새로 추가하거나 수정한 테스트의 함수 이름이 자연스러운 한국어로 되어 있습니다
-      (전문 용어의 영어 사용은 허용).
-- [ ] 로컬에서 `just check` 또는 `just verify`를 통과했습니다.
-- [ ] 관련 문서(README, 주석 등)를 필요한 만큼 갱신했습니다.
+- [ ] Every commit is DCO-signed (`git commit -s`).
+- [ ] Tests I added or modified use descriptive English test names.
+- [ ] `just check` or `just verify` passes locally.
+- [ ] I updated relevant docs (README, comments, guides) as needed.
 
-## 관련 이슈 (Related issue)
+## Related issue
 
-<!-- 있다면 이슈 번호를 적어 주세요. 예: Closes #123 -->
+<!-- If applicable, link the issue. e.g. Closes #123 -->

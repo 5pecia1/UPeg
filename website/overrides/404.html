@@ -1,0 +1,21 @@
+{#- Custom 404 — points back at the docs index, guides, and repository. -#}
+{% extends "main.html" %}
+
+{% block htmltitle %}
+  <title>Page not found — {{ config.site_name }}</title>
+{% endblock %}
+
+{% block content %}
+  <h1 id="__skip">404 — Page not found</h1>
+  <p>
+    The page you were looking for does not exist or has moved. The
+    documentation index lists every published page.
+  </p>
+  <ul role="list">
+    <li><a href="{{ '' | url }}">Documentation home</a></li>
+    <li><a href="{{ 'guides/' | url }}">Guides</a></li>
+    <li>
+      <a href="https://github.com/5pecia1/UPeg" target="_blank" rel="noopener">UPeg on GitHub</a>
+    </li>
+  </ul>
+{% endblock %}

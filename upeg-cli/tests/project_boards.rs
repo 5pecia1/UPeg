@@ -29,7 +29,7 @@ fn workspace_root() -> PathBuf {
 
 /// The `[[boards]]` example the docs point at.
 #[test]
-fn 프로젝트_매니페스트_예제는_boards를_선언한다() {
+fn the_project_manifest_example_declares_boards() {
     let path = workspace_root().join("examples/project-manifest/upeg.toml");
     let raw =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
@@ -42,13 +42,13 @@ fn 프로젝트_매니페스트_예제는_boards를_선언한다() {
 
     assert!(
         raw.contains("[[boards]]"),
-        "예제의 핵심은 `[[boards]]` 선언이다"
+        "the example's point is the `[[boards]]` declaration"
     );
     assert!(
         tools
             .iter()
             .all(|(meta, _)| meta.boards.contains(&"demo-app")),
-        "예제의 모든 Tool 은 선언한 프로젝트 board 를 가리켜야 한다"
+        "every Tool in the example must point at the declared project board"
     );
 }
 
@@ -56,7 +56,7 @@ fn 프로젝트_매니페스트_예제는_boards를_선언한다() {
 /// `upeg-dev` and every maintenance tool pins there instead of onto the
 /// built-in `dev` board it used to share with the shipped tools.
 #[test]
-fn 저장소_dogfood_매니페스트는_전용_board에_도구를_모은다() {
+fn the_repo_dogfood_manifest_gathers_tools_on_a_dedicated_board() {
     const PROJECT_BOARD: &str = "upeg-dev";
 
     let path = workspace_root().join("upeg.toml");
@@ -67,7 +67,7 @@ fn 저장소_dogfood_매니페스트는_전용_board에_도구를_모은다() {
 
     assert!(
         raw.contains(&format!("id = \"{PROJECT_BOARD}\"")),
-        "dogfood 매니페스트는 `{PROJECT_BOARD}` board 를 선언한다"
+        "the dogfood manifest declares the `{PROJECT_BOARD}` board"
     );
     let off_board: Vec<&str> = tools
         .iter()
@@ -76,10 +76,10 @@ fn 저장소_dogfood_매니페스트는_전용_board에_도구를_모은다() {
         .collect();
     assert!(
         off_board.is_empty(),
-        "dev 도구는 모두 `{PROJECT_BOARD}` 에 있어야 한다: {off_board:?}"
+        "every dev tool must be on `{PROJECT_BOARD}`: {off_board:?}"
     );
     assert!(
         tools.iter().all(|(meta, _)| !meta.boards.contains(&"dev")),
-        "내장 `dev` board 에 남아 있는 도구가 있으면 안 된다"
+        "no tool may be left on the built-in `dev` board"
     );
 }

@@ -11,7 +11,7 @@ fn scratch_dir(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn 유효한_디렉터리는_모든_파일을_ok로_보고한다() {
+fn toolkit_validate_reports_all_files_ok_in_a_valid_directory() {
     let dir = scratch_dir("upeg_cli_toolkit_validate_valid");
     std::fs::write(
         dir.join("a.toml"),
@@ -48,7 +48,7 @@ command = "echo""#,
 }
 
 #[test]
-fn 깨진_파일이_하나면_전체_보고서를_출력하고_실패한다() {
+fn toolkit_validate_returns_the_full_report_when_one_file_fails() {
     let dir = scratch_dir("upeg_cli_toolkit_validate_broken");
     std::fs::write(
         dir.join("good.toml"),
@@ -88,7 +88,7 @@ command = "echo""#,
 }
 
 #[test]
-fn 툴킷_형태가_아닌_toml은_건너뛰고_나머지는_정상_검증한다() {
+fn toolkit_validate_skips_non_toolkit_toml_and_validates_the_rest() {
     let dir = scratch_dir("upeg_cli_toolkit_validate_non_toolkit_shape");
     std::fs::write(
         dir.join("a_toolkit.toml"),
@@ -125,7 +125,7 @@ command = "echo""#,
 }
 
 #[test]
-fn 비어있는_디렉터리는_파일이_없다는_메시지를_보고한다() {
+fn toolkit_validate_reports_no_files_for_an_empty_directory() {
     let dir = scratch_dir("upeg_cli_toolkit_validate_empty");
     let out = run(parse(&[
         "upeg",
@@ -142,7 +142,7 @@ fn 비어있는_디렉터리는_파일이_없다는_메시지를_보고한다() 
 }
 
 #[test]
-fn 존재하지_않는_디렉터리는_깨끗한_오류를_반환한다() {
+fn toolkit_validate_returns_a_clear_error_for_a_missing_directory() {
     let r = run(parse(&[
         "upeg",
         "toolkit",
@@ -163,7 +163,7 @@ fn 존재하지_않는_디렉터리는_깨끗한_오류를_반환한다() {
 /// one here. These two exercise the rendering directly instead, which is
 /// the half that was missing: `LoadOutcome::skipped` was recorded and
 /// then never printed anywhere.
-fn 건너뛴_도구(id: &str) -> upeg_loader::SkippedTool {
+fn host_skipped_tool(id: &str) -> upeg_loader::SkippedTool {
     upeg_loader::SkippedTool {
         id: id.to_string(),
         reason: upeg_loader::LoadError::PtyUnsupportedOnHost,
@@ -171,10 +171,10 @@ fn 건너뛴_도구(id: &str) -> upeg_loader::SkippedTool {
 }
 
 #[test]
-fn 호스트가_건너뛴_도구는_파일_줄_아래에_사유와_함께_들여쓰기된다() {
+fn host_skipped_tools_are_indented_below_the_file_row_with_reasons() {
     let rendered = crate::surfaces::cli::formatters::render_tool_skip_lines(&[
-        건너뛴_도구("tkv.terminal"),
-        건너뛴_도구("tkv.shell"),
+        host_skipped_tool("tkv.terminal"),
+        host_skipped_tool("tkv.shell"),
     ]);
 
     let lines: Vec<&str> = rendered.lines().collect();
@@ -182,48 +182,48 @@ fn 호스트가_건너뛴_도구는_파일_줄_아래에_사유와_함께_들여
     for (line, id) in lines.iter().zip(["tkv.terminal", "tkv.shell"]) {
         assert!(
             line.starts_with(&format!("    ~ {id}: skipped (")),
-            "파일 줄(`  ok:`)보다 한 단계 더 들여써야 소속이 분명하다: {line}"
+            "tool rows must be indented one level below the file row (`  ok:`): {line}"
         );
         assert!(
             line.contains(&upeg_loader::LoadError::PtyUnsupportedOnHost.to_string()),
-            "사유 없는 건너뜀은 구멍만 남긴다: {line}"
+            "skipped tools must include a reason rather than leave an unexplained gap: {line}"
         );
     }
     assert!(
         !rendered.contains("error:"),
-        "건너뜀은 검증 실패가 아니다: {rendered}"
+        "a skipped tool is not a validation failure: {rendered}"
     );
 }
 
 #[test]
-fn 요약의_도구_건너뜀_집계는_파일_건너뜀_집계와_구별된다() {
+fn summary_distinguishes_skipped_tool_counts_from_skipped_file_counts() {
     use crate::surfaces::cli::formatters::render_toolkit_validate_summary;
 
-    // 도구를 건너뛴 게 없으면 집계 절도 붙지 않는다 — 매 실행마다
-    // "skipped"가 두 번 나오면 서로 헷갈린다.
+    // Omit the tool-skip clause when no tools were skipped; repeating
+    // "skipped" in every run would make the two counts ambiguous.
     assert_eq!(
         render_toolkit_validate_summary(1, 0, 1, 0),
         "1 ok, 0 failed, 1 skipped\n"
     );
 
-    let 요약 = render_toolkit_validate_summary(1, 0, 1, 2);
+    let summary = render_toolkit_validate_summary(1, 0, 1, 2);
     assert!(
-        요약.starts_with("1 ok, 0 failed, 1 skipped, 2 "),
-        "파일 건너뜀 집계는 그대로 남아야 한다: {요약}"
+        summary.starts_with("1 ok, 0 failed, 1 skipped, 2 "),
+        "the skipped-file count must remain unchanged: {summary}"
     );
     assert!(
-        요약.contains("tool(s)"),
-        "무엇을 센 숫자인지 말해야 한다: {요약}"
+        summary.contains("tool(s)"),
+        "the count must identify what it measures: {summary}"
     );
     assert_ne!(
-        요약.matches("skipped").count(),
-        요약.matches("skipped (not a toolkit manifest)").count(),
-        "파일 단위 건너뜀 문구를 재사용하면 두 집계가 같은 것으로 읽힌다"
+        summary.matches("skipped").count(),
+        summary.matches("skipped (not a toolkit manifest)").count(),
+        "reusing the file-skip wording would make the two counts appear identical"
     );
 }
 
 #[test]
-fn 도구를_건너뛰지_않은_디렉터리_검증은_물결표_줄을_남기지_않는다() {
+fn toolkit_validate_omits_tilde_rows_when_no_tools_are_skipped() {
     let dir = scratch_dir("upeg_cli_toolkit_validate_no_tool_skip");
     std::fs::write(
         dir.join("a.toml"),
@@ -246,7 +246,7 @@ command = "echo""#,
     assert!(out.contains("ok: a.toml"), "got:\n{out}");
     assert!(
         !out.contains(" ~ "),
-        "건너뛴 게 없으면 조용해야 한다:\n{out}"
+        "no skip rows should appear when nothing was skipped:\n{out}"
     );
     assert!(out.contains("1 ok, 0 failed, 0 skipped\n"), "got:\n{out}");
     let _ = std::fs::remove_dir_all(&dir);

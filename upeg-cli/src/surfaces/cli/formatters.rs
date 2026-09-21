@@ -288,12 +288,8 @@ fn call_example(t: &ToolMeta) -> String {
     out
 }
 
-/// collapsed the `format_tool_list_full` / `_full2` / `_full3`
-/// shim cascade — three intermediate wrappers that each grew by one
-/// arg over iters 49/91 and only existed to keep older signatures
-/// compiling. No external crate consumed them; the cascade just added
-/// indirection. Renamed `_full3` → `_filtered` since the numeric suffix
-/// referenced now-deleted siblings.
+/// Single filtered list entry point — the legacy `_full`/`_full2`/
+/// `_full3` wrapper cascade was collapsed into this one function.
 ///
 /// `surface_filter` defaults to `cli` when `None` (this binary's own
 /// surface). `board_filter` narrows by `ToolMeta::boards`.
@@ -856,14 +852,11 @@ pub fn format_tool_show(id: &str) -> Result<String, CliError> {
     if let Some(url) = upeg_runtime::embed_url_for(t.id) {
         out.push_str(&format!("embed_url     {url}\n"));
     }
-    // Iter 180: surface the typed input fields so CLI users can
-    // discover a tool's args without falling back to `--json`.
-    // Pre-iter-180 the text view skipped inputs entirely (description
-    // got iter 122; embed_url got iter 91; selector_bindings got iter
-    // 93 — inputs were the last omitted field). Empty spec → "(none)"
-    // line for consistency with the boards format. Non-empty →
-    // header line with field count + one indented row per field
-    // showing name (type, required-marker) — description.
+    // Surface the typed input fields so CLI users can discover a
+    // tool's args without falling back to `--json`. Empty spec →
+    // "(none)" line for consistency with the boards format.
+    // Non-empty → header line with field count + one indented row
+    // per field showing name (type, required-marker) — description.
     if t.input_spec.fields.is_empty() {
         out.push_str("inputs        (none)\n");
     } else {
@@ -900,9 +893,9 @@ pub fn format_tool_show(id: &str) -> Result<String, CliError> {
         }
     }
     // Both CLI invocation forms, so a user landing here from discovery
-    // can copy-paste a call without reading the PRD: the dynamic
-    // `{toolkit} {tool}` route and the generic `call` route. This same
-    // block backs `upeg <toolkit> <tool> --help`.
+    // can copy-paste a call directly: the dynamic `{toolkit} {tool}`
+    // route and the generic `call` route. This same block backs
+    // `upeg <toolkit> <tool> --help`.
     out.push_str("invoke\n");
     out.push_str(&format!("  {}\n", dynamic_route_example(t)));
     out.push_str(&format!("  {}\n", call_example(t)));

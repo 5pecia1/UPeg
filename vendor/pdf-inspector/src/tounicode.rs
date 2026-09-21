@@ -8,6 +8,9 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 use crate::glyph_names::glyph_to_char;
+use crate::sfnt;
+use skrifa::raw::tables::cmap::PlatformId;
+use skrifa::{FontRef, GlyphId, GlyphNames};
 
 static BUILTIN_CMAPS: include_dir::Dir<'_> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/external/bcmaps");
@@ -968,7 +971,7 @@ fn try_remap_subset_cmap(
 /// For Identity-H CID fonts, CID == GID. The TrueType cmap maps Unicode→GID,
 /// so we reverse it to get GID→Unicode (i.e. CID→Unicode).
 pub fn build_cmap_from_truetype(font_data: &[u8]) -> Option<ToUnicodeCMap> {
-    let face = ttf_parser::Face::parse(font_data, 0).ok()?;
+    let face = sfnt::parse(font_data)?;
     let gid_to_unicode = build_gid_to_unicode(&face)?;
 
     debug!(
@@ -988,7 +991,7 @@ pub fn build_cmap_from_truetype(font_data: &[u8]) -> Option<ToUnicodeCMap> {
 /// Build a single-byte CMap for simple fonts by treating the character code
 /// as a glyph id (best-effort fallback when no usable ToUnicode exists).
 fn build_simple_cmap_from_truetype(font_data: &[u8]) -> Option<ToUnicodeCMap> {
-    let face = ttf_parser::Face::parse(font_data, 0).ok()?;
+    let face = sfnt::parse(font_data)?;
     let gid_to_unicode = build_gid_to_unicode(&face)?;
 
     let mut cmap = ToUnicodeCMap::new();
@@ -997,65 +1000,60 @@ fn build_simple_cmap_from_truetype(font_data: &[u8]) -> Option<ToUnicodeCMap> {
     // In subsetted TrueType fonts, GID ≠ character code, so we need the cmap table
     // to translate byte codes (as used in the PDF content stream) to GIDs.
     let mut used_encoding_cmap = false;
-    if let Some(cmap_table) = face.tables().cmap {
-        // Prefer Mac Roman (1,0): maps byte codes 0–255 directly to GIDs.
-        for subtable in cmap_table.subtables {
-            if subtable.platform_id == ttf_parser::PlatformId::Macintosh
-                && subtable.encoding_id == 0
-            {
-                for code in 0x20..=0xFF_u32 {
-                    if let Some(gid) = subtable.glyph_index(code) {
-                        if let Some(&ch) = gid_to_unicode.get(&gid.0) {
-                            let ch = strip_pua_char(ch);
-                            cmap.char_map.entry(code as u16).or_insert(ch.to_string());
-                        }
-                    }
-                }
-                used_encoding_cmap = true;
-                break;
-            }
+    // Prefer Mac Roman (1,0): maps byte codes 0–255 directly to GIDs.
+    sfnt::cmap_subtables(&face, |record, subtable| {
+        if used_encoding_cmap || !record.is_mac_roman() {
+            return;
         }
-        // Fallback: Windows Symbol (3,0) — maps F000+byte to GIDs.
-        if !used_encoding_cmap {
-            for subtable in cmap_table.subtables {
-                if subtable.platform_id == ttf_parser::PlatformId::Windows
-                    && subtable.encoding_id == 0
-                {
-                    for code in 0x20..=0xFF_u32 {
-                        if let Some(gid) = subtable.glyph_index(code + 0xF000) {
-                            if let Some(&ch) = gid_to_unicode.get(&gid.0) {
-                                let ch = strip_pua_char(ch);
-                                cmap.char_map.entry(code as u16).or_insert(ch.to_string());
-                            }
-                        }
-                    }
-                    used_encoding_cmap = true;
-                    break;
+        for code in 0x20..=0xFF_u32 {
+            if let Some(gid) = sfnt::glyph_index(subtable, code) {
+                if let Some(&ch) = gid_to_unicode.get(&gid) {
+                    let ch = strip_pua_char(ch);
+                    cmap.char_map.entry(code as u16).or_insert(ch.to_string());
                 }
             }
         }
-        // Fallback: Windows Unicode BMP (3,1) — maps Unicode codepoints to GIDs.
-        // For single-byte fonts, try each byte value as a Unicode codepoint.
-        // Common in OCR-generated PDFs where byte values correspond to Unicode
-        // codepoints but the declared encoding (WinAnsiEncoding) is wrong.
-        if !used_encoding_cmap {
-            for subtable in cmap_table.subtables {
-                if subtable.platform_id == ttf_parser::PlatformId::Windows
-                    && subtable.encoding_id == 1
-                {
-                    for code in 0x20..=0xFF_u32 {
-                        if let Some(gid) = subtable.glyph_index(code) {
-                            if let Some(&ch) = gid_to_unicode.get(&gid.0) {
-                                let ch = strip_pua_char(ch);
-                                cmap.char_map.entry(code as u16).or_insert(ch.to_string());
-                            }
-                        }
+        used_encoding_cmap = true;
+    });
+    // Fallback: Windows Symbol (3,0) — maps F000+byte to GIDs.
+    if !used_encoding_cmap {
+        sfnt::cmap_subtables(&face, |record, subtable| {
+            if used_encoding_cmap || !record.is_symbol() {
+                return;
+            }
+            for code in 0x20..=0xFF_u32 {
+                if let Some(gid) = sfnt::glyph_index(subtable, code + 0xF000) {
+                    if let Some(&ch) = gid_to_unicode.get(&gid) {
+                        let ch = strip_pua_char(ch);
+                        cmap.char_map.entry(code as u16).or_insert(ch.to_string());
                     }
-                    used_encoding_cmap = true;
-                    break;
                 }
             }
-        }
+            used_encoding_cmap = true;
+        });
+    }
+    // Fallback: Windows Unicode BMP (3,1) — maps Unicode codepoints to GIDs.
+    // For single-byte fonts, try each byte value as a Unicode codepoint.
+    // Common in OCR-generated PDFs where byte values correspond to Unicode
+    // codepoints but the declared encoding (WinAnsiEncoding) is wrong.
+    if !used_encoding_cmap {
+        sfnt::cmap_subtables(&face, |record, subtable| {
+            if used_encoding_cmap {
+                return;
+            }
+            if record.platform_id() != PlatformId::Windows || record.encoding_id() != 1 {
+                return;
+            }
+            for code in 0x20..=0xFF_u32 {
+                if let Some(gid) = sfnt::glyph_index(subtable, code) {
+                    if let Some(&ch) = gid_to_unicode.get(&gid) {
+                        let ch = strip_pua_char(ch);
+                        cmap.char_map.entry(code as u16).or_insert(ch.to_string());
+                    }
+                }
+            }
+            used_encoding_cmap = true;
+        });
     }
 
     if !used_encoding_cmap {
@@ -1066,15 +1064,17 @@ fn build_simple_cmap_from_truetype(font_data: &[u8]) -> Option<ToUnicodeCMap> {
             }
         }
         // Fill missing single-byte codes from glyph names (helps with ligatures like "t_i").
-        for gid_idx in 0..face.number_of_glyphs() {
-            let gid = ttf_parser::GlyphId(gid_idx);
-            let gid_val = gid.0;
-            if gid_val > 0xFF || cmap.char_map.contains_key(&gid_val) {
+        let glyph_names = GlyphNames::new(&face);
+        for gid_val in 0..glyph_names.num_glyphs() {
+            if gid_val > 0xFF || cmap.char_map.contains_key(&(gid_val as u16)) {
                 continue;
             }
-            if let Some(name) = face.glyph_name(gid) {
-                if let Some(s) = glyph_name_to_string(name) {
-                    cmap.char_map.insert(gid_val, s);
+            if let Some(name) = glyph_names.get(GlyphId::new(gid_val)) {
+                if name.is_synthesized() {
+                    continue;
+                }
+                if let Some(s) = glyph_name_to_string(name.as_str()) {
+                    cmap.char_map.insert(gid_val as u16, s);
                 }
             }
         }
@@ -1132,14 +1132,19 @@ fn glyph_name_to_string(name: &str) -> Option<String> {
 
 /// Build a ToUnicodeCMap from a font's glyph names (post table).
 /// Uses Adobe Glyph List to map glyph names to Unicode.
-fn build_cmap_from_glyph_names(face: &ttf_parser::Face<'_>) -> Option<ToUnicodeCMap> {
+fn build_cmap_from_glyph_names(face: &FontRef<'_>) -> Option<ToUnicodeCMap> {
     let mut cmap = ToUnicodeCMap::new();
 
-    for gid in 0..face.number_of_glyphs() {
-        let gid = ttf_parser::GlyphId(gid);
-        if let Some(name) = face.glyph_name(gid) {
-            if let Some(ch) = glyph_to_char(name) {
-                cmap.char_map.insert(gid.0, ch.to_string());
+    let glyph_names = GlyphNames::new(face);
+    for (gid, name) in glyph_names.iter() {
+        // skrifa synthesizes `gidNNN` for nameless glyphs; ttf_parser returned
+        // None there, so skip them the same way.
+        if name.is_synthesized() {
+            continue;
+        }
+        if let Ok(gid) = u16::try_from(gid.to_u32()) {
+            if let Some(ch) = glyph_to_char(name.as_str()) {
+                cmap.char_map.insert(gid, ch.to_string());
             }
         }
     }
@@ -1156,27 +1161,27 @@ fn build_cmap_from_glyph_names(face: &ttf_parser::Face<'_>) -> Option<ToUnicodeC
     Some(cmap)
 }
 
-fn build_gid_to_unicode(face: &ttf_parser::Face<'_>) -> Option<HashMap<u16, char>> {
+fn build_gid_to_unicode(face: &FontRef<'_>) -> Option<HashMap<u16, char>> {
     let mut gid_to_unicode: HashMap<u16, char> = HashMap::new();
 
     // Iterate all Unicode codepoints that have a glyph mapping.
     // For each codepoint, the face gives us a GlyphId; reverse that to GID→Unicode.
     // We prefer the first (lowest) codepoint for each GID to handle duplicates.
-    for subtable in face.tables().cmap.iter().flat_map(|cmap| cmap.subtables) {
-        let is_symbol =
-            subtable.platform_id == ttf_parser::PlatformId::Windows && subtable.encoding_id == 0;
-        if !subtable.is_unicode() && !is_symbol {
-            continue;
+    sfnt::cmap_subtables(face, |record, subtable| {
+        let is_symbol = record.is_symbol();
+        if !sfnt::is_unicode_subtable(record, subtable) && !is_symbol {
+            return;
         }
-        subtable.codepoints(|cp| {
+        for (cp, gid) in subtable.iter() {
             if let Some(ch) = char::from_u32(cp) {
-                if let Some(gid) = subtable.glyph_index(cp) {
-                    let gid_val = gid.0;
-                    gid_to_unicode.entry(gid_val).or_insert(ch);
+                if let Ok(gid_val) = u16::try_from(gid.to_u32()) {
+                    if gid_val != 0 {
+                        gid_to_unicode.entry(gid_val).or_insert(ch);
+                    }
                 }
             }
-        });
-    }
+        }
+    });
 
     if gid_to_unicode.is_empty() {
         return build_cmap_from_glyph_names(face).map(|cmap| {

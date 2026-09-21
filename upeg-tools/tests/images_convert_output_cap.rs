@@ -15,7 +15,7 @@ mod tests {
     const SMALL_USER_OUTPUT_CAP_BYTES: usize = 32;
     const IMAGES_CONVERT_TOOL_ID: &str = "media.images_convert";
 
-    fn 이미지_일괄_변환_args(max_output_bytes: Option<usize>) -> Value {
+    fn images_convert_args(max_output_bytes: Option<usize>) -> Value {
         let image = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
             1,
             1,
@@ -44,7 +44,7 @@ mod tests {
         args
     }
 
-    fn 실패_메시지(result: RegisteredDispatch) -> String {
+    fn failure_message(result: RegisteredDispatch) -> String {
         match result {
             RegisteredDispatch::Ran(ToolResult::Failure(failure)) => failure.error.message,
             other => panic!("expected dispatcher failure, got {other:?}"),
@@ -52,8 +52,8 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher는_output_cap을_생략하면_기본값으로_변환한다() {
-        let result = dispatch_registered(IMAGES_CONVERT_TOOL_ID, &이미지_일괄_변환_args(None));
+    fn dispatcher_converts_with_default_when_output_cap_omitted() {
+        let result = dispatch_registered(IMAGES_CONVERT_TOOL_ID, &images_convert_args(None));
 
         assert!(
             matches!(result, RegisteredDispatch::Ran(ToolResult::Success(_))),
@@ -62,35 +62,35 @@ mod tests {
     }
 
     #[test]
-    fn dispatcher는_작은_output_cap을_이미지_인코더까지_전달한다() {
+    fn dispatcher_passes_small_output_cap_to_image_encoder() {
         let result = dispatch_registered(
             IMAGES_CONVERT_TOOL_ID,
-            &이미지_일괄_변환_args(Some(SMALL_USER_OUTPUT_CAP_BYTES)),
+            &images_convert_args(Some(SMALL_USER_OUTPUT_CAP_BYTES)),
         );
 
-        let error = 실패_메시지(result);
+        let error = failure_message(result);
         assert!(error.contains("encoded raster"), "got {error:?}");
     }
 
     #[test]
-    fn dispatcher_schema는_0_byte_output_cap을_거부한다() {
+    fn dispatcher_schema_rejects_zero_byte_output_cap() {
         let result = dispatch_registered(
             IMAGES_CONVERT_TOOL_ID,
-            &이미지_일괄_변환_args(Some(ZERO_OUTPUT_CAP_BYTES)),
+            &images_convert_args(Some(ZERO_OUTPUT_CAP_BYTES)),
         );
 
-        let error = 실패_메시지(result);
+        let error = failure_message(result);
         assert!(error.contains("max_output_bytes"), "got {error:?}");
     }
 
     #[test]
-    fn dispatcher_schema는_hard_cap보다_1_byte_큰_요청을_거부한다() {
+    fn dispatcher_schema_rejects_request_one_byte_over_hard_cap() {
         let result = dispatch_registered(
             IMAGES_CONVERT_TOOL_ID,
-            &이미지_일괄_변환_args(Some(IMAGES_CONVERT_MAX_OUTPUT_BYTES + 1)),
+            &images_convert_args(Some(IMAGES_CONVERT_MAX_OUTPUT_BYTES + 1)),
         );
 
-        let error = 실패_메시지(result);
+        let error = failure_message(result);
         assert!(error.contains("max_output_bytes"), "got {error:?}");
     }
 }

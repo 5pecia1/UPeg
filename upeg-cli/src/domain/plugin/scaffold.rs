@@ -136,7 +136,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 이름은_토큰이_있는_모든_자리에_치환된다() {
+    fn name_is_substituted_at_every_token_site() {
         let files = render("greet2", None);
         assert!(files.cargo_toml.contains("name = \"greet2\""));
         assert!(!files.cargo_toml.contains("{{name}}"));
@@ -152,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn 기본_scaffold는_git_의존성을_사용한다() {
+    fn default_scaffold_uses_git_dependencies() {
         let files = render("greet2", None);
         assert!(files.cargo_toml.contains(&format!(
             "upeg-plugin-api = {{ git = \"{UPEG_REPO_URL}\" }}"
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn local_플래그는_경로_의존성을_사용한다() {
+    fn local_flag_uses_path_dependencies() {
         let files = render("greet2", Some(Path::new("/workspaces/UPeg")));
         assert!(
             files

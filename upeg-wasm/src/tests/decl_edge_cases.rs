@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 선언을_메타로_바꾸면_빈_pin_종류를_거부한다() {
+fn decl_to_meta_rejects_empty_pin_kind() {
     // Iter 206: parallel to upeg-loader iter 205. Present-but-empty
     // pin gets EmptyPinKind instead of UnknownPinKind.
     for empty in ["", "  ", "\t\n"] {
@@ -26,7 +26,7 @@ fn 선언을_메타로_바꾸면_빈_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_빈_표면_항목을_거부한다() {
+fn decl_to_meta_rejects_empty_surface_entry() {
     // Iter 207: parallel to upeg-loader iter 207. Empty surface
     // entries get EmptyInSurfaces with position info.
     for (surfaces_list, expected_pos) in [
@@ -62,7 +62,7 @@ fn 선언을_메타로_바꾸면_빈_표면_항목을_거부한다() {
 }
 
 #[test]
-fn 생략된_pin_종류는_여전히_기본값을_사용한다() {
+fn omitted_pin_kind_still_uses_default() {
     // Pin the omitted-vs-present distinction. Omitting pin
     // (None) must still default to Inline cleanly.
     let decl = PluginToolDecl {
@@ -83,7 +83,7 @@ fn 생략된_pin_종류는_여전히_기본값을_사용한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_공백_있는_pin_종류를_거부한다() {
+fn decl_to_meta_rejects_padded_pin_kind() {
     // Plugin manifest enum values are canonical strings; padded non-empty
     // values must not be silently normalized.
     for label in ["Inline ", " Embed", "Live\n", "\tLauncher"] {
@@ -108,7 +108,7 @@ fn 선언을_메타로_바꾸면_공백_있는_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_공백_있는_표면_항목을_거부한다() {
+fn decl_to_meta_rejects_padded_surface_entry() {
     let cases = [
         vec!["cli ".to_string(), "tui".into()],
         vec!["cli".to_string(), "\tmcp".into()],
@@ -137,7 +137,7 @@ fn 선언을_메타로_바꾸면_공백_있는_표면_항목을_거부한다() {
 }
 
 #[test]
-fn 바이트_등록은_쓰레기값을_거부한다() {
+fn register_from_bytes_rejects_garbage() {
     // Raw bytes that aren't a valid wasm module — extism::Plugin::new
     // refuses; we surface that as `LoadError::Extism`.
     let result = register_from_bytes(b"not a wasm module");

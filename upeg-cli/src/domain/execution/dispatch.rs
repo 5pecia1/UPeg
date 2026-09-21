@@ -198,16 +198,16 @@ mod tests {
     use serde_json::json;
     use upeg_runtime::{ProgressReporter, ProgressStream};
 
-    fn 거울에_비친_글자(live_body: impl FnOnce(&Arc<Mutex<Vec<u8>>>)) -> String {
+    fn mirrored_text(live_body: impl FnOnce(&Arc<Mutex<Vec<u8>>>)) -> String {
         let buffer = Arc::new(Mutex::new(Vec::new()));
         live_body(&buffer);
-        let bytes = buffer.lock().expect("거울 버퍼 잠금").clone();
-        String::from_utf8(bytes).expect("거울 버퍼는 UTF-8이다")
+        let bytes = buffer.lock().expect("mirror buffer lock").clone();
+        String::from_utf8(bytes).expect("mirror buffer is UTF-8")
     }
 
     #[test]
-    fn 거울_sink는_청크를_그대로_이어_붙인다() {
-        let text = 거울에_비친_글자(|buffer| {
+    fn mirror_sink_appends_chunks_verbatim() {
+        let text = mirrored_text(|buffer| {
             let reporter = ProgressReporter::new(mirror_sink(Arc::clone(buffer)));
             reporter.report(ProgressStream::Stderr, "compiling\n".to_string());
             reporter.report(ProgressStream::Stdout, "done\n".to_string());
@@ -217,36 +217,36 @@ mod tests {
     }
 
     #[test]
-    fn 조용한_모드는_sink를_설치하지_않는다() {
+    fn silent_mode_installs_no_sink() {
         let installed = with_live_output(LiveOutput::Silent, || {
             upeg_runtime::active_progress_sink().is_some()
         });
         assert!(
             !installed,
-            "--json/--field 경로는 기계용이라 아무것도 흘리지 않는다"
+            "the --json/--field path is machine-facing and leaks nothing"
         );
     }
 
     #[test]
-    fn 터미널_모드는_dispatch_동안_sink를_설치한다() {
+    fn terminal_mode_installs_sink_during_dispatch() {
         let installed = with_live_output(LiveOutput::Terminal, || {
             upeg_runtime::active_progress_sink().is_some()
         });
         assert!(installed);
         assert!(
             upeg_runtime::active_progress_sink().is_none(),
-            "sink은 호출 범위를 넘겨 살아남지 않는다"
+            "the sink must not outlive the call scope"
         );
     }
 
     #[test]
-    fn hex_로_dec_정상을_검증한다() {
+    fn hex_to_decimal_success() {
         let outcome = dispatch_tool("num.hex_to_decimal", &json!({"input": "0xff"}));
         assert_eq!(outcome.primary_text().as_deref(), Some("255"));
     }
 
     #[test]
-    fn hex_로_dec_도구_오류를_검증한다() {
+    fn hex_to_decimal_tool_error() {
         match dispatch_tool("num.hex_to_decimal", &json!({"input": "0xZZ"})) {
             Outcome::Failure(failure) => assert!(failure.error.message.contains("invalid hex")),
             other => panic!("expected ToolError, got {other:?}"),
@@ -254,12 +254,12 @@ mod tests {
     }
 
     #[test]
-    fn 알수없는_도구는_아닌_발견됨을_반환한다() {
+    fn unknown_tool_returns_not_found() {
         assert_eq!(dispatch_tool("no.such.tool", &json!({})), Outcome::NotFound);
     }
 
     #[test]
-    fn base64_왕복_왕복을_검증한다() {
+    fn base64_round_trip() {
         let enc = dispatch_tool("convert.base64_encode", &json!({"input": "hello"}));
         assert_eq!(enc.primary_text().as_deref(), Some("aGVsbG8="));
         let dec = dispatch_tool("convert.base64_decode", &json!({"input": "aGVsbG8="}));
@@ -267,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn 누락된_필수_인자는_schema_검증을_실패한다() {
+    fn missing_required_arg_fails_schema_validation() {
         match dispatch_tool("num.hex_to_decimal", &json!({})) {
             Outcome::Failure(failure) => assert!(failure.error.message.contains("is required")),
             other => panic!("expected ToolError, got {other:?}"),
@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn uuid_v7는_36_문자_정규_문자열을_반환한다() {
+    fn uuid_v7_returns_36_char_canonical_string() {
         match dispatch_tool("id.uuid_v7", &json!({})) {
             Outcome::Success(success) => {
                 let s = success_primary_text(&success);
@@ -290,7 +290,7 @@ mod tests {
     /// to it. This is the runtime adapter contract: a tool added at runtime
     /// (TOML/WASM) must be callable without touching the hardcoded match.
     #[test]
-    fn dispatch는_내장이_아닌에_대해_로_runtime_dispatcher를_라우팅한다() {
+    fn dispatch_routes_to_runtime_dispatcher_for_non_builtin() {
         let id = "test.dispatch.runtime_echo";
         upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
             id,
@@ -304,6 +304,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -316,12 +318,12 @@ mod tests {
             Ok(format!("got: {s}"))
         });
 
-        let outcome = dispatch_tool(id, &json!({"msg": "iter37"}));
-        assert_eq!(outcome.primary_text().as_deref(), Some("got: iter37"));
+        let outcome = dispatch_tool(id, &json!({"msg": "ping"}));
+        assert_eq!(outcome.primary_text().as_deref(), Some("got: ping"));
     }
 
     #[test]
-    fn dispatch는_runtime_dispatcher_오류를_도구_오류로_전파한다() {
+    fn dispatch_propagates_runtime_dispatcher_errors_as_tool_errors() {
         let id = "test.dispatch.runtime_err";
         upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
             id,
@@ -335,6 +337,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -351,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn 내장_등록_보장은_멱등이다() {
+    fn builtin_registration_is_idempotent() {
         // Two calls in a row must be cheap and must leave the registry
         // pointing at the same closures (last write wins, same closure body
         // each time → equivalent behavior).
@@ -365,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_runtime가_없는_dispatcher는_아닌_구현된을_반환한다() {
+    fn dispatch_without_runtime_dispatcher_returns_not_implemented() {
         // Tool is in the toolbox but has no dispatcher and isn't a built-in.
         let id = "test.dispatch.no_handler";
         upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
@@ -380,6 +384,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,

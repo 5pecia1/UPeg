@@ -72,6 +72,10 @@ const Map<String, Map<LocaleDto, String>> _fakeCatalog = {
     LocaleDto.en: 'serve the REST/MCP host from this app; restart to apply',
     LocaleDto.ko: '이 앱이 REST/MCP host가 된다. 적용하려면 재시작한다',
   },
+  // BackupSection mounts inside TweaksForm — the buttons must resolve
+  // to short labels or the key-as-marker fallback overflows the row.
+  'settings.backup.export': {LocaleDto.en: 'export', LocaleDto.ko: '보내기'},
+  'settings.backup.import': {LocaleDto.en: 'import', LocaleDto.ko: '가져오기'},
 };
 
 String _fakeTranslate(String key, LocaleDto locale) {
@@ -147,7 +151,9 @@ Widget _hostHarness({
 
 void main() {
   group('showSettingsOverlay', () {
-    testWidgets('settingsOverlay는_제목과_close_버튼을_렌더한다', (tester) async {
+    testWidgets('settingsOverlay_renders_the_title_and_close_button', (
+      tester,
+    ) async {
       await tester.pumpWidget(_hostHarness());
       await tester.pumpAndSettle();
 
@@ -162,7 +168,7 @@ void main() {
     // (the orphaned `SettingsPage` was deleted): the production settings
     // surface is this overlay, so the form-body render assertion lives
     // here now.
-    testWidgets('settingsOverlay는_TweaksForm을_렌더한다', (tester) async {
+    testWidgets('settingsOverlay_renders_the_TweaksForm', (tester) async {
       await tester.pumpWidget(_hostHarness());
       await tester.pumpAndSettle();
 
@@ -172,7 +178,9 @@ void main() {
       expect(find.byType(TweaksForm), findsOneWidget);
     });
 
-    testWidgets('SettingsOverlay는_locale_Ko에서_제목이_한국어로_표시된다', (tester) async {
+    testWidgets('SettingsOverlay_shows_a_Korean_title_when_locale_is_Ko', (
+      tester,
+    ) async {
       const koDto = TweaksDto(
         theme: 'Dark',
         accent: 'Green',
@@ -193,23 +201,26 @@ void main() {
       expect(find.text('닫기'), findsOneWidget);
     });
 
-    testWidgets('settingsOverlay는_close_버튼이_transition없이_modal을_닫는다', (
+    testWidgets(
+      'settingsOverlay_close_button_dismisses_the_modal_without_a_transition',
+      (tester) async {
+        await tester.pumpWidget(_hostHarness());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('open-settings-btn')));
+        await tester.pump();
+        expect(find.text('SETTINGS'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('settings-close-btn')));
+        await tester.pump();
+
+        expect(find.text('SETTINGS'), findsNothing);
+      },
+    );
+
+    testWidgets('SettingsOverlay_dismisses_the_modal_with_the_q_key', (
       tester,
     ) async {
-      await tester.pumpWidget(_hostHarness());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('open-settings-btn')));
-      await tester.pump();
-      expect(find.text('SETTINGS'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('settings-close-btn')));
-      await tester.pump();
-
-      expect(find.text('SETTINGS'), findsNothing);
-    });
-
-    testWidgets('SettingsOverlay는_q_key로_modal을_닫는다', (tester) async {
       await tester.pumpWidget(_hostHarness());
       await tester.pumpAndSettle();
 
@@ -223,7 +234,7 @@ void main() {
       expect(find.text('SETTINGS'), findsNothing);
     });
 
-    testWidgets('SettingsOverlay는_j와_k로_focus를_이동한다', (tester) async {
+    testWidgets('SettingsOverlay_moves_focus_with_j_and_k', (tester) async {
       await tester.pumpWidget(_hostHarness());
       await tester.pumpAndSettle();
 
@@ -249,7 +260,9 @@ void main() {
       expect(Focus.of(closeContext).hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('SettingsOverlay는_l과_h로_focus된_설정값을_변경한다', (tester) async {
+    testWidgets('SettingsOverlay_changes_the_focused_setting_with_l_and_h', (
+      tester,
+    ) async {
       final saved = <TweaksDto>[];
       await tester.pumpWidget(_hostHarness(onSave: saved.add));
       await tester.pumpAndSettle();

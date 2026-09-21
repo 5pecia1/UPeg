@@ -148,7 +148,7 @@ const _fixtureHits = <PaletteHit>[
 
 void main() {
   group('Goldens', () {
-    testWidgets('BoardCanvas_골든', tags: <String>['golden'], (tester) async {
+    testWidgets('boardcanvas_golden', tags: <String>['golden'], (tester) async {
       _useViewport(tester, const Size(800, 600));
       await tester.pumpWidget(
         ProviderScope(
@@ -192,7 +192,9 @@ void main() {
       );
     });
 
-    testWidgets('PaletteOverlay_골든', tags: <String>['golden'], (tester) async {
+    testWidgets('paletteoverlay_golden', tags: <String>['golden'], (
+      tester,
+    ) async {
       _useViewport(tester, const Size(800, 600));
       await tester.pumpWidget(
         ProviderScope(
@@ -229,7 +231,7 @@ void main() {
       );
     });
 
-    testWidgets('ExpandedModalPage_골든', tags: <String>['golden'], (
+    testWidgets('expandedmodalpage_golden', tags: <String>['golden'], (
       tester,
     ) async {
       _useViewport(tester, const Size(900, 700));
@@ -260,7 +262,7 @@ void main() {
       );
     });
 
-    testWidgets('TweaksForm_골든', tags: <String>['golden'], (tester) async {
+    testWidgets('tweaksform_golden', tags: <String>['golden'], (tester) async {
       _useViewport(tester, const Size(420, 520));
       const initial = TweaksDto(
         theme: 'Dark',
@@ -307,7 +309,7 @@ void main() {
       );
     });
 
-    testWidgets('PopupPage_골든', tags: <String>['golden'], (tester) async {
+    testWidgets('popuppage_golden', tags: <String>['golden'], (tester) async {
       _useViewport(tester, const Size(400, 540));
       await tester.pumpWidget(
         ProviderScope(

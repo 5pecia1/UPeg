@@ -30,9 +30,15 @@ pub const DETACH_MARKER_ENV: &str = "UPEG_HTTP_DETACHED";
 /// `std::process::exit(0)` after the child is spawned.
 ///
 /// `extra_args` are appended to whatever produced the current
-/// invocation; pass `--addr`, `--token`, etc. that the foreground
-/// branch would otherwise consume.
-pub fn detach_and_exit(log_path: PathBuf, extra_args: &[String]) -> std::io::Result<()> {
+/// invocation; pass `--addr`, `--token-file`, etc. that the foreground
+/// branch would otherwise consume. An explicit `--token` value travels
+/// as `operator_token` instead and reaches the child through its
+/// environment — see [`detached_command`].
+pub fn detach_and_exit(
+    log_path: PathBuf,
+    extra_args: &[String],
+    operator_token: Option<&str>,
+) -> std::io::Result<()> {
     if std::env::var_os(DETACH_MARKER_ENV).is_some() {
         // Already detached — caller's foreground path should run.
         return Ok(());
@@ -42,13 +48,8 @@ pub fn detach_and_exit(log_path: PathBuf, extra_args: &[String]) -> std::io::Res
     let log_for_stdout = super::log_file::open_rotated(&log_path)?;
     let log_for_stderr = log_for_stdout.try_clone()?;
 
-    let mut cmd = Command::new(exe);
-    cmd.arg("http");
-    for arg in extra_args {
-        cmd.arg(arg);
-    }
-    cmd.env(DETACH_MARKER_ENV, "1")
-        .stdin(Stdio::null())
+    let mut cmd = detached_command(exe, extra_args, operator_token);
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::from(log_for_stdout))
         .stderr(Stdio::from(log_for_stderr));
 
@@ -70,6 +71,23 @@ pub fn detach_and_exit(log_path: PathBuf, extra_args: &[String]) -> std::io::Res
     std::process::exit(0);
 }
 
+/// The child's command line and environment, minus stdio wiring.
+///
+/// Secrets travel through the environment, never through argv: a command
+/// line is world-readable in `ps` output on every platform upeg targets,
+/// while a process environment is readable only by its own user
+/// (docs/architecture/host-topology.md). The child resolves
+/// `UPEG_HTTP_TOKEN` exactly as an operator-exported variable, so it
+/// still sees the token as `TokenSource::Provided`.
+fn detached_command(exe: PathBuf, extra_args: &[String], operator_token: Option<&str>) -> Command {
+    let mut cmd = Command::new(exe);
+    cmd.arg("http").args(extra_args).env(DETACH_MARKER_ENV, "1");
+    if let Some(token) = operator_token {
+        cmd.env(super::paths::env::HTTP_TOKEN, token);
+    }
+    cmd
+}
+
 /// Whether the running process is the detached child. Used by the
 /// startup path to swap stderr formatting (the child's stderr is the
 /// log file, so banner lines belong as plain text without color).
@@ -88,8 +106,12 @@ mod tests {
     use super::*;
     use std::ffi::OsStr;
 
+    /// Obviously fake credential for the argv/env assertions. Never a
+    /// real secret.
+    const FAKE_TOKEN: &str = "not-a-real-token";
+
     #[test]
-    fn 환경변수_값이_있으면_is_detached_from은_참을_반환한다() {
+    fn is_detached_from_is_true_when_the_marker_has_any_value() {
         assert!(is_detached_from(Some(OsStr::new("1"))));
         // Any value — even empty — is treated as present (var_os
         // returns Some for an empty environment variable too).
@@ -97,7 +119,50 @@ mod tests {
     }
 
     #[test]
-    fn 환경변수_값이_없으면_is_detached_from은_거짓을_반환한다() {
+    fn is_detached_from_is_false_when_the_marker_is_absent() {
         assert!(!is_detached_from(None));
+    }
+
+    #[test]
+    fn detached_child_receives_the_operator_token_through_env_not_argv() {
+        let extra = vec!["--addr".to_string(), "127.0.0.1:7173".to_string()];
+
+        let cmd = detached_command(PathBuf::from("upeg"), &extra, Some(FAKE_TOKEN));
+
+        let args: Vec<&OsStr> = cmd.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                OsStr::new("http"),
+                OsStr::new("--addr"),
+                OsStr::new("127.0.0.1:7173")
+            ],
+            "argv must carry only non-secret flags"
+        );
+        assert!(
+            !args.iter().any(|arg| *arg == OsStr::new(FAKE_TOKEN)),
+            "the token must never appear in the child's command line"
+        );
+        let env_token = cmd
+            .get_envs()
+            .find(|(key, _)| *key == OsStr::new(super::super::paths::env::HTTP_TOKEN))
+            .and_then(|(_, value)| value);
+        assert_eq!(env_token, Some(OsStr::new(FAKE_TOKEN)));
+        assert!(
+            cmd.get_envs()
+                .any(|(key, value)| key == OsStr::new(DETACH_MARKER_ENV) && value.is_some()),
+            "the child must still see the detach marker"
+        );
+    }
+
+    #[test]
+    fn detached_child_without_an_explicit_token_inherits_no_token_override() {
+        let cmd = detached_command(PathBuf::from("upeg"), &[], None);
+
+        assert!(
+            cmd.get_envs()
+                .all(|(key, _)| key != OsStr::new(super::super::paths::env::HTTP_TOKEN)),
+            "no --token means no UPEG_HTTP_TOKEN injected into the child"
+        );
     }
 }

@@ -9,25 +9,25 @@ const TEST_HEADER_LIMIT_BYTES: usize = 64;
 const TEST_REQUEST_BODY_BYTES: usize = 2;
 const TEST_REQUEST_READ_CHUNK_BYTES: usize = 512;
 
-fn 테스트_제한() -> ResponseLimits {
+fn test_limits() -> ResponseLimits {
     ResponseLimits {
         body_bytes: TEST_BODY_LIMIT_BYTES,
         header_bytes: TEST_HEADER_LIMIT_BYTES,
     }
 }
 
-fn 응답(status: &str, headers: &str, body: &[u8]) -> Vec<u8> {
+fn response(status: &str, headers: &str, body: &[u8]) -> Vec<u8> {
     let mut raw = format!("{status}\r\n{headers}\r\n").into_bytes();
     raw.extend_from_slice(body);
     raw
 }
 
-fn 테스트_요청을_끝까지_읽는다(stream: &mut TcpStream) {
+fn read_test_request_to_end(stream: &mut TcpStream) {
     let mut request = Vec::new();
     let mut chunk = [0_u8; TEST_REQUEST_READ_CHUNK_BYTES];
     loop {
         let read_bytes = stream.read(&mut chunk).unwrap();
-        assert_ne!(read_bytes, 0, "테스트 attach 요청이 본문 전에 끝났다");
+        assert_ne!(read_bytes, 0, "test attach request ended before its body");
         request.extend_from_slice(&chunk[..read_bytes]);
         let body_start = request
             .windows(HTTP_HEADER_BODY_SEPARATOR.len())
@@ -40,16 +40,16 @@ fn 테스트_요청을_끝까지_읽는다(stream: &mut TcpStream) {
 }
 
 #[test]
-fn http_응답은_상태와_본문을_파싱한다() {
+fn http_response_parses_status_and_body() {
     // Given
-    let raw = 응답(
+    let raw = response(
         "HTTP/1.0 200 OK",
         "Content-Type: application/json\r\n",
         b"{}",
     );
 
     // When
-    let (status, body) = parse_http_response(raw, 테스트_제한()).unwrap();
+    let (status, body) = parse_http_response(raw, test_limits()).unwrap();
 
     // Then
     assert_eq!(status, 200);
@@ -57,30 +57,30 @@ fn http_응답은_상태와_본문을_파싱한다() {
 }
 
 #[test]
-fn http_응답은_정확한_본문_상한을_허용한다() {
+fn http_response_allows_the_exact_body_limit() {
     // Given
-    let raw = 응답("HTTP/1.0 200 OK", "Content-Length: 2\r\n", b"{}");
+    let raw = response("HTTP/1.0 200 OK", "Content-Length: 2\r\n", b"{}");
 
     // When
-    let parsed = read_and_parse_response(&mut Cursor::new(raw), 테스트_제한(), RESPONSE_DEADLINE);
+    let parsed = read_and_parse_response(&mut Cursor::new(raw), test_limits(), RESPONSE_DEADLINE);
 
     // Then
     assert_eq!(parsed.unwrap(), (200, "{}".to_string()));
 }
 
 #[test]
-fn http_응답은_본문_상한보다_한_byte_크면_파싱전에_거부한다() {
+fn http_response_rejects_one_byte_over_body_limit_before_parsing() {
     // Given
     let head = b"HTTP/1.0 200 OK";
     let limits = ResponseLimits {
         body_bytes: TEST_BODY_LIMIT_BYTES,
         header_bytes: head.len(),
     };
-    let raw = 응답("HTTP/1.0 200 OK", "", b"{}x");
+    let raw = response("HTTP/1.0 200 OK", "", b"{}x");
 
     // When
     let error = read_and_parse_response(&mut Cursor::new(raw), limits, RESPONSE_DEADLINE)
-        .expect_err("상한보다 한 byte 큰 응답은 거부해야 한다");
+        .expect_err("a response one byte over the limit must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
@@ -88,7 +88,7 @@ fn http_응답은_본문_상한보다_한_byte_크면_파싱전에_거부한다(
 }
 
 #[test]
-fn attach_본문_상한은_core_wire_상수를_사용한다() {
+fn attach_body_limit_uses_the_core_wire_constant() {
     // Given
     let expected = usize::try_from(MAX_UNTRUSTED_OUTPUT_WIRE_BYTES).unwrap();
 
@@ -100,7 +100,7 @@ fn attach_본문_상한은_core_wire_상수를_사용한다() {
 }
 
 #[test]
-fn http_응답은_정확한_헤더_상한을_허용한다() {
+fn http_response_allows_the_exact_header_limit() {
     // Given
     let prefix = b"HTTP/1.0 204 No Content\r\nX-Fill: ";
     let filler_bytes = MAX_ATTACH_HTTP_HEADER_BYTES - prefix.len();
@@ -116,7 +116,7 @@ fn http_응답은_정확한_헤더_상한을_허용한다() {
 }
 
 #[test]
-fn http_응답은_과대한_헤더를_거부한다() {
+fn http_response_rejects_oversized_headers() {
     // Given
     let prefix = b"HTTP/1.0 204 No Content\r\nX-Fill: ";
     let filler_bytes = MAX_ATTACH_HTTP_HEADER_BYTES - prefix.len() + 1;
@@ -126,176 +126,177 @@ fn http_응답은_과대한_헤더를_거부한다() {
 
     // When
     let error = parse_http_response(raw, ResponseLimits::for_untrusted_output().unwrap())
-        .expect_err("과대한 attach HTTP 헤더는 거부해야 한다");
+        .expect_err("oversized attach HTTP headers must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_content_length보다_짧은_본문을_거부한다() {
+fn http_response_rejects_body_shorter_than_content_length() {
     // Given
-    let raw = 응답("HTTP/1.0 200 OK", "Content-Length: 3\r\n", b"{}");
+    let raw = response("HTTP/1.0 200 OK", "Content-Length: 3\r\n", b"{}");
     let limits = ResponseLimits {
         body_bytes: 3,
         header_bytes: TEST_HEADER_LIMIT_BYTES,
     };
 
     // When
-    let error =
-        parse_http_response(raw, limits).expect_err("잘린 Content-Length 본문은 거부해야 한다");
+    let error = parse_http_response(raw, limits)
+        .expect_err("a truncated Content-Length body must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::UnexpectedEof);
 }
 
 #[test]
-fn http_응답은_content_length보다_긴_본문을_거부한다() {
+fn http_response_rejects_body_longer_than_content_length() {
     // Given
-    let raw = 응답("HTTP/1.0 200 OK", "Content-Length: 1\r\n", b"{}");
+    let raw = response("HTTP/1.0 200 OK", "Content-Length: 1\r\n", b"{}");
 
     // When
-    let error = parse_http_response(raw, 테스트_제한())
-        .expect_err("Content-Length 뒤의 추가 byte는 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("extra bytes after Content-Length must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_중복된_content_length를_거부한다() {
+fn http_response_rejects_duplicate_content_length() {
     // Given
-    let raw = 응답(
+    let raw = response(
         "HTTP/1.0 200 OK",
         "Content-Length: 2\r\nContent-Length: 3\r\n",
         b"{}",
     );
 
     // When
-    let error =
-        parse_http_response(raw, 테스트_제한()).expect_err("중복 Content-Length는 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("duplicate Content-Length must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_공백으로_접힌_중복_content_length를_거부한다() {
+fn http_response_rejects_whitespace_folded_duplicate_content_length() {
     // Given
-    let raw = 응답(
+    let raw = response(
         "HTTP/1.0 200 OK",
         "Content-Length: 2\r\n Content-Length: 3\r\n",
         b"{}",
     );
 
     // When
-    let error = parse_http_response(raw, 테스트_제한())
-        .expect_err("공백으로 접힌 중복 Content-Length는 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("whitespace-folded duplicate Content-Length must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_비정상_content_length를_거부한다() {
+fn http_response_rejects_malformed_content_length() {
     // Given
-    let raw = 응답("HTTP/1.0 200 OK", "Content-Length: nope\r\n", b"{}");
+    let raw = response("HTTP/1.0 200 OK", "Content-Length: nope\r\n", b"{}");
 
     // When
-    let error =
-        parse_http_response(raw, 테스트_제한()).expect_err("비정상 Content-Length는 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("malformed Content-Length must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_plus_접두사의_content_length를_거부한다() {
+fn http_response_rejects_plus_prefixed_content_length() {
     // Given
-    let raw = 응답("HTTP/1.0 200 OK", "Content-Length: +2\r\n", b"{}");
+    let raw = response("HTTP/1.0 200 OK", "Content-Length: +2\r\n", b"{}");
 
     // When
-    let error = parse_http_response(raw, 테스트_제한())
-        .expect_err("Content-Length는 ASCII 숫자만 허용해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("Content-Length must allow ASCII digits only");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_colon_앞_공백이_있는_transfer_encoding을_거부한다() {
+fn http_response_rejects_transfer_encoding_with_space_before_colon() {
     // Given
-    let raw = 응답("HTTP/1.1 200 OK", "Transfer-Encoding : chunked\r\n", b"{}");
+    let raw = response("HTTP/1.1 200 OK", "Transfer-Encoding : chunked\r\n", b"{}");
 
     // When
-    let error = parse_http_response(raw, 테스트_제한())
-        .expect_err("field-name 뒤 공백으로 숨긴 Transfer-Encoding은 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("Transfer-Encoding hidden behind post-field-name whitespace must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_chunked_전송을_거부한다() {
+fn http_response_rejects_chunked_transfer() {
     // Given
-    let raw = 응답(
+    let raw = response(
         "HTTP/1.1 200 OK",
         "Transfer-Encoding: chunked\r\n",
         b"2\r\n{}\r\n0\r\n\r\n",
     );
 
     // When
-    let error =
-        parse_http_response(raw, 테스트_제한()).expect_err("chunked attach 응답은 거부해야 한다");
+    let error = parse_http_response(raw, test_limits())
+        .expect_err("a chunked attach response must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_bare_lf_헤더를_거부한다() {
+fn http_response_rejects_bare_lf_headers() {
     // Given
     let raw = b"HTTP/1.0 200 OK\nContent-Length: 2\r\n\r\n{}".to_vec();
 
     // When
-    let error = parse_http_response(raw, 테스트_제한()).expect_err("bare LF 헤더는 거부해야 한다");
+    let error =
+        parse_http_response(raw, test_limits()).expect_err("bare LF headers must be rejected");
 
     // Then
     assert_eq!(error.kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_쓰레기값을_거부한다() {
+fn http_response_rejects_garbage() {
     // Given
     let malformed_head = b"definitely not http".to_vec();
 
     // When
-    let error = parse_http_response(malformed_head, 테스트_제한());
+    let error = parse_http_response(malformed_head, test_limits());
 
     // Then
     assert_eq!(error.unwrap_err().kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn http_응답은_utf8이_아닌_본문을_거부한다() {
+fn http_response_rejects_non_utf8_body() {
     // Given
-    let malformed_body = 응답("HTTP/1.0 200 OK", "Content-Length: 1\r\n", &[0xff]);
+    let malformed_body = response("HTTP/1.0 200 OK", "Content-Length: 1\r\n", &[0xff]);
 
     // When
-    let error = parse_http_response(malformed_body, 테스트_제한());
+    let error = parse_http_response(malformed_body, test_limits());
 
     // Then
     assert_eq!(error.unwrap_err().kind(), ErrorKind::InvalidData);
 }
 
 #[test]
-fn 실제_tcp_attach는_과대한_응답을_제어된_오류로_반환한다() {
+fn real_tcp_attach_returns_oversized_response_as_controlled_error() {
     // Given
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
-        테스트_요청을_끝까지_읽는다(&mut stream);
+        read_test_request_to_end(&mut stream);
         stream.write_all(b"HTTP/1.0 200 OK\r\n\r\n{}x").unwrap();
     });
     let endpoint = format!("http://{address}/attach-test");
@@ -316,7 +317,7 @@ fn 실제_tcp_attach는_과대한_응답을_제어된_오류로_반환한다() {
         limits,
         RequestBudget::DISPATCH,
     )
-    .expect_err("실제 TCP attach도 과대 응답을 거부해야 한다");
+    .expect_err("real TCP attach must also reject an oversized response");
     server.join().unwrap();
 
     // Then
@@ -325,13 +326,13 @@ fn 실제_tcp_attach는_과대한_응답을_제어된_오류로_반환한다() {
 }
 
 #[test]
-fn 실제_tcp_attach는_정상_json_응답을_반환한다() {
+fn real_tcp_attach_returns_a_well_formed_json_response() {
     // Given
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
-        테스트_요청을_끝까지_읽는다(&mut stream);
+        read_test_request_to_end(&mut stream);
         stream
             .write_all(b"HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\n{}")
             .unwrap();

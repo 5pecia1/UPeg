@@ -12,6 +12,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,6 +32,8 @@ import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
+import 'package:upeg/src/state/presentation_call_origin.dart';
+import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/approval_confirm_dialog.dart';
 import 'package:upeg/src/widgets/controlled_embed/surface.dart';
@@ -42,8 +45,11 @@ import 'package:upeg/src/widgets/expanded_modal/live_output_tail.dart';
 import 'package:upeg/src/widgets/expanded_modal/outcome_block.dart';
 import 'package:upeg/src/widgets/expanded_modal/primary_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
+import 'package:upeg/src/widgets/expanded_modal/presentation_table.dart';
 import 'package:upeg/src/widgets/palette_overlay.dart';
 import 'package:upeg/src/widgets/settings_overlay.dart';
+
+part '../widgets/expanded_modal/live_run_block.dart';
 
 /// Test seam for opening the Settings overlay from modal-level
 /// shortcuts. Production delegates to [showSettingsOverlay].
@@ -103,7 +109,15 @@ enum _RunPhase {
 }
 
 class ExpandedModalPage extends ConsumerStatefulWidget {
-  const ExpandedModalPage({required this.tool, this.initialInput, super.key});
+  const ExpandedModalPage({
+    required this.tool,
+    this.initialInput,
+    this.presentationCalls,
+    this.presentationCall,
+    this.presentationAction,
+    this.onRefresh,
+    super.key,
+  });
 
   final ToolDto tool;
 
@@ -112,6 +126,10 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
   /// `upeg://open?input=…` JSON object and threads it here so the
   /// user opens the modal with their fields already populated.
   final ToolArgs? initialInput;
+  final PresentationCallOriginController? presentationCalls;
+  final PresentationCallIdentity? presentationCall;
+  final PresentationActionDto? presentationAction;
+  final ValueChanged<PresentationRefreshRequest>? onRefresh;
 
   /// Helper that pushes this page onto the navigator, used by
   /// Pin taps and palette hits. The `initialInput` flag is reserved
@@ -143,6 +161,9 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
 
 class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   final GenericFormController _controller = GenericFormController();
+  final PresentationCallOriginController _presentationCalls =
+      PresentationCallOriginController();
+  PresentationCallIdentity? _presentationCall;
   CanonicalToolResult? _outcome;
 
   /// Aggregate validity from the [GenericFormWidget]. Run is disabled
@@ -163,6 +184,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   /// Identity of the in-flight run, so Cancel can name it. Null whenever
   /// nothing is dispatching.
   DispatchRunId? _runId;
+  bool _cancelRequested = false;
 
   @override
   void initState() {
@@ -178,7 +200,11 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
 
   /// The one funnel every Run in this modal passes through: approval
   /// gate, then one streamed dispatch.
-  Future<void> _dispatchToolArgs(ToolArgs args) async {
+  Future<void> _dispatchToolArgs(
+    ToolArgs args, {
+    PresentationCallIdentity? forcedCall,
+    PresentationRefreshRun? refreshRun,
+  }) async {
     // Single-flight: a second Run tap / F1 while the first request is
     // still resolving is ignored so the user can't double-fire a slow
     // tool — nor stack two approval dialogs on one barrier.
@@ -188,9 +214,19 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     if (!mounted) return;
     if (verdict is! ApprovalGranted) {
       setState(() => _phase = _RunPhase.idle);
+      if (refreshRun != null) {
+        (widget.presentationCalls ?? _presentationCalls).refreshFailed(
+          refreshRun,
+        );
+      }
       return;
     }
-    await _streamDispatch(args, approve: verdict.approve);
+    await _streamDispatch(
+      args,
+      approve: verdict.approve,
+      forcedCall: forcedCall,
+      refreshRun: refreshRun,
+    );
   }
 
   Future<ApprovalVerdict> _askApproval() => resolveApprovalBeforeDispatch(
@@ -199,16 +235,43 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     tool: widget.tool,
   );
 
-  Future<void> _streamDispatch(ToolArgs args, {required bool approve}) async {
+  Future<void> _streamDispatch(
+    ToolArgs args, {
+    required bool approve,
+    PresentationCallIdentity? forcedCall,
+    PresentationRefreshRun? refreshRun,
+  }) async {
     final toolId = ToolId.parse(widget.tool.id);
     final dispatch = ref.read(dispatchStreamFnProvider);
     final running = ref.read(runningToolsProvider.notifier);
     final runId = nextDispatchRunId();
+    final calls = widget.presentationCalls ?? _presentationCalls;
+    final firstInjectedCall = _presentationCall == null
+        ? widget.presentationCall
+        : null;
+    final call =
+        forcedCall ??
+        firstInjectedCall ??
+        (calls.origin == null
+            ? calls.begin(
+                toolId: widget.tool.id,
+                args: args,
+                host: ref.read(currentBoardKeyProvider)?.value,
+              )
+            : calls.beginFollowup(
+                toolId: widget.tool.id,
+                args: args,
+                host: ref.read(currentBoardKeyProvider)?.value,
+              ));
+    _presentationCall = call;
     setState(() {
       _phase = _RunPhase.dispatching;
       _runId = runId;
       _tail = const LiveTail.empty(maxLines: modalLiveTailMaxLines);
+      _cancelRequested = false;
     });
+    CanonicalToolResult? completed;
+    var streamFailed = false;
     final runningLease = running.begin(toolId);
     try {
       final events = dispatch(
@@ -223,15 +286,22 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           case DispatchStreamEventDto_Chunk(:final chunk):
             setState(() => _tail = _tail.append(chunk));
           case DispatchStreamEventDto_Done(:final result):
-            setState(() => _outcome = result);
+            completed = result;
+            final accepted = refreshRun == null
+                ? calls.acceptResult(call)
+                : calls.acceptRefresh(refreshRun);
+            if (accepted && (refreshRun == null || result.ok)) {
+              setState(() => _outcome = result);
+            }
         }
       }
     } on Object catch (err) {
+      streamFailed = true;
       // The stream itself failed (the bridge refused the run, the
       // channel broke). Nothing settled it, so the modal has to: an
       // unhandled async error would leave the person looking at a
       // spinner that never resolves.
-      if (mounted) {
+      if (mounted && refreshRun == null) {
         setState(
           () => _outcome = CanonicalToolResult(
             ok: false,
@@ -244,6 +314,24 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
         );
       }
     } finally {
+      final action = widget.presentationAction;
+      if (action?.onSuccess == ActionSuccessDto.refreshOrigin) {
+        final result = completed;
+        if (streamFailed || _cancelRequested || result == null) {
+          calls.writeUnconfirmed(call);
+        } else if (!result.ok) {
+          calls.writeFailed(call);
+        } else {
+          final request = calls.writeSucceeded(
+            write: call,
+            refreshOrigin: true,
+          );
+          if (request != null) widget.onRefresh?.call(request);
+        }
+      } else if (refreshRun != null &&
+          (streamFailed || completed == null || !completed.ok)) {
+        calls.refreshFailed(refreshRun);
+      }
       running.end(runningLease);
       if (mounted) {
         setState(() {
@@ -260,6 +348,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   void _handleCancel() {
     final runId = _runId;
     if (runId == null) return;
+    _cancelRequested = true;
     ref.read(cancelDispatchFnProvider)(runId: runId);
   }
 
@@ -267,6 +356,145 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
 
   void _handleBespokeSubmit(ToolArgs args) =>
       unawaited(_dispatchToolArgs(args));
+
+  void _handleRefreshRequest(PresentationRefreshRequest request) {
+    unawaited(_runRefreshRequest(request));
+  }
+
+  Future<void> _runRefreshRequest(PresentationRefreshRequest request) async {
+    final calls = widget.presentationCalls ?? _presentationCalls;
+    final currentHost = ref.read(currentBoardKeyProvider)?.value;
+    if (request.origin.toolId != widget.tool.id ||
+        request.origin.host != currentHost) {
+      final rejected = calls.beginRefresh(request);
+      if (rejected != null) calls.refreshFailed(rejected);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tRead(ref, 'modal.presentation.board_changed_not_refreshed'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    final refresh = calls.beginRefresh(request);
+    if (refresh == null) return;
+    await _dispatchToolArgs(
+      request.origin.args,
+      forcedCall: refresh.call,
+      refreshRun: refresh,
+    );
+    if (mounted && calls.writeStatus is PresentationRefreshFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tRead(ref, 'modal.presentation.write_refresh_failed')),
+        ),
+      );
+    }
+  }
+
+  /// A presentation action only opens the target's existing form. Its Rust
+  /// resolver preserves JSON types and diagnoses incomplete/invalid bindings;
+  /// the normal Run path still owns approval and dispatch.
+  void _handlePresentationAction(
+    PresentationActionDto action,
+    PresentationTableRow? row,
+  ) {
+    final outcome = _outcome;
+    if (outcome == null) return;
+    final resolved = ref.read(presentationBindingsResolverProvider)(
+      toolId: widget.tool.id,
+      actionId: action.id,
+      currentInputsJson: _controller.snapshot().encodeJson(),
+      selectedRowJson: row?.rawJson,
+      outputsJson: jsonEncode(outcome.jsonValues),
+    );
+    if (resolved.diagnostics.isNotEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(resolved.diagnostics.join('\n'))));
+      return;
+    }
+    final target = ref.read(toolByIdProvider(ToolId.parse(action.targetTool)));
+    final initial =
+        ToolArgs.tryDecodeObject(resolved.valuesJson) ?? ToolArgs.empty;
+    if (target == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tRead(ref, 'common.unknown_tool', {'tool_id': action.targetTool}),
+          ),
+        ),
+      );
+      return;
+    }
+    final calls = widget.presentationCalls ?? _presentationCalls;
+    final active = widget.presentationCall ?? _presentationCall;
+    if (active != null) {
+      final host = ref.read(currentBoardKeyProvider)?.value;
+      if (!calls.activeHostMatches(host)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tRead(ref, 'modal.presentation.board_changed_run_again'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (action.scope == ActionScopeDto.row &&
+          !calls.captureOriginForRowAction(
+            active,
+            originEffectIsRead: widget.tool.effect == ToolEffectDto.read,
+          )) {
+        return;
+      }
+      final childCall = calls.beginFollowup(
+        toolId: target.id,
+        args: initial,
+        host: host,
+      );
+      unawaited(
+        _openPresentationChild(
+          target: target,
+          initial: initial,
+          calls: calls,
+          parentCall: active,
+          childCall: childCall,
+          action: action,
+        ),
+      );
+      return;
+    }
+    // An outcome without an invocation identity is a persisted ToolId-only
+    // result. It may stay visible, but cannot authorize a follow-up action.
+  }
+
+  Future<void> _openPresentationChild({
+    required ToolDto target,
+    required ToolArgs initial,
+    required PresentationCallOriginController calls,
+    required PresentationCallIdentity parentCall,
+    required PresentationCallIdentity childCall,
+    required PresentationActionDto action,
+  }) async {
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        opaque: false,
+        pageBuilder: (_, _, _) => ExpandedModalPage(
+          tool: target,
+          initialInput: initial,
+          presentationCalls: calls,
+          presentationCall: childCall,
+          presentationAction: action,
+          onRefresh: widget.onRefresh ?? _handleRefreshRequest,
+        ),
+      ),
+    );
+    if (calls.active == childCall) calls.replaceActive(parentCall);
+  }
 
   void _handleCopy() {
     final text = _copyTextForOutcome(_outcome);
@@ -381,6 +609,10 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Presentation actions resolve a statically declared target synchronously
+    // on tap. Warm the cached catalogue while the form is visible so the
+    // first action cannot observe the FutureProvider's loading frame.
+    ref.watch(toolsProvider);
     final tokens = context.upeg;
     final tool = widget.tool;
     final toolId = ToolId.parse(tool.id);
@@ -526,7 +758,11 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                                   OutcomeBlock(
                                     outcome: _outcome!,
                                     outputFields: tool.outputFields,
+                                    tool: tool,
                                     tokens: tokens,
+                                    onRowAction: _handlePresentationAction,
+                                    onResultAction: (action) =>
+                                        _handlePresentationAction(action, null),
                                   ),
                                 ],
                               ],
@@ -552,76 +788,6 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
 ///
 /// Only mounted while a dispatch is actually running, so an idle modal
 /// looks exactly as it did before streaming existed.
-class _LiveRunBlock extends ConsumerWidget {
-  const _LiveRunBlock({
-    required this.tail,
-    required this.tokens,
-    required this.onCancel,
-  });
-
-  final LiveTail tail;
-  final UpegTokens tokens;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      key: modalLiveOutputTailKey,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: tokens.bg2,
-        border: Border.all(color: tokens.line),
-        borderRadius: BorderRadius.circular(UpegSizing.radius2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  t(ref, 'modal.pill.live_output'),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: upegMonoFontFamily,
-                    fontFamilyFallback: upegMonoFontFamilyFallback,
-                    fontSize: 10,
-                    letterSpacing: 0.4,
-                    color: tokens.fg3,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                key: const Key('expanded-modal-cancel-btn'),
-                style: TextButton.styleFrom(
-                  foregroundColor: tokens.warn,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  minimumSize: const Size(0, 24),
-                  textStyle: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                onPressed: onCancel,
-                child: Text(t(ref, 'modal.action.cancel_run')),
-              ),
-            ],
-          ),
-          if (tail.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            LiveOutputTailView(tail: tail, fontSize: 11),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 String? _copyTextForOutcome(CanonicalToolResult? outcome) {
   if (outcome == null) return null;
   final candidates = [

@@ -6,7 +6,7 @@ use http::{Request, StatusCode};
 use tower::ServiceExt;
 
 #[tokio::test]
-async fn http_표면이_없는_도구는_호출_시_404를_반환한다() {
+async fn tool_without_http_surface_returns_404_on_call() {
     let id = "test.iter41.http_call_refused";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -20,6 +20,8 @@ async fn http_표면이_없는_도구는_호출_시_404를_반환한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

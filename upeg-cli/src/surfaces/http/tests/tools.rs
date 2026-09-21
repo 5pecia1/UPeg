@@ -111,7 +111,7 @@ fn ensure_controlled_embed_http_fixture_loaded() {
 }
 
 #[tokio::test]
-async fn 도구_목록은_등록된_도구를_정렬해서_포함한다() {
+async fn tool_list_includes_registered_tools_sorted() {
     let body = tools_body().await;
     let tools = body["tools"].as_array().expect("tools array");
     let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
@@ -125,7 +125,7 @@ async fn 도구_목록은_등록된_도구를_정렬해서_포함한다() {
 }
 
 #[tokio::test]
-async fn 도구_목록의_각_항목은_embed_url과_바인딩을_가진다() {
+async fn each_tool_list_entry_has_embed_url_and_bindings() {
     let body = tools_body().await;
     let tools = body["tools"].as_array().expect("tools array");
 
@@ -173,7 +173,7 @@ async fn 도구_목록의_각_항목은_embed_url과_바인딩을_가진다() {
 }
 
 #[tokio::test]
-async fn 도구_목록은_등록된_embed_url을_노출한다() {
+async fn tool_list_exposes_the_registered_embed_url() {
     const ID: &str = "test.http_embed_with_url";
 
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
@@ -186,6 +186,8 @@ async fn 도구_목록은_등록된_embed_url을_노출한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -208,7 +210,7 @@ async fn 도구_목록은_등록된_embed_url을_노출한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_hex_to_dec는_성공을_반환한다() {
+async fn tool_call_hex_to_dec_returns_success() {
     let resp = post_tool("num.hex_to_decimal", r#"{"input":"0xff"}"#).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_to_value(resp.into_body()).await;
@@ -216,7 +218,7 @@ async fn 도구_호출_hex_to_dec는_성공을_반환한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_경로_안_url_인코딩된_공백을_거부한다() {
+async fn tool_call_rejects_url_encoded_whitespace_in_the_path() {
     let resp = post_json("/v1/tools/%20num.hex_to_decimal%20", r#"{"input":"0xff"}"#).await;
     assert_eq!(
         resp.status(),
@@ -233,7 +235,7 @@ async fn 도구_호출은_경로_안_url_인코딩된_공백을_거부한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_hex_to_dec는_유효하지_않은_입력에_422를_반환한다() {
+async fn tool_call_hex_to_dec_returns_422_for_invalid_input() {
     let resp = post_tool("num.hex_to_decimal", r#"{"input":"0xZZ"}"#).await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let body = body_to_value(resp.into_body()).await;
@@ -246,7 +248,7 @@ async fn 도구_호출_hex_to_dec는_유효하지_않은_입력에_422를_반환
 }
 
 #[tokio::test]
-async fn 도구_호출_알수없는_id는_404를_반환한다() {
+async fn tool_call_unknown_id_returns_404() {
     let resp = post_tool("no.such.tool", "{}").await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let body = body_to_value(resp.into_body()).await;
@@ -260,7 +262,7 @@ async fn 도구_호출_알수없는_id는_404를_반환한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_uuid_v7은_본문_없이_동작한다() {
+async fn tool_call_uuid_v7_works_without_a_body() {
     let resp = router()
         .oneshot(
             Request::builder()
@@ -279,7 +281,7 @@ async fn 도구_호출_uuid_v7은_본문_없이_동작한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_잘못된_형식의_본문에_400을_반환한다() {
+async fn tool_call_returns_400_for_malformed_body() {
     for malformed in [r#"{ "input"]"#, r#"{"input":"0xff"#] {
         let resp = post_tool("num.hex_to_decimal", malformed).await;
         assert_eq!(
@@ -298,7 +300,7 @@ async fn 도구_호출은_잘못된_형식의_본문에_400을_반환한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_객체가_아닌_본문에_400을_반환한다() {
+async fn tool_call_returns_400_for_non_object_body() {
     for bad_body in [
         r#""hello""#, // string
         "42",         // number
@@ -322,7 +324,7 @@ async fn 도구_호출은_객체가_아닌_본문에_400을_반환한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_널_또는_객체_본문에서_모두_동작한다() {
+async fn tool_call_works_for_null_and_object_bodies() {
     for body_payload in [
         None,         // empty
         Some("null"), // explicit null
@@ -353,7 +355,7 @@ async fn 도구_호출은_널_또는_객체_본문에서_모두_동작한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_알수없는_도구는_did_you_mean를_포함한다() {
+async fn tool_call_unknown_tool_includes_did_you_mean() {
     let resp = post_tool("num.hex_to_decimai", "{}").await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let body = body_to_value(resp.into_body()).await;
@@ -369,7 +371,7 @@ async fn 도구_호출_알수없는_도구는_did_you_mean를_포함한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_base64_왕복을_지원한다() {
+async fn tool_call_supports_a_base64_round_trip() {
     let enc = post_tool("convert.base64_encode", r#"{"input":"hello"}"#).await;
     let enc_body = body_to_value(enc.into_body()).await;
     assert_eq!(primary_value(&enc_body), "aGVsbG8=");
@@ -380,7 +382,7 @@ async fn 도구_호출은_base64_왕복을_지원한다() {
 }
 
 #[tokio::test]
-async fn 도구_목록은_runtime_도구를_포함한다() {
+async fn tool_list_includes_runtime_tools() {
     const ID: &str = "test.http_visible";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: ID,
@@ -392,6 +394,8 @@ async fn 도구_목록은_runtime_도구를_포함한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -411,7 +415,7 @@ async fn 도구_목록은_runtime_도구를_포함한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출은_runtime_dispatcher로_라우팅된다() {
+async fn tool_call_is_routed_to_the_runtime_dispatcher() {
     const ID: &str = "test.http_dispatch";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: ID,
@@ -423,6 +427,8 @@ async fn 도구_호출은_runtime_dispatcher로_라우팅된다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -445,7 +451,7 @@ async fn 도구_호출은_runtime_dispatcher로_라우팅된다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_runtime_dispatcher_오류는_422를_반환한다() {
+async fn tool_call_runtime_dispatcher_error_returns_422() {
     const ID: &str = "test.http_dispatch_err";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: ID,
@@ -457,6 +463,8 @@ async fn 도구_호출_runtime_dispatcher_오류는_422를_반환한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -477,7 +485,7 @@ async fn 도구_호출_runtime_dispatcher_오류는_422를_반환한다() {
     clippy::await_holding_lock,
     reason = "test holds the global controlled_embed backend lock across async HTTP assertions to prevent cross-test backend races"
 )]
-async fn controlled_embed_http_wait_timeout은_422와_정식_failure_envelope를_반환한다() {
+async fn controlled_embed_http_wait_timeout_returns_422_and_a_canonical_failure_envelope() {
     let _guard = crate::test_support::controlled_embed_backend_test_lock()
         .lock()
         .unwrap();
@@ -512,7 +520,7 @@ async fn controlled_embed_http_wait_timeout은_422와_정식_failure_envelope를
 }
 
 #[tokio::test]
-async fn 도구_목록은_http_표면이_없는_도구를_제외한다() {
+async fn tool_list_excludes_tools_without_the_http_surface() {
     const ID: &str = "test.http_excluded_from_list";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: ID,
@@ -524,6 +532,8 @@ async fn 도구_목록은_http_표면이_없는_도구를_제외한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -541,7 +551,7 @@ async fn 도구_목록은_http_표면이_없는_도구를_제외한다() {
 }
 
 #[tokio::test]
-async fn 도구_호출_404는_표면_게이트와_부재를_구별하지_않는다() {
+async fn tool_call_404_does_not_distinguish_surface_gate_from_absence() {
     const GATED_ID: &str = "test.surface_gated";
     const ABSENT_ID: &str = "test.totally_missing";
 
@@ -555,6 +565,8 @@ async fn 도구_호출_404는_표면_게이트와_부재를_구별하지_않는�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

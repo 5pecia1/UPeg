@@ -60,17 +60,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 기본값은_영어이다() {
+    fn default_is_english() {
         assert_eq!(Locale::default(), Locale::En);
     }
 
     #[test]
-    fn 포직스_한국어를_감지한다() {
+    fn detects_posix_korean() {
         assert_eq!(Locale::detect_from_str("ko_KR.UTF-8"), Locale::Ko);
     }
 
     #[test]
-    fn bcp_47_한국어를_감지한다() {
+    fn detects_bcp_47_korean() {
         assert_eq!(Locale::detect_from_str("ko-KR"), Locale::Ko);
         assert_eq!(Locale::detect_from_str("ko"), Locale::Ko);
         // Case-insensitive — uppercase tags must parse too.
@@ -78,19 +78,19 @@ mod tests {
     }
 
     #[test]
-    fn 영어_로케일은_영어로_감지한다() {
+    fn english_locales_detect_as_english() {
         assert_eq!(Locale::detect_from_str("en_US.UTF-8"), Locale::En);
         assert_eq!(Locale::detect_from_str("en-GB"), Locale::En);
     }
 
     #[test]
-    fn 빈값이나_공백은_영어로_대체된다() {
+    fn empty_or_blank_values_fall_back_to_english() {
         assert_eq!(Locale::detect_from_str(""), Locale::En);
         assert_eq!(Locale::detect_from_str("   "), Locale::En);
     }
 
     #[test]
-    fn 지원되지_않은_값은_영어로_대체된다() {
+    fn unsupported_values_fall_back_to_english() {
         // ja / fr / zh are recognised language tags, just not supported yet.
         // Pin the fallback policy so adding support is a deliberate change.
         assert_eq!(Locale::detect_from_str("ja_JP.UTF-8"), Locale::En);
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn 한국어_접두사_뒤에는_구분자가_필요하다() {
+    fn korean_prefix_requires_a_separator() {
         // Without the separator guard, anything starting with the letters
         // k-o (kos, korean, kotlin) would falsely classify as Korean.
         assert_eq!(Locale::detect_from_str("kos"), Locale::En);
@@ -110,7 +110,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn 직렬화_역직렬화는_한국어를_왕복한다() {
+    fn serde_round_trips_korean() {
         let s = serde_json::to_string(&Locale::Ko).expect("serialize");
         let parsed: Locale = serde_json::from_str(&s).expect("deserialize");
         assert_eq!(parsed, Locale::Ko);
@@ -118,7 +118,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn 직렬화_역직렬화는_영어를_왕복한다() {
+    fn serde_round_trips_english() {
         let s = serde_json::to_string(&Locale::En).expect("serialize");
         let parsed: Locale = serde_json::from_str(&s).expect("deserialize");
         assert_eq!(parsed, Locale::En);

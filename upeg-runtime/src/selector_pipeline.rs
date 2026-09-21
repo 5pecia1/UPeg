@@ -254,7 +254,7 @@ mod tests {
     // ─── build() ─────────────────────────────────────────────
 
     #[test]
-    fn build는_빈_바인딩에서_아무것도_없는_플랜을_반환한다() {
+    fn build_returns_empty_plan_for_empty_bindings() {
         let plan = ExecutionPlan::build(&[], &[]);
         assert!(!plan.is_actionable());
         assert_eq!(plan.write_script(), "");
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn build는_input_바인딩과_input_값을_매칭한다() {
+    fn build_matches_input_bindings_with_input_values() {
         let bindings = vec![binding(BindingRole::Input, "q", "#q")];
         let inputs: &[(&str, &str)] = &[("q", "hello")];
         let plan = ExecutionPlan::build(&bindings, inputs);
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn build는_매칭되지_않는_input은_드롭한다() {
+    fn build_drops_unmatched_inputs() {
         let bindings = vec![binding(BindingRole::Input, "missing", "#x")];
         let plan = ExecutionPlan::build(&bindings, &[("other", "v")]);
         // No write generated for the unmatched binding.
@@ -282,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn build는_trigger_첫_바인딩만_사용한다() {
+    fn build_uses_only_first_trigger_binding() {
         let bindings = vec![
             binding(BindingRole::Trigger, "", "#first"),
             binding(BindingRole::Trigger, "", "#second"),
@@ -294,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn build는_여러_output을_모두_보존한다() {
+    fn build_preserves_all_outputs() {
         let bindings = vec![
             binding(BindingRole::Output, "a", "#a"),
             binding(BindingRole::Output, "b", "#b"),
@@ -308,10 +308,10 @@ mod tests {
         assert!(script.contains("JSON.stringify"));
     }
 
-    // ─── 이스케이프 ───────────────────────────────────────────
+    // ─── Escaping ───────────────────────────────────────────
 
     #[test]
-    fn write_script는_따옴표를_이스케이프한다() {
+    fn write_script_escapes_quotes() {
         let bindings = vec![binding(BindingRole::Input, "q", "#q")];
         let plan = ExecutionPlan::build(&bindings, &[("q", "He said \"hi\"")]);
         let script = plan.write_script();
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn write_script는_백슬래시를_이스케이프한다() {
+    fn write_script_escapes_backslashes() {
         let bindings = vec![binding(BindingRole::Input, "p", "#p")];
         let plan = ExecutionPlan::build(&bindings, &[("p", "C:\\path")]);
         let script = plan.write_script();
@@ -328,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn write_script는_개행을_이스케이프한다() {
+    fn write_script_escapes_newlines() {
         let bindings = vec![binding(BindingRole::Input, "t", "#t")];
         let plan = ExecutionPlan::build(&bindings, &[("t", "line1\nline2")]);
         let script = plan.write_script();
@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn read_script는_빈_바인딩에서_빈_객체_문자열을_반환한다() {
+    fn read_script_returns_empty_object_string_for_empty_bindings() {
         let plan = ExecutionPlan::build(&[], &[]);
         // The read returns `"{}"` so caller's JSON.parse gets an
         // empty object without a separate special case.
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건_exists_조건은_요소_존재시_성공한다() {
+    fn selector_pipeline_wait_exists_condition_succeeds_when_element_present() {
         let bindings = vec![binding_with_wait(
             BindingRole::Input,
             "q",
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건_visible_조건은_보이는_요소에서_성공한다() {
+    fn selector_pipeline_wait_visible_condition_succeeds_on_visible_element() {
         let bindings = vec![binding_with_wait(
             BindingRole::Trigger,
             "",
@@ -418,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건_visible은_여러_매치중_하나만_보여도_성공한다() {
+    fn selector_pipeline_wait_visible_succeeds_when_any_match_is_visible() {
         let bindings = vec![binding_with_wait(
             BindingRole::Output,
             "result",
@@ -447,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건_for_selector_생략시_바인딩_selector를_쓴다() {
+    fn selector_pipeline_wait_uses_binding_selector_when_for_selector_omitted() {
         let bindings = vec![binding_with_wait(
             BindingRole::Input,
             "q",
@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건_selector는_따옴표와_백슬래시를_이스케이프한다() {
+    fn selector_pipeline_wait_selector_escapes_quotes_and_backslashes() {
         let selector = "input[name=\"q\\\\path\"]";
         let bindings = vec![binding_with_wait(
             BindingRole::Input,
@@ -491,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_pipeline_대기조건이_없으면_기존_scripts에_영향을_주지_않는다() {
+    fn selector_pipeline_without_wait_leaves_existing_scripts_untouched() {
         let bindings = vec![
             binding(BindingRole::Input, "q", "#q"),
             binding(BindingRole::Trigger, "", "#submit"),
@@ -505,10 +505,10 @@ mod tests {
         assert!(!plan.read_script().contains("upegWaitReady"));
     }
 
-    // ─── 통합 시나리오 ───────────────────────────────────────
+    // ─── Integration scenario ────────────────────────────────
 
     #[test]
-    fn 전체_파이프라인은_write_trigger_read를_생성한다() {
+    fn full_pipeline_produces_write_trigger_read() {
         let bindings = vec![
             binding(BindingRole::Input, "q", "#q"),
             binding(BindingRole::Trigger, "", "button[type='submit']"),
@@ -524,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn is_actionable는_write만_있어도_true이다() {
+    fn is_actionable_is_true_with_write_only() {
         let bindings = vec![binding(BindingRole::Input, "q", "#q")];
         let inputs: &[(&str, &str)] = &[("q", "v")];
         let plan = ExecutionPlan::build(&bindings, inputs);
@@ -534,7 +534,7 @@ mod tests {
     // ─── missing-selector and guard semantics ─────────────────────
 
     #[test]
-    fn trigger_script는_셀렉터가_없어도_click_guard를_생성한다() {
+    fn trigger_script_generates_click_guard_even_when_selector_missing() {
         let bindings = vec![binding(BindingRole::Trigger, "", "#missing-button")];
         let plan = ExecutionPlan::build(&bindings, &[]);
         let script = plan.trigger_script();
@@ -547,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn trigger_click는_기존_click_js_형태를_보존한다() {
+    fn trigger_click_preserves_existing_click_js_shape() {
         let bindings = vec![binding(BindingRole::Trigger, "", "button[type='submit']")];
         let plan = ExecutionPlan::build(&bindings, &[]);
         let script = plan.trigger_script();
@@ -564,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn trigger_enter는_focus와_enter_키보드_이벤트를_생성한다() {
+    fn trigger_enter_generates_focus_and_enter_keyboard_events() {
         let bindings = vec![binding_with_action(
             BindingRole::Trigger,
             "",
@@ -610,7 +610,7 @@ mod tests {
     }
 
     #[test]
-    fn read_script는_없는_output_셀렉터를_빈_문자열로_기록한다() {
+    fn read_script_records_empty_string_for_missing_output_selector() {
         let bindings = vec![binding(BindingRole::Output, "result", "#missing")];
         let plan = ExecutionPlan::build(&bindings, &[]);
         let script = plan.read_script();
@@ -629,7 +629,7 @@ mod tests {
     }
 
     #[test]
-    fn write_script는_input과_change_이벤트를_모두_dispatch한다() {
+    fn write_script_dispatches_both_input_and_change_events() {
         let bindings = vec![binding(BindingRole::Input, "q", "#q")];
         let inputs: &[(&str, &str)] = &[("q", "test-value")];
         let plan = ExecutionPlan::build(&bindings, inputs);
@@ -649,7 +649,7 @@ mod tests {
         non_snake_case,
         reason = "test name intentionally mentions DOM textContent casing"
     )]
-    fn read_script는_value가_비어있으면_textContent로_fallback한다() {
+    fn read_script_falls_back_to_textContent_when_value_empty() {
         let bindings = vec![binding(BindingRole::Output, "out", "#out")];
         let plan = ExecutionPlan::build(&bindings, &[]);
         let script = plan.read_script();

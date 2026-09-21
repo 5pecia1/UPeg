@@ -1,4 +1,4 @@
-//! `tui_tests.rs`에서 분리한 TUI 렌더/소스 계약 테스트.
+//! TUI render/source contract tests split out of `tui_tests.rs`.
 
 use super::state_tests::fresh;
 use crate::Outcome;
@@ -39,7 +39,7 @@ fn buffer_region_has_symbol_with_fg(buffer: &Buffer, area: Rect, symbol: &str, f
 }
 
 #[test]
-fn 테스트_백엔드_렌더는_제목을_포함한다() {
+fn test_backend_render_includes_title() {
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
@@ -55,7 +55,7 @@ fn 테스트_백엔드_렌더는_제목을_포함한다() {
 }
 
 #[test]
-fn 렌더는_키보드로_포커스된_필터_옵션을_표시한다() {
+fn render_marks_keyboard_focused_filter_option() {
     use ratatui::backend::TestBackend;
 
     static TAGS: &[&str] = &["zz-focus-render"];
@@ -69,6 +69,8 @@ fn 렌더는_키보드로_포커스된_필터_옵션을_표시한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -92,16 +94,16 @@ fn 렌더는_키보드로_포커스된_필터_옵션을_표시한다() {
 
     assert!(
         buffer_region_has_modifier(buffer, layout.tags, Modifier::UNDERLINED),
-        "포커스된 태그 옵션은 보이는 포커스 표시로 렌더링되어야 한다"
+        "the focused tag option must render with a visible focus mark"
     );
     assert!(
         !buffer_region_has_modifier(buffer, layout.boards, Modifier::UNDERLINED),
-        "포커스되지 않은 보드 막대는 키보드 포커스 밑줄을 렌더링하면 안 된다"
+        "the unfocused board bar must not render the keyboard-focus underline"
     );
 }
 
 #[test]
-fn 보드_목록이_넓으면_보드_스크롤바를_렌더링한다() {
+fn wide_board_list_renders_board_scrollbar() {
     use ratatui::backend::TestBackend;
 
     static BOARDS: &[&str] = &[
@@ -120,6 +122,8 @@ fn 보드_목록이_넓으면_보드_스크롤바를_렌더링한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -137,12 +141,12 @@ fn 보드_목록이_넓으면_보드_스크롤바를_렌더링한다() {
     let buf_string = format!("{:?}", terminal.backend().buffer());
     assert!(
         buf_string.contains('#') && buf_string.contains('>'),
-        "넓은 보드 필터 막대는 가로 스크롤바를 보여줘야 한다. rendered: {buf_string}"
+        "a wide board filter bar must show a horizontal scrollbar. rendered: {buf_string}"
     );
 }
 
 #[test]
-fn 필터를_적용한_렌더는_활성_보드와_태그를_표시한다() {
+fn filtered_render_shows_active_board_and_tag() {
     use ratatui::backend::TestBackend;
 
     let backend = TestBackend::new(100, 24);
@@ -163,7 +167,7 @@ fn 필터를_적용한_렌더는_활성_보드와_태그를_표시한다() {
 }
 
 #[test]
-fn 렌더는_공유_표시_라벨과_결과_상태를_사용한다() {
+fn render_uses_shared_display_labels_and_result_status() {
     use ratatui::backend::TestBackend;
 
     let hex: &'static ToolMeta = Box::leak(Box::new(ToolMeta {
@@ -175,17 +179,19 @@ fn 렌더는_공유_표시_라벨과_결과_상태를_사용한다() {
         description: "Convert hexadecimal to decimal",
         input_spec: InputSpec::new(vec![
             InputFieldSpec::new(
-                InputName::new("input").expect("테스트 입력 이름"),
+                InputName::new("input").expect("test input name"),
                 None,
                 None,
                 true,
                 InputKind::String,
             )
-            .expect("테스트 입력 필드"),
+            .expect("test input field"),
         ])
-        .expect("테스트 입력 명세"),
+        .expect("test input spec"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -202,23 +208,23 @@ fn 렌더는_공유_표시_라벨과_결과_상태를_사용한다() {
     let list_buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         list_buf.contains("Hex → Dec"),
-        "TUI 목록은 ToolMeta 표시 라벨을 사용해야 한다. rendered: {list_buf}"
+        "the TUI list must use the ToolMeta display label. rendered: {list_buf}"
     );
     assert!(
         list_buf.contains("↵ run") && list_buf.contains("o inspect"),
-        "Enter는 실행이고 상세 검사는 o로 분리되어야 한다. rendered: {list_buf}"
+        "Enter runs and o is the separate detail inspect. rendered: {list_buf}"
     );
     assert!(
         list_buf.contains("MCP off") && list_buf.contains("HTTP off"),
-        "푸터는 가짜 백그라운드 작업 자리표시자 대신 실제 인터페이스 상태를 노출해야 한다. rendered: {list_buf}"
+        "the footer must expose real interface state instead of a fake background-task placeholder. rendered: {list_buf}"
     );
     assert!(
         !list_buf.contains("0 bg tasks") && !list_buf.contains("net OK"),
-        "푸터는 비활성 상태 자리표시자를 다시 도입하면 안 된다. rendered: {list_buf}"
+        "the footer must not reintroduce the inactive-state placeholder. rendered: {list_buf}"
     );
     assert!(
         list_buf.contains("num.hex_to_decimal"),
-        "TUI는 기술용 도구 id를 보조 메타데이터로 계속 노출해야 한다. rendered: {list_buf}"
+        "the TUI must keep exposing the technical tool id as secondary metadata. rendered: {list_buf}"
     );
 
     let ok_state = State {
@@ -235,7 +241,7 @@ fn 렌더는_공유_표시_라벨과_결과_상태를_사용한다() {
     let ok_buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         ok_buf.contains("OK"),
-        "성공 결과는 OK를 보여줘야 한다. rendered: {ok_buf}"
+        "a success result must show OK. rendered: {ok_buf}"
     );
 
     let err_state = State {
@@ -252,25 +258,25 @@ fn 렌더는_공유_표시_라벨과_결과_상태를_사용한다() {
     let err_buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         err_buf.contains("ERROR"),
-        "오류 결과는 ERROR를 보여줘야 한다. rendered: {err_buf}"
+        "an error result must show ERROR. rendered: {err_buf}"
     );
 }
 
 #[test]
-fn tui_결과_상태_라벨은_코어_사용자경험_계약에서_온다() {
+fn tui_result_status_label_comes_from_core_ux_contract() {
     let view_src = include_str!("view.rs");
     assert!(
         view_src.contains("upeg_core::ux::result_status_label"),
-        "TUI view는 공유 ux 결과 상태 헬퍼를 가져와야 한다"
+        "the TUI view must import the shared ux result-status helper"
     );
     assert!(
         !view_src.contains("const fn result_status_label"),
-        "TUI view는 로컬 result_status_label 복사본을 유지하면 안 된다"
+        "the TUI view must not keep a local result_status_label copy"
     );
 }
 
 #[test]
-fn 성공_결과는_정규_output의_라벨과_값을_모두_그린다() {
+fn success_result_draws_all_canonical_output_labels_and_values() {
     use ratatui::backend::TestBackend;
 
     let success = ToolSuccess::new(
@@ -302,7 +308,7 @@ fn 성공_결과는_정규_output의_라벨과_값을_모두_그린다() {
             assert_eq!(outputs.len(), 2);
             assert!(text.is_empty());
         }
-        other => panic!("Result 보기를 기대했다: {other:?}"),
+        other => panic!("expected the Result view: {other:?}"),
     }
 
     let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();
@@ -316,11 +322,12 @@ fn 성공_결과는_정규_output의_라벨과_값을_모두_그린다() {
 }
 
 #[test]
-fn 폼_보기_제목과_본문은_일관된_뒤로가기_동사를_사용한다() {
-    // Form 보기의 제목("esc back")과 본문 푸터("[Esc] back")는 같은 동사를
-    // 사용해야 한다. 핸들러는 `back_one_level`이므로 "back"은 Detail의
-    // "q back" 및 Result의 "↩ list"와 맞다. 이후 어느 문자열을 고치든
-    // 불일치가 크게 드러나도록 계약을 고정한다.
+fn form_view_title_and_body_use_consistent_back_verb() {
+    // The Form view title ("esc back") and body footer ("[Esc] back")
+    // must use the same verb. The handler is `back_one_level`, so
+    // "back" matches Detail's "q back" and Result's "↩ list". Pinning
+    // the contract so a mismatch stands out whichever string is edited
+    // later.
     use ratatui::backend::TestBackend;
     let mut s = State {
         cursor: 0,
@@ -329,15 +336,15 @@ fn 폼_보기_제목과_본문은_일관된_뒤로가기_동사를_사용한다(
             form: TuiFormState::new(
                 InputSpec::new(vec![
                     InputFieldSpec::new(
-                        InputName::new("input").expect("테스트 입력 이름"),
+                        InputName::new("input").expect("test input name"),
                         None,
                         None,
                         true,
                         InputKind::String,
                     )
-                    .expect("테스트 입력 필드"),
+                    .expect("test input field"),
                 ])
-                .expect("테스트 입력 명세"),
+                .expect("test input spec"),
             ),
         },
         ..State::default()
@@ -348,32 +355,33 @@ fn 폼_보기_제목과_본문은_일관된_뒤로가기_동사를_사용한다(
     terminal.draw(|f| render(f, &s, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 두 표면(블록 테두리의 제목 + 본문 푸터) 모두 "back"을 보여줘야 한다.
-    // 두 부분 문자열을 모두 고정한다.
+    // Both surfaces (block-border title + body footer) must say
+    // "back". Pin both substrings.
     assert!(
         buf.contains("Esc] back"),
-        "Form 보기 본문은 160회차 이후 `[Esc] back`이라고 말해야 한다. got: {buf}"
+        "the Form body must say `[Esc] back` since iteration 160. got: {buf}"
     );
     assert!(
         buf.contains("esc back"),
-        "Form 보기 제목은 `esc back`이라고 말해야 한다. got: {buf}"
+        "the Form title must say `esc back`. got: {buf}"
     );
-    // 부정 고정: 오래된 "cancel" 동사는 돌아오면 안 된다.
+    // Negative pin: the old "cancel" verb must not come back.
     assert!(
         !buf.contains("Esc] cancel"),
-        "160회차에서 `[Esc] cancel`을 제거했다. 되돌리면 제목/본문 불일치가 돌아온다"
+        "`[Esc] cancel` was removed in iteration 160; reverting it brings back the title/body mismatch"
     );
-    let _ = &mut s; // 이후 State 편집이 mutate하지 않아도 unused-mut 경고를 막는다.
+    let _ = &mut s; // suppresses unused-mut even if later State edits stop mutating.
 }
 
-// ─── 6-9단계 오버레이 렌더러 ─────────────────────────────────
+// ─── Phase 6-9 overlay renderers ─────────────────────────────
 //
-// 새 전체 본문 보기(BoardEditor / ConfirmDeleteBoard / ToolPicker)는 각각
-// TestBackend 스냅샷을 가진다. 렌더 쪽 회귀(누락된 프롬프트, 잘못된 제목,
-// 누락된 고정 표시)가 CI를 지나가지 않고 테스트를 깨뜨리게 하기 위함이다.
+// Each new full-body view (BoardEditor / ConfirmDeleteBoard /
+// ToolPicker) gets a TestBackend snapshot so render-side regressions
+// (missing prompt, wrong title, missing pin marker) fail the test
+// instead of slipping through CI.
 
 #[test]
-fn 보드_편집기_추가_모드_렌더는_프롬프트와_버퍼를_보여준다() {
+fn board_editor_add_mode_render_shows_prompt_and_buffer() {
     use crate::surfaces::tui::model::BoardEditMode;
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
@@ -389,28 +397,28 @@ fn 보드_편집기_추가_모드_렌더는_프롬프트와_버퍼를_보여준�
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 전체 본문 패널은 제목, 추가 프롬프트, 입력된 버퍼를 가져야 한다.
-    // 페그보드 그리드는 보이면 안 된다.
+    // The full-body panel must carry the title, the add prompt, and the
+    // typed buffer. The pegboard grid must not be visible.
     assert!(
         buf.contains("Edit board"),
-        "BoardEditor 제목이 보여야 한다. got: {buf}"
+        "the BoardEditor title must be visible. got: {buf}"
     );
     assert!(
         buf.contains("New board title:"),
-        "추가 모드 프롬프트가 나타나야 한다. got: {buf}"
+        "the add-mode prompt must appear. got: {buf}"
     );
     assert!(
         buf.contains("Alpha"),
-        "입력된 버퍼가 렌더링되어야 한다. got: {buf}"
+        "the typed buffer must render. got: {buf}"
     );
     assert!(
         !buf.contains("Pegboard grid"),
-        "BoardEditor는 전체 본문을 차지해야 하며 그리드 제목이 새면 안 된다"
+        "BoardEditor must occupy the whole body; the grid title must not leak"
     );
 }
 
 #[test]
-fn 보드_편집기_이름변경_모드_렌더는_원래_제목을_미리_채운다() {
+fn board_editor_rename_mode_render_prefills_original_title() {
     use crate::surfaces::tui::model::BoardEditMode;
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
@@ -429,20 +437,20 @@ fn 보드_편집기_이름변경_모드_렌더는_원래_제목을_미리_채운
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 이름 변경 프롬프트는 원래 제목을 담아 사용자가 무엇을 바꾸는지 보게 하고,
-    // 버퍼는 편집 중인 값을 담는다.
+    // The rename prompt carries the original title so the user sees
+    // what they are changing; the buffer carries the edited value.
     assert!(
         buf.contains("Dev"),
-        "이름 변경 프롬프트는 원래 제목을 포함해야 한다. got: {buf}"
+        "the rename prompt must contain the original title. got: {buf}"
     );
     assert!(
         buf.contains("Development"),
-        "이름 변경 버퍼가 렌더링되어야 한다. got: {buf}"
+        "the rename buffer must render. got: {buf}"
     );
 }
 
 #[test]
-fn 보드_편집기_빈_버퍼_렌더는_커서만_아니라_힌트를_보여준다() {
+fn board_editor_empty_buffer_render_shows_hint_not_just_cursor() {
     use crate::surfaces::tui::model::BoardEditMode;
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
@@ -458,16 +466,17 @@ fn 보드_편집기_빈_버퍼_렌더는_커서만_아니라_힌트를_보여준
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 빈 버퍼는 사용자가 무엇을 해야 할지 알 수 있도록 힌트를 표시해야 한다.
-    // 수정 전 패널은 지시 없이 프롬프트와 외로운 커서 블록만 렌더링했다.
+    // An empty buffer must show a hint so the user knows what to do.
+    // Before the fix the panel rendered only a prompt and a lonely
+    // cursor block with no guidance.
     assert!(
         buf.contains("type a title"),
-        "빈 버퍼 힌트는 해야 할 일을 알려야 한다. got: {buf}"
+        "the empty-buffer hint must say what to do. got: {buf}"
     );
 }
 
 #[test]
-fn 보드_삭제_확인_렌더는_대상_제목과_선택지를_보여준다() {
+fn board_delete_confirm_render_shows_target_title_and_choices() {
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
@@ -482,30 +491,31 @@ fn 보드_삭제_확인_렌더는_대상_제목과_선택지를_보여준다() {
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 사용자가 y를 누르기 전에 다시 확인할 수 있도록 프롬프트는 대상 제목을
-    // 그대로 인용해야 한다.
+    // The prompt must quote the target title verbatim so the user can
+    // re-check before pressing y.
     assert!(
         buf.contains("Trading"),
-        "확인 프롬프트는 대상 제목을 포함해야 한다. got: {buf}"
+        "the confirm prompt must contain the target title. got: {buf}"
     );
     assert!(
         buf.contains("[y/F1] delete"),
-        "확인 프롬프트는 [y/F1] 동작을 표시해야 한다 (F1도 어디서나 확인 키). got: {buf}"
+        "the confirm prompt must show the [y/F1] action (F1 confirms everywhere). got: {buf}"
     );
     assert!(
         buf.contains("[n] keep"),
-        "확인 프롬프트는 [n] 동작을 표시해야 한다. got: {buf}"
+        "the confirm prompt must show the [n] action. got: {buf}"
     );
 }
 
 #[test]
-fn 도구_선택기_렌더는_검색어와_고정_표시를_보여준다() {
+fn tool_picker_render_shows_query_and_pin_marker() {
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     let tools = list_tools();
 
-    // 선택기에서 ★ 표시가 붙을 대상을 갖도록 `dev`에 알려진 고정 도구를 심는다.
+    // Plant a known pinned tool under `dev` so the picker has a target
+    // to mark ★.
     let mut state = fresh();
     state.filters.select_board("dev");
     state.layouts.insert(
@@ -521,31 +531,31 @@ fn 도구_선택기_렌더는_검색어와_고정_표시를_보여준다() {
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
 
-    // 제목 + 검색어 + 고정 표시 + 필터링된 결과 하나.
+    // Title + query + pin marker + one filtered result.
     assert!(
         buf.contains("Add tool"),
-        "ToolPicker 제목이 보여야 한다. got: {buf}"
+        "the ToolPicker title must be visible. got: {buf}"
     );
     assert!(
         buf.contains("Filter:"),
-        "검색어 입력 라벨이 보여야 한다. got: {buf}"
+        "the query input label must be visible. got: {buf}"
     );
     assert!(
         buf.contains("hex"),
-        "입력한 검색어가 렌더링되어야 한다. got: {buf}"
+        "the typed query must render. got: {buf}"
     );
     assert!(
         buf.contains('★'),
-        "이 보드에 고정됨 표시는 num.hex_to_decimal 옆에 렌더링되어야 한다. got: {buf}"
+        "the pinned-on-this-board marker must render next to num.hex_to_decimal. got: {buf}"
     );
     assert!(
         buf.contains("num.hex_to_decimal"),
-        "필터링된 툴박스 id가 렌더링되어야 한다. got: {buf}"
+        "the filtered toolbox id must render. got: {buf}"
     );
 }
 
 #[test]
-fn 도구_선택기는_고정된_도구를_검색_결과_위쪽에_그린다() {
+fn tool_picker_draws_pinned_tools_above_search_results() {
     use ratatui::backend::TestBackend;
 
     const TAGS: &[&str] = &["zz-tui-render-pinned-rank-tag"];
@@ -559,6 +569,8 @@ fn 도구_선택기는_고정된_도구를_검색_결과_위쪽에_그린다() {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -576,6 +588,8 @@ fn 도구_선택기는_고정된_도구를_검색_결과_위쪽에_그린다() {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -619,10 +633,11 @@ fn 도구_선택기는_고정된_도구를_검색_결과_위쪽에_그린다() {
 }
 
 #[test]
-fn 도구_선택기_빈_검색어_렌더는_본문을_비워두지_않는다() {
-    // 빈 검색어는 사용자를 빈 패널에 남겨두면 안 된다. 패널 본문 안의 버퍼
-    // 셀을 훑어 공백도 테두리도 아닌 기호가 적어도 하나 렌더링되는지
-    // 확인한다. 이는 빈 상태 힌트이거나 필터링되지 않은 툴박스 행이다.
+fn tool_picker_empty_query_render_does_not_leave_body_empty() {
+    // An empty query must not leave the user facing an empty panel.
+    // Scan the buffer cells inside the panel body for at least one
+    // glyph that is neither blank nor border — either the empty-state
+    // hint or an unfiltered toolbox row.
     use ratatui::backend::TestBackend;
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
@@ -641,8 +656,8 @@ fn 도구_선택기_빈_검색어_렌더는_본문을_비워두지_않는다() {
     let buffer = terminal.backend().buffer();
     let border_chars = ['╭', '╮', '╰', '╯', '─', '│', '█'];
     let mut content_cells = 0_usize;
-    // 본문은 헤더/필터 행 아래에 있다. 8..20행을 스캔해 헤더, 필터 막대,
-    // 패널 테두리를 건너뛴다.
+    // The body sits below the header/filter row. Scanning rows 8..20
+    // skips the header, filter bar, and panel border.
     for y in 8_u16..20 {
         for x in 1_u16..79 {
             let sym = buffer[(x, y)].symbol();
@@ -657,19 +672,19 @@ fn 도구_선택기_빈_검색어_렌더는_본문을_비워두지_않는다() {
     }
     assert!(
         content_cells > 0,
-        "빈 검색어 선택기는 본문 영역에 콘텐츠를 렌더링해야 한다. \
-         테두리도 공백도 아닌 셀을 {content_cells}개 찾았다",
+        "an empty-query picker must render content in the body area; \
+         found {content_cells} cells that are neither border nor blank",
     );
 }
 
 // ──────────────────────────────────────────────────────────────
-// Narrow-body (좁은 화면) 렌더 분기. GUI의 `overflow:auto +
-// width:max-content` 와 마찬가지로 보드가 본진. List/Detail 에서는
-// 우측 패널이 접히고 보드가 body 전체를 차지하며, Form/Result 에서는
-// 사용자가 작업 중인 우측 콘텐츠가 풀-바디로 노출된다.
+// Narrow-body render branch. As in the GUI (`overflow:auto +
+// width:max-content`), the board is the main body. In List/Detail the
+// right pane folds and the board takes the whole body; in Form/Result
+// the right-hand content the user is working on goes full-body.
 
 #[test]
-fn 좁은_화면_list는_보드를_풀_바디로_그리고_우측_패널을_숨긴다() {
+fn narrow_list_draws_board_full_body_and_hides_right_pane() {
     use ratatui::backend::TestBackend;
 
     let width: u16 = 50; // < MIN_DUAL_PANE_WIDTH(60)
@@ -682,19 +697,21 @@ fn 좁은_화면_list는_보드를_풀_바디로_그리고_우측_패널을_숨�
     let buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         buf.contains("Pegboard"),
-        "좁은 화면 List에서도 보드 제목은 보여야 한다. got: {buf}"
+        "the board title must still be visible in narrow List. got: {buf}"
     );
-    // 우측 패널의 list 제목(" Tool · ↵ run · o inspect · Space run · / search ")
-    // 이 노출되면 안 된다. "inspect"는 modeless 헤더 힌트("o inspect")에도
-    // 등장하므로, 우측 패널 제목에만 있는 "Space run"으로 판별한다.
+    // The right pane's list title
+    // (" Tool · ↵ run · o inspect · Space run · / search ") must not
+    // leak. "inspect" also appears in the modeless header hint
+    // ("o inspect"), so we discriminate on "Space run", which only
+    // exists in the right-pane title.
     assert!(
         !buf.contains("Space run"),
-        "좁은 화면 List에서는 우측 list 패널이 숨겨져야 한다. got: {buf}"
+        "the right list pane must be hidden in narrow List. got: {buf}"
     );
 }
 
 #[test]
-fn 좁은_화면_detail은_보드를_풀_바디로_그린다() {
+fn narrow_detail_draws_board_full_body() {
     use ratatui::backend::TestBackend;
 
     let width: u16 = 50;
@@ -710,17 +727,17 @@ fn 좁은_화면_detail은_보드를_풀_바디로_그린다() {
     let buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         buf.contains("Pegboard"),
-        "좁은 화면 Detail에서도 보드가 본진이어야 한다. got: {buf}"
+        "the board must stay the main body in narrow Detail. got: {buf}"
     );
-    // Detail 패널 제목 "Manifest · F1/↵ ..." 가 노출되면 안 된다.
+    // The Detail pane title "Manifest · F1/↵ ..." must not leak.
     assert!(
         !buf.contains("Manifest"),
-        "좁은 화면 Detail에서는 매니페스트 우측 패널이 숨겨져야 한다. got: {buf}"
+        "the manifest right pane must be hidden in narrow Detail. got: {buf}"
     );
 }
 
 #[test]
-fn 좁은_화면_form은_풀_바디로_그려지고_보드를_숨긴다() {
+fn narrow_form_draws_full_body_and_hides_board() {
     use crate::surfaces::tui::model::TuiFormState;
     use ratatui::backend::TestBackend;
 
@@ -728,7 +745,8 @@ fn 좁은_화면_form은_풀_바디로_그려지고_보드를_숨긴다() {
     let backend = TestBackend::new(width, 30);
     let mut terminal = Terminal::new(backend).unwrap();
     let tools = list_tools();
-    // 사용자가 작업 중인 surface (Form) 가 본진. 보드는 양보.
+    // The surface the user is working on (Form) is the main body; the
+    // board yields.
     let state = State {
         view: View::Form {
             tool_id: "num.hex_to_decimal",
@@ -739,20 +757,21 @@ fn 좁은_화면_form은_풀_바디로_그려지고_보드를_숨긴다() {
 
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
-    // Form 의 우측 패널 제목 ("Form · ↵ run · ...") 이 풀-바디로 그려져야.
+    // Form's right-pane title ("Form · ↵ run · ...") must draw
+    // full-body.
     assert!(
         buf.contains("Form"),
-        "좁은 화면 Form에서는 폼 풀-바디가 보여야 한다. got: {buf}"
+        "the form must be visible full-body in narrow Form. got: {buf}"
     );
-    // 보드 grid 제목은 노출되면 안 된다.
+    // The board grid title must not leak.
     assert!(
         !buf.contains("Pegboard grid"),
-        "좁은 화면 Form에서는 보드 grid가 숨겨져야 한다. got: {buf}"
+        "the board grid must be hidden in narrow Form. got: {buf}"
     );
 }
 
 #[test]
-fn 좁은_화면_result는_결과를_풀_바디로_그린다() {
+fn narrow_result_draws_result_full_body() {
     use ratatui::backend::TestBackend;
 
     let width: u16 = 50;
@@ -773,19 +792,20 @@ fn 좁은_화면_result는_결과를_풀_바디로_그린다() {
     let buf = format!("{:?}", terminal.backend().buffer());
     assert!(
         buf.contains("Result") || buf.contains("결과"),
-        "좁은 화면 Result는 결과 패널이 풀-바디로 보여야 한다. got: {buf}"
+        "the result panel must be visible full-body in narrow Result. got: {buf}"
     );
     assert!(
         !buf.contains("Pegboard grid"),
-        "좁은 화면 Result에서는 보드 grid가 숨겨져야 한다. got: {buf}"
+        "the board grid must be hidden in narrow Result. got: {buf}"
     );
 }
 
 #[test]
-fn 넓은_화면은_여전히_좌우_듀얼_패널을_보여준다() {
+fn wide_screen_still_shows_dual_panes() {
     use ratatui::backend::TestBackend;
 
-    // 회귀 가드: narrow 분기를 도입했지만 표준 80x24 에서는 듀얼 유지.
+    // Regression guard: the narrow branch was introduced but standard
+    // 80x24 keeps dual panes.
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     let tools = list_tools();
@@ -793,15 +813,15 @@ fn 넓은_화면은_여전히_좌우_듀얼_패널을_보여준다() {
 
     terminal.draw(|f| render(f, &state, &tools)).unwrap();
     let buf = format!("{:?}", terminal.backend().buffer());
-    assert!(buf.contains("Pegboard"), "보드 제목은 보여야 한다");
+    assert!(buf.contains("Pegboard"), "the board title must be visible");
     assert!(
         buf.contains("inspect") || buf.contains("Tool"),
-        "넓은 화면 List는 우측 패널도 노출해야 한다. got: {buf}"
+        "wide List must also expose the right pane. got: {buf}"
     );
 }
 
 #[test]
-fn 핀_색상이_있으면_그리드_카드는_실제_rgb_색을_렌더링한다() {
+fn grid_card_renders_actual_rgb_color_when_pin_color_set() {
     use ratatui::backend::TestBackend;
 
     static TAGS: &[&str] = &[];
@@ -815,6 +835,8 @@ fn 핀_색상이_있으면_그리드_카드는_실제_rgb_색을_렌더링한다
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -827,7 +849,7 @@ fn 핀_색상이_있으면_그리드_카드는_실제_rgb_색을_렌더링한다
     let mut terminal = Terminal::new(TestBackend::new(area.width, area.height)).unwrap();
     let tools = [tool];
     let state = fresh();
-    let pin_color = PinColorHex::parse("#112233").expect("테스트 핀 색상");
+    let pin_color = PinColorHex::parse("#112233").expect("test pin color");
     let pin_colors = [Some(pin_color)];
     let expected = Color::Rgb(0x11, 0x22, 0x33);
 
@@ -841,17 +863,17 @@ fn 핀_색상이_있으면_그리드_카드는_실제_rgb_색을_렌더링한다
 
     assert!(
         buffer_region_has_symbol_with_fg(buffer, grid, "I", expected),
-        "핀 종류 라벨은 custom RGB 전경색을 써야 한다"
+        "the pin-kind label must use the custom RGB foreground"
     );
     assert!(
         buffer_region_has_symbol_with_fg(buffer, grid, "─", expected)
             || buffer_region_has_symbol_with_fg(buffer, grid, "│", expected),
-        "카드 border는 custom RGB 전경색을 써야 한다"
+        "the card border must use the custom RGB foreground"
     );
 }
 
 #[test]
-fn 핀_색상이_없으면_기존_강조색_렌더링을_유지한다() {
+fn grid_card_keeps_existing_accent_rendering_without_pin_color() {
     use ratatui::backend::TestBackend;
 
     static TAGS: &[&str] = &[];
@@ -865,6 +887,8 @@ fn 핀_색상이_없으면_기존_강조색_렌더링을_유지한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U2T,
@@ -890,7 +914,7 @@ fn 핀_색상이_없으면_기존_강조색_렌더링을_유지한다() {
     assert!(
         buffer_region_has_symbol_with_fg(buffer, grid, "─", Color::DarkGray)
             || buffer_region_has_symbol_with_fg(buffer, grid, "│", Color::DarkGray),
-        "custom 색상이 없으면 unselected border는 기존 DarkGray를 유지해야 한다"
+        "without a custom color the unselected border must keep the existing DarkGray"
     );
 }
 

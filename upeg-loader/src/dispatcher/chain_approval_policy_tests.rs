@@ -13,7 +13,7 @@ use super::*;
 
 /// Ids are process-global (the policy registry is a static map) and
 /// these tests run in parallel, so each one owns its own.
-fn 체인_toml(id: &str, steps: &str) -> ToolToml {
+fn chain_toml(id: &str, steps: &str) -> ToolToml {
     toml::from_str::<ToolToml>(&format!(
         r#"id = "{id}"
             toolkit = "test"
@@ -21,11 +21,11 @@ fn 체인_toml(id: &str, steps: &str) -> ToolToml {
             {steps}
         "#
     ))
-    .expect("유효한 체인 fixture")
+    .expect("valid chain fixture")
 }
 
-fn 게이트된_체인(id: &str) -> ToolToml {
-    체인_toml(
+fn gated_chain(id: &str) -> ToolToml {
+    chain_toml(
         id,
         r#"[[steps]]
             id = "gate"
@@ -35,11 +35,11 @@ fn 게이트된_체인(id: &str) -> ToolToml {
 }
 
 #[test]
-fn 게이트된_체인은_승인_정책을_공표한다() {
-    // 대조군: 아래 테스트들이 "정책이 애초에 실리지 않는다"로도
-    // 통과하지 않게 한다.
+fn gated_chain_publishes_approval_policy() {
+    // Control: keeps the tests below from passing on "the policy was
+    // never installed in the first place".
     let id = "test.policy.published";
-    assert!(chain_dispatcher_for(&게이트된_체인(id)).is_some());
+    assert!(chain_dispatcher_for(&gated_chain(id)).is_some());
 
     let policy = upeg_runtime::tool_approval_policy(id);
     assert!(policy.requires_approval());
@@ -47,9 +47,9 @@ fn 게이트된_체인은_승인_정책을_공표한다() {
 }
 
 #[test]
-fn 같은_id가_비체인으로_재등록되면_승인_정책이_지워진다() {
+fn rebinding_id_to_non_chain_clears_approval_policy() {
     let id = "test.policy.rebound_external";
-    assert!(chain_dispatcher_for(&게이트된_체인(id)).is_some());
+    assert!(chain_dispatcher_for(&gated_chain(id)).is_some());
     assert!(upeg_runtime::tool_approval_policy(id).requires_approval());
 
     let external = toml::from_str::<ToolToml>(&format!(
@@ -59,31 +59,31 @@ fn 같은_id가_비체인으로_재등록되면_승인_정책이_지워진다() 
             command = "true"
         "#
     ))
-    .expect("유효한 External fixture");
+    .expect("valid External fixture");
     assert!(
         chain_dispatcher_for(&external).is_none(),
-        "Chain이 아닌 매니페스트는 체인 dispatcher를 만들지 않는다"
+        "a non-Chain manifest builds no chain dispatcher"
     );
 
     let policy = upeg_runtime::tool_approval_policy(id);
     assert!(
         !policy.requires_approval(),
-        "장벽이 없는 도구가 장벽을 광고하면 안 된다"
+        "a barrier-free tool must not advertise a barrier"
     );
     assert!(policy.surfaces().is_empty());
 }
 
 #[test]
-fn 같은_id가_step_없는_체인으로_재등록되어도_승인_정책이_지워진다() {
-    // `steps`가 사라진 경우와 빈 배열인 경우, 두 이른 반환 모두를
-    // 지난다. 어느 쪽도 dispatcher를 만들지 않으므로 어느 쪽도
-    // 장벽을 남겨서는 안 된다.
+fn rebinding_id_to_stepless_chain_clears_approval_policy() {
+    // Covers both early returns: `steps` gone, and `steps` an empty
+    // array. Neither builds a dispatcher, so neither may leave a
+    // barrier behind.
     for (suffix, steps) in [("dropped", ""), ("empty", "steps = []")] {
         let id = format!("test.policy.rebound_{suffix}");
-        assert!(chain_dispatcher_for(&게이트된_체인(&id)).is_some());
+        assert!(chain_dispatcher_for(&gated_chain(&id)).is_some());
         assert!(upeg_runtime::tool_approval_policy(&id).requires_approval());
 
-        assert!(chain_dispatcher_for(&체인_toml(&id, steps)).is_none());
+        assert!(chain_dispatcher_for(&chain_toml(&id, steps)).is_none());
         assert!(
             !upeg_runtime::tool_approval_policy(&id).requires_approval(),
             "{suffix}"

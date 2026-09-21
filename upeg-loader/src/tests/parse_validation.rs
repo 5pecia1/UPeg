@@ -16,7 +16,7 @@ where
 }
 
 #[test]
-fn 파싱은_명령_없는_외부_호출자를_거부한다() {
+fn parsing_rejects_external_invoker_without_command() {
     // Iter 242: `invoker = "External"` requires a non-empty `command`
     // field. Pre-iter-242 the loader registered such tools with no
     // dispatcher — the failure surfaced as the cryptic "dispatch
@@ -51,7 +51,7 @@ fn 파싱은_명령_없는_외부_호출자를_거부한다() {
 }
 
 #[test]
-fn 외부_검증_파싱은_공백이_붙은_호출자를_거부한다() {
+fn external_validation_parsing_rejects_padded_invoker() {
     // Runtime manifests no longer preserve trim-forgiveness for enum
     // fields. A padded invoker is an unknown invoker, not External.
     let s = r#"id = "y.x"
@@ -64,7 +64,7 @@ fn 외부_검증_파싱은_공백이_붙은_호출자를_거부한다() {
 }
 
 #[test]
-fn 공백이_붙은_명령이_있는_외부_파싱은_로드된다() {
+fn external_parsing_with_padded_command_loads() {
     // Iter 242: a valid External + padded command must load.
     // The trim happens at external_dispatcher_for so the spawned
     // process gets the trimmed binary name (otherwise it'd fail
@@ -100,7 +100,7 @@ fn 공백이_붙은_명령이_있는_외부_파싱은_로드된다() {
 }
 
 #[test]
-fn 선언형_loader는_헤드리스_호출자에_어댑터_필드를_요구한다() {
+fn declarative_loader_requires_adapter_field_for_headless_invokers() {
     for (invoker, field) in [("Http", "url"), ("Llm", "prompt"), ("Wasm", "wasm_path")] {
         let s = format!(
             r#"id = "future.{invoker}"
@@ -121,7 +121,7 @@ invoker = "{invoker}""#
 }
 
 #[test]
-fn 파싱은_퇴역한_카테고리_필드를_거부한다() {
+fn parsing_rejects_retired_category_field() {
     let toolkit_category = r#"
 id = "retired"
 category = "old"
@@ -154,7 +154,7 @@ category = "old""#;
 }
 
 #[test]
-fn 파싱은_알수없는_도구킷_수준_필드를_거부한다() {
+fn parsing_rejects_unknown_toolkit_level_field() {
     let raw = r#"
 id = "strict"
 surprise_toolkit_field = true
@@ -175,7 +175,7 @@ pegboard_units = "U1"
 }
 
 #[test]
-fn 파싱은_알수없는_도구_항목_필드를_거부한다() {
+fn parsing_rejects_unknown_tool_entry_field() {
     let raw = r#"
 id = "strict"
 
@@ -196,7 +196,7 @@ unexpected_tool_field = "nope"
 }
 
 #[test]
-fn 파싱은_트리거_소스와_자격증명_schema_참조를_받아들인다() {
+fn parsing_accepts_trigger_source_and_credential_schema_references() {
     let bad_trigger = r#"id = "auto.echo"
 toolkit = "auto"
 triggers = [{ source = "mouse" }]"#;
@@ -226,7 +226,7 @@ triggers = [{ source = "schedule", condition = "now" }]"#;
 }
 
 #[test]
-fn 파싱은_리터럴_자격증명_비밀값_필드를_거부한다() {
+fn parsing_rejects_literal_credential_secret_fields() {
     for forbidden in ["value", "secret_value", "literal_secret"] {
         let raw = format!(
             r#"id = "cred.literal"
@@ -255,7 +255,7 @@ credentials = [{{ name = "api", {forbidden} = "do-not-store-me" }}]"#
 }
 
 #[test]
-fn 설정되면_선언형_loader는_prd_헤드리스_호출자를_허용한다() {
+fn declarative_loader_accepts_prd_headless_invokers_when_configured() {
     let cases = [
         (
             r#"id = "future.http"
@@ -286,7 +286,7 @@ wasm_path = "/tmp/plugin.wasm""#,
 }
 
 #[test]
-fn 도구킷_manifest에서_체인_필드는_호출자_기본값을_체인으로_둔다() {
+fn chain_fields_in_toolkit_manifest_default_invoker_to_chain() {
     let meta = parse_fixture_tool(
         r#"id = "chain.default_invoker"
 toolkit = "chain"
@@ -297,7 +297,7 @@ steps = [{ tool = "text.uppercase" }]"#,
 }
 
 #[test]
-fn 명시적_체인_호출자는_체인_단계를_요구한다() {
+fn explicit_chain_invoker_requires_chain_steps() {
     match parse_fixture_tool(
         r#"id = "chain.missing_steps"
 toolkit = "chain"
@@ -309,7 +309,7 @@ invoker = "Chain""#,
 }
 
 #[test]
-fn 파싱은_중복된_체인_노드_id를_거부한다() {
+fn parsing_rejects_duplicate_chain_node_ids() {
     match parse_fixture_tool(
         r#"id = "chain.duplicate_nodes"
 toolkit = "chain"
@@ -328,7 +328,7 @@ steps = [
 }
 
 #[test]
-fn 파싱은_알수없는_체인_연결_끝점을_거부한다() {
+fn parsing_rejects_unknown_chain_connection_endpoint() {
     match parse_fixture_tool(
         r#"id = "chain.bad_connection"
 toolkit = "chain"
@@ -345,7 +345,7 @@ steps = [{ id = "start", tool = "text.uppercase" }]"#,
 }
 
 #[test]
-fn 파싱은_빈_체인_연결_끝점을_거부한다() {
+fn parsing_rejects_empty_chain_connection_endpoint() {
     match parse_fixture_tool(
         r#"id = "chain.empty_connection"
 toolkit = "chain"
@@ -362,7 +362,7 @@ steps = [{ id = "start", tool = "text.uppercase" }]"#,
 }
 
 #[test]
-fn 파싱은_체인_연결_순환을_거부한다() {
+fn parsing_rejects_chain_connection_cycle() {
     match parse_fixture_tool(
         r#"id = "chain.cycle"
 toolkit = "chain"
@@ -382,7 +382,7 @@ steps = [
 }
 
 #[test]
-fn 파싱은_퇴역한_체인_의존_필드를_거부한다() {
+fn parsing_rejects_retired_chain_depends_field() {
     assert!(matches!(
         parse_fixture_tool(
             r#"id = "chain.retired_depends"
@@ -398,7 +398,7 @@ steps = [
 }
 
 #[test]
-fn 파싱은_빈_고정_보드를_거부한다() {
+fn parsing_rejects_empty_pinned_board() {
     // Iter 197: pre-iter-197 the loader accepted `boards = [""]`
     // → silent dead data (boards.rs::slugify guarantees non-empty
     // board keys, so the empty entry never matched anything).
@@ -428,7 +428,7 @@ fn 파싱은_빈_고정_보드를_거부한다() {
 }
 
 #[test]
-fn 파싱은_빈_선택자_바인딩_필드나_선택자를_거부한다() {
+fn parsing_rejects_empty_selector_binding_field_or_selector() {
     // Iter 197: empty field → unmatchable typed input name;
     // empty selector → querySelector("") that targets nothing
     // (or throws). Reject both at the loader boundary so the
@@ -466,7 +466,7 @@ fn 파싱은_빈_선택자_바인딩_필드나_선택자를_거부한다() {
 }
 
 #[test]
-fn 파싱은_빈_트리거_소스를_거부한다() {
+fn parsing_rejects_empty_trigger_source() {
     let s = r#"id = "trigger.empty"
 toolkit = "trigger"
 triggers = [{ source = "   " }]"#;
@@ -477,7 +477,7 @@ triggers = [{ source = "   " }]"#;
 }
 
 #[test]
-fn 빈_고정_보드와_선택자_메시지는_필드_이름을_밝힌다() {
+fn empty_pinned_board_and_selector_messages_name_the_field() {
     let pinned_msg = format!("{}", LoadError::EmptyBoard { position: 2 });
     assert!(pinned_msg.contains("boards[2]"));
     assert!(pinned_msg.contains("non-empty"));
@@ -494,7 +494,7 @@ fn 빈_고정_보드와_선택자_메시지는_필드_이름을_밝힌다() {
 }
 
 #[test]
-fn 빈_체인_단계_메시지는_위치를_밝힌다() {
+fn empty_chain_step_message_names_position() {
     // The error message must include the offending position so
     // users can pinpoint which step entry to fix in a long chain.
     let err = LoadError::EmptyChainStep { position: 3 };
@@ -510,7 +510,7 @@ fn 빈_체인_단계_메시지는_위치를_밝힌다() {
 }
 
 #[test]
-fn embed_url_필드는_도구_toml_구조체로_파싱된다() {
+fn embed_url_field_parses_into_tool_toml_struct() {
     // Pure-shape test: the deserializer accepts `embed_url` and
     // surfaces it on `ToolToml`. No registry interaction.
     let s = r#"id = "x.embed.cfg"
@@ -526,7 +526,7 @@ fn embed_url_필드는_도구_toml_구조체로_파싱된다() {
 }
 
 #[test]
-fn 누락된_embed_url_필드는_없음이다() {
+fn missing_embed_url_field_is_none() {
     let s = r#"id = "y.x"
             toolkit = "y""#;
     let parsed = toml::from_str::<ToolToml>(s).expect("parse");
@@ -534,7 +534,7 @@ fn 누락된_embed_url_필드는_없음이다() {
 }
 
 #[test]
-fn 파싱은_빈_embed_url을_거부한다() {
+fn parsing_rejects_empty_embed_url() {
     // Iter 244: present-but-empty embed_url defeats the desktop
     // UI's "no URL configured" empty-state check. Pre-iter-244
     // the URL registered as Some("") and the iframe got `src=""`.
@@ -554,7 +554,7 @@ fn 파싱은_빈_embed_url을_거부한다() {
 }
 
 #[test]
-fn 파싱은_공백이_붙은_embed_url을_잘라낸다() {
+fn parsing_trims_padded_embed_url() {
     // Iter 244: surrounding whitespace on a real URL must be
     // trimmed before storage so the iframe src matches what the
     // author wrote. End-to-end via load_and_register_dir_verbose
@@ -588,7 +588,7 @@ embed_url = "  https://example.com/path  ""#,
 }
 
 #[test]
-fn 남은_로드_오류_메시지를_고정한다() {
+fn remaining_load_error_messages_are_pinned() {
     // Iter 261: completes the message-format pin coverage started
     // by iter 244 / iter 256 / iter 260. Four LoadError variants
     // were left without unit pins on their Display wording —
@@ -671,7 +671,7 @@ fn 남은_로드_오류_메시지를_고정한다() {
 }
 
 #[test]
-fn 알수없는_열거형_메시지는_유효한_집합을_나열한다() {
+fn unknown_enum_messages_list_valid_set() {
     // Iter 261: parallel to upeg-wasm iter-136 tests
     // (`unknown_pin_message_lists_valid_set_iter136` and
     // `unknown_surface_message_lists_valid_set_iter136`). Pre-iter-261
@@ -712,7 +712,7 @@ fn 알수없는_열거형_메시지는_유효한_집합을_나열한다() {
 }
 
 #[test]
-fn 외부_호출자_명령_요구_메시지는_명확하다() {
+fn external_requires_command_message_is_clear() {
     // Iter 260 (parity with iter 244 / iter 256 message-format pins):
     // pre-iter-260 the `ExternalRequiresCommand` Display message
     // wasn't pinned by a unit test. A future drift in the user-
@@ -746,7 +746,7 @@ fn 외부_호출자_명령_요구_메시지는_명확하다() {
 }
 
 #[test]
-fn 빈_embed_url_메시지는_명확하다() {
+fn empty_embed_url_message_is_clear() {
     let msg = format!("{}", LoadError::EmptyEmbedUrl);
     assert!(
         msg.contains("`embed_url`"),
@@ -759,7 +759,7 @@ fn 빈_embed_url_메시지는_명확하다() {
 }
 
 #[test]
-fn 중첩_선택자_바인딩_필드는_도구_toml_구조체로_파싱된다() {
+fn nested_selector_bindings_field_parses_into_tool_toml_struct() {
     let s = r##"id = "x.embed.cfg"
             toolkit = "x"
             pin = "Embed"
@@ -783,7 +783,7 @@ fn 중첩_선택자_바인딩_필드는_도구_toml_구조체로_파싱된다() 
 }
 
 #[test]
-fn 누락된_중첩_선택자_바인딩_필드는_없음이다() {
+fn missing_nested_selector_bindings_field_is_none() {
     let s = r#"id = "y.x"
             toolkit = "y""#;
     let parsed = toml::from_str::<ToolToml>(s).expect("parse");
@@ -800,9 +800,9 @@ fn 누락된_중첩_선택자_바인딩_필드는_없음이다() {
 const TRIGGERS_DEMO_TOML: &str = include_str!("../../../examples/tools/triggers-demo.toml");
 
 #[test]
-fn 트리거_예제_toolkit은_런타임이_처리하는_모든_소스를_적재한다() {
+fn trigger_example_toolkit_loads_all_runtime_serviced_sources() {
     let (toolkit, tools) =
-        crate::parse_toolkit_full(TRIGGERS_DEMO_TOML).expect("트리거 예제는 적재되어야 한다");
+        crate::parse_toolkit_full(TRIGGERS_DEMO_TOML).expect("the trigger example must load");
     assert_eq!(toolkit.id, "trigger_demo");
 
     let declared: std::collections::BTreeSet<(String, Option<String>)> = tools
@@ -825,7 +825,7 @@ fn 트리거_예제_toolkit은_런타임이_처리하는_모든_소스를_적재
 }
 
 #[test]
-fn 파싱은_해석할_수_없는_schedule_주기를_거부한다() {
+fn parsing_rejects_unparsable_schedule_interval() {
     // `every:soon` used to sail through the loader and then fire on every
     // one-second watch poll. It now fails at load time.
     let s = r#"id = "trigger.badschedule"
@@ -842,7 +842,7 @@ triggers = [{ source = "schedule", condition = "every:soon" }]"#;
 }
 
 #[test]
-fn 파싱은_now도_every도_아닌_schedule_조건을_거부한다() {
+fn parsing_rejects_schedule_condition_that_is_neither_now_nor_every() {
     // Cron expressions were never implemented; they must not load.
     let s = r#"id = "trigger.cron"
 toolkit = "trigger"
@@ -857,21 +857,18 @@ triggers = [{ source = "schedule", condition = "0 * * * *" }]"#;
 }
 
 #[test]
-fn 알_수_없는_트리거_소스_메시지는_남아있는_여섯_소스를_밝힌다() {
+fn unknown_trigger_source_message_lists_remaining_sources() {
     let message = LoadError::UnknownTriggerSource("typing".to_string()).to_string();
     assert!(
         message.contains("unknown trigger source `typing`"),
         "{message}"
     );
     for source in upeg_runtime::TRIGGER_SOURCES {
-        assert!(
-            message.contains(source),
-            "{message}는 {source}를 나열해야 한다"
-        );
+        assert!(message.contains(source), "{message} must list {source}");
     }
     // The retired `typing` source must not be advertised as a valid choice.
     assert!(
         !message.contains("/typing"),
-        "{message}는 은퇴한 typing을 유효한 소스로 나열하면 안 된다"
+        "{message} must not list the retired typing as a valid source"
     );
 }

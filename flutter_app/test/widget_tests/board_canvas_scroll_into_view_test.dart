@@ -78,7 +78,7 @@ void _focus(WidgetTester tester, String toolId) {
 
 void main() {
   group('scrollOffsetToReveal', () {
-    test('이미_완전히_보이는_구간은_offset을_바꾸지_않는다', () {
+    test('an_already_fully_visible_range_does_not_change_the_offset', () {
       expect(
         scrollOffsetToReveal(
           currentOffset: 100,
@@ -90,7 +90,7 @@ void main() {
       );
     });
 
-    test('우측_또는_아래로_잘린_구간은_끝만_보이도록_최소_이동한다', () {
+    test('a_range_clipped_right_or_below_moves_minimally_to_show_its_end', () {
       // Viewport [0, 600), target [700, 850) → move so 850 is flush with
       // the viewport end: minimal offset 250, not target-start 700.
       expect(
@@ -104,7 +104,7 @@ void main() {
       );
     });
 
-    test('부분적으로_잘린_구간도_최소_이동으로_노출한다', () {
+    test('a_partially_clipped_range_is_revealed_with_minimal_movement', () {
       // Viewport [0, 600), target [500, 650) → only 50px of movement.
       expect(
         scrollOffsetToReveal(
@@ -117,7 +117,7 @@ void main() {
       );
     });
 
-    test('왼쪽_또는_위로_잘린_구간은_시작이_보이도록_이동한다', () {
+    test('a_range_clipped_left_or_above_moves_to_show_its_start', () {
       expect(
         scrollOffsetToReveal(
           currentOffset: 300,
@@ -129,7 +129,7 @@ void main() {
       );
     });
 
-    test('뷰포트보다_큰_구간은_시작_모서리를_정렬한다', () {
+    test('a_range_larger_than_the_viewport_aligns_its_start_edge', () {
       expect(
         scrollOffsetToReveal(
           currentOffset: 0,
@@ -143,23 +143,28 @@ void main() {
   });
 
   group('BoardCanvas focus scroll-into-view', () {
-    testWidgets('뷰포트_밖_pin에_focus하면_양_축_모두_최소_이동으로_노출한다', (tester) async {
-      await tester.pumpWidget(_harness());
-      await tester.pump();
+    testWidgets(
+      'focusing_a_pin_outside_the_viewport_reveals_it_with_minimal_movement_on_both_axes',
+      (tester) async {
+        await tester.pumpWidget(_harness());
+        await tester.pump();
 
-      _focus(tester, _farToolId);
-      await tester.pump();
+        _focus(tester, _farToolId);
+        await tester.pump();
 
-      final viewport = tester.getSize(find.byKey(_gridKey));
-      final expectedH =
-          _cellLeft(_farCol) + UpegSizing.pinCellWidth - viewport.width;
-      final expectedV =
-          _cellTop(_farRow) + boardCanvasPinCellHeight - viewport.height;
-      expect(_horizontalController(tester).offset, expectedH);
-      expect(_verticalController(tester).offset, expectedV);
-    });
+        final viewport = tester.getSize(find.byKey(_gridKey));
+        final expectedH =
+            _cellLeft(_farCol) + UpegSizing.pinCellWidth - viewport.width;
+        final expectedV =
+            _cellTop(_farRow) + boardCanvasPinCellHeight - viewport.height;
+        expect(_horizontalController(tester).offset, expectedH);
+        expect(_verticalController(tester).offset, expectedV);
+      },
+    );
 
-    testWidgets('이미_보이는_pin에_focus하면_스크롤하지_않는다', (tester) async {
+    testWidgets('focusing_an_already_visible_pin_does_not_scroll', (
+      tester,
+    ) async {
       await tester.pumpWidget(_harness());
       await tester.pump();
 
@@ -170,9 +175,12 @@ void main() {
       expect(_verticalController(tester).offset, 0);
     });
 
-    testWidgets('grid가_mount될_때_이미_focus된_pin도_노출한다', (tester) async {
-      // Board/palette 전환 직후의 focus 복원 경로: focus가 세팅된 상태로
-      // canvas가 새로 mount되어도 pin이 뷰포트 안으로 들어와야 한다.
+    testWidgets('a_pin_already_focused_when_the_grid_mounts_is_also_revealed', (
+      tester,
+    ) async {
+      // The focus-restore path right after a board/palette switch: even
+      // when the canvas mounts with focus already set, the pin must end
+      // up inside the viewport.
       final container = ProviderContainer(
         overrides: [
           ...i18nTestOverrides,

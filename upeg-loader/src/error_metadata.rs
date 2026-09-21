@@ -162,7 +162,7 @@ mod tests {
     /// The expected discriminant set is derived from `error.rs`. If a variant is
     /// renamed or removed, this test will catch it.
     #[test]
-    fn 문제해결_행은_실제_오류_군을_포괄한다() {
+    fn troubleshooting_rows_cover_real_error_families() {
         let known_variants: &[&str] = &[
             "RetiredField",
             "MissingPegboardUnits",
@@ -222,7 +222,7 @@ mod tests {
 
     /// All required troubleshooting topics are present.
     #[test]
-    fn 문제해결은_필수_주제를_포괄한다() {
+    fn troubleshooting_covers_required_topics() {
         let families: Vec<LoadErrorFamily> = TOOLKIT_TROUBLESHOOTING
             .iter()
             .map(|e| e.related_error)
@@ -268,7 +268,7 @@ mod tests {
 
     /// Troubleshooting entries do not mention invokers or surfaces absent from LoadError metadata.
     #[test]
-    fn 문제해결은_지원되는_호출자와_표면을_사용한다() {
+    fn troubleshooting_uses_supported_invokers_and_surfaces() {
         let known_invokers = [
             "Function", "External", "Http", "Embed", "Chain", "Llm", "Wasm",
         ];
@@ -302,7 +302,7 @@ mod tests {
 
     /// Entry type is non-exhaustive for compile time stability.
     #[test]
-    fn 문제해결_항목은_복사본이다() {
+    fn troubleshooting_entry_is_copy() {
         fn assert_copy<T: Copy>() {}
         assert_copy::<TroubleshootingEntry>();
         assert_copy::<LoadErrorFamily>();

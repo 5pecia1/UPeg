@@ -3,8 +3,8 @@
 //! ## `#[upeg_core::tool]`
 //!
 //! Annotate a Rust function with this attribute to register its `StaticToolMeta`
-//! into the global `inventory` registry. PRD v2.1 §5.1: "단일 매니페스트로
-//! 모든 surface 자동" — every surface (Desktop/CLI/TUI/MCP/HTTP/Ext/PWA)
+//! into the global `inventory` registry. PRD v2.1 §5.1: "one manifest,
+//! every surface automatically" — every surface (Desktop/CLI/TUI/MCP/HTTP/Ext/PWA)
 //! reads the same registry, so a tool defined once shows up everywhere.
 //!
 //! ```ignore
@@ -203,6 +203,7 @@ pub fn tool(args: TokenStream, item: TokenStream) -> TokenStream {
                 input_spec: #input_spec_expr,
                 output_spec: #output_spec_expr,
                 primary_output_id: #primary_output_id_expr,
+                effect: ::upeg_core::ToolEffect::Unknown,
                 source: #source_expr,
                 pin: ::upeg_core::PinKind::#wk,
                 pegboard_units: ::upeg_core::PegboardUnits::#units,

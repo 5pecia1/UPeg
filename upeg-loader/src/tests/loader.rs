@@ -8,7 +8,7 @@ use upeg_core::PinKind;
 use upeg_runtime::ToolMetaRuntimeExt;
 
 #[test]
-fn 로드하고_등록하면_레지스트리에_보인다() {
+fn loaded_and_registered_tool_is_visible_in_registry() {
     // Use a unique id so test ordering doesn't matter — a previous test in
     // the same binary may have already populated the runtime registry.
     let id = "test.runtime_register_unique_xyz";
@@ -30,26 +30,26 @@ fn 로드하고_등록하면_레지스트리에_보인다() {
 }
 
 #[test]
-fn 디렉터리가_누락되면_로드_디렉터리는_오류를_반환한다() {
+fn missing_dir_load_dir_returns_error() {
     let result = load_dir(Path::new("/no/such/dir/upeg/test"));
     assert!(result.is_err());
 }
 
 #[test]
-fn 디렉터리가_누락되면_로드_등록_디렉터리는_0을_반환한다() {
+fn missing_dir_load_and_register_dir_returns_zero() {
     let (loaded, failed) = load_and_register_dir(Path::new("/no/such/dir/upeg/test"));
     assert_eq!((loaded, failed), (0, 0));
 }
 
 #[test]
-fn 디렉터리가_누락되면_상세_결과는_비어_있다() {
+fn missing_dir_verbose_outcome_is_empty() {
     let out = load_and_register_dir_verbose(Path::new("/no/such/dir/upeg/test"));
     assert!(out.loaded.is_empty());
     assert!(out.failed.is_empty());
 }
 
 #[test]
-fn 상세_결과는_각_잘못된_파일의_오류를_보고한다() {
+fn verbose_outcome_reports_error_per_bad_file() {
     let dir = std::env::temp_dir().join("upeg_loader_verbose_errs");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -120,7 +120,7 @@ steps = []"#,
 }
 
 #[test]
-fn 누락된_호출자는_메타데이터만_있는_도구를_등록하지_않는다() {
+fn missing_invoker_registers_no_metadata_only_tool() {
     // Dynamic Toolkit TOML has no compile-time `#[tool]` function behind it.
     // A missing invoker must fail load-time validation and must not leave a
     // visible ToolMeta without a dispatcher in the global registry.
@@ -154,7 +154,7 @@ toolkit = "loader""#
 }
 
 #[test]
-fn 파일_상세_로드와_등록은_하나의_프로젝트_manifest를_병합한다() {
+fn file_verbose_load_and_register_merges_one_project_manifest() {
     let dir = std::env::temp_dir().join("upeg_loader_project_file");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -190,7 +190,7 @@ command = "echo"
 }
 
 #[test]
-fn 로드는_발견_표면에_대해_트리거_바인딩을_등록한다() {
+fn load_registers_trigger_bindings_for_discovery_surfaces() {
     let dir = std::env::temp_dir().join("upeg_loader_trigger_bindings");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -230,7 +230,7 @@ triggers = [
 }
 
 #[test]
-fn 로드는_선택자_바인딩_필드와_선택자를_잘라낸다() {
+fn load_trims_selector_binding_fields_and_selectors() {
     // Iter 243: parallel to iter-241 trim work, applied to
     // selector_bindings entries. `field` must match typed input
     // property names exactly per SelectorBinding's doc-comment, so
@@ -287,7 +287,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn 로드하고_등록한_외부_도구는_runtime_dispatcher로_호출할_수_있다() {
+fn registered_external_tool_is_callable_via_runtime_dispatcher() {
     // End-to-end PoC: TOML on disk → registry → callable closure that
     // shells out. This is the declarative-loader closure.
     let dir = std::env::temp_dir().join("upeg_loader_external_e2e");
@@ -317,7 +317,7 @@ args_template = ["from-toml"]"#,
 }
 
 #[test]
-fn 디렉터리_로드는_다른_확장자를_건너뛰고_toml을_탐색한다() {
+fn load_dir_walks_toml_and_skips_other_extensions() {
     let dir = std::env::temp_dir().join("upeg_loader_test_walk");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -357,7 +357,7 @@ fn 디렉터리_로드는_다른_확장자를_건너뛰고_toml을_탐색한다(
 // ─── embed_url field (iter 87) ──────────────────────────
 
 #[test]
-fn 디렉터리를_로드하고_등록하면_embed_url_레지스트리를_채운다() {
+fn load_and_register_dir_populates_embed_url_registry() {
     // End-to-end: drop a TOML with `embed_url` into a temp dir,
     // run the loader, verify `embed_url_for(id)` returns Some(url).
     let dir = std::env::temp_dir().join("upeg_loader_embed_url_iter87");
@@ -407,7 +407,7 @@ embed_url = "https://example.com/iter87-loader""#,
 }
 
 #[test]
-fn embed_url이_없는_도구는_등록하지_않는다() {
+fn tool_without_embed_url_registers_nothing() {
     // Negative path: a regular (non-Embed) TOML must not pollute
     // the embed_url registry.
     let dir = std::env::temp_dir().join("upeg_loader_no_embed_url_iter87");
@@ -437,7 +437,7 @@ fn embed_url이_없는_도구는_등록하지_않는다() {
 // ─── selector_bindings TOML field (iter 92) ──────────────
 
 #[test]
-fn 디렉터리를_로드하고_등록하면_선택자_바인딩_레지스트리를_채운다() {
+fn load_and_register_dir_populates_selector_binding_registry() {
     let dir = std::env::temp_dir().join("upeg_loader_sel_bindings_iter92");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -479,7 +479,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn 선택자_바인딩이_없는_도구는_아무것도_등록하지_않는다() {
+fn tool_without_selector_bindings_registers_nothing() {
     let dir = std::env::temp_dir().join("upeg_loader_no_sel_bindings_iter92");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -505,7 +505,7 @@ fn 선택자_바인딩이_없는_도구는_아무것도_등록하지_않는다()
 }
 
 #[test]
-fn 사이드카가_없는_도구를_다시_로드하면_이전_runtime_사이드카를_초기화한다() {
+fn reloading_tool_without_sidecars_clears_prior_runtime_sidecars() {
     let dir = std::env::temp_dir().join("upeg_loader_clear_sidecars");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

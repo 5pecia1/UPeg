@@ -147,7 +147,7 @@ fn local_http_host_enabled() -> bool {
 /// `importsPending` on `/healthz`, which `upeg host status --json` and
 /// the desktop status bar both read. Clients recover by re-reading
 /// `tools/list`. Documented in docs/architecture/mcp.md
-/// ("desktop 내장 host: 비동기 창").
+/// ("desktop embedded host: async window").
 fn spawn_mcp_import_load() {
     // The worker thread, its name, and the "imports pending" phase the
     // window is now observable through all live in `upeg-cli`
@@ -289,21 +289,22 @@ mod tests {
     /// that mark — including the ready-timeout, which previously fell
     /// through `unwrap_or(NoHost)` and stamped nothing at all.
     #[test]
-    fn embed_결과마다_imports_pending_마크의_운명이_정해진다() {
+    fn every_embed_outcome_decides_the_imports_pending_marks_fate() {
         let (state, mark) = resolve_embed(EmbedOutcome::Embedded {
             endpoint: EMBED_ENDPOINT.to_string(),
         });
         assert!(matches!(state, HostState::Embedded { endpoint } if endpoint == EMBED_ENDPOINT));
         assert_eq!(mark, ImportMark::Schedule);
 
-        // ready 신호가 늦었을 뿐 스레드는 살아 있다 — 이 스레드가 바인드하면
-        // 그 host 는 우리 것이고, 임포트도 우리가 실어야 한다.
+        // The ready signal was merely late; the thread is alive — if
+        // this thread binds, that host is ours and we must carry the
+        // imports too.
         let (state, mark) = resolve_embed(EmbedOutcome::StillComing);
         assert!(matches!(state, HostState::NoHost));
         assert_eq!(
             mark,
             ImportMark::Schedule,
-            "타임아웃 분기가 마크를 방치하거나 로드를 건너뛰면 안 된다"
+            "the timeout branch must neither abandon the mark nor skip the load"
         );
 
         let (state, mark) = resolve_embed(EmbedOutcome::Attached {
@@ -320,22 +321,22 @@ mod tests {
     /// The ordering itself: after the mark, and before any load is
     /// scheduled, this process already answers "imports are pending".
     #[test]
-    fn imports_pending_마크는_로더_예약보다_먼저_보인다() {
+    fn imports_pending_mark_is_visible_before_loader_scheduling() {
         upeg_cli::mark_mcp_imports_pending();
         assert!(
             upeg_cli::mcp_import_phase().is_pending(),
-            "embed 스레드가 /healthz 에 답하기 전에 이미 pending 이어야 한다"
+            "must already be pending before the embed thread answers /healthz"
         );
 
         upeg_cli::clear_mcp_imports_pending();
         assert!(
             !upeg_cli::mcp_import_phase().is_pending(),
-            "host 가 뜨지 않았으면 마크를 돌려줘야 한다"
+            "the mark must be handed back when no host came up"
         );
     }
 
     #[test]
-    fn claim_embed_slot은_한번만_성공하고_release후_다시_성공한다() {
+    fn claim_embed_slot_succeeds_once_and_again_after_release() {
         // Reset first so this test is independent of run order within
         // the shared test binary (the static is process-wide).
         release_embed_slot();
@@ -367,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn classify_reachable_host는_자기_프로세스_또는_embedded면_embedded_아니면_attached다() {
+    fn classify_reachable_host_yields_embedded_for_own_process_or_embedded_origin_else_attached() {
         let own_pid = std::process::id();
         let foreign_pid = own_pid.wrapping_add(FOREIGN_PID_OFFSET);
 

@@ -61,7 +61,7 @@ fn find_tool<'a>(body: &'a Value, id: &str) -> &'a Value {
 }
 
 #[test]
-fn cli의_도구_목록과_hex_to_dec_호출은_안정적이다() {
+fn the_cli_tool_list_and_hex_to_dec_call_are_stable() {
     let list = run_upeg(&["tool", "list"]);
     assert!(
         list.contains("num.hex_to_decimal"),
@@ -76,7 +76,7 @@ fn cli의_도구_목록과_hex_to_dec_호출은_안정적이다() {
 }
 
 #[tokio::test]
-async fn http_도구_목록은_내장_픽스처와_같은_형태로_노출된다() {
+async fn the_http_tool_list_is_exposed_in_the_builtin_fixture_shape() {
     let response = http_router()
         .oneshot(
             Request::builder()
@@ -105,7 +105,7 @@ async fn http_도구_목록은_내장_픽스처와_같은_형태로_노출된다
 }
 
 #[test]
-fn mcp_도구_목록은_내장_픽스처와_같은_형태로_노출된다() {
+fn the_mcp_tool_list_is_exposed_in_the_builtin_fixture_shape() {
     let body = handle_mcp_message(json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -136,6 +136,8 @@ fn tui_fixture_tools() -> [&'static ToolMeta; 2] {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -159,6 +161,8 @@ fn tui_fixture_tools() -> [&'static ToolMeta; 2] {
         .expect("test input spec should import"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -170,7 +174,7 @@ fn tui_fixture_tools() -> [&'static ToolMeta; 2] {
 }
 
 #[test]
-fn tui_상태_머신_전환은_순수하고_안정적이다() {
+fn tui_state_machine_transitions_are_pure_and_stable() {
     let tools = tui_fixture_tools();
     let mut state = State::default();
 

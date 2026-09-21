@@ -17,10 +17,11 @@
 //! loopback (`127.0.0.1`, `::1`, `localhost`), a `chrome-extension://`
 //! popup, or an operator-configured `--cors-origin` web origin (Task
 //! B1) — protects browsers from DNS-rebinding attacks. Non-loopback
-//! binds require explicit `UPEG_HTTP_ALLOW_NON_LOOPBACK=1` consent and
-//! skip the Origin check (operator opted in deliberately). The `cors`
-//! submodule's `OriginPolicy` is the single source of truth this guard
-//! and the `tower_http` CORS layer both read.
+//! binds require explicit `UPEG_HTTP_ALLOW_NON_LOOPBACK=1` consent plus
+//! an injected bearer token (never a generated one), and skip the Origin
+//! check (operator opted in deliberately) — see [`bind_policy`]. The
+//! `cors` submodule's `OriginPolicy` is the single source of truth this
+//! guard and the `tower_http` CORS layer both read.
 //!
 //! Lifecycle: [`serve_with_options`] is the canonical entrypoint;
 //! [`serve`] preserves the iter-pre-tray signature by wrapping it with
@@ -67,10 +68,11 @@ pub struct ServerOptions {
     pub addr: String,
     pub token: auth::ResolvedToken,
     pub publish_discovery: bool,
-    /// When true, accept non-loopback binds (must already match the
-    /// `UPEG_HTTP_ALLOW_NON_LOOPBACK` env var) and skip the
-    /// Origin/Host guard. The user is explicitly opting out of
-    /// browser-class protection.
+    /// Consent to a non-loopback bind (the in-process twin of the
+    /// `UPEG_HTTP_ALLOW_NON_LOOPBACK` env var). Consent alone is not
+    /// enough — the token must also be injected ([`bind_policy`]) — and
+    /// it changes nothing for a loopback bind: the Origin/Host guard is
+    /// skipped only when the listener actually binds off loopback.
     pub allow_non_loopback: bool,
     /// PRD §5.9 — fire OS notifications on tool dispatch outcomes.
     /// False by default so `upeg http --daemon` stays silent; desktop
@@ -145,6 +147,7 @@ const BEARER_PREFIX: &str = "Bearer ";
 /// applies in-process.
 pub(crate) const BOARD_SCOPE_HEADER: &str = "x-upeg-board";
 
+mod bind_policy;
 mod cancel_on_drop;
 mod cors;
 mod interface_inventory;
@@ -757,11 +760,18 @@ fn serve_inner<R>(opts: ServerOptions, on_ready: R) -> std::io::Result<()>
 where
     R: FnOnce(std::io::Result<&str>) + Send + 'static,
 {
-    let allow_non_loopback = opts.allow_non_loopback || non_loopback_http_allowed();
-    if let Err(e) = guard_http_bind_with_consent(&opts.addr, allow_non_loopback) {
-        on_ready(Err(std::io::Error::new(e.kind(), e.to_string())));
-        return Err(e);
-    }
+    // Policy is decided from the address that will actually be bound,
+    // not from the consent flag: consent without a non-loopback bind
+    // must neither skip the origin guard nor suppress discovery.
+    let consent = opts.allow_non_loopback || bind_policy::consent_from_env();
+    let non_loopback = match bind_policy::evaluate(&opts.addr, consent, opts.token.source) {
+        Ok(scope) => scope == bind_policy::BindScope::NonLoopback,
+        Err(refusal) => {
+            let e = refusal.into_error(&opts.addr);
+            on_ready(Err(std::io::Error::new(e.kind(), e.to_string())));
+            return Err(e);
+        }
+    };
     let origin_policy = match cors::OriginPolicy::new(opts.cors_origins.clone()) {
         Ok(policy) => policy,
         Err(e) => {
@@ -773,11 +783,11 @@ where
 
     let state = HttpState {
         tokens: Arc::new(auth::HostTokens::new(opts.token.token.as_str())),
-        skip_origin_guard: allow_non_loopback,
+        skip_origin_guard: non_loopback,
         notifications_enabled: opts.notifications_enabled,
         origin_policy: Arc::new(origin_policy),
     };
-    let publish = effective_publish(&opts, allow_non_loopback);
+    let publish = effective_publish(&opts, non_loopback);
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -844,11 +854,11 @@ where
 }
 
 /// Effective discovery-publish decision: intent (`opts.publish_discovery`)
-/// gated by the consent rule (`publish_discovery_allowed`). The single
-/// source of truth used by both serve paths and the startup logger so
-/// the message can never disagree with what actually happened.
-fn effective_publish(opts: &ServerOptions, allow_non_loopback: bool) -> bool {
-    opts.publish_discovery && publish_discovery_allowed(allow_non_loopback)
+/// gated by the non-loopback rule (`publish_discovery_allowed`). The
+/// single source of truth used by both serve paths and the startup
+/// logger so the message can never disagree with what actually happened.
+fn effective_publish(opts: &ServerOptions, non_loopback: bool) -> bool {
+    opts.publish_discovery && publish_discovery_allowed(non_loopback)
 }
 
 /// What a `discovery::publish` failure should do to this serve lane.
@@ -876,9 +886,11 @@ const fn publish_failure_action(
 }
 
 /// Presentation-only: report what the listener decided. Branches off the
-/// effective `publish` (not `opts.publish_discovery`) so a non-loopback
-/// bind that silently suppressed discovery still prints the generated
-/// token — otherwise operators have no credentials.
+/// effective `publish` (not `opts.publish_discovery`) so the message
+/// never disagrees with what happened. The token itself is never written
+/// here: under `--daemon` this stream is the log file, and a log is not a
+/// credential store. A non-loopback bind always runs on an injected token
+/// ([`bind_policy`]), so there is no generated token to hand back either.
 fn startup_log<W: std::io::Write>(
     out: &mut W,
     opts: &ServerOptions,
@@ -902,8 +914,8 @@ fn startup_log<W: std::io::Write>(
         } else {
             writeln!(
                 out,
-                "upeg http: bearer token (this run): {}",
-                opts.token.token
+                "upeg http: generated bearer token was not published; \
+                 no client can pair with this run"
             )?;
         }
     }
@@ -936,40 +948,12 @@ async fn shutdown_signal() {
 /// Discovery publish is auto-disabled on non-loopback binds unless
 /// explicitly requested. Server operators rarely want a discovery
 /// file written into someone's home; respect the consent boundary.
-fn publish_discovery_allowed(allow_non_loopback: bool) -> bool {
-    if !allow_non_loopback {
+fn publish_discovery_allowed(non_loopback: bool) -> bool {
+    if !non_loopback {
         return true;
     }
     std::env::var(crate::infrastructure::paths::env::PUBLISH_DISCOVERY)
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
-        .unwrap_or(false)
-}
-
-fn guard_http_bind_with_consent(addr: &str, allow_non_loopback: bool) -> std::io::Result<()> {
-    if is_loopback_bind(addr) || allow_non_loopback {
-        return Ok(());
-    }
-    Err(std::io::Error::new(
-        std::io::ErrorKind::PermissionDenied,
-        format!(
-            "refusing non-loopback HTTP bind `{addr}` without explicit consent; \
-             use 127.0.0.1/::1 or set UPEG_HTTP_ALLOW_NON_LOOPBACK=1"
-        ),
-    ))
-}
-
-fn is_loopback_bind(addr: &str) -> bool {
-    if addr.trim_start().starts_with("localhost:") {
-        return true;
-    }
-    addr.parse::<std::net::SocketAddr>()
-        .map(|socket| socket.ip().is_loopback())
-        .unwrap_or(false)
-}
-
-fn non_loopback_http_allowed() -> bool {
-    std::env::var(crate::infrastructure::paths::env::HTTP_ALLOW_NON_LOOPBACK)
-        .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }
 

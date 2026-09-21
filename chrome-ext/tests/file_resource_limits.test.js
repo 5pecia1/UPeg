@@ -19,7 +19,7 @@ function unreadableSizedFile(name, size, type = '') {
     type,
     size,
     slice() {
-      assert.fail('모든 리소스 제한은 파일을 읽기 전에 적용되어야 한다');
+      assert.fail('every resource limit must apply before a file is read');
     },
   };
 }
@@ -39,7 +39,7 @@ function emptyFile(name, type = '') {
   };
 }
 
-test('정책_file_개수는_100으로_제한되고_생성_node는_128을_넘지_않는다', async () => {
+test('policy_file_count_is_capped_at_100_and_generated_nodes_stay_under_128', async () => {
   const policy = configureFileInput({}, {
     'x-upeg-file-policy': { maxCount: MAX_FILE_POLICY_COUNT + 1 },
   });
@@ -63,7 +63,7 @@ test('정책_file_개수는_100으로_제한되고_생성_node는_128을_넘지_
   );
 });
 
-test('UTF8_metadata는_16KiB_경계까지_허용한다', async () => {
+test('utf8_metadata_is_allowed_up_to_the_16kib_boundary', async () => {
   const threeByteCharacters = Math.floor(MAX_FILE_VALUE_METADATA_BYTES / 3);
   const exactName =
     '가'.repeat(threeByteCharacters) +
@@ -79,7 +79,7 @@ test('UTF8_metadata는_16KiB_경계까지_허용한다', async () => {
   );
 });
 
-test('UTF8_metadata가_16KiB를_넘으면_read_전에_거부한다', async () => {
+test('utf8_metadata_over_16kib_is_rejected_before_reading', async () => {
   const oversized = unreadableSizedFile('a'.repeat(MAX_FILE_VALUE_METADATA_BYTES + 1), 0);
 
   await assert.rejects(
@@ -92,7 +92,7 @@ test('UTF8_metadata가_16KiB를_넘으면_read_전에_거부한다', async () =>
   );
 });
 
-test('Ext_raw_합계는_640KiB_경계까지_허용하고_초과는_read_전에_거부한다', async () => {
+test('the_ext_raw_total_allows_up_to_640kib_and_rejects_over_before_reading', async () => {
   const exact = {
     name: 'exact.bin',
     type: '',

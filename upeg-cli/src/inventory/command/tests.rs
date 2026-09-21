@@ -4,7 +4,7 @@ use super::diff::diff_json_values;
 use serde_json::json;
 
 #[test]
-fn 차이는_추가_삭제_변경된_항목을_모두_감지한다() {
+fn diff_detects_added_removed_and_changed_entries() {
     let baseline = json!({
         "schemaVersion": INTERFACE_INVENTORY_SCHEMA_VERSION,
         "entries": [
@@ -37,7 +37,7 @@ fn 차이는_추가_삭제_변경된_항목을_모두_감지한다() {
 }
 
 #[test]
-fn 차이_보고는_중첩된_객체_변경에도_json_pointer_escaping을_적용한다() {
+fn diff_report_applies_json_pointer_escaping_to_nested_object_changes() {
     let before = json!({
         "contract": {
             "input": {
@@ -74,7 +74,7 @@ fn 차이_보고는_중첩된_객체_변경에도_json_pointer_escaping을_적�
 }
 
 #[test]
-fn 차이는_배열_인덱스를_순서대로_보고한다() {
+fn diff_reports_array_indices_in_order() {
     let before = json!({
         "contract": {
             "errors": [
@@ -109,7 +109,7 @@ fn 차이는_배열_인덱스를_순서대로_보고한다() {
 }
 
 #[test]
-fn pr_댓글은_계약_변경을_우선하고_제한_행을_명시한다() {
+fn pr_comment_prioritizes_contract_changes_and_marks_limit_rows() {
     let changes = (0..21)
         .map(|index| DeepChange {
             path: format!("/contract/input/schema/properties/field{index}"),
@@ -165,7 +165,7 @@ fn pr_댓글은_계약_변경을_우선하고_제한_행을_명시한다() {
 }
 
 #[test]
-fn 픽스처_pr_댓글은_대상_브랜치_언어_와_픽스처_차이_경로를_사용한다() {
+fn fixture_pr_comment_uses_target_branch_language_and_fixture_diff_paths() {
     let diff = InventoryDiff {
         added: vec![json!({
             "surfaces": ["cli", "mcp"],
@@ -243,13 +243,14 @@ fn 픽스처_pr_댓글은_대상_브랜치_언어_와_픽스처_차이_경로를
     );
 }
 
-/// schemaVersion을 올리는 PR에서 base 브랜치 fixture는 필연적으로
-/// 옛 버전이다. 코멘트 렌더러는 그걸 게이트로 삼지 말고 "비교 불가"로
-/// 적어야 한다 — 예전엔 여기서 에러가 나 CI 레인이 빨개졌다.
+/// In a PR that bumps schemaVersion, the base branch fixture is
+/// necessarily at the old version. The comment renderer must not gate on
+/// that — it should write the side as "not comparable"; this used to
+/// error and turn the CI lane red.
 #[test]
-fn base_fixture의_schema_version이_다르면_비교_불가로_적는다() {
+fn base_fixture_with_different_schema_version_is_marked_not_comparable() {
     let no_drift = InventoryDiff::between(&empty_inventory_json(), &empty_inventory_json())
-        .expect("빈 fixture끼리는 비교된다");
+        .expect("empty fixtures compare");
     let comment = format_fixture_pr_comment(
         &no_drift,
         "main",
@@ -262,26 +263,26 @@ fn base_fixture의_schema_version이_다르면_비교_불가로_적는다() {
 
     assert!(
         comment.contains("not comparable"),
-        "비교 불가 사유를 적어야 한다: {comment}"
+        "must state the not-comparable reason: {comment}"
     );
     assert!(
         comment.contains("schemaVersion 2"),
-        "찾은 버전을 적어야 한다: {comment}"
+        "must state the found version: {comment}"
     );
     assert!(
         comment.contains(&format!(
             "schemaVersion {INTERFACE_INVENTORY_SCHEMA_VERSION}"
         )),
-        "이 빌드가 기대하는 버전도 적어야 한다: {comment}"
+        "must also state the version this build expects: {comment}"
     );
 }
 
 #[test]
-fn schema_version이_다른_fixture는_없는_파일처럼_읽힌다() {
+fn fixture_with_different_schema_version_reads_like_a_missing_file() {
     let dir =
         std::env::temp_dir().join(format!("upeg-inventory-schema-skew-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("스크래치 디렉터리");
+    std::fs::create_dir_all(&dir).expect("scratch dir");
     let path = dir.join("interface-inventory.json");
     let stale = u64::from(INTERFACE_INVENTORY_SCHEMA_VERSION) - 1;
     std::fs::write(
@@ -296,7 +297,7 @@ fn schema_version이_다른_fixture는_없는_파일처럼_읽힌다() {
     )
     .expect("stale fixture");
 
-    let (value, side) = read_optional_inventory_json(&path).expect("에러가 아니어야 한다");
+    let (value, side) = read_optional_inventory_json(&path).expect("must not error");
 
     assert_eq!(
         side,
@@ -307,21 +308,21 @@ fn schema_version이_다른_fixture는_없는_파일처럼_읽힌다() {
     assert_eq!(
         value["entries"].as_array().map(Vec::len),
         Some(0),
-        "비교 불가 fixture는 항목을 하나도 내놓지 않는다"
+        "an incomparable fixture contributes no entries"
     );
 
-    // 게이트(`inventory check --baseline`)는 여전히 엄격하다.
+    // The gate (`inventory check --baseline`) stays strict.
     let strict = read_json(&path).expect("json");
     assert!(
         validate_inventory_json(&strict, &path).is_err(),
-        "baseline 검증은 버전 불일치를 계속 거절해야 한다"
+        "baseline validation must keep rejecting a version mismatch"
     );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn 표면_집합_변경은_읽을_수_있는_한_줄로_보고된다() {
+fn surface_set_change_is_reported_as_one_readable_line() {
     let baseline = json!({
         "schemaVersion": INTERFACE_INVENTORY_SCHEMA_VERSION,
         "entries": [
@@ -343,7 +344,7 @@ fn 표면_집합_변경은_읽을_수_있는_한_줄로_보고된다() {
     assert_eq!(
         diff.changed[0].changes.len(),
         1,
-        "표면 집합은 통째로 비교한다"
+        "the surface set is compared as a whole"
     );
     assert_eq!(diff.changed[0].changes[0].path, "/surfaces");
 
@@ -352,6 +353,6 @@ fn 표면_집합_변경은_읽을_수_있는_한_줄로_보고된다() {
     assert!(comment.contains("- `tool` / `tool.text.upper`"));
     assert!(
         comment.contains("  - `changed` surfaces: `cli, http, tui` -> `cli, http`"),
-        "표면 집합 변경이 읽을 수 있게 렌더링되어야 한다: {comment}"
+        "the surface set change must render readably: {comment}"
     );
 }

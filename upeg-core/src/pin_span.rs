@@ -130,13 +130,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn col_span은_한_칸부터_보드_열수까지_허용한다() {
+    fn col_span_allows_one_cell_through_board_column_count() {
         assert_eq!(ColSpan::new(MIN_SPAN_CELLS).map(ColSpan::get), Ok(1));
         assert_eq!(ColSpan::new(BOARD_COLS).map(ColSpan::get), Ok(BOARD_COLS));
     }
 
     #[test]
-    fn col_span은_영과_보드_열수_초과를_거부한다() {
+    fn col_span_rejects_zero_and_beyond_board_column_count() {
         assert_eq!(
             ColSpan::new(0),
             Err(PinSpanError::ColsOutOfRange { actual: 0 })
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn row_span은_영을_거부하고_1_이상을_허용한다() {
+    fn row_span_rejects_zero_and_allows_one_or_more() {
         assert_eq!(
             RowSpan::new(0),
             Err(PinSpanError::RowsOutOfRange { actual: 0 })
@@ -160,30 +160,30 @@ mod tests {
     }
 
     #[test]
-    fn pin_span_grid_span은_가로_세로_순서로_반환한다() {
+    fn pin_span_grid_span_returns_width_then_height() {
         let span = PinSpan::new(
-            ColSpan::new(2).expect("테스트 cols"),
-            RowSpan::new(3).expect("테스트 rows"),
+            ColSpan::new(2).expect("test cols"),
+            RowSpan::new(3).expect("test rows"),
         );
         assert_eq!(span.grid_span(), (2, 3));
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn pin_span은_숫자_필드_json으로_직렬화_왕복한다() {
+    fn pin_span_round_trips_through_numeric_field_json() {
         let span = PinSpan::new(
-            ColSpan::new(2).expect("테스트 cols"),
-            RowSpan::new(3).expect("테스트 rows"),
+            ColSpan::new(2).expect("test cols"),
+            RowSpan::new(3).expect("test rows"),
         );
-        let json = serde_json::to_string(&span).expect("직렬화");
+        let json = serde_json::to_string(&span).expect("serialize");
         assert_eq!(json, r#"{"cols":2,"rows":3}"#);
-        let back: PinSpan = serde_json::from_str(&json).expect("역직렬화");
+        let back: PinSpan = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, span);
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn 손상된_span은_역직렬화를_통과하지_못한다() {
+    fn corrupt_spans_fail_deserialization() {
         assert!(serde_json::from_str::<PinSpan>(r#"{"cols":0,"rows":1}"#).is_err());
         assert!(serde_json::from_str::<PinSpan>(r#"{"cols":1,"rows":0}"#).is_err());
         let oversized = format!(r#"{{"cols":{},"rows":1}}"#, BOARD_COLS + 1);

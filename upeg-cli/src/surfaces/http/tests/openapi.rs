@@ -17,7 +17,7 @@ async fn fetch_openapi() -> Value {
 }
 
 #[tokio::test]
-async fn openapi는_상단_수준_필수_필드를_가진다() {
+async fn openapi_has_the_required_top_level_fields() {
     let spec = fetch_openapi().await;
     // OpenAPI 3.0 spec mandates these. Swagger UI rejects docs without them.
     assert_eq!(spec["openapi"], "3.0.3");
@@ -28,7 +28,7 @@ async fn openapi는_상단_수준_필수_필드를_가진다() {
 }
 
 #[tokio::test]
-async fn openapi는_알려진_내장_도구를_포함한다() {
+async fn openapi_includes_known_builtin_tools() {
     let spec = fetch_openapi().await;
     let paths = spec["paths"].as_object().unwrap();
     // Every registered cross-surface tool gets a concrete path —
@@ -44,7 +44,7 @@ async fn openapi는_알려진_내장_도구를_포함한다() {
 }
 
 #[tokio::test]
-async fn openapi는_v21_리소스_경로를_포함한다() {
+async fn openapi_includes_the_v21_resource_routes() {
     let spec = fetch_openapi().await;
     let paths = spec["paths"].as_object().unwrap();
     for path in [
@@ -69,7 +69,7 @@ async fn openapi는_v21_리소스_경로를_포함한다() {
 }
 
 #[tokio::test]
-async fn openapi_경로_템플릿은_필수_매개변수를_선언한다() {
+async fn openapi_path_templates_declare_their_required_parameters() {
     let spec = fetch_openapi().await;
     for (path, item) in spec["paths"].as_object().unwrap() {
         let names = path_template_names(path);
@@ -115,7 +115,7 @@ fn path_template_names(path: &str) -> Vec<&str> {
 }
 
 #[test]
-fn 오류_응답_도우미는_안정적인_형태를_유지한다() {
+fn error_response_helper_keeps_a_stable_shape() {
     // pin the helper's output shape so a future edit
     // that drops/renames the `error` field is a loud diff. Adding
     // a new field (e.g., `code`) to all three status responses
@@ -134,7 +134,7 @@ fn 오류_응답_도우미는_안정적인_형태를_유지한다() {
 }
 
 #[tokio::test]
-async fn openapi의_404_응답은_오류_본문_schema를_알린다() {
+async fn openapi_404_response_advertises_the_error_body_schema() {
     // The 404 response must advertise the `{"error": "..."}` body
     // schema; otherwise generated clients don't know to deserialise
     // it. Pin parity with the 400/422 schema shape so a future spec
@@ -175,7 +175,7 @@ async fn openapi의_404_응답은_오류_본문_schema를_알린다() {
 }
 
 #[tokio::test]
-async fn openapi는_상태_경로의_저장소_읽기_오류를_문서화한다() {
+async fn openapi_documents_store_read_errors_on_state_routes() {
     let spec = fetch_openapi().await;
     for path in ["/v1/credentials", "/v1/logs"] {
         let r500 = &spec["paths"][path]["get"]["responses"]["500"];
@@ -189,7 +189,7 @@ async fn openapi는_상태_경로의_저장소_읽기_오류를_문서화한다(
 }
 
 #[tokio::test]
-async fn openapi는_http_표면_없이_도구를_제외한다() {
+async fn openapi_excludes_tools_without_the_http_surface() {
     let id = "test.iter44.openapi_excluded";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -203,6 +203,8 @@ async fn openapi는_http_표면_없이_도구를_제외한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -221,7 +223,7 @@ async fn openapi는_http_표면_없이_도구를_제외한다() {
 }
 
 #[tokio::test]
-async fn openapi_경로_항목은_각_작업의_정상_형태를_가진다() {
+async fn openapi_path_item_has_each_operations_normal_shape() {
     let spec = fetch_openapi().await;
     let item = &spec["paths"]["/v1/tools/num.hex_to_decimal"];
     let op = &item["post"];
@@ -255,7 +257,7 @@ async fn openapi_경로_항목은_각_작업의_정상_형태를_가진다() {
 }
 
 #[tokio::test]
-async fn openapi_경로_항목은_x_확장_필드를_가진다() {
+async fn openapi_path_item_carries_x_extension_fields() {
     let spec = fetch_openapi().await;
     let op = &spec["paths"]["/v1/tools/num.hex_to_decimal"]["post"];
     // OpenAPI 3.0 explicitly permits `x-*` extension fields.
@@ -274,7 +276,7 @@ async fn openapi_경로_항목은_x_확장_필드를_가진다() {
 }
 
 #[tokio::test]
-async fn openapi의_x_확장은_모든_경로에_존재한다() {
+async fn openapi_x_extensions_exist_on_every_path() {
     // Every emitted path must carry the same x-* keys — mismatched
     // shapes break tooling that walks the spec uniformly. x-embed-url
     // and x-selector-bindings mirror /v1/tools.
@@ -310,8 +312,9 @@ async fn openapi의_x_확장은_모든_경로에_존재한다() {
 }
 
 #[tokio::test]
-async fn openapi는_잘못된_형식_본문에_대한_400_응답을_문서화한다() {
-    // /v1/tools/{id} returns 400 for malformed JSON bodies. The    // OpenAPI spec must document it so Swagger UI / Postman users
+async fn openapi_documents_400_for_malformed_bodies() {
+    // /v1/tools/{id} returns 400 for malformed JSON bodies. The
+    // OpenAPI spec must document it so Swagger UI / Postman users
     // see the full response surface.
     let spec = fetch_openapi().await;
     let op = &spec["paths"]["/v1/tools/num.hex_to_decimal"]["post"];
@@ -329,7 +332,7 @@ async fn openapi는_잘못된_형식_본문에_대한_400_응답을_문서화한
 }
 
 #[tokio::test]
-async fn openapi의_x_embed_필드는_등록된_embed_정보를_왕복한다() {
+async fn openapi_x_embed_fields_round_trip_registered_embed_info() {
     // Register an embed-tool + URL + bindings; OpenAPI must reflect
     // both in the corresponding path item's x-* fields.
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
@@ -342,6 +345,8 @@ async fn openapi의_x_embed_필드는_등록된_embed_정보를_왕복한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -377,8 +382,10 @@ async fn openapi의_x_embed_필드는_등록된_embed_정보를_왕복한다() {
 }
 
 #[tokio::test]
-async fn description이_비어_있으면_openapi는_id로_대체한다() {
-    // A runtime tool with empty description must still produce a valid    // path item — `summary` falls through to the tool id rather than    // emitting an empty string (Swagger UI rendered "" gets ugly).
+async fn openapi_falls_back_to_id_when_description_is_empty() {
+    // A runtime tool with empty description must still produce a valid
+    // path item — `summary` falls through to the tool id rather than
+    // emitting an empty string (Swagger UI rendered "" gets ugly).
     let id = "test.iter44.empty_desc";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -392,6 +399,8 @@ async fn description이_비어_있으면_openapi는_id로_대체한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

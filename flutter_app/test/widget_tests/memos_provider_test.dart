@@ -20,7 +20,7 @@ ProviderContainer _container({
 
 void main() {
   group('MemosNotifier', () {
-    test('build는_저장소에서_기존_메모를_적재한다', () {
+    test('build_loads_existing_memos_from_the_store', () {
       final container = _container(
         seed: const [MemoEntry(key: 'a', body: 'one')],
       );
@@ -28,7 +28,7 @@ void main() {
       expect(container.read(memosProvider).single.body, 'one');
     });
 
-    test('create는_새_빈_메모를_추가하고_저장한다', () {
+    test('create_appends_a_new_empty_memo_and_saves', () {
       final saved = <List<MemoEntry>>[];
       final container = _container(onSave: saved.add);
 
@@ -39,7 +39,7 @@ void main() {
       expect(saved.last, hasLength(1));
     });
 
-    test('create를_두번_하면_서로_다른_key를_만든다', () {
+    test('calling_create_twice_produces_distinct_keys', () {
       final container = _container();
       final notifier = container.read(memosProvider.notifier);
       final first = notifier.create();
@@ -48,7 +48,7 @@ void main() {
       expect(container.read(memosProvider), hasLength(2));
     });
 
-    test('updateBody는_없는_key를_지연_생성한다', () {
+    test('updatebody_lazily_creates_a_missing_key', () {
       final saved = <List<MemoEntry>>[];
       final container = _container(onSave: saved.add);
 
@@ -63,7 +63,7 @@ void main() {
       expect(saved.last.single.key, scratchMemoKey);
     });
 
-    test('updateBody는_기존_메모_본문을_교체한다', () {
+    test('updatebody_replaces_an_existing_memo_body', () {
       final container = _container(
         seed: const [MemoEntry(key: scratchMemoKey, body: 'old')],
       );

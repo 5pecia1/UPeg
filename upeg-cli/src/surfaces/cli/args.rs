@@ -39,11 +39,11 @@ pub fn parse_kv_arg(s: &str) -> Result<(String, serde_json::Value), String> {
 }
 
 #[cfg(test)]
-mod parse_kv_trim_tests_iter222 {
+mod tests {
     use super::parse_kv_arg;
 
     #[test]
-    fn 파싱_kv_인자는_키를_잘라낸다() {
+    fn parse_kv_arg_trims_key() {
         // shell paste with whitespace around `=` no longer
         // silently produces a key tools can't look up.
         let (k, v) = parse_kv_arg(" input = 0xff").expect("parse");
@@ -55,7 +55,7 @@ mod parse_kv_trim_tests_iter222 {
     }
 
     #[test]
-    fn 파싱_kv_인자는_공백_만_키를_거부한다() {
+    fn parse_kv_arg_rejects_whitespace_only_key() {
         match parse_kv_arg("   =value") {
             Err(msg) => assert!(
                 msg.contains("empty key"),
@@ -66,7 +66,7 @@ mod parse_kv_trim_tests_iter222 {
     }
 
     #[test]
-    fn kv_인자_파싱의_잘라냄은_문자열_값에_영향을_주지_않는다() {
+    fn kv_arg_trimming_leaves_string_values_untouched() {
         let (k, v) = parse_kv_arg("input= ").expect("parse");
         assert_eq!(k, "input");
         assert_eq!(

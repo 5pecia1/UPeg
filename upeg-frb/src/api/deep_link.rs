@@ -83,7 +83,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn encode_launch_intent는_board와_tool과_input을_포함한_uri를_만든다() {
+    fn encode_launch_intent_builds_uri_with_board_tool_and_input() {
         let intent = LaunchIntentDto {
             board: Some("dev".into()),
             tool: Some("num.hex_to_decimal".into()),
@@ -99,12 +99,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_launch_intent는_upeg가_아닌_uri에_none을_반환한다() {
+    fn parse_launch_intent_returns_none_for_non_upeg_uri() {
         assert!(parse_launch_intent("https://example.test".into()).is_none());
     }
 
     #[test]
-    fn parse_launch_intent는_쿼리_없는_open_uri를_기본_보드_intent로_파싱한다() {
+    fn parse_launch_intent_parses_queryless_open_uri_as_default_board_intent() {
         let parsed = parse_launch_intent("upeg://open".into()).expect("explicit open");
         assert_eq!(parsed.board.as_deref(), Some("dev"));
         assert_eq!(parsed.tool, None);
@@ -112,12 +112,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_launch_intent는_open을_닮은_다른_uri를_거부한다() {
+    fn parse_launch_intent_rejects_lookalike_uri() {
         assert!(parse_launch_intent("upeg://openly?tool=num.hex_to_decimal".into()).is_none());
     }
 
     #[test]
-    fn encode_launch_intent는_빈_tool과_input을_생략한다() {
+    fn encode_launch_intent_omits_empty_tool_and_input() {
         let intent = LaunchIntentDto {
             board: Some("dev".into()),
             tool: None,

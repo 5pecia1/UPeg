@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn 선언을_메타로_바꾸면_최소_선언은_기본값을_사용한다() {
+fn decl_to_meta_uses_defaults_for_minimal_decl() {
     let decl = PluginToolDecl {
         id: "test.wasm.minimal".into(),
         toolkit: "test".into(),
@@ -25,7 +25,7 @@ fn 선언을_메타로_바꾸면_최소_선언은_기본값을_사용한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_설명이_정적_필드로_누출된다() {
+fn decl_to_meta_leaks_description_into_static_field() {
     // Iter 120: pin the leak path so a future refactor that
     // swaps Box::leak for some smarter scheme can't silently
     // drop the description (which would render the tool's
@@ -48,7 +48,7 @@ fn 선언을_메타로_바꾸면_설명이_정적_필드로_누출된다() {
 }
 
 #[test]
-fn 입력_명세가_있는_선언은_코어_명세로_낮춰진다() {
+fn decl_with_input_spec_lowers_to_core_spec() {
     // Plugin manifests now carry typed DTOs. Pin the host boundary so
     // a future refactor can't silently produce zero-input forms for
     // plugin tools that did declare an input spec.
@@ -80,7 +80,7 @@ fn 입력_명세가_있는_선언은_코어_명세로_낮춰진다() {
 }
 
 #[test]
-fn 출력_명세가_있는_선언은_코어_명세로_낮춰진다() {
+fn decl_with_output_spec_lowers_to_core_spec() {
     let decl = PluginToolDecl {
         id: "test.wasm.with_outputs".into(),
         toolkit: "test".into(),
@@ -125,7 +125,7 @@ fn 출력_명세가_있는_선언은_코어_명세로_낮춰진다() {
 }
 
 #[test]
-fn 출력_명세의_primary_output_id가_없으면_선언은_거부된다() {
+fn decl_without_primary_output_id_is_rejected() {
     let decl = PluginToolDecl {
         id: "test.wasm.missing_primary".into(),
         toolkit: "test".into(),
@@ -152,7 +152,7 @@ fn 출력_명세의_primary_output_id가_없으면_선언은_거부된다() {
 }
 
 #[test]
-fn 명시적_표면이_있는_선언을_메타로_바꾼다() {
+fn decl_to_meta_with_explicit_surfaces() {
     let decl = PluginToolDecl {
         id: "test.wasm.surf".into(),
         toolkit: "test".into(),
@@ -171,7 +171,7 @@ fn 명시적_표면이_있는_선언을_메타로_바꾼다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_페그보드_단위를_허용한다() {
+fn decl_to_meta_accepts_pegboard_units() {
     for (label, expected) in [
         ("U1", PegboardUnits::U1),
         ("U2", PegboardUnits::U2),
@@ -196,7 +196,7 @@ fn 선언을_메타로_바꾸면_페그보드_단위를_허용한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_빈값이나_알수없는_페그보드_단위를_거부한다() {
+fn decl_to_meta_rejects_empty_or_unknown_pegboard_units() {
     for (label, expected) in [
         ("", "EmptyPegboardUnits"),
         ("  ", "EmptyPegboardUnits"),
@@ -226,7 +226,7 @@ fn 선언을_메타로_바꾸면_빈값이나_알수없는_페그보드_단위�
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_알수없는_pin_종류를_거부한다() {
+fn decl_to_meta_rejects_unknown_pin_kind() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -247,7 +247,7 @@ fn 선언을_메타로_바꾸면_알수없는_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 알수없는_pin_종류_메시지는_유효한_집합을_나열한다() {
+fn unknown_pin_kind_message_lists_valid_set() {
     // Iter 136: error message must include the valid options so
     // plugin authors don't have to grep the upeg source. Format
     // matches upeg-loader's `LoadError::UnknownPinKind`.
@@ -264,7 +264,7 @@ fn 알수없는_pin_종류_메시지는_유효한_집합을_나열한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_알수없는_표면을_거부한다() {
+fn decl_to_meta_rejects_unknown_surface() {
     let decl = PluginToolDecl {
         id: "y.x".into(),
         toolkit: "y".into(),
@@ -285,7 +285,7 @@ fn 선언을_메타로_바꾸면_알수없는_표면을_거부한다() {
 }
 
 #[test]
-fn 알수없는_표면_메시지는_유효한_집합을_나열한다() {
+fn unknown_surface_message_lists_valid_set() {
     // Iter 136: parity with upeg-loader's `UnknownSurface`.
     let err = LoadError::UnknownSurface("fax".into());
     let msg = format!("{err}");
@@ -300,7 +300,7 @@ fn 알수없는_표면_메시지는_유효한_집합을_나열한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_모든_pin_종류_변형을_허용한다() {
+fn decl_to_meta_accepts_all_pin_kind_variants() {
     // Iter 189: companion to iter 188's loader-side coverage,
     // applied to upeg-wasm's `decl_to_meta`. Pre-iter-189 only
     // Inline (default) was tested here — Launcher, Live, Action,
@@ -337,7 +337,7 @@ fn 선언을_메타로_바꾸면_모든_pin_종류_변형을_허용한다() {
 }
 
 #[test]
-fn 선언을_메타로_바꾸면_모든_표면_변형을_허용한다() {
+fn decl_to_meta_accepts_all_surface_variants() {
     // Iter 189: end-to-end coverage of every Surface label through
     // `decl_to_meta`. Pre-iter-189 only Mcp + Http were named
     // (in `decl_to_meta_with_explicit_surfaces`); the other 5

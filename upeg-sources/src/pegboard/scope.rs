@@ -134,20 +134,20 @@ mod tests {
 
     use super::*;
 
-    fn 프로젝트(path: &str, ids: &[&str]) -> ProjectBoardScope {
+    fn project(path: &str, ids: &[&str]) -> ProjectBoardScope {
         ProjectBoardScope::for_manifest(
             Path::new(path),
             ids.iter()
                 .map(|id| {
-                    ProjectBoardDecl::new(BoardKey::parse(id).expect("보드 id"), (*id).to_string())
+                    ProjectBoardDecl::new(BoardKey::parse(id).expect("board id"), (*id).to_string())
                 })
                 .collect(),
         )
     }
 
     #[test]
-    fn 전역_보드는_어느_스코프에서도_보인다() {
-        let scoped = BoardVisibility::for_project(프로젝트("/a/upeg.toml", &["a-board"]));
+    fn global_board_is_visible_in_any_scope() {
+        let scoped = BoardVisibility::for_project(project("/a/upeg.toml", &["a-board"]));
 
         assert_eq!(scoped.visible_key("dev").as_deref(), Some("dev"));
         assert_eq!(
@@ -157,10 +157,10 @@ mod tests {
     }
 
     #[test]
-    fn 다른_프로젝트의_보드_행은_보이지_않는다() {
-        let a = 프로젝트("/a/upeg.toml", &["shared"]);
-        let b = BoardVisibility::for_project(프로젝트("/b/upeg.toml", &["shared"]));
-        let stored = a.store_key("shared").expect("a의 store key");
+    fn board_rows_of_another_project_are_not_visible() {
+        let a = project("/a/upeg.toml", &["shared"]);
+        let b = BoardVisibility::for_project(project("/b/upeg.toml", &["shared"]));
+        let stored = a.store_key("shared").expect("a's store key");
 
         assert_eq!(b.visible_key(stored.as_str()), None);
         assert_eq!(
@@ -170,8 +170,8 @@ mod tests {
     }
 
     #[test]
-    fn 선언한_프로젝트_보드는_바로_그_id로_보인다() {
-        let scope = 프로젝트("/a/upeg.toml", &["upeg-dev"]);
+    fn declared_project_board_is_visible_under_its_own_id() {
+        let scope = project("/a/upeg.toml", &["upeg-dev"]);
         let stored = scope.store_key("upeg-dev").expect("store key");
         let visibility = BoardVisibility::for_project(scope);
 
@@ -183,18 +183,18 @@ mod tests {
     }
 
     #[test]
-    fn 선언이_사라진_네임스페이스_행은_보이지_않는다() {
-        let old = 프로젝트("/a/upeg.toml", &["retired"]);
+    fn namespace_row_whose_declaration_vanished_is_not_visible() {
+        let old = project("/a/upeg.toml", &["retired"]);
         let stored = old.store_key("retired").expect("store key");
-        // 같은 매니페스트가 이제 다른 보드만 선언한다.
-        let now = BoardVisibility::for_project(프로젝트("/a/upeg.toml", &["current"]));
+        // The same manifest now declares only a different board.
+        let now = BoardVisibility::for_project(project("/a/upeg.toml", &["current"]));
 
         assert_eq!(now.visible_key(stored.as_str()), None);
     }
 
     #[test]
-    fn 프로젝트가_선언한_id의_전역_행은_소유되지_않는다() {
-        let scope = 프로젝트("/a/upeg.toml", &["ops"]);
+    fn global_row_with_project_declared_id_is_not_owned() {
+        let scope = project("/a/upeg.toml", &["ops"]);
         let project_row = scope.store_key("ops").expect("store key");
         let visibility = BoardVisibility::for_project(scope);
 
@@ -202,7 +202,7 @@ mod tests {
         assert_eq!(
             visibility.owns("ops"),
             None,
-            "같은 id를 프로젝트가 선언했으면 전역 행은 이 pass의 것이 아니다"
+            "if the project declared the same id, the global row does not belong to this pass"
         );
         assert_eq!(
             visibility.owns(project_row.as_str()).as_deref(),
@@ -211,14 +211,14 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트가_없으면_전역_행을_모두_소유한다() {
+    fn without_a_project_all_global_rows_are_owned() {
         let visibility = BoardVisibility::global_only();
         assert_eq!(visibility.owns("dev").as_deref(), Some("dev"));
     }
 
     #[test]
-    fn 선언하지_않은_보드는_전역_키로_저장된다() {
-        let visibility = BoardVisibility::for_project(프로젝트("/a/upeg.toml", &["upeg-dev"]));
+    fn undeclared_board_is_stored_under_global_key() {
+        let visibility = BoardVisibility::for_project(project("/a/upeg.toml", &["upeg-dev"]));
 
         assert_eq!(visibility.store_key("dev"), "dev");
         assert!(!visibility.is_project_board("dev"));

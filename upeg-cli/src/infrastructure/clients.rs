@@ -81,7 +81,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn 기록_그뒤_목록은_해당_항목을_반환한다() {
+    fn record_then_list_returns_the_entry() {
         record_heartbeat("test-1".into(), "mcp".into());
         let list = live_clients();
         assert!(list.iter().any(|c| c.client_id == "test-1"));
@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn 만료된_항목은_정리된다() {
+    fn expired_entries_are_pruned() {
         let mut guard = registry().lock().unwrap();
         guard.insert(
             "test-expired".into(),

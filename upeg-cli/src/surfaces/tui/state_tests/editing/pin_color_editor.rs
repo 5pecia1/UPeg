@@ -49,8 +49,8 @@ fn placement_color(state: &State) -> Option<&str> {
 }
 
 #[test]
-fn 편집_모드에서_포커스된_핀의_c는_색상_편집기를_연다() {
-    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("테스트 원본 색상");
+fn c_on_focused_pin_opens_color_editor() {
+    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("test original color");
     let mut state = pin_color_state(Some(original.clone()));
     let tools = visible_tools_for(&state);
 
@@ -64,12 +64,12 @@ fn 편집_모드에서_포커스된_핀의_c는_색상_편집기를_연다() {
             assert_eq!(editor.original.as_ref(), Some(&original));
             assert_eq!(editor.draft, PinColorEditorDraft::Existing(original));
         }
-        other => panic!("색상 편집기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the color editor, got {other:?}"),
     }
 }
 
 #[test]
-fn 편집_모드여도_포커스된_핀이_없으면_c는_아무_일도_하지_않는다() {
+fn c_without_focused_pin_does_nothing() {
     let mut state = fresh();
     state.filters.select_board(BOARD_KEY);
     state.layouts.insert(BOARD_KEY.to_string(), Vec::new());
@@ -82,29 +82,29 @@ fn 편집_모드여도_포커스된_핀이_없으면_c는_아무_일도_하지_�
 }
 
 #[test]
-fn 색상_편집기에서_팔레트_숫자는_해당_색상_초안을_고른다() {
+fn palette_digit_in_color_editor_selects_matching_draft_color() {
     let mut state = pin_color_state(None);
     let tools = open_editor(&mut state);
 
     let effect = handle_key(&mut state, Key::Char(PALETTE_DIGIT), &tools);
 
     assert_eq!(effect, Effect::None);
-    let expected = pin_color_palette_for_digit(PALETTE_DIGIT).expect("테스트 팔레트 숫자");
+    let expected = pin_color_palette_for_digit(PALETTE_DIGIT).expect("test palette digit");
     match &state.view {
         View::PinColorEditor(editor) => {
             assert_eq!(editor.draft, PinColorEditorDraft::Palette(expected));
             assert_eq!(
                 PIN_COLOR_PALETTE.len(),
                 9,
-                "팔레트 숫자 키는 1-9와 대응해야 한다"
+                "palette digit keys must map to 1-9"
             );
         }
-        other => panic!("색상 편집기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the color editor, got {other:?}"),
     }
 }
 
 #[test]
-fn 색상_편집기는_커스텀_hex를_입력하고_백스페이스로_수정한다() {
+fn color_editor_accepts_custom_hex_and_backspace_edits() {
     let mut state = pin_color_state(None);
     let tools = open_editor(&mut state);
 
@@ -128,12 +128,12 @@ fn 색상_편집기는_커스텀_hex를_입력하고_백스페이스로_수정�
                 ))
             );
         }
-        other => panic!("색상 편집기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the color editor, got {other:?}"),
     }
 }
 
 #[test]
-fn 색상_편집기에서_ctrl_u는_입력_중인_초안을_지운다() {
+fn ctrl_u_in_color_editor_clears_in_progress_draft() {
     let mut state = pin_color_state(None);
     let tools = open_editor(&mut state);
     for ch in CUSTOM_COLOR_TYPED.chars() {
@@ -161,13 +161,13 @@ fn 색상_편집기에서_ctrl_u는_입력_중인_초안을_지운다() {
         View::PinColorEditor(editor) => {
             assert_eq!(editor.draft, PinColorEditorDraft::Empty);
         }
-        other => panic!("색상 편집기를 기대했지만 {other:?}를 받았다"),
+        other => panic!("expected the color editor, got {other:?}"),
     }
 }
 
 #[test]
-fn 색상_편집기에서_f1은_enter와_동일하게_적용한다() {
-    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("테스트 원본 색상");
+fn f1_in_color_editor_applies_same_as_enter() {
+    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("test original color");
     let mut state = pin_color_state(Some(original));
     let tools = open_editor(&mut state);
     handle_key(&mut state, Key::Char(PALETTE_DIGIT), &tools);
@@ -183,8 +183,8 @@ fn 색상_편집기에서_f1은_enter와_동일하게_적용한다() {
 }
 
 #[test]
-fn 색상_편집기는_enter_적용_r_초기화_esc와_q_취소를_구분한다() {
-    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("테스트 원본 색상");
+fn color_editor_distinguishes_enter_apply_r_reset_and_esc_q_cancel() {
+    let original = PinColorHex::parse(ORIGINAL_COLOR).expect("test original color");
 
     let mut apply_state = pin_color_state(Some(original.clone()));
     let tools = open_editor(&mut apply_state);

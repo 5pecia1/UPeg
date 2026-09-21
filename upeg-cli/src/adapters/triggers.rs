@@ -413,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn 단발_실행은_해석할_수_없는_schedule_조건을_거부한다() {
+    fn one_shot_run_rejects_unparsable_schedule_condition() {
         let trigger = binding(TriggerSource::Schedule, Some("every:soon"));
         let error = runtime_args(
             &trigger,
@@ -421,12 +421,12 @@ mod tests {
             Instant::now(),
             &mut ClipboardPoll::new(&read_clipboard_text),
         )
-        .expect_err("해석할 수 없는 주기는 진단이어야 한다");
+        .expect_err("an unparsable period must surface as a diagnostic");
         assert!(error.contains("every:soon"), "{error}");
     }
 
     #[test]
-    fn 감시_루프의_every_schedule은_매_폴마다_발화하지_않는다() {
+    fn watch_loop_every_schedule_does_not_fire_every_poll() {
         let trigger = binding(TriggerSource::Schedule, Some("every:1h"));
         let mut state = Some(TriggerWatchState::default());
         let start = Instant::now();
@@ -437,9 +437,9 @@ mod tests {
                 start,
                 &mut ClipboardPoll::new(&read_clipboard_text)
             )
-            .expect("schedule은 지원된다")
+            .expect("schedule is supported")
             .is_some(),
-            "감시 시작 폴에서는 발화해야 한다"
+            "the watch-start poll must fire"
         );
         for tick in 1..4 {
             assert!(
@@ -449,15 +449,15 @@ mod tests {
                     start + Duration::from_secs(tick),
                     &mut ClipboardPoll::new(&read_clipboard_text)
                 )
-                .expect("schedule은 지원된다")
+                .expect("schedule is supported")
                 .is_none(),
-                "{tick}초 폴에서 1시간 주기가 발화하면 안 된다"
+                "a 1-hour period must not fire on the {tick}-second poll"
             );
         }
     }
 
     #[test]
-    fn 단발_실행의_schedule은_항상_발화한다() {
+    fn one_shot_schedule_always_fires() {
         for condition in [None, Some("now"), Some("every:1h")] {
             let trigger = binding(TriggerSource::Schedule, condition);
             assert_eq!(
@@ -467,48 +467,48 @@ mod tests {
                     Instant::now(),
                     &mut ClipboardPoll::new(&read_clipboard_text)
                 )
-                .expect("schedule은 지원된다"),
+                .expect("schedule is supported"),
                 Some(serde_json::json!({})),
-                "{condition:?} 단발 실행은 발화해야 한다"
+                "one-shot run must fire for {condition:?}"
             );
         }
     }
 
     #[test]
-    fn 경로_트리거는_조건이_없으면_진단을_돌려준다() {
+    fn path_trigger_without_condition_returns_diagnostic() {
         for kind in [PathTriggerKind::File, PathTriggerKind::Directory] {
             let trigger = binding(kind.source(), None);
             let error = path_trigger_args(&trigger, kind, &mut None, absent)
-                .expect_err("경로 없는 트리거는 진단이어야 한다");
+                .expect_err("a pathless trigger must surface as a diagnostic");
             assert!(error.contains(kind.source().as_str()), "{error}");
             assert!(error.contains("condition = path"), "{error}");
         }
     }
 
     #[test]
-    fn 단발_경로_트리거는_경로가_있을_때만_발화한다() {
+    fn one_shot_path_trigger_fires_only_when_path_present() {
         let trigger = binding(TriggerSource::File, Some("/tmp/demo.txt"));
         assert_eq!(
             path_trigger_args(&trigger, PathTriggerKind::File, &mut None, present(10))
-                .expect("경로 트리거는 지원된다"),
+                .expect("path triggers are supported"),
             Some(serde_json::json!({ "path": "/tmp/demo.txt" }))
         );
         assert_eq!(
             path_trigger_args(&trigger, PathTriggerKind::File, &mut None, absent)
-                .expect("경로 트리거는 지원된다"),
+                .expect("path triggers are supported"),
             None
         );
     }
 
     #[test]
-    fn 감시_루프의_경로_트리거는_변화에만_발화한다() {
+    fn watch_loop_path_trigger_fires_only_on_change() {
         let trigger = binding(TriggerSource::File, Some("/tmp/demo.txt"));
         let mut state = Some(TriggerWatchState::default());
         let fire =
             |state: &mut Option<TriggerWatchState>,
              observe: &dyn Fn(&Path, PathTriggerKind) -> Option<SystemTime>| {
                 path_trigger_args(&trigger, PathTriggerKind::File, state, observe)
-                    .expect("경로 트리거는 지원된다")
+                    .expect("path triggers are supported")
             };
         // Already present at watch start: silent baseline, then unchanged.
         assert_eq!(fire(&mut state, &present(10)), None);
@@ -523,7 +523,7 @@ mod tests {
     }
 
     #[test]
-    fn hotkey_트리거는_호스트_어댑터_진단을_돌려준다() {
+    fn hotkey_trigger_returns_host_adapter_diagnostic() {
         let trigger = binding(TriggerSource::Hotkey, Some("ctrl+shift+u"));
         let error = runtime_args(
             &trigger,
@@ -531,12 +531,12 @@ mod tests {
             Instant::now(),
             &mut ClipboardPoll::new(&read_clipboard_text),
         )
-        .expect_err("hotkey는 내장 런타임이 없다");
+        .expect_err("hotkey has no built-in runtime");
         assert_eq!(error, TriggerSource::Hotkey.diagnostic());
     }
 
     #[test]
-    fn 트리거_목록의_모든_행은_열_수가_같다() {
+    fn all_trigger_list_rows_have_same_column_count() {
         // The condition column used to be omitted when absent, so a row's arity
         // depended on its data and no consumer could split by column.
         const TOOL_ID: &str = "triglist.arity";
@@ -565,11 +565,11 @@ mod tests {
         let without_condition = rows
             .iter()
             .find(|row| row.starts_with(&format!("{TOOL_ID}\tclipboard\t")))
-            .expect("조건 없는 트리거가 나열되어야 한다");
+            .expect("the conditionless trigger must be listed");
         let with_condition = rows
             .iter()
             .find(|row| row.starts_with(&format!("{TOOL_ID}\tfile\t")))
-            .expect("조건 있는 트리거가 나열되어야 한다");
+            .expect("the conditioned trigger must be listed");
         assert_eq!(
             without_condition.split('\t').nth(3),
             Some(ABSENT_CONDITION_FIELD)
@@ -579,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn 클립보드는_폴마다_한_번만_읽는다() {
+    fn clipboard_is_read_once_per_poll() {
         // Reading per binding spawned a `pbpaste`/`wl-paste` subprocess per
         // clipboard trigger per second.
         let reads = Cell::new(0);
@@ -588,13 +588,13 @@ mod tests {
         let trigger = binding(TriggerSource::Clipboard, None);
         for _ in 0..3 {
             runtime_args(&trigger, &mut None, Instant::now(), &mut clipboard)
-                .expect("클립보드는 지원된다");
+                .expect("clipboard is supported");
         }
-        assert_eq!(reads.get(), 1, "한 폴에서는 한 번만 읽어야 한다");
+        assert_eq!(reads.get(), 1, "a single poll must read only once");
     }
 
     #[test]
-    fn 클립보드_트리거가_둘이면_한_번의_변화로_둘_다_발화한다() {
+    fn two_clipboard_triggers_both_fire_on_one_change() {
         // A single shared gate let whichever trigger was evaluated first consume
         // the change; the rest were starved forever.
         let first = binding_for("demo.first", TriggerSource::Clipboard, None);
@@ -607,9 +607,9 @@ mod tests {
         let mut poll = ClipboardPoll::new(&baseline);
         for trigger in [&first, &second] {
             assert_eq!(
-                runtime_args(trigger, &mut state, now, &mut poll).expect("클립보드는 지원된다"),
+                runtime_args(trigger, &mut state, now, &mut poll).expect("clipboard is supported"),
                 None,
-                "감시 시작 폴은 조용한 기준선이어야 한다"
+                "the watch-start poll must be a quiet baseline"
             );
         }
         assert_eq!(baseline_reads.get(), 1);
@@ -619,17 +619,21 @@ mod tests {
         let mut poll = ClipboardPoll::new(&changed);
         for trigger in [&first, &second] {
             assert_eq!(
-                runtime_args(trigger, &mut state, now, &mut poll).expect("클립보드는 지원된다"),
+                runtime_args(trigger, &mut state, now, &mut poll).expect("clipboard is supported"),
                 Some(serde_json::json!({ "input": "after" })),
-                "{}는 같은 변화로 발화해야 한다",
+                "{} must fire on the same change",
                 trigger.tool_id
             );
         }
-        assert_eq!(change_reads.get(), 1, "두 바인딩이 한 관측을 공유해야 한다");
+        assert_eq!(
+            change_reads.get(),
+            1,
+            "the two bindings must share one observation"
+        );
     }
 
     #[test]
-    fn 클립보드를_읽을_수_없으면_모든_바인딩이_진단을_받는다() {
+    fn unreadable_clipboard_gives_every_binding_a_diagnostic() {
         let read = || Err("no clipboard command".to_string());
         let mut clipboard = ClipboardPoll::new(&read);
         let trigger = binding(TriggerSource::Clipboard, None);
@@ -642,7 +646,7 @@ mod tests {
     }
 
     #[test]
-    fn 발화한_트리거는_소스와_조건을_라벨로_남긴다() {
+    fn fired_trigger_leaves_source_and_condition_label() {
         // The tool id alone could not tell a tool *which* of its triggers fired.
         assert_eq!(
             fired_label(&binding(TriggerSource::File, Some("/tmp/demo.txt"))),
@@ -655,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn 은퇴한_typing_소스는_알_수_없는_소스로_보고된다() {
+    fn retired_typing_source_is_reported_as_unknown() {
         let trigger = upeg_runtime::TriggerBinding {
             tool_id: "demo.tool",
             source: "typing".to_string(),
@@ -667,7 +671,7 @@ mod tests {
             Instant::now(),
             &mut ClipboardPoll::new(&read_clipboard_text),
         )
-        .expect_err("typing은 더 이상 소스가 아니다");
+        .expect_err("typing is no longer a source");
         assert_eq!(error, "unknown trigger source `typing`");
     }
 }

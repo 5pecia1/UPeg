@@ -1,10 +1,12 @@
-// 헤드리스 Chromium을 CDP(Chrome DevTools Protocol)로 모는 최소 클라이언트.
+// Minimal client driving headless Chromium over CDP (Chrome DevTools
+// Protocol).
 //
-// 왜 직접 쓰는가: 이 저장소의 브라우저 검증은 devcontainer의 `chromium`
-// 하나에만 기대고, npm 의존성을 새로 들이지 않는다. Node 22+의 전역
-// `WebSocket`과 `fetch`만으로 CDP를 말하기에 충분하다.
+// Why hand-rolled: this repo's browser verification relies solely on the
+// devcontainer's `chromium` and adds no npm dependencies. Node 22+'s global
+// `WebSocket` and `fetch` are enough to speak CDP.
 //
-// 여기에는 프로토콜 배관만 둔다. 무엇을 단언할지는 호출자의 몫이다(SoC).
+// Only protocol plumbing lives here. What to assert is the caller's job
+// (SoC).
 
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs';
@@ -16,10 +18,10 @@ const LOOPBACK_HOST = '127.0.0.1';
 const DEVTOOLS_PORT_FILE = 'DevToolsActivePort';
 const POLL_INTERVAL_MS = 100;
 
-/** CDP 배관에서 난 실패 — 계약 위반(단언 실패)과 구분된다. */
+/** Failure from the CDP plumbing — distinct from a contract violation (a failed assertion). */
 export class CdpError extends Error {}
 
-/** `start`부터 위로 훑어 비어 있는 loopback 포트를 하나 찾는다. */
+/** Scan upward from `start` for one free loopback port. */
 export async function findFreePort(start, attempts) {
   for (let port = start; port < start + attempts; port += 1) {
     const free = await new Promise((resolve) => {
@@ -37,7 +39,7 @@ export async function findFreePort(start, attempts) {
   );
 }
 
-/** 조건이 참이 될 때까지 폴링한다. 시간 초과는 마지막 값과 함께 던진다. */
+/** Poll until the condition holds. On timeout, throw with the last value. */
 export async function waitFor(label, timeoutMs, probe) {
   const deadline = Date.now() + timeoutMs;
   let last;
@@ -55,9 +57,10 @@ export async function waitFor(label, timeoutMs, probe) {
 }
 
 /**
- * 헤드리스 Chromium을 띄우고 DevTools 포트를 돌려준다.
- * 포트는 `--remote-debugging-port=0`으로 커널이 고르고, Chromium이
- * 사용자 데이터 디렉터리에 적어 준 `DevToolsActivePort`에서 읽는다.
+ * Launch headless Chromium and return its DevTools port.
+ * The port is picked by the kernel via `--remote-debugging-port=0` and read
+ * back from the `DevToolsActivePort` file Chromium writes into the user
+ * data directory.
  */
 export async function launchHeadlessChromium({
   executable,
@@ -100,18 +103,18 @@ export async function launchHeadlessChromium({
     );
     return { process: child, port: Number(port) };
   } catch (startupError) {
-    // 실패로 빠져나가면 이 함수는 아무것도 돌려주지 않는다 — 호출자에게는
-    // 거둘 핸들이 없다는 뜻이다. 그래서 시작에 실패한 Chromium은 여기서
-    // 우리가 거둔다. 그러지 않으면 프로세스는 살아남고, 호출 스크립트의
-    // cleanup이 그 프로세스가 쓰고 있는 프로필 디렉터리를 밑에서 지워
-    // 버린다(scripts/flutter_web_smoke.sh의 `rm -rf "$profile_dir"`).
+    // On the failure path this function returns nothing — meaning the
+    // caller has no handle to reap. So a Chromium that failed to start is
+    // reaped here. Otherwise the process survives and the calling script's
+    // cleanup deletes the profile directory out from under it
+    // (`rm -rf "$profile_dir"` in scripts/flutter_web_smoke.sh).
     child.kill('SIGKILL');
     closeSync(logFd);
     throw startupError;
   }
 }
 
-/** 열린 CDP 소켓. 세션 없이 보내면 브라우저 타깃으로 간다. */
+/** An open CDP socket. A send without a session goes to the browser target. */
 class CdpConnection {
   constructor(socket) {
     this.socket = socket;
@@ -147,7 +150,7 @@ class CdpConnection {
   }
 }
 
-/** 한 페이지 타깃에 붙은 세션. 계약 단언은 전부 이 위에서 돈다. */
+/** Session attached to one page target. All contract assertions run on it. */
 export class PageSession {
   constructor(connection, sessionId) {
     this.connection = connection;
@@ -159,9 +162,9 @@ export class PageSession {
   }
 
   /**
-   * 페이지 컨텍스트에서 식을 평가한다. Promise를 돌려주는 식이면 기다린다.
-   * 페이지에서 난 예외는 [`CdpError`]로 올라온다 — 조용히 `undefined`가
-   * 되어 단언이 헛돌지 않게.
+   * Evaluate an expression in the page context; await it if it returns a
+   * Promise. Exceptions raised in the page surface as [`CdpError`] — they
+   * must not quietly become `undefined` and make assertions misfire.
    */
   async evaluate(expression) {
     const result = await this.send('Runtime.evaluate', {
@@ -179,7 +182,7 @@ export class PageSession {
   }
 }
 
-/** 브라우저에 붙고 새 페이지 타깃을 하나 열어 세션을 준다. */
+/** Attach to the browser, open one new page target, and return its session. */
 export async function openPageSession(port) {
   const version = await (
     await fetch(`http://${LOOPBACK_HOST}:${port}/json/version`)

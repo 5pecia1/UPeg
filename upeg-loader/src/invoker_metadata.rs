@@ -73,12 +73,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_호출자_목록은_여섯_항목을_포함한다() {
+    fn runtime_invoker_list_has_six_entries() {
         assert_eq!(RUNTIME_INVOKERS.len(), 6);
     }
 
     #[test]
-    fn runtime_호출자_이름은_지원_집합과_일치한다() {
+    fn runtime_invoker_names_match_supported_set() {
         let names: Vec<_> = RUNTIME_INVOKERS.iter().map(|s| s.name).collect();
         assert_eq!(
             names,
@@ -87,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn 외부_호출자는_명령을_요구한다() {
+    fn external_invoker_requires_command() {
         let spec = RUNTIME_INVOKERS
             .iter()
             .find(|s| s.name == "External")
@@ -100,31 +100,31 @@ mod tests {
     }
 
     #[test]
-    fn http_호출자는_url을_요구한다() {
+    fn http_invoker_requires_url() {
         let spec = RUNTIME_INVOKERS.iter().find(|s| s.name == "Http").unwrap();
         assert_eq!(spec.required_fields, &["url"]);
     }
 
     #[test]
-    fn embed_호출자는_아무것도_요구하지_않는다() {
+    fn embed_invoker_requires_nothing() {
         let spec = RUNTIME_INVOKERS.iter().find(|s| s.name == "Embed").unwrap();
         assert!(spec.required_fields.is_empty());
     }
 
     #[test]
-    fn 체인_호출자는_단계를_요구한다() {
+    fn chain_invoker_requires_steps() {
         let spec = RUNTIME_INVOKERS.iter().find(|s| s.name == "Chain").unwrap();
         assert_eq!(spec.required_fields, &["steps"]);
     }
 
     #[test]
-    fn 엘엘엠_호출자는_프롬프트를_요구한다() {
+    fn llm_invoker_requires_prompt() {
         let spec = RUNTIME_INVOKERS.iter().find(|s| s.name == "Llm").unwrap();
         assert_eq!(spec.required_fields, &["prompt"]);
     }
 
     #[test]
-    fn wasm_호출자는_wasm_경로를_요구한다() {
+    fn wasm_invoker_requires_wasm_path() {
         let spec = RUNTIME_INVOKERS.iter().find(|s| s.name == "Wasm").unwrap();
         assert_eq!(spec.required_fields, &["wasm_path"]);
     }

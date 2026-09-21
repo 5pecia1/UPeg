@@ -11,7 +11,7 @@ import 'package:upeg/src/platform/tray.dart';
 
 void main() {
   group('runTrayQuit', () {
-    test('Tray_Quit는_shutdown과_windowClose를_순서대로_호출한다', () async {
+    test('Tray_Quit_calls_shutdown_and_windowClose_in_order', () async {
       final calls = <String>[];
       await runTrayQuit(
         shutdown: () => calls.add('shutdown'),
@@ -20,21 +20,24 @@ void main() {
       expect(calls, ['shutdown', 'windowClose']);
     });
 
-    test('Tray_Quit는_windowClose_실패에도_shutdown은_이미_호출되어_있다', () async {
-      final calls = <String>[];
-      await expectLater(
-        runTrayQuit(
-          shutdown: () => calls.add('shutdown'),
-          closeWindow: () async {
-            calls.add('windowClose');
-            throw Exception('window close blew up');
-          },
-        ),
-        throwsException,
-      );
-      // shutdown must run before close; even when close throws, the
-      // FRB-side instance lock must already be released.
-      expect(calls, ['shutdown', 'windowClose']);
-    });
+    test(
+      'Tray_Quit_has_already_called_shutdown_when_windowClose_fails',
+      () async {
+        final calls = <String>[];
+        await expectLater(
+          runTrayQuit(
+            shutdown: () => calls.add('shutdown'),
+            closeWindow: () async {
+              calls.add('windowClose');
+              throw Exception('window close blew up');
+            },
+          ),
+          throwsException,
+        );
+        // shutdown must run before close; even when close throws, the
+        // FRB-side instance lock must already be released.
+        expect(calls, ['shutdown', 'windowClose']);
+      },
+    );
   });
 }

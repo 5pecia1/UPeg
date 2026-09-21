@@ -248,12 +248,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 모르는_run_id_취소는_거짓을_돌려준다() {
+    fn cancelling_unknown_run_id_returns_false() {
         assert!(!cancel_dispatch("dispatch_stream.unknown.run".to_string()));
     }
 
     #[test]
-    fn 등록된_run은_취소된다() {
+    fn registered_run_is_cancelled() {
         let run_id = "dispatch_stream.registered.run".to_string();
         let token = CancellationToken::new();
         let registration =
@@ -265,14 +265,15 @@ mod tests {
         drop(registration);
         assert!(
             !cancel_dispatch(run_id),
-            "끝난 run은 더 이상 취소되지 않는다"
+            "a finished run can no longer be cancelled"
         );
     }
 
     #[test]
-    fn 취소는_항목을_지우지_않는다() {
-        // 취소는 요청이지 실행의 끝이 아니다. 여기서 항목을 지우면 아직
-        // 돌고 있는 run의 id가 곧바로 재등록 가능해진다.
+    fn cancel_does_not_erase_the_entry() {
+        // Cancel is a request, not the end of the run. Erasing the entry
+        // here would make a still-running run's id immediately
+        // re-registrable.
         let run_id = "dispatch_stream.cancel_keeps.run".to_string();
         let _registration =
             RunRegistration::open(run_id.clone(), CancellationToken::new()).expect("registration");
@@ -284,34 +285,37 @@ mod tests {
                 RunRegistration::open(run_id, CancellationToken::new()),
                 Err(FrbError::Validation { .. })
             ),
-            "아직 살아 있는 run의 id는 다시 등록되지 않는다"
+            "a still-live run's id cannot be re-registered"
         );
     }
 
     #[test]
-    fn 지난_등록의_drop은_같은_id의_새_run을_지우지_않는다() {
-        // 회귀: Drop이 소유권을 확인하지 않으면, 먼저 시작한 run이 끝날 때
-        // 같은 id로 새로 등록된 살아 있는 run을 레지스트리에서 밀어냈다.
+    fn drop_of_past_registration_does_not_erase_new_run_with_same_id() {
+        // Regression: if Drop did not check ownership, a run started
+        // earlier would push the live run re-registered under the same
+        // id out of the registry when it ended.
         let run_id = "dispatch_stream.reused.run".to_string();
         let stale = RunRegistration::open(run_id.clone(), CancellationToken::new())
             .expect("first registration");
-        // 먼저 시작한 run이 끝나 자리를 비운 뒤, 같은 id로 새 run이 시작된다.
+        // After the earlier run ends and vacates the slot, a new run
+        // starts under the same id.
         drop(stale);
         let fresh_token = CancellationToken::new();
         let _fresh = RunRegistration::open(run_id.clone(), fresh_token.clone())
             .expect("second registration");
 
-        // 뒤늦게 도착한 옛 등록의 Drop을 흉내 낸다.
+        // Simulates the late-arriving Drop of the old registration.
         drop(RunRegistrationCorpse {
             run_id: run_id.clone(),
         });
 
-        assert!(cancel_dispatch(run_id), "새 run은 여전히 취소할 수 있다");
+        assert!(cancel_dispatch(run_id), "the new run is still cancellable");
         assert!(fresh_token.is_cancelled());
     }
 
-    /// 이미 소비된 옛 `RunRegistration`의 Drop을 흉내 내는 값 — 같은 id를
-    /// 가리키지만 [`RunSeq`]는 절대 겹치지 않는다.
+    /// A value mimicking the Drop of an already-consumed old
+    /// `RunRegistration` — points at the same id but its [`RunSeq`]
+    /// never overlaps.
     struct RunRegistrationCorpse {
         run_id: String,
     }
@@ -327,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn 등록이_끝나면_run_id는_더_이상_취소되지_않는다() {
+    fn run_id_is_no_longer_cancellable_after_registration_ends() {
         let run_id = "dispatch_stream.dropped.run".to_string();
         {
             let _registration = RunRegistration::open(run_id.clone(), CancellationToken::new())
@@ -338,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn 같은_run_id를_두_번_등록하면_거절한다() {
+    fn registering_same_run_id_twice_is_rejected() {
         let run_id = "dispatch_stream.duplicate.run".to_string();
         let _first =
             RunRegistration::open(run_id.clone(), CancellationToken::new()).expect("first");

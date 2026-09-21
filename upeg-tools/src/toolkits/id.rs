@@ -76,7 +76,7 @@ mod tests {
     // ─── uuid_v7 ────────────────────────────────────────────────
 
     #[test]
-    fn uuid_v7는_정규_하이픈있는_형식을_가진다() {
+    fn uuid_v7_has_canonical_hyphenated_format() {
         let s = uuid_v7();
         assert_eq!(s.len(), 36);
         let groups: Vec<&str> = s.split('-').collect();
@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn uuid_v7_버전_니블은_일곱이다() {
+    fn uuid_v7_version_nibble_is_seven() {
         let s = uuid_v7();
         assert_eq!(
             s.chars().nth(14),
@@ -98,14 +98,14 @@ mod tests {
     }
 
     #[test]
-    fn uuid_v7_두개_호출들_생성_서로다른_값을_검증한다() {
+    fn uuid_v7_two_calls_generate_distinct_values() {
         let a = uuid_v7();
         let b = uuid_v7();
         assert_ne!(a, b);
     }
 
     #[test]
-    fn uuid_v4는_14번째_자리에_버전_4가_있는_정규_형식이다() {
+    fn uuid_v4_is_canonical_format_with_version_4_at_position_14() {
         let s = uuid_v4();
         assert_eq!(s.len(), 36);
         assert_eq!(s.chars().filter(|c| *c == '-').count(), 4);
@@ -117,12 +117,12 @@ mod tests {
     }
 
     #[test]
-    fn uuid_v4_두개_호출들_서로다른을_검증한다() {
+    fn uuid_v4_two_calls_generate_distinct_values() {
         assert_ne!(uuid_v4(), uuid_v4());
     }
 
     #[test]
-    fn uuid_v7는_시간_정렬된_안에서_루프이다() {
+    fn uuid_v7_is_time_ordered_within_a_loop() {
         let mut prev = uuid_v7();
         for _ in 0..10 {
             let next = uuid_v7();
@@ -134,7 +134,7 @@ mod tests {
     // ─── nanoid ─────────────────────────────────────────────────
 
     #[test]
-    fn 나노id는_21_url_안전한_문자들을_반환한다() {
+    fn nanoid_returns_21_url_safe_chars() {
         let id = nanoid().unwrap();
         assert_eq!(id.len(), 21, "default nanoid alphabet produces 21 chars");
         let url_safe = id
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn nanoid의_연속_두_호출은_서로_다른_값을_생성한다() {
+    fn nanoid_two_consecutive_calls_generate_distinct_values() {
         assert_ne!(nanoid().unwrap(), nanoid().unwrap());
     }
 }

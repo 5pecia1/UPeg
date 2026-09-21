@@ -44,14 +44,14 @@ mod tests {
 
     fn field(kind: InputKind, constraints: FieldConstraints) -> InputFieldSpec {
         InputFieldSpec::with_constraints(
-            InputName::new("value").expect("테스트 입력 이름은 유효해야 한다"),
+            InputName::new("value").expect("test input name must be valid"),
             None,
             None,
             false,
             kind,
             constraints,
         )
-        .expect("테스트 입력 필드는 유효해야 한다")
+        .expect("test input field must be valid")
     }
 
     fn number_constraints(default: Option<f64>) -> FieldConstraints {
@@ -66,28 +66,28 @@ mod tests {
     }
 
     #[test]
-    fn 정수_기본값은_초기_draft에_소수점_없이_들어간다() {
+    fn integer_default_enters_initial_draft_without_decimal_point() {
         let draft = initial_tui_draft(&field(InputKind::Integer, number_constraints(Some(20.0))));
 
         assert_eq!(draft, DraftInputValue::Text("20".to_string()));
     }
 
     #[test]
-    fn 숫자_기본값은_초기_draft에_들어간다() {
+    fn number_default_enters_initial_draft() {
         let draft = initial_tui_draft(&field(InputKind::Number, number_constraints(Some(1.5))));
 
         assert_eq!(draft, DraftInputValue::Text("1.5".to_string()));
     }
 
     #[test]
-    fn 기본값이_없는_숫자_필드는_빈_draft로_시작한다() {
+    fn number_field_without_default_starts_with_empty_draft() {
         let draft = initial_tui_draft(&field(InputKind::Number, number_constraints(None)));
 
         assert_eq!(draft, DraftInputValue::Text(String::new()));
     }
 
     #[test]
-    fn 문자열_기본값은_초기_draft에_들어간다() {
+    fn string_default_enters_initial_draft() {
         let draft = initial_tui_draft(&field(
             InputKind::String,
             FieldConstraints {
@@ -104,7 +104,7 @@ mod tests {
     }
 
     #[test]
-    fn 플레이스홀더는_draft를_채우지_않는다() {
+    fn placeholder_does_not_fill_draft() {
         let draft = initial_tui_draft(&field(
             InputKind::String,
             FieldConstraints {
@@ -121,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn 제약이_없는_종류들은_기존_초기값을_유지한다() {
+    fn kinds_without_constraints_keep_existing_initial_values() {
         assert_eq!(
             initial_tui_draft(&field(InputKind::Boolean, FieldConstraints::default())),
             DraftInputValue::Boolean(false)

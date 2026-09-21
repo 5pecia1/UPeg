@@ -121,18 +121,21 @@ Widget _inlineHarness(_ScriptedDispatch dispatch, _CancelLog cancel) {
 }
 
 void main() {
-  group('LiveTail 접기', () {
-    test('완결된_줄만_lines에_쌓이고_나머지는_pending에_남는다', () {
-      const tail = LiveTail.empty(maxLines: 4);
+  group('LiveTail fold', () {
+    test(
+      'only_completed_lines_land_in_lines_and_the_rest_stays_in_pending',
+      () {
+        const tail = LiveTail.empty(maxLines: 4);
 
-      final folded = tail.append('first\nsecond\nthi');
+        final folded = tail.append('first\nsecond\nthi');
 
-      expect(folded.lines, <String>['first', 'second']);
-      expect(folded.pending, 'thi');
-      expect(folded.visibleLines, <String>['first', 'second', 'thi']);
-    });
+        expect(folded.lines, <String>['first', 'second']);
+        expect(folded.pending, 'thi');
+        expect(folded.visibleLines, <String>['first', 'second', 'thi']);
+      },
+    );
 
-    test('여러_chunk에_걸친_한_줄을_이어_붙인다', () {
+    test('a_line_spanning_multiple_chunks_is_joined', () {
       const tail = LiveTail.empty(maxLines: 4);
 
       final folded = tail.append('he').append('llo').append(' world\n');
@@ -141,7 +144,7 @@ void main() {
       expect(folded.pending, isEmpty);
     });
 
-    test('maxLines를_넘으면_가장_오래된_줄부터_버린다', () {
+    test('lines_past_maxlines_drop_the_oldest_first', () {
       var tail = const LiveTail.empty(maxLines: 3);
 
       for (var index = 1; index <= 6; index++) {
@@ -152,7 +155,7 @@ void main() {
       expect(tail.visibleLines.length, 3);
     });
 
-    test('씨알엘에프는_한_번의_줄_종료로_처리한다', () {
+    test('a_crlf_counts_as_a_single_line_ending', () {
       const tail = LiveTail.empty(maxLines: 2);
 
       final folded = tail.append('alpha\r\nbeta\r');
@@ -161,7 +164,7 @@ void main() {
       expect(folded.visibleLines, <String>['alpha', 'beta']);
     });
 
-    test('chunk_경계에_걸친_씨알엘에프도_한_줄이다', () {
+    test('a_crlf_spanning_a_chunk_boundary_is_still_one_line', () {
       const tail = LiveTail.empty(maxLines: 4);
 
       final folded = tail.append('done\r').append('\nnext');
@@ -170,8 +173,9 @@ void main() {
       expect(folded.pending, 'next');
     });
 
-    test('단독_캐리지리턴은_현재_줄을_덮어쓴다', () {
-      // 진행 막대와 spinner가 내는 모양. \r는 글자가 아니라 프로토콜이다.
+    test('a_lone_carriage_return_overwrites_the_current_line', () {
+      // The shape progress bars and spinners emit. \r is a protocol, not
+      // a character.
       const tail = LiveTail.empty(maxLines: 4);
 
       final folded = tail.append('50%\r80%\r100%\n');
@@ -180,18 +184,18 @@ void main() {
       expect(folded.pending, isEmpty);
     });
 
-    test('캐리지리턴만_오는_stream도_줄을_늘리지_않는다', () {
+    test('a_stream_of_only_carriage_returns_never_grows_lines', () {
       var tail = const LiveTail.empty(maxLines: 4);
 
       for (var index = 0; index <= 100; index++) {
         tail = tail.append('progress $index\r');
       }
 
-      expect(tail.lines, isEmpty, reason: '종료된 줄이 없다');
+      expect(tail.lines, isEmpty, reason: 'no line was ever terminated');
       expect(tail.visibleLines, <String>['progress 100']);
     });
 
-    test('개행이_없는_stream의_열린_줄은_상한에서_멈춘다', () {
+    test('an_open_line_in_a_newline_free_stream_stops_at_the_cap', () {
       var tail = const LiveTail.empty(maxLines: 4);
 
       for (var index = 0; index < 40; index++) {
@@ -203,8 +207,9 @@ void main() {
       expect(tail.visibleLines, <String>[tail.pending]);
     });
 
-    test('상한에서_잘려도_문자열은_온전하다', () {
-      // 이모지(surrogate pair)가 상한 경계에 걸쳐도 반쪽만 남지 않는다.
+    test('a_string_clipped_at_the_cap_stays_intact', () {
+      // An emoji (surrogate pair) straddling the cap boundary never
+      // leaves a half behind.
       const emoji = '🙂';
       final head = 'x' * (liveTailMaxLineUnits - 1);
       const tail = LiveTail.empty(maxLines: 2);
@@ -216,7 +221,7 @@ void main() {
       expect(folded.pending.runes.every((rune) => rune == 0x78), isTrue);
     });
 
-    test('빈_chunk는_아무것도_바꾸지_않는다', () {
+    test('an_empty_chunk_changes_nothing', () {
       const tail = LiveTail.empty(maxLines: 2);
 
       expect(identical(tail.append(''), tail), isTrue);
@@ -224,8 +229,8 @@ void main() {
     });
   });
 
-  group('ExpandedModalPage 실시간 출력', () {
-    testWidgets('실행_중_chunk는_마지막_N줄만_보여준다', (tester) async {
+  group('ExpandedModalPage live output', () {
+    testWidgets('mid_run_chunks_show_only_the_last_n_lines', (tester) async {
       final dispatch = _ScriptedDispatch();
       final cancel = _CancelLog();
       await tester.pumpWidget(_modalHarness(dispatch, cancel));
@@ -240,12 +245,16 @@ void main() {
       }
       await tester.pump();
 
-      expect(find.text('line 1'), findsNothing, reason: '가장 오래된 줄은 밀려난다');
+      expect(
+        find.text('line 1'),
+        findsNothing,
+        reason: 'the oldest line is pushed out',
+      );
       expect(find.text('line 3'), findsOneWidget);
       expect(
         find.text('line ${modalLiveTailMaxLines + 2}'),
         findsOneWidget,
-        reason: '가장 최근 줄은 항상 보인다',
+        reason: 'the newest line always stays visible',
       );
       expect(
         find.descendant(
@@ -259,7 +268,9 @@ void main() {
       await dispatch.finish(tester);
     });
 
-    testWidgets('Cancel은_실행_중인_run_id로_취소를_요청한다', (tester) async {
+    testWidgets('cancel_requests_cancellation_for_the_running_run_id', (
+      tester,
+    ) async {
       final dispatch = _ScriptedDispatch();
       final cancel = _CancelLog();
       await tester.pumpWidget(_modalHarness(dispatch, cancel));
@@ -276,7 +287,9 @@ void main() {
       await dispatch.finish(tester);
     });
 
-    testWidgets('Done이_오면_tail은_사라지고_결과가_남는다', (tester) async {
+    testWidgets('a_done_event_dismisses_the_tail_and_leaves_the_result', (
+      tester,
+    ) async {
       final dispatch = _ScriptedDispatch();
       final cancel = _CancelLog();
       await tester.pumpWidget(_modalHarness(dispatch, cancel));
@@ -298,8 +311,10 @@ void main() {
     });
   });
 
-  group('inline pin 실시간 출력', () {
-    testWidgets('inline도_tail을_그리고_Cancel로_취소한다', (tester) async {
+  group('inline pin live output', () {
+    testWidgets('the_inline_pin_also_draws_the_tail_and_cancels_via_cancel', (
+      tester,
+    ) async {
       final dispatch = _ScriptedDispatch();
       final cancel = _CancelLog();
       await tester.pumpWidget(_inlineHarness(dispatch, cancel));

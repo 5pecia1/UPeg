@@ -8,6 +8,7 @@
 use crate::identity::{ToolIdentity, ToolKey, canonical_tool_id_in_toolkit, canonical_toolkit_id};
 use crate::input::{InputSpec, InputSpecError, StaticInputSpec};
 use crate::output::{OutputFieldSpec, OutputSpec, OutputSpecError, StaticOutputSpec};
+use crate::presentation::{ToolEffect, ToolPresentation};
 use crate::source::{Source, StaticSource};
 use crate::types::{Invoker, PegboardUnits, PinKind, Surface};
 
@@ -44,6 +45,7 @@ pub struct StaticToolMeta {
     pub output_spec: StaticOutputSpec,
     /// Canonical output field id rendered as the primary result.
     pub primary_output_id: Option<&'static str>,
+    pub effect: ToolEffect,
     /// How the Pin's execution begins. GUI-only hint; non-GUI surfaces
     /// ignore the variant and call the tool function directly.
     pub source: StaticSource,
@@ -82,6 +84,8 @@ pub struct ToolMeta {
     pub output_spec: OutputSpec,
     /// Canonical output field id rendered as the primary result.
     pub primary_output_id: Option<&'static str>,
+    pub effect: ToolEffect,
+    pub presentation: Option<ToolPresentation>,
     /// Trigger source for this Tool.
     pub source: Source,
     pub pin: PinKind,
@@ -368,6 +372,8 @@ impl ToolMeta {
             input_spec: InputSpec::from_static_fields(meta.input_spec.fields)?,
             output_spec,
             primary_output_id: meta.primary_output_id,
+            effect: meta.effect,
+            presentation: None,
             source: meta.source.to_owned_source(),
             pin: meta.pin,
             pegboard_units: meta.pegboard_units,
@@ -513,6 +519,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -534,6 +541,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Launcher,
             pegboard_units: PegboardUnits::U1,
@@ -555,6 +563,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -566,7 +575,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn mixed_capability_도구는_headless_디스패치를_지원한다() {
+    fn mixed_capability_tool_supports_headless_dispatch() {
         let tool = mixed_capability_static_tool();
         assert!(
             tool.has_headless_dispatch_surface(),
@@ -575,7 +584,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn gui_only_도구는_headless_디스패치를_지원하지_않는다() {
+    fn gui_only_tool_does_not_support_headless_dispatch() {
         let tool = gui_only_static_tool();
         assert!(
             !tool.has_headless_dispatch_surface(),
@@ -584,7 +593,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn headless_only_도구는_headless_디스패치를_지원한다() {
+    fn headless_only_tool_supports_headless_dispatch() {
         let tool = headless_only_static_tool();
         assert!(
             tool.has_headless_dispatch_surface(),
@@ -593,7 +602,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn gui_표면들은_headless_디스패치_표면이_없다() {
+    fn gui_surfaces_have_no_headless_dispatch_surface() {
         // Test each GUI surface individually
         let desktop_tool = StaticToolMeta {
             id: "test.desktop",
@@ -605,6 +614,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -627,6 +637,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -649,6 +660,7 @@ mod headless_dispatch_tests {
             input_spec: StaticInputSpec { fields: &[] },
             output_spec: StaticOutputSpec { fields: &[] },
             primary_output_id: None,
+            effect: ToolEffect::Unknown,
             source: StaticSource::Static,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -663,7 +675,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn all_surfaces_파티션이_4개_headless_와_3개_gui_이다() {
+    fn all_surfaces_partition_into_4_headless_and_3_gui() {
         let headless_count = ALL_SURFACES
             .iter()
             .filter(|s| s.supports_headless_dispatch())
@@ -682,7 +694,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn gui_표면들은_headless_디스패치를_지원하지_않는다_상수() {
+    fn gui_surfaces_const_does_not_support_headless_dispatch() {
         // Using GUI_SURFACES constant
         for s in GUI_SURFACES {
             assert!(
@@ -693,7 +705,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn 임베드_표면들은_headless_디스패치를_지원하지_않는다_상수() {
+    fn embed_surfaces_const_does_not_support_headless_dispatch() {
         // Using EMBED_SURFACES constant
         for s in EMBED_SURFACES {
             assert!(
@@ -704,7 +716,7 @@ mod headless_dispatch_tests {
     }
 
     #[test]
-    fn mixed_capability_toolmeta_역시_headless_디스패치_지원() {
+    fn mixed_capability_toolmeta_also_supports_headless_dispatch() {
         let static_tool = mixed_capability_static_tool();
         let tool_meta =
             ToolMeta::from_static(static_tool).expect("valid fixture should convert to ToolMeta");

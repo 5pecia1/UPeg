@@ -167,7 +167,7 @@ mod tests {
     use upeg_core::OutputKind;
 
     #[test]
-    fn 출력_파일_정책이_있는_mcp_도구는_건너뛴다() {
+    fn mcp_tool_with_file_output_policy_is_skipped() {
         // Given
         let tools = [json!({
             "name": "policy_output",
@@ -188,7 +188,7 @@ mod tests {
 
         // When
         let parsed =
-            parse_tools_list_entries(&tools, "test").expect("MCP 도구 목록을 파싱해야 한다");
+            parse_tools_list_entries(&tools, "test").expect("must parse the MCP tools list");
 
         // Then
         assert!(parsed.decls.is_empty());
@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn 정책이_없는_파일_출력은_mcp_도구로_가져온다() {
+    fn file_output_without_policy_is_imported_as_mcp_tool() {
         // Given
         let tools = [json!({
             "name": "plain_file_output",
@@ -222,7 +222,7 @@ mod tests {
 
         // When
         let parsed =
-            parse_tools_list_entries(&tools, "test").expect("MCP 도구 목록을 파싱해야 한다");
+            parse_tools_list_entries(&tools, "test").expect("must parse the MCP tools list");
 
         // Then
         assert!(parsed.skipped.is_empty());

@@ -192,9 +192,9 @@ mod tests {
     use super::{CallOutputMode, render_call_failure, render_pretty_success};
     use crate::error::CliError;
 
-    const 여러_줄_값: &str = "first\nsecond";
+    const MULTI_LINE_VALUE: &str = "first\nsecond";
 
-    fn 성공(id: &str, value: &str) -> ToolSuccess {
+    fn success(id: &str, value: &str) -> ToolSuccess {
         ToolSuccess::new(
             Some(id.to_string()),
             vec![OutputEntry {
@@ -204,10 +204,10 @@ mod tests {
                 value: OutputValue::String(value.to_string()),
             }],
         )
-        .expect("테스트 성공 결과는 유효하다")
+        .expect("test success result is valid")
     }
 
-    fn 외부_실패() -> ToolFailure {
+    fn external_failure() -> ToolFailure {
         ToolFailure {
             error: ToolError {
                 code: "tool_error".to_string(),
@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn 사람용_모드만_실행_중_출력을_흘려보낸다() {
+    fn only_human_modes_pass_through_live_output() {
         use crate::domain::execution::dispatch::LiveOutput;
 
         assert_eq!(CallOutputMode::Primary.live_output(), LiveOutput::Terminal);
@@ -238,32 +238,35 @@ mod tests {
     }
 
     #[test]
-    fn pretty는_한_줄_값을_라벨_뒤에_붙인다() {
-        assert_eq!(render_pretty_success(&성공("result", "42")), "result: 42\n");
+    fn pretty_appends_a_single_line_value_after_the_label() {
+        assert_eq!(
+            render_pretty_success(&success("result", "42")),
+            "result: 42\n"
+        );
     }
 
     #[test]
-    fn pretty는_값의_마지막_줄바꿈으로_빈_줄을_만들지_않는다() {
+    fn pretty_does_not_make_a_blank_line_from_a_trailing_newline() {
         assert_eq!(
-            render_pretty_success(&성공("result", "a\nb\n")),
+            render_pretty_success(&success("result", "a\nb\n")),
             "result:\n  a\n  b\n"
         );
     }
 
     #[test]
-    fn pretty는_여러_줄_값을_들여쓴다() {
+    fn pretty_indents_a_multi_line_value() {
         // Continuation lines with no label and no indent are
         // indistinguishable from the next field's value.
         assert_eq!(
-            render_pretty_success(&성공("result", 여러_줄_값)),
+            render_pretty_success(&success("result", MULTI_LINE_VALUE)),
             "result:\n  first\n  second\n"
         );
     }
 
     #[test]
-    fn 사람용_실패는_표준오류와_표준출력을_라벨과_함께_보여준다() {
-        let error = render_call_failure(&외부_실패(), &CallOutputMode::Primary)
-            .expect_err("실패는 CliError가 된다");
+    fn human_failure_shows_stderr_and_stdout_with_labels() {
+        let error = render_call_failure(&external_failure(), &CallOutputMode::Primary)
+            .expect_err("a failure becomes a CliError");
         let message = error.message();
         assert!(
             message.starts_with("upeg: `cargo` exited with code 1"),
@@ -280,14 +283,14 @@ mod tests {
     }
 
     #[test]
-    fn json_실패는_details를_그대로_싣는다() {
-        let error = render_call_failure(&외부_실패(), &CallOutputMode::Json)
-            .expect_err("실패는 CliError가 된다");
+    fn json_failure_carries_details_verbatim() {
+        let error = render_call_failure(&external_failure(), &CallOutputMode::Json)
+            .expect_err("a failure becomes a CliError");
         let CliError::StdoutFailure { stdout } = error else {
-            panic!("--json 실패는 stdout 페이로드를 쓴다");
+            panic!("a --json failure writes a stdout payload");
         };
         let payload: serde_json::Value =
-            serde_json::from_str(&stdout).expect("stdout은 canonical JSON 한 줄이다");
+            serde_json::from_str(&stdout).expect("stdout is a single canonical JSON line");
         assert_eq!(payload["ok"], json!(false));
         assert_eq!(payload["error"]["details"]["exit_code"], json!(1));
         assert_eq!(
@@ -297,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn details가_없는_실패는_메시지만_남긴다() {
+    fn failure_without_details_leaves_only_the_message() {
         let failure = ToolFailure {
             error: ToolError {
                 code: "tool_error".to_string(),
@@ -306,7 +309,7 @@ mod tests {
             },
         };
         let error = render_call_failure(&failure, &CallOutputMode::Primary)
-            .expect_err("실패는 CliError가 된다");
+            .expect_err("a failure becomes a CliError");
         assert_eq!(error.message(), "upeg: boom");
     }
 }

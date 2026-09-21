@@ -34,22 +34,22 @@ const TweaksDto _pinkTweaksHidden = TweaksDto(
 
 void main() {
   group('Accent.fromFrb', () {
-    test('Accent_fromFrb는_Cyan을_cyan으로_파싱한다', () {
+    test('Accent_fromFrb_parses_Cyan_as_cyan', () {
       expect(Accent.fromFrb('Cyan'), Accent.cyan);
     });
 
-    test('Accent_fromFrb는_Green_Amber_Pink를_각각_매핑한다', () {
+    test('Accent_fromFrb_maps_Green_Amber_Pink_respectively', () {
       expect(Accent.fromFrb('Green'), Accent.green);
       expect(Accent.fromFrb('Amber'), Accent.amber);
       expect(Accent.fromFrb('Pink'), Accent.pink);
     });
 
-    test('Accent_fromFrb는_미지의_값을_cyan으로_폴백한다', () {
+    test('Accent_fromFrb_falls_back_to_cyan_for_unknown_values', () {
       expect(Accent.fromFrb('Magenta'), Accent.cyan);
       expect(Accent.fromFrb(''), Accent.cyan);
     });
 
-    test('Accent_frbName은_각_변형의_FRB_라벨을_반환한다', () {
+    test('Accent_frbName_returns_each_variant_FRB_label', () {
       expect(Accent.green.frbName, 'Green');
       expect(Accent.amber.frbName, 'Amber');
       expect(Accent.cyan.frbName, 'Cyan');
@@ -58,23 +58,26 @@ void main() {
   });
 
   group('accentProvider', () {
-    test('accentProvider는_tweaks_accent_Green을_Accent_green으로_노출한다', () async {
-      final container = ProviderContainer(
-        overrides: [
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => _greenTweaks,
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'accentProvider_exposes_tweaks_accent_Green_as_Accent_green',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => _greenTweaks,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // Wait for the async TweaksController to settle into data.
-      await container.read(tweaksProvider.future);
-      expect(container.read(accentProvider), Accent.green);
-    });
+        // Wait for the async TweaksController to settle into data.
+        await container.read(tweaksProvider.future);
+        expect(container.read(accentProvider), Accent.green);
+      },
+    );
 
-    test('accentProvider는_로드_전에는_cyan_기본값으로_폴백한다', () {
+    test('accentProvider_falls_back_to_cyan_default_before_load', () {
       final container = ProviderContainer(
         overrides: [
           // Never-completing loader keeps the AsyncNotifier in loading.
@@ -94,7 +97,7 @@ void main() {
   });
 
   group('showHolesProvider', () {
-    test('showHolesProvider는_tweaks_showHoles_false를_false로_노출한다', () async {
+    test('showHolesProvider_exposes_tweaks_showHoles_false_as_false', () async {
       final container = ProviderContainer(
         overrides: [
           tweaksLoaderProvider.overrideWith(
@@ -109,7 +112,7 @@ void main() {
       expect(container.read(showHolesProvider), isFalse);
     });
 
-    test('showHolesProvider는_tweaks_showHoles_true를_true로_노출한다', () async {
+    test('showHolesProvider_exposes_tweaks_showHoles_true_as_true', () async {
       final container = ProviderContainer(
         overrides: [
           tweaksLoaderProvider.overrideWith(
@@ -124,7 +127,7 @@ void main() {
       expect(container.read(showHolesProvider), isTrue);
     });
 
-    test('showHolesProvider는_로드_전에는_true_기본값으로_폴백한다', () {
+    test('showHolesProvider_falls_back_to_true_default_before_load', () {
       final container = ProviderContainer(
         overrides: [
           tweaksLoaderProvider.overrideWith(

@@ -1,114 +1,136 @@
 ---
 type: Guide
-title: 보드와 에이전트 작업 흐름
-description: 개인과 저장소의 도구·기본값·사용 지침을 보드로 준비하고 MCP 에이전트에서 재사용하는 방법.
+title: Boards and agent workflow
+description: "Prepare a board's tools, defaults, and usage guidance — for a person or a repository — and reuse them from MCP agents."
 tags: [board, mcp, workflow]
 status: stable
 ---
 
-# 준비하고 반복해서 사용하기
+# Prepare once, reuse repeatedly
 
-보드는 반복해서 사용할 도구, 입력 프리셋, 사용 지침을 함께 준비하는 단위다.
-개인 보드는 개인 저장소에서 관리하고, 프로젝트 보드는 저장소의 `upeg.toml`에서
-선언한다. 특정 저장소에서 UPeg를 실행하면 개인 설정과 탐지된 프로젝트 설정을
-함께 읽어 선택할 수 있는 보드를 구성한다.
+A board is the unit that prepares tools, input presets, and usage guidance
+together. Personal boards are managed in the personal store; project boards
+are declared in the repository's `upeg.toml`. Running UPeg inside a
+repository reads your personal configuration and the detected project
+configuration together to compose the boards you can pick from.
 
-| 구성 | 담당하는 일 |
+| Element | What it covers |
 | --- | --- |
-| Tool | 실행할 기능과 입력·출력 계약 |
-| 핀과 프리셋 | 이 보드에서 사용할 도구와 반복 입력값 |
-| 보드 설명 | 보드의 목적과 사용 시점 |
-| 보드 지침 | 도구 선택 기준, 결과 해석, 실패 시 대응 |
-| Chain | 순서가 정해진 여러 단계의 실행 |
-| GUI·CLI | 사람이 보드를 준비하고 확인하거나 직접 실행 |
-| MCP | 에이전트에 선택한 보드의 안내와 도구를 제공 |
+| Tool | the function to run and its input/output contract |
+| Pins and presets | which tools this board uses and their repeated input values |
+| Board description | the board's purpose and when to use it |
+| Board instructions | tool-selection criteria, result interpretation, what to do on failure |
+| Chain | ordered multi-step execution |
+| GUI/CLI | where a person prepares, checks, and runs the board |
+| MCP | gives the selected board's guidance and tools to an agent |
 
-1. 명령·기능을 Tool로 등록하고 보드에 핀한다. 반복 입력은 핀의 프리셋에 저장한다.
-2. 선택적으로 보드 설명과 Markdown 지침을 작성한다. 설명에는 목적과 사용 시점,
-   지침에는 도구 선택 기준·결과 해석·예외 상황을 적는다.
-3. 작업할 위치에서 UPeg를 실행한다. 개인 설정과 그 위치에서 발견한 `upeg.toml`을 읽는다.
-4. 사람이 보드 안내와 연결 미리보기를 확인하고 특정 보드의 MCP 설정을 에이전트에 연결한다.
-5. 에이전트는 `upeg.board_context`를 조회한 뒤 사용자의 요청에 맞는 도구를 호출한다.
-6. 결과와 실패 원인, 검사하지 못한 범위를 확인한다. 고정 절차는 Chain으로 관리한다.
-7. 반복 설명은 보드 지침에 반영하고, 설정을 바꾸면 MCP 연결을 다시 시작한다.
+1. Register commands and functions as Tools and pin them to a board. Save
+   repeated inputs in the pin's preset.
+2. Optionally write a board description and Markdown instructions. The
+   description covers purpose and when to use it; the instructions cover
+   tool selection, result interpretation, and exceptions.
+3. Run UPeg where you work. It reads your personal settings plus the
+   `upeg.toml` it discovers there.
+4. A person reviews the board's guidance and connection preview, then
+   attaches a specific board's MCP configuration to an agent.
+5. The agent queries `upeg.board_context`, then calls the tool that fits
+   the user's request.
+6. Review results, failure causes, and any unchecked scope. Fixed
+   procedures are managed as Chains.
+7. Fold repeated explanations back into the board instructions, and restart
+   the MCP connection when settings change.
 
-보드 연결은 도구와 지침을 준비한다. 연결만으로 도구를 실행하지 않는다. 사용자 요청의
-범위, 런타임의 입력 검증과 승인 규칙이 실행을 결정한다. 사람은 같은 보드에서 같은 Tool을
-직접 실행할 수 있으며, 실행 중인 화면을 다른 화면에서 이어받는 기능은 별도 계약이다.
+Board connection prepares tools and guidance — connecting alone does not
+run tools. The scope of the user's request, the runtime's input validation,
+and the approval rules decide execution. A person can run the same Tool
+from the same board directly; handing a running screen off to another
+screen is a separate contract.
 
-# 개인 보드
+# Personal boards
 
-UPeg 화면의 보드 안내에서 설명·사용 지침을 편집하고 저장한다. CLI에서도 기존 개인
-보드의 안내를 변경할 수 있다.
+Edit and save the description and usage instructions from the board
+guidance in the UPeg UI. The CLI can also change an existing personal
+board's guidance.
 
 ```sh
-upeg board dev describe --description '자주 쓰는 변환과 검사 도구'
-upeg board dev describe --instructions '변환 결과와 사용한 입력을 함께 설명한다.'
+upeg board dev describe --description 'Frequently used conversion and check tools'
+upeg board dev describe --instructions 'Explain the conversion result together with the inputs used.'
 upeg board dev context --json
 upeg board dev connect
 ```
 
-`describe`에 생략한 필드는 보존된다. `--clear-description`과 `--clear-instructions`는
-해당 필드를 비운다. `connect`의 출력은 연결 설정 JSON이며, 실제 연결 성공을 뜻하지 않는다.
-미리보기의 프리셋은 에이전트에도 제공되는 입력값이다. 인증 비밀값은 기존 Credential
-참조로 관리한다.
+Fields omitted from `describe` are preserved. `--clear-description` and
+`--clear-instructions` empty those fields. `connect`'s output is a
+connection-config JSON — printing it does not mean a connection succeeded.
+Presets shown in the preview are input values also given to the agent.
+Authentication secrets stay managed as Credential references.
 
-# 저장소 보드
+# Repository boards
 
-프로젝트 보드는 같은 Board 모델을 저장소의 `upeg.toml`에서 선언한 것이다. 설정 탐지
-규칙은 [프로젝트 매니페스트](/architecture/project-manifest.md)를 따른다.
+A project board is the same Board model declared in the repository's
+`upeg.toml`. Detection rules follow the
+[project manifest](../architecture/project-manifest.md).
 
 ```toml
 [[boards]]
 id = "project-checks"
-label = "프로젝트 검사"
-description = "개발 중 확인과 PR 제출 전 검증에 사용한다."
+label = "Project checks"
+description = "Used for checks during development and verification before submitting a PR."
 instructions = """
-요청한 검증 범위에 맞는 도구를 선택한다.
-실행 실패와 실행 환경 미비를 구분하고, 미검증 범위를 결과에 적는다.
+Pick the tool that matches the requested verification scope.
+Distinguish execution failures from missing run environments,
+and record unchecked scope in the result.
 """
 ```
 
-Tool의 `boards = ["project-checks"]`로 초기 핀을 선언하거나 보드에서 직접 핀한다.
-저장소 지침의 원본은 TOML이고, 개인 저장소의 보드 배치나 프리셋이 원본 지침을 덮지 않는다.
-화면에는 편집할 파일 경로를 보여준다. TOML 수정 후 실행 중인 UPeg를 다시 시작하고
-에이전트의 MCP 연결도 다시 시작한다.
+Declare initial pins with a Tool's `boards = ["project-checks"]`, or pin
+directly on the board. The repository instructions' source of truth is the
+TOML — personal-store board layouts and presets do not override the source
+instructions. The UI shows the file path to edit. After editing the TOML,
+restart the running UPeg, and restart the agent's MCP connection too.
 
 ```sh
 upeg --working-directory /absolute/path/to/repo board project-checks context --json
 upeg --working-directory /absolute/path/to/repo board project-checks connect
 ```
 
-생성된 설정은 이 디렉터리와 프로젝트 파일에 고정된다. 개인 보드와 프로젝트 보드를 모두
-로딩해도 여러 보드가 자동 합쳐지지는 않는다. 필요한 보드마다 연결을 준비한다.
+The generated config is pinned to that directory and project file. Loading
+a personal board and a project board together does not merge them
+automatically — prepare a connection for each board you need.
 
-# 에이전트에서 사용하기
+# Using it from an agent
 
-저장소의 실제 `upeg-dev` 보드에는 검사 도구와 안내가 포함되어 있다.
+The repository's real `upeg-dev` board ships check tools and guidance.
 
 ```sh
 upeg board upeg-dev context --json
 upeg board upeg-dev connect
 ```
 
-연결 후 "PR 제출 전 검증해줘"라고 요청하면 에이전트는 보드 안내를 읽고 `dev.check`를
-선택할 수 있다. 개발 중 일부 검사에는 `dev.test_crate`, 릴리스 검증에는 `dev.verify`가
-제공된다. 안내는 선택을 돕는 문서이며 고정 절차를 강제하는 엔진은 Chain이다.
+After connecting, asking "verify before submitting the PR" lets the agent
+read the board guidance and pick `dev.check`. `dev.test_crate` covers
+checking a specific crate during development; `dev.verify` covers release
+verification. Guidance is a document that helps selection — the engine that
+enforces a fixed procedure is a Chain.
 
-예를 들어 팀원이 저장소에 검사 도구와 보드 안내를 준비해두면, 다른 팀원은 저장소에서
-UPeg를 실행하고 해당 보드의 연결 설정을 복사한다. 에이전트는 안내를 조회하고 사용자의
-검증 요청에 맞는 도구를 선택한다. 호출 시 핀 프리셋을 사용하며 사용자가 지정한 인자는
-그 값보다 우선한다. 결과를 받은 에이전트는 실행한 검사, 실패 원인과 미검증 범위를
-보고한다. 같은 설명이 반복해서 필요하면 팀원이 원본 지침을 보완하고 연결을 다시 시작한다.
+For example, one teammate prepares check tools and board guidance in the
+repository; another runs UPeg in that repository and copies the board's
+connection config. The agent queries the guidance and picks the tool that
+matches the user's verification request. Calls use the pin presets, and
+caller-specified args take precedence over preset values. The agent reports
+which checks ran, why any failed, and what went unchecked. When the same
+explanation keeps being needed, a teammate improves the source instructions
+and restarts the connection.
 
-이 흐름의 이점은 프로젝트마다 명령과 기본값, 실행 위치, 결과 해석 방법을 매번
-에이전트에게 설명하는 일을 줄이는 데 있다. 별도 도구 구성 없이 짧은 지침만 필요한
-프로젝트라면 저장소의 지침 파일만으로도 충분할 수 있다. 외부 MCP 도구를 UPeg에
-가져오는 Import는 기존 제공 도구를 추가하는 선택 사항이며 이 흐름의 필수 단계가 아니다.
+The benefit of this flow is removing the need to explain a project's
+commands, defaults, working directory, and result interpretation to the
+agent every time. A project that only needs short instructions and no tool
+setup may get by with a repo instructions file alone. Import — bringing
+external MCP tools into UPeg — is an optional way to add existing tools,
+not a required step of this flow.
 
-MCP 조회와 호출의 구체 계약, 입력 기본값, 재연결 오류는
-[MCP 계약](/architecture/mcp.md)을 따른다. 지침 자동 활용은 클라이언트별로 확인해야 하며,
-이 기능이 네이티브 `SKILL.md` 설치를 대신 수행하지는 않는다.
+The concrete contract for MCP queries and calls, input defaults, and
+reconnect errors follows the [MCP contract](../architecture/mcp.md).
+Automatic use of guidance must be checked per client — this feature does
+not replace installing a native `SKILL.md`.
 
-Codex·Claude에 설정을 전달하는 방법, 승인·실행 환경 문제와 실제 검증 범위는
-에이전트별 연결과 검증 결과에 정리했다.

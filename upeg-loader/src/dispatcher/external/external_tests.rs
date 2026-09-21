@@ -3,65 +3,65 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 #[cfg(target_os = "linux")]
-use super::process_test_support::종료되지_않은_프로세스_상태;
+use super::process_test_support::lingering_process_state;
 use super::{CaptureLimit, ExternalProcessError, run_command_with_limit};
 
-const 작은_캡처_한도: u64 = 4 * 1024;
-const 큰_표준오류_바이트: usize = 96 * 1024;
+const SMALL_CAPTURE_LIMIT: u64 = 4 * 1024;
+const LARGE_STDERR_BYTES: usize = 96 * 1024;
 #[cfg(target_os = "linux")]
-const 프로세스_종료_대기: Duration = Duration::from_millis(250);
+const PROCESS_EXIT_WAIT: Duration = Duration::from_millis(250);
 
-fn printf_명령(payload: &str) -> Command {
+fn printf_command(payload: &str) -> Command {
     let mut command = Command::new("printf");
     command.args(["%s", payload]);
     command
 }
 
 #[test]
-fn 외부_출력이_정확히_한도이면_허용한다() {
+fn external_output_exactly_at_limit_is_allowed() {
     // Given
     let payload =
-        "x".repeat(usize::try_from(작은_캡처_한도).expect("테스트 한도는 usize에 들어간다"));
-    let mut command = printf_명령(&payload);
+        "x".repeat(usize::try_from(SMALL_CAPTURE_LIMIT).expect("the test limit fits in usize"));
+    let mut command = printf_command(&payload);
 
     // When
-    let output = run_command_with_limit(&mut command, CaptureLimit::new(작은_캡처_한도))
-        .expect("정확한 경계는 허용한다");
+    let output = run_command_with_limit(&mut command, CaptureLimit::new(SMALL_CAPTURE_LIMIT))
+        .expect("an exact boundary is allowed");
 
     // Then
     assert_eq!(
-        u64::try_from(output.stdout.len()).expect("출력 길이는 u64에 들어간다"),
-        작은_캡처_한도
+        u64::try_from(output.stdout.len()).expect("the output length fits in u64"),
+        SMALL_CAPTURE_LIMIT
     );
 }
 
 #[test]
-fn 외부_표준출력이_한도를_한_바이트_넘으면_누적하지_않고_거부한다() {
+fn external_stdout_one_byte_over_limit_is_rejected() {
     // Given
     let payload =
-        "x".repeat(usize::try_from(작은_캡처_한도 + 1).expect("테스트 한도는 usize에 들어간다"));
-    let mut command = printf_명령(&payload);
+        "x".repeat(usize::try_from(SMALL_CAPTURE_LIMIT + 1).expect("the test limit fits in usize"));
+    let mut command = printf_command(&payload);
 
     // When
-    let error = run_command_with_limit(&mut command, CaptureLimit::new(작은_캡처_한도))
-        .expect_err("cap + 1 출력은 거부한다");
+    let error = run_command_with_limit(&mut command, CaptureLimit::new(SMALL_CAPTURE_LIMIT))
+        .expect_err("cap + 1 output is rejected");
 
     // Then
     assert!(matches!(
         error,
         ExternalProcessError::StreamLimitExceeded {
             stream: super::OutputStream::Stdout,
-            max: 작은_캡처_한도
+            max: SMALL_CAPTURE_LIMIT
         }
     ));
 }
 
 #[test]
-fn 외부_표준출력과_표준오류의_합계가_한도를_넘으면_거부한다() {
+fn external_stdout_plus_stderr_over_limit_is_rejected() {
     // Given
-    let 한도 = usize::try_from(작은_캡처_한도).expect("테스트 한도는 usize에 들어간다");
-    let stdout = "o".repeat(한도 / 2 + 1);
-    let stderr = "e".repeat(한도 / 2);
+    let cap = usize::try_from(SMALL_CAPTURE_LIMIT).expect("the test limit fits in usize");
+    let stdout = "o".repeat(cap / 2 + 1);
+    let stderr = "e".repeat(cap / 2);
     let mut command = Command::new("sh");
     command.args([
         "-c",
@@ -72,22 +72,22 @@ fn 외부_표준출력과_표준오류의_합계가_한도를_넘으면_거부�
     ]);
 
     // When
-    let error = run_command_with_limit(&mut command, CaptureLimit::new(작은_캡처_한도))
-        .expect_err("두 스트림의 합계도 한도를 지켜야 한다");
+    let error = run_command_with_limit(&mut command, CaptureLimit::new(SMALL_CAPTURE_LIMIT))
+        .expect_err("the sum of both streams must respect the limit");
 
     // Then
     assert!(matches!(
         error,
         ExternalProcessError::AggregateLimitExceeded {
-            max: 작은_캡처_한도
+            max: SMALL_CAPTURE_LIMIT
         }
     ));
 }
 
 #[test]
-fn 큰_표준오류를_동시에_비워_교착하지_않는다() {
+fn drains_large_stderr_concurrently_without_deadlock() {
     // Given
-    let stderr = "e".repeat(큰_표준오류_바이트);
+    let stderr = "e".repeat(LARGE_STDERR_BYTES);
     let mut command = Command::new("sh");
     command.args([
         "-c",
@@ -95,26 +95,27 @@ fn 큰_표준오류를_동시에_비워_교착하지_않는다() {
         "upeg-test",
         &stderr,
     ]);
-    let limit = CaptureLimit::new(u64::try_from(큰_표준오류_바이트 + 2).expect("테스트 한도 변환"));
+    let limit =
+        CaptureLimit::new(u64::try_from(LARGE_STDERR_BYTES + 2).expect("test limit conversion"));
 
     // When
     let output =
-        run_command_with_limit(&mut command, limit).expect("stderr를 함께 비우면 완료한다");
+        run_command_with_limit(&mut command, limit).expect("draining stderr alongside completes");
 
     // Then
     assert_eq!(output.stdout, b"ok");
-    assert_eq!(output.stderr.len(), 큰_표준오류_바이트);
+    assert_eq!(output.stderr.len(), LARGE_STDERR_BYTES);
 }
 
 #[cfg(target_os = "linux")]
 #[test]
-fn 출력_한도_초과_프로세스를_종료하고_회수한다() {
+fn kills_and_reaps_process_that_exceeded_output_limit() {
     // Given
     let pid_path =
         std::env::temp_dir().join(format!("upeg_external_cap_reap_{}.pid", std::process::id()));
     let _ = std::fs::remove_file(&pid_path);
     let payload =
-        "x".repeat(usize::try_from(작은_캡처_한도 + 1).expect("테스트 한도는 usize에 들어간다"));
+        "x".repeat(usize::try_from(SMALL_CAPTURE_LIMIT + 1).expect("the test limit fits in usize"));
     let script = format!(
         "echo $$ > '{}'; printf '%s' \"$1\"; while :; do :; done",
         pid_path.display()
@@ -123,8 +124,8 @@ fn 출력_한도_초과_프로세스를_종료하고_회수한다() {
     command.args(["-c", &script, "upeg-test", &payload]);
 
     // When
-    let error = run_command_with_limit(&mut command, CaptureLimit::new(작은_캡처_한도))
-        .expect_err("한도 초과 프로세스는 실패한다");
+    let error = run_command_with_limit(&mut command, CaptureLimit::new(SMALL_CAPTURE_LIMIT))
+        .expect_err("an over-limit process fails");
 
     // Then
     assert!(matches!(
@@ -135,32 +136,32 @@ fn 출력_한도_초과_프로세스를_종료하고_회수한다() {
         }
     ));
     let pid = std::fs::read_to_string(&pid_path)
-        .expect("프로세스가 pid 파일을 쓴다")
+        .expect("the process writes its pid file")
         .trim()
         .parse::<u32>()
-        .expect("pid를 파싱한다");
+        .expect("parse the pid");
     assert!(
         !std::path::Path::new("/proc").join(pid.to_string()).exists(),
-        "한도 초과 프로세스가 회수되어야 한다"
+        "the over-limit process must be reaped"
     );
-    std::fs::remove_file(pid_path).expect("테스트 pid 파일을 정리한다");
+    std::fs::remove_file(pid_path).expect("clean up the test pid file");
 }
 
 #[cfg(target_os = "linux")]
 #[test]
-fn 반대_pipe를_상속한_background_프로세스도_한도_초과시_제한시간_안에_종료한다() {
+fn background_inheriting_opposite_pipe_dies_within_limit_on_cap_exceeded() {
     // Given
-    const 최대_반환_시간: Duration = Duration::from_secs(1);
-    const BACKGROUND_수명_초: u64 = 2;
+    const MAX_RETURN_TIME: Duration = Duration::from_secs(1);
+    const BACKGROUND_LIFETIME_SECS: u64 = 2;
     let pid_path = std::env::temp_dir().join(format!(
         "upeg_external_descendant_reap_{}.pid",
         std::process::id()
     ));
     let _ = std::fs::remove_file(&pid_path);
     let payload =
-        "x".repeat(usize::try_from(작은_캡처_한도 + 1).expect("테스트 한도는 usize에 들어간다"));
+        "x".repeat(usize::try_from(SMALL_CAPTURE_LIMIT + 1).expect("the test limit fits in usize"));
     let script = format!(
-        "sh -c 'trap \"\" HUP TERM; exec sleep {BACKGROUND_수명_초}' upeg-background >&2 & \
+        "sh -c 'trap \"\" HUP TERM; exec sleep {BACKGROUND_LIFETIME_SECS}' upeg-background >&2 & \
          echo $! > '{}'; printf '%s' \"$1\"",
         pid_path.display()
     );
@@ -169,8 +170,8 @@ fn 반대_pipe를_상속한_background_프로세스도_한도_초과시_제한�
 
     // When
     let started = Instant::now();
-    let error = run_command_with_limit(&mut command, CaptureLimit::new(작은_캡처_한도))
-        .expect_err("한도 초과 출력은 실패한다");
+    let error = run_command_with_limit(&mut command, CaptureLimit::new(SMALL_CAPTURE_LIMIT))
+        .expect_err("over-limit output fails");
     let elapsed = started.elapsed();
 
     // Then
@@ -182,18 +183,18 @@ fn 반대_pipe를_상속한_background_프로세스도_한도_초과시_제한�
         }
     ));
     assert!(
-        elapsed < 최대_반환_시간,
-        "background descendant의 반대 pipe 때문에 {elapsed:?} 동안 반환하지 못했다"
+        elapsed < MAX_RETURN_TIME,
+        "a background descendant's opposite pipe blocked return for {elapsed:?}"
     );
     let descendant = std::fs::read_to_string(&pid_path)
-        .expect("background descendant가 pid 파일을 쓴다")
+        .expect("the background descendant writes its pid file")
         .trim()
         .parse::<u32>()
-        .expect("descendant pid를 파싱한다");
-    let 잔존_상태 = 종료되지_않은_프로세스_상태(descendant, 프로세스_종료_대기);
+        .expect("parse the descendant pid");
+    let lingering_state = lingering_process_state(descendant, PROCESS_EXIT_WAIT);
     assert!(
-        잔존_상태.is_none(),
-        "background descendant도 종료되어야 한다: pid={descendant}, status={잔존_상태:?}"
+        lingering_state.is_none(),
+        "the background descendant must be killed too: pid={descendant}, status={lingering_state:?}"
     );
-    std::fs::remove_file(pid_path).expect("테스트 pid 파일을 정리한다");
+    std::fs::remove_file(pid_path).expect("clean up the test pid file");
 }

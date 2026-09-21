@@ -1,70 +1,82 @@
 ---
 type: Surface Contract
 title: UI/UX Surface Contract
-description: TUI, Flutter Desktop/PWA, Chrome extension이 공유하는 Tool 라이프사이클 — 키 바인딩, 활성화 정책, capability 렌더링, 페어링.
+description: The Tool lifecycle shared by TUI, Flutter Desktop/PWA, and the Chrome extension — key bindings, activation policy, capability rendering, pairing.
 tags: [surfaces, ui, keyboard, capability, tui, flutter, chrome-ext]
 status: stable
 sources:
   - id: pin-activation
     resource: ../upeg-frb/src/api/pin_activation.rs
-    title: 활성화 정책 구현
+    title: Activation-policy implementation
   - id: capability
     resource: ../upeg-core/src/capability.rs
-    title: dispatch capability 판정
+    title: Dispatch-capability verdicts
   - id: pwa-service-worker
     resource: ../flutter_app/web/upeg_service_worker.js
-    title: PWA app shell 캐시 계약
+    title: PWA app-shell cache contract
   - id: approval-policy
     resource: ../upeg-runtime/src/approval.rs
-    title: UI가 dispatch 전에 읽는 승인 정책
+    title: The approval policy UIs read before dispatch
   - id: progress-sink
     resource: ../upeg-runtime/src/progress.rs
-    title: 실행 중 출력의 선택적 통로
+    title: The optional channel for in-flight output
 ---
 
-터미널 TUI, `flutter_app/` Desktop/PWA 빌드, Chrome extension popup/content script는 같은
-Tool 라이프사이클의 surface다. 시각적 레이아웃은 매체마다 달라도 라벨, 라이프사이클 동사,
-폼 의미론, 결과 상태 표현은 정렬되어 있어야 한다.
+The terminal TUI, the `flutter_app/` Desktop/PWA builds, and the Chrome
+extension popup/content script are surfaces of the same Tool lifecycle. Visual
+layout differs per medium, but labels, lifecycle verbs, form semantics, and
+result-state presentation must stay aligned.
 
-## Desktop Controlled Embed의 공통 실행과 디버그
+## Desktop Controlled Embed: shared execution and debug
 
-Desktop은 앱 수준 WebView 세션 서비스가 Tool id마다 페이지를 소유한다. 카드나 디버그
-모달은 브라우저 수명을 소유하지 않는다. 일반 실행과 디버그의 Run/Re-run은 비동기 Rust
-dispatcher를 호출하고, dispatcher가 해석한 입력·bindings·설정을 FRB 요청 스트림으로
-WebView 서비스에 전달한다. 이 앱의 내장 HTTP 호스트에 연결된 CLI도 같은 경로를 사용한다.
+On Desktop, an app-level WebView session service owns one page per Tool id.
+Cards and debug modals do not own browser lifetimes. Normal Run and debug
+Run/Re-run call the asynchronous Rust dispatcher, and the inputs, bindings,
+and settings the dispatcher resolves are passed to the WebView service over an
+FRB request stream. A CLI attached to this app's embedded HTTP host uses the
+same path.
 
-- 일반 실행과 디버그는 같은 runner의 binding별 대기·입력·trigger·결과 읽기를 사용한다.
-  디버그는 같은 실행의 단계 이벤트와 selector 검사 결과를 관찰한다.
-- DOM에서 읽은 원시 문자열은 Rust에서 선언한 output 타입·label·primary output으로
-  정규화한다. 디버그의 마지막 결과에도 같은 정규화 결과와 오류를 적용한다.
-- Debug를 여는 것만으로 Tool을 실행하거나 페이지를 다시 로드하지 않는다. 디버그 화면은
-  기존 컨트롤러를 표시하고, 닫을 때 세션을 종료하지 않는다. 한 컨트롤러는 한 번에 한
-  WebViewWidget에만 연결한다.
-- 평소에는 앱의 숨긴 호스트가 설정한 viewport를 유지한다. 디버그 창 크기 때문에 실행
-  viewport가 바뀌지 않도록 큰 페이지는 스크롤해서 표시한다.
-- 같은 Tool의 요청은 순서대로 실행한다. 취소는 아직 시작하지 않은 후속 조작을 막지만,
-  이미 실행한 클릭을 되돌리지는 않는다. 공급자 종료 시 다른 브라우저로 재실행하지 않는다.
-- 세션은 앱 프로세스 수명 동안 유지되며 URL·브라우저 설정 변경 시 재생성한다. 실행 또는
-  디버그 중에는 설정 변경으로 페이지를 교체하지 않는다. Tool별 페이지가 별도 계정의
-  쿠키 저장소까지 격리한다는 계약은 아니다.
+- Normal runs and debug runs use the same runner's per-binding
+  wait/input/trigger/result-read logic. Debug additionally observes the step
+  events and selector-check results of the same run.
+- Raw strings read from the DOM are normalized in Rust to the declared output
+  type, label, and primary output. Debug's final result gets the same
+  normalization result and errors.
+- Opening Debug alone never runs the Tool or reloads the page. The debug
+  screen shows the existing controller and does not end the session when
+  closed. One controller attaches to at most one WebViewWidget at a time.
+- Normally the app's hidden host keeps the configured viewport. Large pages
+  scroll into view so a debug window's size does not change the run viewport.
+- Requests for the same Tool run in order. Cancellation blocks follow-up
+  operations that have not started; it does not undo a click that already
+  ran. A call is not re-run in another browser when the provider exits.
+- Sessions live for the app process's lifetime and are recreated when the URL
+  or browser settings change. A settings change never swaps the page while a
+  run or debug is in flight. Per-Tool pages are not a contract that isolates
+  even the cookie store down to separate accounts.
 
-CLI에서 Desktop WebView를 공유하려면 Desktop의 `Local HTTP host`를 켜고 앱을 시작해야
-한다. 이미 별도 CLI 호스트가 실행 중이면 기존 discovery 규칙상 그 호스트가 선택되며,
-그 프로세스가 Desktop WebView를 중계하지는 않는다. 프로젝트 Tool의 로컬 실행 규칙도
-유지된다. 이 범위의 공유 검증은 동일 사용자 toolkit의 Tool과 Desktop 내장 호스트를 대상으로 한다.
+To share Desktop's WebView from the CLI, turn on Desktop's `Local HTTP host`
+and launch the app. When a separate CLI host is already running, the existing
+discovery rules select that host, and that process does not relay Desktop's
+WebView. The local-execution rule for project Tools also still applies.
+Sharing in this scope is verified against same-user-toolkit Tools and the
+Desktop embedded host.
 
-WebView 서비스는 Flutter 엔진과 네이티브 플랫폼 호스트를 필요로 한다. PWA 내부에서
-네이티브 WebView를 생성하거나 디스플레이 없는 서버를 지원하는 기능은 아니다. 호스트가
-없는 네이티브 CLI의 기존 headless 경로는 별도로 유지된다.
+The WebView service needs the Flutter engine and a native platform host. It
+is not a feature that creates a native WebView inside a PWA or supports a
+display-less server. The existing headless path of a native CLI with no host
+is kept separately.
 
-Linux 실환경 회귀 검증은 `just flutter-controlled-embed-linux-test`로 실행한다.
-WebKitGTK와 Xvfb가 필요하며, 전용 임시 설정 루트에서 실제 WebView의 숨김/디버그 전환과
-별도 CLI 프로세스의 HTTP 호출을 확인한다. 일반 통합 테스트에서는 CLI 검증용 환경변수가
-없으면 그 사례를 건너뛴다.
+Linux real-environment regression runs via `just
+flutter-controlled-embed-linux-test`. It needs WebKitGTK and Xvfb, and checks
+a real WebView's hidden/debug switching plus HTTP calls from a separate CLI
+process against a dedicated temporary config root. In ordinary integration
+tests the case is skipped when the CLI-verification environment variable is
+absent.
 
-이 문서의 경로와 아래 네 앵커(`#canonical-lifecycle-verbs`, `#chrome-extension-contract`,
-`#display-anatomy`, `#approval-and-live-output`)는 interface inventory가 참조하고 존재를
-검증한다.
+This document's path and the four anchors below (`#canonical-lifecycle-verbs`,
+`#chrome-extension-contract`, `#display-anatomy`, `#approval-and-live-output`)
+are referenced and existence-checked by the interface inventory.
 
 ## Canonical lifecycle verbs
 
@@ -80,12 +92,14 @@ WebKitGTK와 Xvfb가 필요하며, 전용 임시 설정 루트에서 실제 WebV
 
 `Enter` always means Run and never Open/Inspect, so the two intents cannot collide.
 
-**헤드리스 대응.** GUI가 없는 호스트에서도 같은 동사를 쓸 수 있어야 한다. `Pin` /
-`Coordinate move`에 대응하는 CLI 명령은 `upeg board <board> pin <tool> [--units U1|U2|U2T]
-[--at <row>,<col>]`, `upeg board <board> unpin <tool>`, `upeg board <board> move <tool>
---at <row>,<col>` 이고, GUI 제스처와 **같은 store·같은 reconcile·같은 밀어내기 규칙**을
-쓴다(`upeg_sources::pegboard`). 그래서 CLI로 만든 핀과 드래그로 만든 핀은 이후 구분되지
-않는다. `--at`은 `<row>,<col>` 순서이며, 저장 좌표 `(x, y)`는 `(col, row)`다.
+**Headless counterpart.** The same verbs must be usable on a host with no GUI.
+The CLI commands for `Pin` / `Coordinate move` are `upeg board <board> pin
+<tool> [--units U1|U2|U2T] [--at <row>,<col>]`, `upeg board <board> unpin
+<tool>`, and `upeg board <board> move <tool> --at <row>,<col>`, and they use
+**the same store, the same reconcile, and the same push-out rules** as the GUI
+gestures (`upeg_sources::pegboard`). A pin made by CLI and a pin made by drag
+are indistinguishable afterwards. `--at` takes `<row>,<col>` order; the stored
+coordinate `(x, y)` is `(col, row)`.
 
 ## Canonical Board Keys
 
@@ -152,7 +166,7 @@ There is no "edit mode" to enter before manipulating boards or pins.
 `upeg-frb/src/api/pin_activation.rs` centralises "what happens when a pin is activated"
 (tap, `Enter`, or `Run`) so Rust decides once and both surfaces follow.
 
-![핀 활성화 결정 — 모달은 세 경우에만 열린다](diagrams/pin-activation.drawio.svg)
+![Pin activation decision — the modal opens in only three cases](diagrams/pin-activation.drawio.svg)
 
 - **Runnable pins with no required input dispatch immediately.** A runnable pin — `Inline`,
   `Action`, `Live`, or `Launcher` — whose input spec has zero required fields fires right
@@ -176,7 +190,7 @@ There is no "edit mode" to enter before manipulating boards or pins.
 - **`memo.scratch`** is a `Live` pin whose inline body is an always-live notepad backed by the
   same memo store.
 - **Honest provider state.** A `Live` pin with an `Http` invoker and `Static` source that has
-  no configured provider shows a "설정 필요" badge in place of a runnable affordance.
+  no configured provider shows a "setup required" badge in place of a runnable affordance.
   Activating it yields a clear provider-not-configured message rather than a generic failure.
   The rule is keyed off invoker/source metadata, so any future "live http, no provider" tool
   is honest by construction.
@@ -200,41 +214,48 @@ Non-reasons for a bespoke form, all supplied by the host around the generic form
 zero-input tool gets a Run button (the modal's primary button, the inline pin body's Run
 button) instead of a dead-end "no inputs" panel.
 
-### `File` 입력 — 고르기와 끌어 놓기는 같은 곳으로 수렴한다
+### `File` input — picking and dropping converge to the same place
 
-`File` 필드는 위 목록에서 빠진 유일한 종류다. 다른 종류와 달리 값을 얻는 경로가 둘이고,
-둘의 결과가 같아야 하기 때문에 계약을 따로 적는다.
+`File` is the only kind missing from the list above. Unlike the others it has
+two ways to obtain a value, and because the two must produce the same result
+the contract is written separately.
 
-| 경로 | 어떻게 |
+| Path | How |
 |---|---|
-| 고르기 | `Choose file` 버튼이 플랫폼 파일 대화상자를 연다 |
-| 끌어 놓기 | 필드 **전체**가 드롭 영역이다. 파일이 들어오면 테두리와 배경이 강조되고, 나가면 되돌아간다 |
+| Pick | The `Choose file` button opens the platform file dialog |
+| Drop | The **whole field** is the drop zone. A file arriving highlights the border and background; leaving restores them |
 
-**두 경로는 같은 조립 단계로 수렴한다.** 정책 검증(허용 확장자, 개수, 파일별·전체 크기)이
-그 단계에 있으므로, 드롭이 픽커보다 느슨할 수 없다. 어느 경로든 읽기는 상한이 정해진
-창으로만 스트리밍하고, 열기 전에 크기를 미리 확인한다.
+**The two paths converge on the same assembly step.** Policy validation
+(allowed extensions, count, per-file and total size) lives in that step, so a
+drop can never be looser than the picker. Either path streams the read through
+a bounded window and checks the size before opening.
 
-빈 상태에서 필드는 두 경로를 함께 안내한다("파일을 선택하거나 여기로 끌어 놓으세요").
-`File` 값은 파일 시스템 경로가 아니라 바이트로 실려 가므로, 이 경로 전체가 브라우저
-빌드에서도 그대로 돈다.
+In its empty state the field explains both paths together ("choose a file or
+drop it here"). A `File` value travels as bytes, not a filesystem path (the
+canonical `FileValue` JSON is the [File wire
+contract](architecture/file-wire.md)), so this entire path works unchanged in
+the browser build too.
 
-**다중 선택은 합성 디렉터리가 된다.** `max_count > 1`인 필드는 고른 파일들을 이름 하나
-아래의 `directory` 항목 목록으로 묶어 보낸다. 모양은 고른 개수가 아니라 **정책**이
-정한다 — `max_count == 1`이면 파일 하나가 그대로 `bytes`가 되고, `max_count > 1`이면
-한 개를 골라도 디렉터리로 감싸인다.
+**Multi-select becomes a synthetic directory.** A field with `max_count > 1`
+sends the picked files as a list of `directory` entries under a single name.
+The shape is decided by the **policy**, not the picked count — with
+`max_count == 1` a single file becomes `bytes` directly, while with
+`max_count > 1` even one picked file is wrapped in a directory.
 
-정직하게 적어 두는 어긋남과 미구현:
+The mismatches and gaps, written down honestly:
 
-- **실제 디렉터리 선택은 지원하지 않는다.** 위의 `directory`는 여러 파일을 담는 합성
-  컨테이너이고, 폴더를 끌어다 놓으면 거부된다.
-- **`FilePath`는 `File`이 아니다.** 경로 문자열을 받는 별개 종류이고, 텍스트 필드와 폴더
-  버튼만 있으며 드롭 영역이 아니다.
-- **Chrome 확장에는 끌어 놓기가 없다.** 확장은 native `<input type="file">`만 쓴다.
-  정책 검사는 확장에도 있지만 드롭 경로 자체가 없다.
-- **필드 UI가 정책을 선택 전에 별도로 안내하지 않는다.** 허용 확장자·개수·크기 상한을
-  설명하는 문구는 없고 `description`만 보여 준다. 선택기는 이미 Flutter의
-  `allowedExtensions`와 Chrome 확장의 `accept`로 확장자 필터를 받으며, 정책 위반은
-  선택 후 오류 문구로도 드러난다.
+- **Real directory selection is not supported.** The `directory` above is a
+  synthetic container holding multiple files; dropping a folder is refused.
+- **`FilePath` is not `File`.** It is a separate kind that takes a path
+  string — a text field and a folder button only, not a drop zone.
+- **The Chrome extension has no drop path.** The extension uses only the
+  native `<input type="file">`. Policy checks exist there too, but the drop
+  path itself does not.
+- **The field UI does not explain the policy ahead of selection.** There is
+  no text stating the allowed extensions, count, or size limits — only the
+  `description` is shown. The pickers already take an extension filter through
+  Flutter's `allowedExtensions` and the extension's `accept`, and a policy
+  violation surfaces as an error message after selection.
 
 ## Implementation Boundary
 
@@ -268,8 +289,7 @@ Embed webview/platform view body, or a ControlledEmbed cockpit form:
 ## Chrome extension contract
 
 The extension's reason to exist is the page the user is already on. Anything the popup could
-only mirror from another pegboard renderer is not where this surface invests
-(백로그).
+only mirror from another pegboard renderer is not where this surface invests.
 
 ### Activation routes (`chrome-ext/tool_routing.js`)
 
@@ -350,30 +370,40 @@ surfaces.
 
 ## PWA offline contract
 
-`flutter_app/`의 웹 빌드는 오프라인에서도 떠야 하는 PWA다. 계약을 지키는 파일은 둘이다.
+The `flutter_app/` web build is a PWA that must boot offline. Two files keep
+the contract.
 
-- `flutter_app/web/upeg_service_worker.js` — app shell 캐시(`upeg-app-shell-<릴리스 버전>`)를
-  소유한다. 설치 때 문서 · `flutter_bootstrap.js` · `manifest.json`을 프리캐시하고, navigation
-  요청은 network-first(실패하면 캐시된 문서), 나머지 same-origin GET은 stale-while-revalidate로
-  응답한다. 버전은 등록 URL의 `?v=`로 들어오고 `activate`가 이름이 다른 옛 캐시를 지우므로,
-  셸 캐시는 언제나 하나이며 릴리스가 바뀌면 통째로 새로 난다.
-- `flutter_app/web/flutter_bootstrap.js` — 그 SW를 등록하고 **SW가 이 페이지를 제어할 때까지
-  기다린 뒤** 앱을 띄운다. 그래야 첫 로드가 받아오는 셸(`main.dart.js` · CanvasKit ·
-  `pkg/upeg_frb*`)이 전부 캐시에 들어간다. CanvasKit도 gstatic CDN이 아니라 우리 origin에서
-  받는다(`canvasKitBaseUrl`) — 남의 origin에 있는 렌더러는 캐시할 수 없고, 캐시할 수 없는
-  렌더러는 오프라인 부팅을 불가능하게 만든다. 등록은 릴리스 빌드에서만 한다: Flutter가
-  `flutter run -d chrome`의 dev 서버에서 `{{flutter_service_worker_version}}`을 `null`로 채우고,
-  그 신호를 그대로 써서 dev 루프가 캐시된 옛 코드를 되돌려받지 않게 한다.
+- `flutter_app/web/upeg_service_worker.js` — owns the app-shell cache
+  (`upeg-app-shell-<release version>`). At install it precaches the document,
+  `flutter_bootstrap.js`, and `manifest.json`; navigation requests are
+  answered network-first (falling back to the cached document), and every
+  other same-origin GET is stale-while-revalidate. The version arrives through
+  the registration URL's `?v=`, and `activate` deletes old caches under other
+  names — so there is always exactly one shell cache, and a release change
+  rebuilds it whole.
+- `flutter_app/web/flutter_bootstrap.js` — registers that SW and launches the
+  app **only after the SW controls this page**. Only then does everything the
+  first load pulls in (`main.dart.js`, CanvasKit, `pkg/upeg_frb*`) land in the
+  cache. CanvasKit comes from our own origin too (`canvasKitBaseUrl`), not the
+  gstatic CDN — a renderer on someone else's origin cannot be cached, and a
+  renderer that cannot be cached makes offline booting impossible.
+  Registration happens only in release builds: Flutter fills
+  `{{flutter_service_worker_version}}` with `null` on the `flutter run -d
+  chrome` dev server, and that signal is used as-is so the dev loop never gets
+  stale cached code back.
 
-Flutter가 생성하는 `flutter_service_worker.js`는 **등록하지 않는다.** 3.29부터 그 파일은 캐싱을
-버리고 자기 자신을 unregister 하는 청소용 SW가 되었고, `flutter build web`에는 `--pwa-strategy`
-플래그조차 없다. 오프라인 계약을 유지하려면 SW를 우리가 소유하는 수밖에 없다.
+The `flutter_service_worker.js` Flutter generates is **not registered.** Since
+3.29 that file drops caching and becomes a cleanup SW that unregisters itself,
+and `flutter build web` does not even have a `--pwa-strategy` flag. Keeping
+the offline contract means we have to own the SW.
 
-검증은 `just flutter-web-smoke`(`scripts/flutter_web_smoke_check.mjs`)다. 헤드리스 Chromium을
-CDP로 몰면서 (1) 앱 셸이 뜨는지, (2) `navigator.serviceWorker.ready`가 `upeg_service_worker.js`를
-activated로 돌려주고 그 SW가 페이지를 제어하는지, (3) app shell 캐시에 부팅 셸이 다 들어 있는지,
-(4) **정적 서버를 내린 뒤** reload 해도 캐시에서 뜨는지를 단언한다. Chromium이 없으면 건너뛰지
-않고 실패한다 — 없는 검증을 초록으로 보이게 하지 않기 위해서다.
+Verification is `just flutter-web-smoke`
+(`scripts/flutter_web_smoke_check.mjs`). Driving headless Chromium over CDP it
+asserts that (1) the app shell comes up, (2) `navigator.serviceWorker.ready`
+resolves to `upeg_service_worker.js` activated and that SW controls the page,
+(3) the app-shell cache holds the whole boot shell, and (4) **with the static
+server taken down** a reload still boots from cache. When Chromium is absent
+it fails rather than skipping — a missing check must never show up green.
 
 ## Capability contract (define once, render honestly)
 
@@ -397,8 +427,9 @@ host (`net.status`, `eth.gas`, `eth.address_lookup`).
   `upeg-loader`), `NoWasmHost` (`Wasm` needs the extism host), or `NativeOnlyTool` (a
   `Function` tool whose dispatcher needs native-only services, not a loader gap).
 - **Surfaces render `Unsupported` as an honest notice, never a runnable affordance.**
-  `SurfaceUnsupportedBody` replaces only the pin's rendered body with a static "이 표면에서는
-  미지원" body — the pin's declaration stays visible and tappable-to-inspect, never hidden and
+  `SurfaceUnsupportedBody` replaces only the pin's rendered body with a static
+  "not supported on this surface" body — the pin's declaration stays visible
+  and tappable-to-inspect, never hidden and
   never wired to dispatch. The same pattern backs `ProviderNotConfiguredBody` and the
   controlled-embed inline notice.
 - `gui_meta`/built-in `surfaces` declarations are audited against this table so a tool never
@@ -416,7 +447,7 @@ solvable by pairing with a native host: that host links the full loader
   non-empty base URL is set". There is no discovery handshake — the token is generated by the
   host and pasted manually, same as the chrome-ext popup's token field. The CLI pairing aid
   (`upeg http status --pairing`) exists so this does not require hand-copying an ephemeral port
-  and token; see [호스트 토폴로지](/architecture/host-topology.md).
+  and token; see [Host topology](architecture/host-topology.md).
 - When a pin's capability is `Unsupported` and a host is paired, the board routes the tap
   through `POST /v1/tools/{id}` on the paired host (`HttpAttachClient.dispatch`, 8s timeout)
   and renders the remote result exactly like an in-process result. A failed remote attempt
@@ -427,65 +458,77 @@ solvable by pairing with a native host: that host links the full loader
   `HostAttachNoticeBody` carrying the host's own error message. The board never hides a
   paired-but-failing attempt behind a generic "unsupported" badge.
 
-CORS, bearer auth, and `/healthz` exposure rules live in [HTTP API](/architecture/http-api.md).
+CORS, bearer auth, and `/healthz` exposure rules live in [HTTP API](architecture/http-api.md).
 
 ## Approval and live output
 
-실행은 두 지점에서 사람과 만난다. **실행 전**에는 승인 장벽이 있고, **실행 중**에는 살아 있는
-출력이 있다. 표면마다 매체는 달라도 두 계약은 같다.
+A run meets a person at two points. **Before the run** there is the approval
+barrier; **during the run** there is live output. The medium differs per
+surface, but the two contracts are the same.
 
-### 승인 제스처
+### Approval gestures
 
-`requires_approval` step을 가진 Chain은 dispatch 전에 사람의 확인을 요구한다. UI는 dispatch
-**전에** `ToolMeta::requires_approval` / `approval_surfaces`(FRB `ToolDto`의 `requiresApproval` /
-`approvalSurfaces`)로 "확인을 띄워야 하는가"와 "내 표면의 확인이 인정되는가"를 묻고, 확인을 받은
-뒤에만 `approve`를 싣는다 — 근거는 [Chain Tool](/architecture/chain.md)의 표면 게이트다.
+A Chain with a `requires_approval` step demands a person's confirmation before
+dispatch. **Before** dispatch, the UI asks `ToolMeta::requires_approval` /
+`approval_surfaces` (the FRB `ToolDto`'s `requiresApproval` /
+`approvalSurfaces`) "should a confirmation be shown?" and "is my surface's
+confirmation honored?", and only after a person confirms does it attach
+`approve` — the basis is the surface gate in [Chain Tool](architecture/chain.md).
 
-| Surface | 제스처 | 이 표면의 승인이 인정되지 않을 때 |
+| Surface | Gesture | When this surface's approval is not honored |
 | --- | --- | --- |
-| CLI | `upeg call <chain> -a approve=true` | 거부 메시지가 인정되는 surface를 나열한다 |
-| TUI | 실행 시 확인 대화상자 — `Enter`/`F1`/`y` 승인, `Esc`/`n`/`q` 취소 | 프롬프트 대신 result pane이 이유와 인정되는 surface 목록을 적는다 |
-| Desktop | 실행 전 확인 다이얼로그 — 승인 후 실행 / 취소 | 다이얼로그가 승인 대신 이유와 인정되는 surface를 설명하고 dispatch하지 않는다 |
-| MCP · HTTP · PWA · Ext | 없음 | 매니페스트가 `approval_surfaces`로 그 표면의 이름을 적어야 한다 |
+| CLI | `upeg call <chain> -a approve=true` | The denial message lists the authorized surfaces |
+| TUI | A confirm dialog in front of the run — `Enter`/`F1`/`y` approve, `Esc`/`n`/`q` cancel | Instead of prompting, the result pane writes the reason and the list of authorized surfaces |
+| Desktop | A pre-run confirm dialog — run after approval / cancel | The dialog explains the reason and the authorized surfaces instead of approving, and does not dispatch |
+| MCP · HTTP · PWA · Ext | None | The manifest must name that surface in `approval_surfaces` |
 
-**예약 키는 확인이 만들지, 폼이 만들지 않는다.** TUI는 확인 대화상자의 "예"에서만
-`approve`를 args에 얹고, desktop은 `approve`를 typed FRB 파라미터로 받아 Rust가 얹는다 —
-Dart가 조립한 args도, 핀에 저장된 args preset도 예약 키를 스스로 채워 승인을 자칭할 수 없다
-(Rust가 호출자의 `approve` 키를 먼저 지운다). 확인을 우회하는 경로가 UI 안에 남지 않게 하는
-것이 이 계약의 요점이다.
+**The reserved key is made by a confirmation, not by a form.** The TUI puts
+`approve` into args only from the confirm dialog's "yes," and desktop receives
+`approve` as a typed FRB parameter that Rust attaches — neither args assembled
+in Dart nor an args preset stored on a pin can fill the reserved key itself to
+claim approval (Rust erases a caller-sent `approve` key first). The point of
+this contract is that no path that bypasses a confirmation survives inside the
+UI.
 
-### 살아 있는 출력
+### Live output
 
-`External` invoker처럼 점진적으로 출력을 내는 Tool은 실행 중 chunk를 흘린다
-(`upeg_runtime::with_progress_sink`). 최종 봉투 하나가 여전히 계약이고 살아 있는 출력은 그 위에
-얹은 **선택적인 절반**이다 — 아무도 sink를 설치하지 않으면 invoker는 전달 작업을 아예 건너뛴다.
+A Tool that emits output incrementally, like an `External` invoker, streams
+chunks while running (`upeg_runtime::with_progress_sink`). One final envelope
+is still the contract, and live output is an **optional half** layered on top —
+when nobody installs a sink the invoker skips the forwarding work entirely.
 
-| Surface | 실행 중 표시 | 취소 |
+| Surface | While running | Cancel |
 | --- | --- | --- |
-| CLI | 사람이 읽는 모드에서 stderr로 그대로 미러링(`--json`/`--field`는 침묵) | `Ctrl+C` |
-| TUI | result pane에 마지막 8줄 tail. dispatch는 worker thread에서 돌기 때문에 UI가 멈추지 않는다. host에 attach한 세션도 같다 — `POST /v1/tools/{id}/stream`을 타고 chunk가 그대로 들어온다 | 실행 중 `Esc`. attach 상태에서는 응답 본문을 끊는 것이 곧 취소 신호다 |
-| Desktop | 확장 모달은 마지막 8줄, inline 핀은 마지막 3줄 tail(monospace) | Cancel 버튼 |
-| HTTP | NDJSON 스트림 | 응답 본문 drop |
-| MCP | 로그 notification | — |
+| CLI | Mirrored verbatim to stderr in human-readable modes (`--json`/`--field` stay silent) | `Ctrl+C` |
+| TUI | An 8-line tail in the result pane. Dispatch runs on a worker thread so the UI does not freeze. A session attached to a host is the same — chunks arrive verbatim over `POST /v1/tools/{id}/stream` | `Esc` while running. When attached, dropping the response body is itself the cancel signal |
+| Desktop | Expanded modal tails the last 8 lines, inline pins the last 3 (monospace) | Cancel button |
+| HTTP | NDJSON stream | Dropping the response body |
+| MCP | Log notifications | — |
 
-**취소는 요청이지 보장이 아니다**(`upeg_runtime::CancellationToken`). 존중하지 않는 Tool은
-끝까지 달리고, 그래도 모든 표면이 렌더하는 최종 봉투 하나로 끝난다. 그래서 TUI는 실행 중
-`Esc`를 두 단계로 받는다 — 한 번은 취소 요청("취소 중…"), 두 번째는 [Modeless
-invariants](#modeless-invariants)의 quit-confirm overlay를 연다. 토큰을 끝내 보지 않는
-invoker 앞에서도 사람에게 나갈 문이 남아야 하지만, 반사적인 `Esc` 두 번이 세션을 떨어뜨려서도
-안 되기 때문이다.
+**Cancellation is a request, not a guarantee**
+(`upeg_runtime::CancellationToken`). A Tool that does not honor it runs to the
+end, and still ends in the single final envelope every surface renders. That
+is why the TUI takes `Esc` in two stages while running — once is a cancel
+request ("cancelling…"), the second opens the quit-confirm overlay from
+[Modeless invariants](#modeless-invariants). A person needs a way out even in
+front of an invoker that never checks the token, but two reflexive `Esc`s must
+not drop the session either.
 
-**실행 중 화면을 떠나도 실행은 계속된다 — 다만 두 표면이 잃는 것이 다르다.**
+**Leaving the screen mid-run does not stop the run — but the two surfaces lose
+different things.**
 
-TUI에서 quit-confirm을 열었다가 물러나면 tail은 사라지지만 **실행은 모델이 계속 붙들고 있다**
-(`State::active_run`). 그래서 그 사이에 다른 Tool을 Run하면 새 실행이 시작되는 대신 "무엇이
-실행 중인지"를 말하고 그 실행의 pane으로 돌려보낸다 — 거기서 `Esc`는 여전히 취소다. 돌아간
-pane의 tail은 비어 있다: 떠날 때 버린 줄을 지어낼 수는 없다.
+In the TUI, opening quit-confirm and backing away loses the tail, but **the
+model keeps holding the run** (`State::active_run`). So Running another Tool
+in the meantime does not start a new run — it says what is running and returns
+you to that run's pane, where `Esc` is still cancel. The returned pane's tail
+is empty: lines discarded on the way out cannot be fabricated.
 
-desktop에서 확장 모달을 닫으면 그렇지 않다. `run_id`는 모달 위젯의 state에 살기 때문에 모달과
-함께 사라지고, 그 순간부터 **그 실행은 취소할 수 없고 최종 봉투도 아무 데도 렌더되지 않는다**.
-실행 자체는 끝까지 달리고 실행 로그에는 남는다. 이것을 고치려면 실행 상태를 모달 밖(provider)
-으로 끌어올려야 하고, 그건 남은 일 대장의 항목이다.
+In desktop, closing the expanded modal is not like that. `run_id` lives in the
+modal widget's state, so it dies with the modal — from that moment **the run
+cannot be cancelled and its final envelope renders nowhere**. The run itself
+still runs to the end and stays in the execution log. Fixing this means
+lifting run state out of the modal into a provider — a known gap, not yet
+implemented.
 
 ## Display anatomy
 

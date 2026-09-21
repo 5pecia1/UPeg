@@ -35,14 +35,14 @@ fn parse_tool_entry(toml_str: &str) -> Result<ToolEntryToml, toml::de::Error> {
     toml::from_str(toml_str)
 }
 
-/// Test: 중첩된 컨트롤드 임베드 바인딩은_파싱된다
+/// Test: nested controlled-embed bindings parse
 ///
 /// Verifies that bindings nested inside controlled_embed are correctly parsed.
 ///
 /// CURRENT: This test will FAIL because `bindings` field doesn't exist in ControlledEmbedToml
 /// AFTER REFACTORING: This test will PASS
 #[test]
-fn 중첩된_컨트롤드_임베드_바인딩은_파싱된다() {
+fn nested_controlled_embed_bindings_parse() {
     let toml_str = r#"
 id = "test_tool"
 pin = "ControlledEmbed"
@@ -99,13 +99,13 @@ selector = '''#results'''
     assert_eq!(bindings[2].selector, "#results");
 }
 
-/// Test: 최상위_셀렉터_바인딩은_거부된다
+/// Test: top-level selector bindings are rejected
 ///
 /// Verifies that top-level selector_bindings (flat structure) are rejected
 /// after the refactoring.
 ///
 #[test]
-fn 최상위_셀렉터_바인딩은_거부된다() {
+fn top_level_selector_bindings_are_rejected() {
     // Use inline table format (similar to working tests in loader.rs)
     // Note: Use ''' for raw strings to avoid # being interpreted as prefix
     let toolkit_str = r#"id = "test_tool"
@@ -137,11 +137,11 @@ selector_bindings = [
     }
 }
 
-/// Test: 빈_바인딩은_옵션으로_처리된다
+/// Test: empty bindings are treated as optional
 ///
 /// Verifies that omitting bindings (controlled_embed without bindings) is valid.
 #[test]
-fn 빈_바인딩은_옵션으로_처리된다() {
+fn empty_bindings_are_treated_as_optional() {
     let toml_str = r#"
 id = "test_tool"
 pin = "ControlledEmbed"
@@ -170,11 +170,11 @@ viewport = "mobile"
     assert_eq!(ce.viewport.as_deref(), Some("mobile"));
 }
 
-/// Test: 최소한한_바인딩만_있어도_유효하다
+/// Test: minimal bindings alone are valid
 ///
 /// Verifies that only selector field is required, other fields have defaults.
 #[test]
-fn 최소한한_바인딩만_있어도_유효하다() {
+fn minimal_bindings_alone_are_valid() {
     let toml_str = r#"
 id = "test_tool"
 pin = "ControlledEmbed"

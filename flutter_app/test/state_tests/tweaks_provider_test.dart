@@ -45,7 +45,7 @@ ProviderContainer _container({
 
 void main() {
   group('TweaksController', () {
-    test('TweaksController_build는_loader_결과로_상태를_시드한다', () async {
+    test('TweaksController_build_seeds_state_from_loader_result', () async {
       final container = _container();
       addTearDown(container.dispose);
 
@@ -53,7 +53,7 @@ void main() {
       expect(value, _initial);
     });
 
-    test('TweaksController_save는_provider_상태를_갱신한다', () async {
+    test('TweaksController_save_updates_provider_state', () async {
       TweaksDto? saved;
       final container = _container(onSave: (t) => saved = t);
       addTearDown(container.dispose);
@@ -68,18 +68,23 @@ void main() {
       expect(container.read(tweaksProvider).value, _next);
     });
 
-    test('TweaksController_save는_saver_예외시_AsyncError를_노출한다', () async {
-      final container = _container(onSave: (_) => throw Exception('disk full'));
-      addTearDown(container.dispose);
+    test(
+      'TweaksController_save_exposes_AsyncError_on_saver_exception',
+      () async {
+        final container = _container(
+          onSave: (_) => throw Exception('disk full'),
+        );
+        addTearDown(container.dispose);
 
-      await container.read(tweaksProvider.future);
+        await container.read(tweaksProvider.future);
 
-      final controller = container.read(tweaksProvider.notifier);
-      await controller.save(_next);
+        final controller = container.read(tweaksProvider.notifier);
+        await controller.save(_next);
 
-      final state = container.read(tweaksProvider);
-      expect(state, isA<AsyncError<TweaksDto>>());
-      expect(state.hasError, isTrue);
-    });
+        final state = container.read(tweaksProvider);
+        expect(state, isA<AsyncError<TweaksDto>>());
+        expect(state.hasError, isTrue);
+      },
+    );
   });
 }

@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn 정수_입력은_json_숫자와_문자열_모두_허용한다() {
+    fn integer_input_accepts_json_number_and_string() {
         let numeric = args(r#"{"count": 42}"#);
         let stringy = args(r#"{"count": "42"}"#);
 
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn 범위를_초과하는_정수는_거부한다() {
+    fn out_of_range_integer_is_rejected() {
         let too_big = args(r#"{"count": 999}"#);
         let negative = args(r#"{"count": -1}"#);
 
@@ -277,14 +277,14 @@ mod tests {
     }
 
     #[test]
-    fn 큰_u128은_문자열_인코딩으로_받는다() {
+    fn large_u128_arrives_via_string_encoding() {
         let huge = args(r#"{"count": "340282366920938463463374607431768211455"}"#);
 
         assert_eq!(u128::from_plugin_arg(&huge, "count", true), Ok(u128::MAX));
     }
 
     #[test]
-    fn 필수_필드가_누락되면_필드명을_포함한_에러를_반환한다() {
+    fn missing_required_field_errors_naming_field() {
         let empty = args("{}");
 
         let err = String::from_plugin_arg(&empty, "name", true).unwrap_err();
@@ -296,14 +296,14 @@ mod tests {
     }
 
     #[test]
-    fn 필수_필드가_null이면_에러를_반환한다() {
+    fn null_required_field_errors() {
         let with_null = args(r#"{"name": null}"#);
 
         assert!(String::from_plugin_arg(&with_null, "name", true).is_err());
     }
 
     #[test]
-    fn 옵션_필드가_누락되면_none을_반환한다() {
+    fn missing_optional_field_returns_none() {
         let empty = args("{}");
 
         assert_eq!(
@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn 옵션_필드가_null이면_none을_반환한다() {
+    fn null_optional_field_returns_none() {
         let with_null = args(r#"{"count": null}"#);
 
         assert_eq!(
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn 옵션_필드가_존재하면_내부_타입으로_역직렬화한다() {
+    fn present_optional_field_deserializes_inner_type() {
         let present = args(r#"{"count": 7}"#);
 
         assert_eq!(
@@ -333,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    fn bool_문자열은_true_false로_코어션한다() {
+    fn bool_strings_coerce_to_true_false() {
         let stringy_true = args(r#"{"flag": "true"}"#);
         let stringy_false = args(r#"{"flag": "false"}"#);
         let native = args(r#"{"flag": true}"#);
@@ -347,14 +347,14 @@ mod tests {
     }
 
     #[test]
-    fn bool_이외의_문자열은_거부한다() {
+    fn non_bool_strings_are_rejected() {
         let garbage = args(r#"{"flag": "yes"}"#);
 
         assert!(bool::from_plugin_arg(&garbage, "flag", true).is_err());
     }
 
     #[test]
-    fn value_필드는_누락되어도_null로_성공한다() {
+    fn missing_value_field_succeeds_as_null() {
         let empty = args("{}");
 
         assert_eq!(
@@ -364,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn value_필드는_원본_서브트리를_복제한다() {
+    fn value_field_clones_the_original_subtree() {
         let nested = args(r#"{"payload": {"a": 1}}"#);
 
         assert_eq!(
@@ -374,35 +374,35 @@ mod tests {
     }
 
     #[test]
-    fn result_err은_문자열_에러로_변환된다() {
+    fn result_err_converts_to_string_error() {
         let failed: Result<String, String> = Err("boom".to_string());
 
         assert_eq!(failed.to_plugin_output(), Err("boom".to_string()));
     }
 
     #[test]
-    fn result_ok은_내부_값을_렌더링한다() {
+    fn result_ok_renders_inner_value() {
         let ok: Result<i32, String> = Ok(42);
 
         assert_eq!(ok.to_plugin_output(), Ok("42".to_string()));
     }
 
     #[test]
-    fn 옵션_none_출력은_고정_에러_메시지를_반환한다() {
+    fn option_none_output_returns_fixed_error_message() {
         let none: Option<String> = None;
 
         assert_eq!(none.to_plugin_output(), Err(NO_VALUE_ERROR.to_string()));
     }
 
     #[test]
-    fn f64와_스칼라는_to_string으로_렌더링한다() {
+    fn f64_and_scalars_render_via_to_string() {
         assert_eq!(3.5_f64.to_plugin_output(), Ok("3.5".to_string()));
         assert_eq!(42_i32.to_plugin_output(), Ok("42".to_string()));
         assert_eq!(true.to_plugin_output(), Ok("true".to_string()));
     }
 
     #[test]
-    fn 문자열_슬라이스는_소유_문자열로_렌더링한다() {
+    fn str_slice_renders_as_owned_string() {
         let borrowed: &str = "hello";
 
         assert_eq!(borrowed.to_plugin_output(), Ok("hello".to_string()));
