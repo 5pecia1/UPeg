@@ -105,7 +105,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 등록되지_않은_도구는_승인_장벽이_없다() {
+    fn unregistered_tool_has_no_approval_barrier() {
         let policy = tool_approval_policy("test.approval.unregistered");
         assert!(!policy.requires_approval());
         assert!(policy.surfaces().is_empty());
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn 게이트된_도구는_인가된_표면만_승인할_수_있다고_답한다() {
+    fn gated_tool_answers_that_only_authorized_surfaces_may_approve() {
         let id = "test.approval.registry.gated";
         set_tool_approval_policy(
             id,
@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn 장벽이_없는_정책은_아무_표면도_승인자로_지목하지_않는다() {
+    fn barrier_free_policy_names_no_surface_as_approver() {
         let policy = ToolApprovalPolicy::none();
         for surface in upeg_core::ALL_SURFACES {
             assert!(!policy.honors(*surface), "{}", surface.label());

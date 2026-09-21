@@ -18,8 +18,12 @@ part 'file_input_actions.dart';
 const Duration _highlightDuration = Duration(milliseconds: 120);
 const double _borderWidth = 2;
 const double _dragHighlightOpacity = 0.12;
-const String _emptyPrompt = '파일을 선택하거나\n여기로 끌어 놓으세요.';
-const String _pickFailureMessage = '파일을 선택하지 못했습니다.';
+
+/// Catalog keys (upeg-pegboard-ui/src/i18n.rs) — copy renders through
+/// `t()`/`tRead()` so the field follows the active locale.
+const String _emptyPromptKey = 'modal.file.empty_prompt';
+const String _selectedCountKey = 'modal.file.selected_count';
+const String _pickFailureKey = 'modal.file.pick_failed';
 
 abstract final class FileInputKeys {
   static const dropTarget = Key('file-input-drop-target');
@@ -29,7 +33,7 @@ abstract final class FileInputKeys {
   static const clearButton = Key('file-input-clear-button');
 }
 
-final class FileInputField extends StatefulWidget {
+final class FileInputField extends ConsumerStatefulWidget {
   const FileInputField({
     required this.label,
     required this.value,
@@ -54,10 +58,10 @@ final class FileInputField extends StatefulWidget {
   final bool compact;
 
   @override
-  State<FileInputField> createState() => _FileInputFieldState();
+  ConsumerState<FileInputField> createState() => _FileInputFieldState();
 }
 
-final class _FileInputFieldState extends State<FileInputField> {
+final class _FileInputFieldState extends ConsumerState<FileInputField> {
   bool _isDragging = false;
   bool _isBusy = false;
   String? _errorMessage;
@@ -88,18 +92,18 @@ final class _FileInputFieldState extends State<FileInputField> {
       if (picked == null) return;
       await _assembleAndCommit(fileSelectionCandidatesFromPicked(picked));
     } on FilePickerReadFailure catch (failure) {
-      _showError(
+      _showFailure(
         FileSelectionFailure(
           FileSelectionErrorCode.readFailed,
           fileName: failure.fileName,
-        ).message,
+        ),
       );
     } on FilePickerSelectionFailure catch (failure) {
-      _showError(fileSelectionFailureFromPicker(failure).message);
+      _showFailure(fileSelectionFailureFromPicker(failure));
     } on FileSelectionFailure catch (failure) {
-      _showError(failure.message);
+      _showFailure(failure);
     } on Exception {
-      _showError(_pickFailureMessage);
+      _showError(tRead(ref, _pickFailureKey));
     } finally {
       _finishSelection();
     }
@@ -118,7 +122,7 @@ final class _FileInputFieldState extends State<FileInputField> {
             exception: error,
             stack: stackTrace,
             library: 'upeg file input',
-            context: ErrorDescription('파일 선택 동작을 처리하는 중'),
+            context: ErrorDescription('while handling a file pick'),
           ),
         );
       }),
@@ -131,9 +135,9 @@ final class _FileInputFieldState extends State<FileInputField> {
     try {
       await _assembleAndCommit(candidates);
     } on FileSelectionFailure catch (failure) {
-      _showError(failure.message);
+      _showFailure(failure);
     } on Exception {
-      _showError(_pickFailureMessage);
+      _showError(tRead(ref, _pickFailureKey));
     } finally {
       _finishSelection();
     }
@@ -165,6 +169,13 @@ final class _FileInputFieldState extends State<FileInputField> {
   void _showError(String message) {
     if (!mounted) return;
     setState(() => _errorMessage = message);
+  }
+
+  /// Localized presentation of a typed [FileSelectionFailure] — the
+  /// failure carries the code + structured fields, this resolves them
+  /// against the active locale.
+  void _showFailure(FileSelectionFailure failure) {
+    _showError(tRead(ref, failure.messageKey, failure.messageArgs));
   }
 
   void _setDragging(bool value) {
@@ -215,7 +226,11 @@ final class _FileInputFieldState extends State<FileInputField> {
             ),
           ],
           const SizedBox(height: UpegSizing.radius2),
-          Text(names.isEmpty ? _emptyPrompt : '${names.length}개 파일 선택됨'),
+          Text(
+            names.isEmpty
+                ? t(ref, _emptyPromptKey)
+                : t(ref, _selectedCountKey, {'count': '${names.length}'}),
+          ),
           if (names.isNotEmpty) ...[
             const SizedBox(height: UpegSizing.radius1),
             for (final name in names)

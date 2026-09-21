@@ -17,7 +17,7 @@ const BoardDto _board = BoardDto(key: 'dev', title: 'Dev');
 
 void main() {
   group('boardsProvider', () {
-    test('boardsProvider는_로더_결과를_그대로_반환한다', () async {
+    test('boardsProvider_returns_loader_result_verbatim', () async {
       final container = ProviderContainer(
         overrides: [
           boardsLoaderProvider.overrideWith(
@@ -33,7 +33,7 @@ void main() {
       expect(result.single.key, 'dev');
     });
 
-    test('boardsProvider는_로더_예외를_AsyncError로_전파한다', () async {
+    test('boardsProvider_propagates_loader_exception_as_AsyncError', () async {
       final container = ProviderContainer(
         overrides: [
           boardsLoaderProvider.overrideWith(

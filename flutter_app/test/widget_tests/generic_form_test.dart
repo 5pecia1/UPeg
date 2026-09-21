@@ -45,7 +45,9 @@ bool _editableHasFocus(WidgetTester tester, String key) {
 
 void main() {
   group('GenericFormWidget', () {
-    testWidgets('GenericForm은_각_field_타입마다_적절한_위젯을_렌더한다', (tester) async {
+    testWidgets('the_generic_form_renders_the_right_widget_for_each_field_type', (
+      tester,
+    ) async {
       final tool = _toolWithFields(const [
         InputFieldDto(
           key: 'text_in',
@@ -99,7 +101,7 @@ void main() {
       final controller = GenericFormController();
       await tester.pumpWidget(_harness(tool: tool, c: controller));
 
-      // 각 키마다 위젯이 하나씩 그려져 있다.
+      // One widget is rendered per key.
       expect(find.byKey(const Key('field-text_in')), findsOneWidget);
       expect(find.byKey(const Key('field-multi_in')), findsOneWidget);
       expect(find.byKey(const Key('field-num_in')), findsOneWidget);
@@ -107,10 +109,10 @@ void main() {
       expect(find.byKey(const Key('field-file_in')), findsOneWidget);
       expect(find.byKey(const Key('field-sel_in')), findsOneWidget);
 
-      // 위젯 종류별 매핑 확인.
-      // SwitchListTile 내부에 Switch 가 한 개 존재.
+      // Verify the per-field-type widget mapping.
+      // Exactly one Switch lives inside the SwitchListTile.
       expect(find.byType(Switch), findsOneWidget);
-      // Select 필드는 DropdownButtonFormField 그 자체가 키를 가진다.
+      // For the Select field the DropdownButtonFormField itself carries the key.
       expect(
         find.byWidgetPredicate(
           (w) =>
@@ -119,11 +121,13 @@ void main() {
         ),
         findsOneWidget,
       );
-      // required 필드는 ` *` 접미사가 붙는다.
+      // Required fields get a ` *` suffix.
       expect(find.text('Text *'), findsOneWidget);
     });
 
-    testWidgets('GenericForm은_텍스트_입력을_controller에_반영한다', (tester) async {
+    testWidgets('the_generic_form_mirrors_text_input_into_the_controller', (
+      tester,
+    ) async {
       final tool = _toolWithFields(const [
         InputFieldDto(
           key: 'message',
@@ -141,7 +145,9 @@ void main() {
       expect(controller.snapshot()['message'], equals('hello'));
     });
 
-    testWidgets('GenericForm은_빈_inputFields에서_안내문을_표시한다', (tester) async {
+    testWidgets('the_generic_form_shows_a_notice_for_empty_inputfields', (
+      tester,
+    ) async {
       final tool = _toolWithFields(const []);
       final controller = GenericFormController();
       await tester.pumpWidget(_harness(tool: tool, c: controller));
@@ -149,7 +155,9 @@ void main() {
       expect(find.byKey(const Key('generic-form-empty')), findsOneWidget);
     });
 
-    testWidgets('GenericForm은_화살표키로_field_focus를_이동한다', (tester) async {
+    testWidgets('the_generic_form_moves_field_focus_with_the_arrow_keys', (
+      tester,
+    ) async {
       final tool = _toolWithFields(const [
         InputFieldDto(
           key: 'first',
@@ -185,7 +193,7 @@ void main() {
       expect(_editableHasFocus(tester, 'first'), isTrue);
     });
 
-    testWidgets('GenericForm은_Tab과_ShiftTab으로_field_focus를_이동한다', (
+    testWidgets('the_generic_form_moves_field_focus_with_tab_and_shift_tab', (
       tester,
     ) async {
       final tool = _toolWithFields(const [
@@ -219,103 +227,110 @@ void main() {
       expect(_editableHasFocus(tester, 'first'), isTrue);
     });
 
-    testWidgets('필수 선택 필드는 값을 고르기 전까지 form을 유효하게 만들지 않는다', (tester) async {
-      final tool = _toolWithFields(const [
-        InputFieldDto(
-          key: 'choice',
-          label: 'Choice',
-          fieldType: InputFieldType_Select(
-            options: <ChoiceOptionDto>[
-              ChoiceOptionDto(value: 'alpha', label: 'alpha'),
-              ChoiceOptionDto(value: 'beta', label: 'beta'),
-            ],
+    testWidgets(
+      'a_required_select_keeps_the_form_invalid_until_a_value_is_chosen',
+      (tester) async {
+        final tool = _toolWithFields(const [
+          InputFieldDto(
+            key: 'choice',
+            label: 'Choice',
+            fieldType: InputFieldType_Select(
+              options: <ChoiceOptionDto>[
+                ChoiceOptionDto(value: 'alpha', label: 'alpha'),
+                ChoiceOptionDto(value: 'beta', label: 'beta'),
+              ],
+            ),
+            required_: true,
           ),
-          required_: true,
-        ),
-      ]);
-      final controller = GenericFormController();
-      bool? isValid;
+        ]);
+        final controller = GenericFormController();
+        bool? isValid;
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [fakeKeyboardResolverOverride],
-          child: MaterialApp(
-            home: Scaffold(
-              body: GenericFormWidget(
-                tool: tool,
-                controller: controller,
-                onValidationChanged: (value) => isValid = value,
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides, fakeKeyboardResolverOverride],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(
+                  tool: tool,
+                  controller: controller,
+                  onValidationChanged: (value) => isValid = value,
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(isValid, isFalse);
+        expect(isValid, isFalse);
 
-      await tester.tap(find.byKey(const Key('field-choice')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('alpha').last);
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('field-choice')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('alpha').last);
+        await tester.pumpAndSettle();
 
-      expect(isValid, isTrue);
-      expect(controller.value('choice'), const OptionValue('alpha'));
-    });
+        expect(isValid, isTrue);
+        expect(controller.value('choice'), const OptionValue('alpha'));
+      },
+    );
 
-    testWidgets('Boolean 필드는 기본값 false를 typed snapshot에 포함한다', (tester) async {
-      final tool = _toolWithFields(const [
-        InputFieldDto(
-          key: 'enabled',
-          label: 'Enabled',
-          fieldType: InputFieldType_Boolean(),
-          required_: true,
-        ),
-      ]);
-      final controller = GenericFormController();
+    testWidgets(
+      'a_boolean_field_includes_its_default_false_in_the_typed_snapshot',
+      (tester) async {
+        final tool = _toolWithFields(const [
+          InputFieldDto(
+            key: 'enabled',
+            label: 'Enabled',
+            fieldType: InputFieldType_Boolean(),
+            required_: true,
+          ),
+        ]);
+        final controller = GenericFormController();
 
-      await tester.pumpWidget(_harness(tool: tool, c: controller));
-      await tester.pump();
+        await tester.pumpWidget(_harness(tool: tool, c: controller));
+        await tester.pump();
 
-      expect(controller.value('enabled'), const BooleanValue(false));
-      expect(controller.snapshot()['enabled'], isFalse);
-    });
+        expect(controller.value('enabled'), const BooleanValue(false));
+        expect(controller.snapshot()['enabled'], isFalse);
+      },
+    );
 
-    testWidgets('Number 필드는 overflow 입력을 typed 숫자로 저장하거나 유효하게 보지 않는다', (
-      tester,
-    ) async {
-      final tool = _toolWithFields(const [
-        InputFieldDto(
-          key: 'number',
-          label: 'Number',
-          fieldType: InputFieldType_Number(),
-          required_: true,
-        ),
-      ]);
-      final controller = GenericFormController();
-      bool? isValid;
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [fakeKeyboardResolverOverride],
-          child: MaterialApp(
-            home: Scaffold(
-              body: GenericFormWidget(
-                tool: tool,
-                controller: controller,
-                onValidationChanged: (value) => isValid = value,
+    testWidgets(
+      'a_number_field_keeps_overflow_input_as_raw_text_and_stays_invalid',
+      (tester) async {
+        final tool = _toolWithFields(const [
+          InputFieldDto(
+            key: 'number',
+            label: 'Number',
+            fieldType: InputFieldType_Number(),
+            required_: true,
+          ),
+        ]);
+        final controller = GenericFormController();
+        bool? isValid;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides, fakeKeyboardResolverOverride],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(
+                  tool: tool,
+                  controller: controller,
+                  onValidationChanged: (value) => isValid = value,
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      await tester.enterText(find.byKey(const Key('field-number')), '1e400');
-      await tester.pump();
+        await tester.enterText(find.byKey(const Key('field-number')), '1e400');
+        await tester.pump();
 
-      expect(controller.value('number'), const TextValue('1e400'));
-      expect(isValid, isFalse);
-      expect(find.text('not a number'), findsOneWidget);
-    });
+        expect(controller.value('number'), const TextValue('1e400'));
+        expect(isValid, isFalse);
+        expect(find.text('not a number'), findsOneWidget);
+      },
+    );
   });
 }

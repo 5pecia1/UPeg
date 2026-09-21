@@ -5,7 +5,9 @@ import '../test_helpers/controlled_embed_tile_harness.dart';
 void main() {
   useStubbedControlledEmbedSeams();
 
-  testWidgets('긴 출력은 생략 없이 선택 가능한 텍스트로 표시한다', (tester) async {
+  testWidgets('a_long_output_shows_as_selectable_text_without_truncation', (
+    tester,
+  ) async {
     controlledEmbedFixture.executor =
         ({required toolId, required args, boardKey}) async =>
             canonicalSuccess({'intro': kLongControlledEmbedOutput});
@@ -15,7 +17,9 @@ void main() {
     robot.expectSelectableOutput('intro', kLongControlledEmbedOutput);
   });
 
-  testWidgets('출력 복사 버튼은 해당 값 전체를 클립보드에 전달한다', (tester) async {
+  testWidgets('the_output_copy_button_passes_the_full_value_to_the_clipboard', (
+    tester,
+  ) async {
     const fullValue = 'hello world copy test';
     final writer = RecordingClipboardWriterForTile();
     controlledEmbedFixture.executor =
@@ -28,7 +32,9 @@ void main() {
     expect(writer.writes, [fullValue]);
   });
 
-  testWidgets('오류도 생략 없이 선택 가능한 텍스트로 표시한다', (tester) async {
+  testWidgets('an_error_also_shows_as_selectable_text_without_truncation', (
+    tester,
+  ) async {
     controlledEmbedFixture.executor =
         ({required toolId, required args, boardKey}) async =>
             canonicalError(kSelectorMissControlledEmbedError);
@@ -38,14 +44,17 @@ void main() {
     robot.expectSelectableError(kSelectorMissControlledEmbedError);
   });
 
-  testWidgets('타일 폭이 좁아져도 브라우저를 만들지 않고 실행 버튼을 배치한다', (tester) async {
-    final robot = ControlledEmbedTileRobot(tester);
-    await robot.pump(width: UpegSizing.pinCellWidth, height: 240);
-    robot.expectNoFrameworkError();
-    robot.expectRunEnabled(true);
-    await robot.pump(width: 80, height: 240);
-    robot.expectNoFrameworkError();
-    robot.expectDebugEnabled(true);
-    expect(controlledEmbedFixture.factory.sessions, isEmpty);
-  });
+  testWidgets(
+    'a_narrow_tile_still_lays_out_the_run_button_without_creating_a_browser',
+    (tester) async {
+      final robot = ControlledEmbedTileRobot(tester);
+      await robot.pump(width: UpegSizing.pinCellWidth, height: 240);
+      robot.expectNoFrameworkError();
+      robot.expectRunEnabled(true);
+      await robot.pump(width: 80, height: 240);
+      robot.expectNoFrameworkError();
+      robot.expectDebugEnabled(true);
+      expect(controlledEmbedFixture.factory.sessions, isEmpty);
+    },
+  );
 }

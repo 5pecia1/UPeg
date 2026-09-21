@@ -1,11 +1,12 @@
-/// BoardCanvas pin-resize UX: SE-corner handle, 셀 스냅 드래그 미리보기,
-/// warn 하이라이트, preview overlay 키, drag 커밋.
+/// BoardCanvas pin-resize UX: SE-corner handle, cell-snapped drag previews,
+/// warning highlights, preview overlay keys, and drag commits.
 ///
-/// 마우스 드래그와 키보드 `e` 흐름은 같은 [resizeModeProvider] state를
-/// 구동한다 — preview 경로가 하나뿐임을 키보드 없이 provider를 직접
-/// 뒤집는 케이스로도 고정한다. FRB 호출은 typed seam
-/// (`resizePreviewLoaderProvider` / `resizePinCommitFnProvider`)으로
-/// 가로채서 dylib 없이 돈다 (board_canvas_drop_highlight_test.dart 미러).
+/// Mouse drags and the keyboard `e` flow drive the same [resizeModeProvider]
+/// state. Directly changing the provider without keyboard input also verifies
+/// that there is only one preview path. Typed seams
+/// (`resizePreviewLoaderProvider` / `resizePinCommitFnProvider`) intercept FRB
+/// calls so the tests run without a dylib, mirroring
+/// board_canvas_drop_highlight_test.dart.
 library;
 
 import 'package:flutter/material.dart';
@@ -32,7 +33,7 @@ const Key _resizePreviewKey = Key('board-canvas-resize-preview');
 const _fixedBoardCols = 6;
 final _devBoardKey = BoardKey.parse('dev');
 
-/// 한 셀 이동에 해당하는 픽셀 스텝 (셀 + 갭).
+/// Pixel step for moving one cell (cell + gap).
 const double _colStep = UpegSizing.pinCellWidth + UpegSizing.pinGap;
 
 class _SeededCurrentBoard extends CurrentBoardNotifier {
@@ -87,7 +88,7 @@ const _singlePinSnapshot = LayoutSnapshotDto(
   placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
 );
 
-/// 그대로 통과하는 projection: resize 대상만 요청된 span으로 돌려준다.
+/// Pass-through projection: returns only the resize target with the requested span.
 List<PlacementDto> _acceptLoader(
   BoardKey boardKey,
   ToolId toolId,
@@ -97,7 +98,7 @@ List<PlacementDto> _acceptLoader(
   return [PlacementDto(toolId: toolId.value, x: 0, y: 0, w: cols, h: rows)];
 }
 
-/// 핸들을 오른쪽으로 한 셀만큼 드래그하고, 손을 떼지 않은 채 반환한다.
+/// Drags the handle one cell to the right and returns without releasing it.
 Future<TestGesture> _dragHandleOneColumnRight(
   WidgetTester tester, {
   Finder? handleFinder,
@@ -125,8 +126,8 @@ BoxDecoration _highlightDecoration(WidgetTester tester) {
 }
 
 void main() {
-  group('BoardCanvas 리사이즈 핸들', () {
-    testWidgets('핀은_SE_코너에_리사이즈_핸들을_보여준다', (tester) async {
+  group('BoardCanvas resize handle', () {
+    testWidgets('a_pin_shows_a_resize_handle_in_its_SE_corner', (tester) async {
       await tester.pumpWidget(
         _harness(
           snapshot: _singlePinSnapshot,
@@ -140,14 +141,16 @@ void main() {
         find.byTooltip(i18nEn('pin.resize.handle_tooltip')),
         findsOneWidget,
       );
-      // 핸들은 핀 rect의 오른쪽 아래 구석에 있다.
+      // The handle sits in the bottom-right corner of the pin rect.
       final handleCenter = tester.getCenter(find.byKey(pinResizeHandleKey));
       final pinRect = tester.getRect(find.byType(Pin));
       expect(handleCenter.dx, greaterThan(pinRect.center.dx));
       expect(handleCenter.dy, greaterThan(pinRect.center.dy));
     });
 
-    testWidgets('핸들_드래그는_셀_스냅된_span_미리보기를_보여준다', (tester) async {
+    testWidgets('dragging_the_handle_shows_a_cell_snapped_span_preview', (
+      tester,
+    ) async {
       final requestedSpans = <(int, int)>[];
       List<PlacementDto> recordingLoader(
         BoardKey boardKey,
@@ -171,7 +174,7 @@ void main() {
 
       final gesture = await _dragHandleOneColumnRight(tester);
 
-      // 한 셀만큼 드래그 → 2x1로 스냅된 span rect (accent).
+      // Dragging one cell produces a span rect snapped to 2x1 (accent).
       expect(find.byKey(_resizeHighlightKey), findsOneWidget);
       expect(requestedSpans.last, (2, 1));
       final positioned = tester.widget<Positioned>(
@@ -193,57 +196,60 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('다른_pin을_밀어내는_리사이즈는_warn_하이라이트와_push_라벨을_보여준다', (tester) async {
-      const snapshot = LayoutSnapshotDto(
-        boardKey: 'dev',
-        boardCols: _fixedBoardCols,
-        placements: [
-          PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
-          PlacementDto(toolId: 'fixture.b', x: 1, y: 0, w: 1, h: 1),
-        ],
-      );
-      // fixture.a가 2칸으로 커지면 fixture.b가 (2,0)으로 밀린다.
-      List<PlacementDto> pushLoader(
-        BoardKey boardKey,
-        ToolId toolId,
-        int cols,
-        int rows,
-      ) {
-        return [
-          PlacementDto(toolId: toolId.value, x: 0, y: 0, w: cols, h: rows),
-          const PlacementDto(toolId: 'fixture.b', x: 2, y: 0, w: 1, h: 1),
-        ];
-      }
+    testWidgets(
+      'a_resize_that_pushes_another_pin_shows_a_warn_highlight_and_push_label',
+      (tester) async {
+        const snapshot = LayoutSnapshotDto(
+          boardKey: 'dev',
+          boardCols: _fixedBoardCols,
+          placements: [
+            PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
+            PlacementDto(toolId: 'fixture.b', x: 1, y: 0, w: 1, h: 1),
+          ],
+        );
+        // Expanding fixture.a to two columns pushes fixture.b to (2,0).
+        List<PlacementDto> pushLoader(
+          BoardKey boardKey,
+          ToolId toolId,
+          int cols,
+          int rows,
+        ) {
+          return [
+            PlacementDto(toolId: toolId.value, x: 0, y: 0, w: cols, h: rows),
+            const PlacementDto(toolId: 'fixture.b', x: 2, y: 0, w: 1, h: 1),
+          ];
+        }
 
-      await tester.pumpWidget(
-        _harness(snapshot: snapshot, resizePreviewLoader: pushLoader),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _harness(snapshot: snapshot, resizePreviewLoader: pushLoader),
+        );
+        await tester.pumpAndSettle();
 
-      final gesture = await _dragHandleOneColumnRight(
-        tester,
-        handleFinder: find.byKey(pinResizeHandleKey).first,
-      );
+        final gesture = await _dragHandleOneColumnRight(
+          tester,
+          handleFinder: find.byKey(pinResizeHandleKey).first,
+        );
 
-      final decoration = _highlightDecoration(tester);
-      expect(decoration.color, UpegTokens.dark.warn.withValues(alpha: 0.18));
-      final border = decoration.border as Border;
-      expect(border.top.color, UpegTokens.dark.warn);
-      // 밀려나는 pin은 move-mode와 같은 라벨 overlay로 표시된다.
-      expect(find.byKey(_resizePreviewKey), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(_resizePreviewKey),
-          matching: find.textContaining('fixture.b'),
-        ),
-        findsWidgets,
-      );
+        final decoration = _highlightDecoration(tester);
+        expect(decoration.color, UpegTokens.dark.warn.withValues(alpha: 0.18));
+        final border = decoration.border as Border;
+        expect(border.top.color, UpegTokens.dark.warn);
+        // A displaced pin uses the same label overlay as move mode.
+        expect(find.byKey(_resizePreviewKey), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(_resizePreviewKey),
+            matching: find.textContaining('fixture.b'),
+          ),
+          findsWidgets,
+        );
 
-      await gesture.up();
-      await tester.pumpAndSettle();
-    });
+        await gesture.up();
+        await tester.pumpAndSettle();
+      },
+    );
 
-    testWidgets('빈_preview는_리사이즈_overlay를_숨긴다', (tester) async {
+    testWidgets('an_empty_preview_hides_the_resize_overlay', (tester) async {
       List<PlacementDto> rejectLoader(
         BoardKey boardKey,
         ToolId toolId,
@@ -268,7 +274,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('핸들_드래그를_놓으면_commit_seam으로_setSpan을_보낸다', (tester) async {
+    testWidgets('releasing_a_handle_drag_sends_setSpan_to_the_commit_seam', (
+      tester,
+    ) async {
       ToolId? observedTool;
       ResizeCommitAction? observedAction;
       Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
@@ -295,11 +303,11 @@ void main() {
       final setSpan = action as ResizeCommitSetSpan;
       expect(setSpan.cols, 2);
       expect(setSpan.rows, 1);
-      // 드래그가 끝나면 preview overlay도 사라진다.
+      // The preview overlay disappears when the drag ends.
       expect(find.byKey(_resizeHighlightKey), findsNothing);
     });
 
-    testWidgets('움직이지_않은_드래그는_commit을_보내지_않는다', (tester) async {
+    testWidgets('a_drag_without_movement_does_not_commit', (tester) async {
       var called = false;
       Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
         called = true;
@@ -323,45 +331,52 @@ void main() {
       expect(called, isFalse);
     });
 
-    testWidgets('키보드로_켠_resize_mode도_같은_preview_overlay를_사용한다', (tester) async {
-      // 마우스 없이 provider state만 Active로 뒤집는다 — 드래그와 같은
-      // 단일 preview 경로임을 고정 (board_canvas_push_preview_test.dart
-      // 미러).
-      await tester.pumpWidget(
-        _harness(
-          snapshot: _singlePinSnapshot,
-          resizePreviewLoader: _acceptLoader,
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'keyboard_activated_resize_mode_uses_the_same_preview_overlay',
+      (tester) async {
+        // Set the provider state to Active without using the mouse. This
+        // verifies the same single preview path as dragging, mirroring
+        // board_canvas_push_preview_test.dart.
+        await tester.pumpWidget(
+          _harness(
+            snapshot: _singlePinSnapshot,
+            resizePreviewLoader: _acceptLoader,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(_resizeHighlightKey), findsNothing);
+        expect(find.byKey(_resizeHighlightKey), findsNothing);
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      container
-          .read(resizeModeProvider.notifier)
-          .start(
-            boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.a'),
-            baseCols: 1,
-            baseRows: 1,
-            manifestCols: 1,
-            manifestRows: 1,
-            maxCols: _fixedBoardCols,
-          );
-      container.read(resizeModeProvider.notifier).resizeBy(dCols: 1, dRows: 0);
-      await tester.pumpAndSettle();
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        container
+            .read(resizeModeProvider.notifier)
+            .start(
+              boardKey: _devBoardKey,
+              toolId: ToolId.parse('fixture.a'),
+              baseCols: 1,
+              baseRows: 1,
+              manifestCols: 1,
+              manifestRows: 1,
+              maxCols: _fixedBoardCols,
+            );
+        container
+            .read(resizeModeProvider.notifier)
+            .resizeBy(dCols: 1, dRows: 0);
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(_resizeHighlightKey), findsOneWidget);
+        expect(find.byKey(_resizeHighlightKey), findsOneWidget);
 
-      container.read(resizeModeProvider.notifier).cancel();
-      await tester.pumpAndSettle();
-      expect(find.byKey(_resizeHighlightKey), findsNothing);
-    });
+        container.read(resizeModeProvider.notifier).cancel();
+        await tester.pumpAndSettle();
+        expect(find.byKey(_resizeHighlightKey), findsNothing);
+      },
+    );
 
-    testWidgets('다른_board의_resize_mode는_preview를_요청하지_않는다', (tester) async {
+    testWidgets('resize_mode_for_another_board_does_not_request_a_preview', (
+      tester,
+    ) async {
       var loaderCalled = false;
       List<PlacementDto> recordingLoader(
         BoardKey boardKey,

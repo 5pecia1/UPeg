@@ -34,7 +34,7 @@ fn upeg_mcp_config() -> UpstreamMcpConfig {
 }
 
 #[test]
-fn toml_wasm_mcp_세_종류의_도구는_각각_독립적으로_dispatch된다() {
+fn toml_wasm_and_mcp_tools_each_dispatch_independently() {
     // ─── 1. TOML External ───────────────────────────────────────
     let toml_dir = std::env::temp_dir().join("upeg_three_sources_toml");
     let _ = std::fs::remove_dir_all(&toml_dir);

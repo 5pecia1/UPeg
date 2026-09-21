@@ -14,10 +14,10 @@ use upeg_core::{
 const DECODED_QUANTUM_BYTES: u64 = 3;
 const ZERO_BASE64_QUANTUM: &str = "AAAA";
 
-fn 영_바이트_base64(decoded_len: u64) -> String {
+fn zero_bytes_base64(decoded_len: u64) -> String {
     let full_quantums = decoded_len / DECODED_QUANTUM_BYTES;
     let mut encoded = ZERO_BASE64_QUANTUM
-        .repeat(usize::try_from(full_quantums).expect("테스트 base64 길이는 usize에 맞아야 한다"));
+        .repeat(usize::try_from(full_quantums).expect("test base64 length must fit in usize"));
     let remainder = decoded_len % DECODED_QUANTUM_BYTES;
     if remainder == 1 {
         encoded.push_str("AA==");
@@ -27,7 +27,7 @@ fn 영_바이트_base64(decoded_len: u64) -> String {
     encoded
 }
 
-fn 바이트_노드(name: String, mime: Option<String>, bytes: String) -> Value {
+fn bytes_node(name: String, mime: Option<String>, bytes: String) -> Value {
     let mut node = json!({
         "name": name,
         "is_dir": false,
@@ -42,7 +42,7 @@ fn 바이트_노드(name: String, mime: Option<String>, bytes: String) -> Value 
     node
 }
 
-fn 디렉터리_노드(name: String, entries: Vec<Value>) -> Value {
+fn directory_node(name: String, entries: Vec<Value>) -> Value {
     json!({
         "name": name,
         "is_dir": true,
@@ -53,30 +53,30 @@ fn 디렉터리_노드(name: String, entries: Vec<Value>) -> Value {
     })
 }
 
-fn 깊이_트리(depth: usize) -> Value {
-    let mut tree = 바이트_노드("f".to_string(), None, String::new());
+fn deep_tree(depth: usize) -> Value {
+    let mut tree = bytes_node("f".to_string(), None, String::new());
     for _ in 1..depth {
-        tree = 디렉터리_노드("d".to_string(), vec![tree]);
+        tree = directory_node("d".to_string(), vec![tree]);
     }
     tree
 }
 
 #[test]
-fn 파일_출력_json은_여러_leaf의_raw_합계가_상한이면_허용하고_한_바이트를_더하면_거부한다() {
+fn file_output_json_accepts_a_raw_sum_at_the_limit_across_leaves_and_rejects_one_more_byte() {
     let first_leaf_bytes = MAX_FILE_OUTPUT_RAW_BYTES / 2;
     let second_leaf_bytes = MAX_FILE_OUTPUT_RAW_BYTES - first_leaf_bytes;
-    let mut tree = 디렉터리_노드(
+    let mut tree = directory_node(
         "root".to_string(),
         vec![
-            바이트_노드(
+            bytes_node(
                 "first.bin".to_string(),
                 None,
-                영_바이트_base64(first_leaf_bytes),
+                zero_bytes_base64(first_leaf_bytes),
             ),
-            바이트_노드(
+            bytes_node(
                 "second.bin".to_string(),
                 None,
-                영_바이트_base64(second_leaf_bytes),
+                zero_bytes_base64(second_leaf_bytes),
             ),
         ],
     );
@@ -85,8 +85,8 @@ fn 파일_출력_json은_여러_leaf의_raw_합계가_상한이면_허용하고_
 
     tree["content"]["entries"]
         .as_array_mut()
-        .expect("entries는 배열이어야 한다")
-        .push(바이트_노드(
+        .expect("entries must be an array")
+        .push(bytes_node(
             "overflow.bin".to_string(),
             None,
             "AA==".to_string(),
@@ -101,19 +101,19 @@ fn 파일_출력_json은_여러_leaf의_raw_합계가_상한이면_허용하고_
 }
 
 #[test]
-fn 파일_출력_json은_aggregate_노드_상한을_넘으면_거부한다() {
-    let leaf = || 바이트_노드("f".to_string(), None, String::new());
+fn file_output_json_rejects_exceeding_the_aggregate_node_limit() {
+    let leaf = || bytes_node("f".to_string(), None, String::new());
     let mut entries = (1..MAX_FILE_OUTPUT_NODES).map(|_| leaf()).collect();
-    let mut tree = 디렉터리_노드("r".to_string(), entries);
+    let mut tree = directory_node("r".to_string(), entries);
     assert_eq!(preflight_file_output_json(&tree), Ok(()));
 
     entries = tree["content"]["entries"]
         .as_array_mut()
-        .expect("entries는 배열이어야 한다")
+        .expect("entries must be an array")
         .drain(..)
         .collect();
     entries.push(leaf());
-    tree = 디렉터리_노드("r".to_string(), entries);
+    tree = directory_node("r".to_string(), entries);
     assert_eq!(
         preflight_file_output_json(&tree),
         Err(FileOutputPreflightError::NodeCountExceeded {
@@ -124,24 +124,21 @@ fn 파일_출력_json은_aggregate_노드_상한을_넘으면_거부한다() {
 }
 
 #[test]
-fn 파일_출력_json은_utf8_메타데이터_aggregate_상한을_넘으면_거부한다() {
+fn file_output_json_rejects_exceeding_the_utf8_metadata_aggregate_limit() {
     const ROOT_METADATA_BYTES: u64 = 1;
     const UTF8_CHARACTER: &str = "가";
     let leaf_metadata_bytes = MAX_FILE_OUTPUT_METADATA_BYTES - ROOT_METADATA_BYTES;
     let utf8_character_bytes =
-        u64::try_from(UTF8_CHARACTER.len()).expect("문자 길이는 u64에 맞아야 한다");
+        u64::try_from(UTF8_CHARACTER.len()).expect("character length must fit in u64");
     let repeated_characters = leaf_metadata_bytes / utf8_character_bytes;
     let remainder = leaf_metadata_bytes % utf8_character_bytes;
     let name = UTF8_CHARACTER.repeat(
-        usize::try_from(repeated_characters).expect("테스트 문자열 길이는 usize에 맞아야 한다"),
+        usize::try_from(repeated_characters).expect("test string length must fit in usize"),
     );
     let mime = (remainder > 0).then(|| {
-        "x".repeat(usize::try_from(remainder).expect("나머지 길이는 usize에 맞아야 한다"))
+        "x".repeat(usize::try_from(remainder).expect("remainder length must fit in usize"))
     });
-    let mut tree = 디렉터리_노드(
-        "r".to_string(),
-        vec![바이트_노드(name, mime, String::new())],
-    );
+    let mut tree = directory_node("r".to_string(), vec![bytes_node(name, mime, String::new())]);
 
     assert_eq!(preflight_file_output_json(&tree), Ok(()));
 
@@ -156,11 +153,11 @@ fn 파일_출력_json은_utf8_메타데이터_aggregate_상한을_넘으면_거�
 }
 
 #[test]
-fn 파일_출력_json은_깊이_상한을_넘으면_거부한다() {
-    let allowed = 깊이_트리(MAX_FILE_OUTPUT_NESTING_DEPTH);
+fn file_output_json_rejects_exceeding_the_depth_limit() {
+    let allowed = deep_tree(MAX_FILE_OUTPUT_NESTING_DEPTH);
     assert_eq!(preflight_file_output_json(&allowed), Ok(()));
 
-    let exceeded = 디렉터리_노드("d".to_string(), vec![allowed]);
+    let exceeded = directory_node("d".to_string(), vec![allowed]);
     assert_eq!(
         preflight_file_output_json(&exceeded),
         Err(FileOutputPreflightError::NestingTooDeep {
@@ -170,29 +167,29 @@ fn 파일_출력_json은_깊이_상한을_넘으면_거부한다() {
 }
 
 #[test]
-fn 파일_출력_json은_비정규_base64와_잘못된_패딩을_할당전에_거부한다() {
+fn file_output_json_rejects_noncanonical_base64_and_bad_padding_before_allocation() {
     for encoded in ["A===", "AA=A", "Zh==", "Zm9="] {
-        let tree = 바이트_노드("invalid.bin".to_string(), None, encoded.to_string());
+        let tree = bytes_node("invalid.bin".to_string(), None, encoded.to_string());
 
         assert!(
             matches!(
                 preflight_file_output_json(&tree),
                 Err(FileOutputPreflightError::InvalidStructure { .. })
             ),
-            "{encoded:?}는 canonical padded base64가 아니다"
+            "{encoded:?} is not canonical padded base64"
         );
     }
 }
 
 #[test]
-fn 파일_출력_json은_빈_디렉터리를_허용한다() {
-    let tree = 디렉터리_노드("empty".to_string(), Vec::new());
+fn file_output_json_accepts_empty_directories() {
+    let tree = directory_node("empty".to_string(), Vec::new());
 
     assert_eq!(preflight_file_output_json(&tree), Ok(()));
 }
 
 #[test]
-fn typed_파일_출력도_aggregate_노드_예산을_공유한다() {
+fn typed_file_output_shares_the_aggregate_node_budget() {
     let entries = (0..MAX_FILE_OUTPUT_NODES)
         .map(|index| FileValue {
             name: format!("{index}.bin"),

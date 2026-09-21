@@ -7,7 +7,8 @@
 //! (input) and [`super::file_output_preflight`] (output) under their
 //! direction-specific names. The two raw-byte ceilings stay distinct on
 //! purpose — input trees accept up to 50 MiB, output trees up to 64 MiB —
-//! see README.md ("이 입력 예산은 위의 출력 root 예산과 별개다").
+//! see README.md ("this input budget is separate from the output root
+//! budget above").
 //!
 //! Dart (`flutter_app/lib/src/rust/canonical_file_value_budget.dart`,
 //! `flutter_app/lib/src/platform/file_input_resource_limits.dart`,

@@ -13,15 +13,15 @@ use upeg_core::{
     MAX_FILE_INPUT_NODES, MAX_FILE_INPUT_RAW_BYTES,
 };
 
-fn 정책(max_count: u32) -> FileInputPolicy {
+fn policy(max_count: u32) -> FileInputPolicy {
     FileInputPolicy::try_from(FileInputPolicyParams {
         max_count,
         ..FileInputPolicyParams::default()
     })
-    .expect("유효한 파일 정책이어야 한다")
+    .expect("file policy must be valid")
 }
 
-fn 바이트_파일(name: String, mime: Option<String>) -> FileValue {
+fn bytes_file(name: String, mime: Option<String>) -> FileValue {
     FileValue {
         name,
         mime,
@@ -29,7 +29,7 @@ fn 바이트_파일(name: String, mime: Option<String>) -> FileValue {
     }
 }
 
-fn 디렉터리(name: String, entries: Vec<FileValue>) -> FileValue {
+fn directory(name: String, entries: Vec<FileValue>) -> FileValue {
     FileValue {
         name,
         mime: None,
@@ -37,16 +37,16 @@ fn 디렉터리(name: String, entries: Vec<FileValue>) -> FileValue {
     }
 }
 
-fn 파일_검증(policy: FileInputPolicy, file: FileValue) -> Result<(), InputValueError> {
+fn validate_file(policy: FileInputPolicy, file: FileValue) -> Result<(), InputValueError> {
     let field = InputFieldSpec::new(
-        InputName::new("upload").expect("유효한 입력 이름이어야 한다"),
+        InputName::new("upload").expect("input name must be valid"),
         None,
         None,
         true,
         InputKind::File(policy),
     )
-    .expect("유효한 파일 필드여야 한다");
-    let spec = InputSpec::new(vec![field]).expect("유효한 입력 명세여야 한다");
+    .expect("file field must be valid");
+    let spec = InputSpec::new(vec![field]).expect("input spec must be valid");
     let mut args = serde_json::Map::new();
     args.insert(
         "upload".to_string(),
@@ -56,32 +56,31 @@ fn 파일_검증(policy: FileInputPolicy, file: FileValue) -> Result<(), InputVa
     spec.validate_json_args(&args)
 }
 
-fn 노드_트리(root_file_count: usize) -> FileValue {
+fn node_tree(root_file_count: usize) -> FileValue {
     let mut entries = (0..63)
         .map(|index| {
-            디렉터리(
+            directory(
                 format!("directory-{index}"),
-                vec![바이트_파일(format!("nested-{index}.bin"), None)],
+                vec![bytes_file(format!("nested-{index}.bin"), None)],
             )
         })
         .collect::<Vec<_>>();
-    entries
-        .extend((0..root_file_count).map(|index| 바이트_파일(format!("root-{index}.bin"), None)));
-    디렉터리("root".to_string(), entries)
+    entries.extend((0..root_file_count).map(|index| bytes_file(format!("root-{index}.bin"), None)));
+    directory("root".to_string(), entries)
 }
 
-fn 메타데이터_파일(byte_count: usize) -> FileValue {
-    const 한글_UTF8_바이트: usize = "가".len();
-    let 한글_개수 = byte_count / 한글_UTF8_바이트;
-    let 나머지_바이트 = byte_count % 한글_UTF8_바이트;
-    바이트_파일(
-        "가".repeat(한글_개수),
-        (나머지_바이트 > 0).then(|| "x".repeat(나머지_바이트)),
+fn metadata_file(byte_count: usize) -> FileValue {
+    const HANGUL_UTF8_BYTES: usize = "가".len();
+    let hangul_count = byte_count / HANGUL_UTF8_BYTES;
+    let remaining_bytes = byte_count % HANGUL_UTF8_BYTES;
+    bytes_file(
+        "가".repeat(hangul_count),
+        (remaining_bytes > 0).then(|| "x".repeat(remaining_bytes)),
     )
 }
 
 #[test]
-fn 파일_정책은_최대_file_개수를_허용한다() {
+fn file_policy_accepts_the_maximum_file_count() {
     // Given
     let params = FileInputPolicyParams {
         max_count: MAX_FILE_INPUT_COUNT,
@@ -89,14 +88,14 @@ fn 파일_정책은_최대_file_개수를_허용한다() {
     };
 
     // When
-    let policy = FileInputPolicy::try_from(params).expect("정확한 상한은 허용해야 한다");
+    let policy = FileInputPolicy::try_from(params).expect("must accept the exact limit");
 
     // Then
     assert_eq!(policy.max_count(), MAX_FILE_INPUT_COUNT);
 }
 
 #[test]
-fn 파일_정책은_최대값을_넘는_max_count를_typed_error로_거부한다() {
+fn file_policy_rejects_max_count_above_the_maximum_with_a_typed_error() {
     // Given
     let actual = MAX_FILE_INPUT_COUNT + 1;
     let params = FileInputPolicyParams {
@@ -118,7 +117,7 @@ fn 파일_정책은_최대값을_넘는_max_count를_typed_error로_거부한다
 }
 
 #[test]
-fn 가져온_file_정책도_최대값을_넘는_max_count를_typed_error로_거부한다() {
+fn imported_file_policy_rejects_max_count_above_the_maximum_with_a_typed_error() {
     // Given
     let actual = MAX_FILE_INPUT_COUNT + 1;
     let schema = serde_json::json!({
@@ -154,24 +153,24 @@ fn 가져온_file_정책도_최대값을_넘는_max_count를_typed_error로_거�
 }
 
 #[test]
-fn 파일_입력은_정확한_노드_개수_상한을_허용한다() {
+fn file_input_accepts_the_exact_node_count_limit() {
     // Given
-    let file = 노드_트리(1);
+    let file = node_tree(1);
 
     // When
-    let result = 파일_검증(정책(MAX_FILE_INPUT_COUNT), file);
+    let result = validate_file(policy(MAX_FILE_INPUT_COUNT), file);
 
     // Then
     assert_eq!(result, Ok(()));
 }
 
 #[test]
-fn 파일_입력은_노드_개수_상한을_넘으면_거부한다() {
+fn file_input_rejects_exceeding_the_node_count_limit() {
     // Given
-    let file = 노드_트리(2);
+    let file = node_tree(2);
 
     // When
-    let result = 파일_검증(정책(MAX_FILE_INPUT_COUNT), file);
+    let result = validate_file(policy(MAX_FILE_INPUT_COUNT), file);
 
     // Then
     assert!(matches!(
@@ -187,28 +186,28 @@ fn 파일_입력은_노드_개수_상한을_넘으면_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_정확한_utf8_메타데이터_상한을_허용한다() {
+fn file_input_accepts_the_exact_utf8_metadata_limit() {
     // Given
-    let metadata_bytes = usize::try_from(MAX_FILE_INPUT_METADATA_BYTES)
-        .expect("메타데이터 상한은 usize에 맞아야 한다");
-    let file = 메타데이터_파일(metadata_bytes);
+    let metadata_bytes =
+        usize::try_from(MAX_FILE_INPUT_METADATA_BYTES).expect("metadata limit must fit in usize");
+    let file = metadata_file(metadata_bytes);
 
     // When
-    let result = 파일_검증(FileInputPolicy::default(), file);
+    let result = validate_file(FileInputPolicy::default(), file);
 
     // Then
     assert_eq!(result, Ok(()));
 }
 
 #[test]
-fn 파일_입력은_utf8_메타데이터_상한을_넘으면_거부한다() {
+fn file_input_rejects_exceeding_the_utf8_metadata_limit() {
     // Given
     let metadata_bytes = usize::try_from(MAX_FILE_INPUT_METADATA_BYTES + 1)
-        .expect("메타데이터 상한은 usize에 맞아야 한다");
-    let file = 메타데이터_파일(metadata_bytes);
+        .expect("metadata limit must fit in usize");
+    let file = metadata_file(metadata_bytes);
 
     // When
-    let result = 파일_검증(FileInputPolicy::default(), file);
+    let result = validate_file(FileInputPolicy::default(), file);
 
     // Then
     assert!(matches!(
@@ -224,10 +223,10 @@ fn 파일_입력은_utf8_메타데이터_상한을_넘으면_거부한다() {
 }
 
 #[test]
-fn 파일_입력은_core_raw_input_상한을_넘으면_거부한다() {
+fn file_input_rejects_exceeding_the_core_raw_input_limit() {
     // Given
     let core_raw_input_bytes =
-        usize::try_from(MAX_FILE_INPUT_RAW_BYTES).expect("상한은 usize에 맞아야 한다");
+        usize::try_from(MAX_FILE_INPUT_RAW_BYTES).expect("limit must fit in usize");
     let file = FileValue {
         name: "large.bin".to_string(),
         mime: None,
@@ -235,7 +234,7 @@ fn 파일_입력은_core_raw_input_상한을_넘으면_거부한다() {
     };
 
     // When
-    let result = 파일_검증(FileInputPolicy::default(), file);
+    let result = validate_file(FileInputPolicy::default(), file);
 
     // Then
     assert!(matches!(

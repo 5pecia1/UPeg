@@ -3,7 +3,7 @@ use upeg_core::{FileContent, FileValue, OutputValue};
 use crate::{output_value_canonical_wire_text, output_value_text};
 
 #[test]
-fn 파일_사람용_요약은_base64를_포함하지_않고_길이가_제한된다() {
+fn file_human_summary_excludes_base64_and_is_length_limited() {
     let file = FileValue {
         name: "매우 긴 파일 이름".repeat(64),
         mime: Some("application/x-매우-긴-mime".repeat(64)),
@@ -17,13 +17,13 @@ fn 파일_사람용_요약은_base64를_포함하지_않고_길이가_제한된�
     assert!(summary.contains("3 bytes"));
     assert!(
         summary.len() <= 224,
-        "사람용 요약은 224 bytes 이하여야 하지만 {} bytes였다",
+        "human summary must be at most 224 bytes but was {} bytes",
         summary.len()
     );
 }
 
 #[test]
-fn 명시적_canonical_wire_직렬화는_file_value를_roundtrip한다() {
+fn explicit_canonical_wire_serialization_round_trips_file_value() {
     let file = FileValue {
         name: "result.bin".to_string(),
         mime: Some("application/octet-stream".to_string()),
@@ -31,9 +31,9 @@ fn 명시적_canonical_wire_직렬화는_file_value를_roundtrip한다() {
     };
 
     let wire = output_value_canonical_wire_text(&OutputValue::File(file.clone()))
-        .expect("FileValue canonical wire 직렬화");
+        .expect("FileValue canonical wire serialization");
     let decoded =
-        serde_json::from_str::<FileValue>(&wire).expect("FileValue canonical wire 역직렬화");
+        serde_json::from_str::<FileValue>(&wire).expect("FileValue canonical wire deserialization");
 
     assert_eq!(decoded, file);
 }

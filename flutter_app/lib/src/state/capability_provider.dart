@@ -2,7 +2,7 @@
 /// swap in a fake verdict without linking the native dylib or running wasm.
 ///
 /// `dispatchCapabilityFor` is a sync FRB call safe to invoke from `build`
-/// for pin rendering. The honest "미지원" state only ever occurs on the
+/// for pin rendering. The honest "unsupported" state only ever occurs on the
 /// wasm/PWA runtime, so consumers gate their consultation on
 /// [isWasmRuntimeProvider]; tests override it to `true` to exercise the
 /// path on the native test host.

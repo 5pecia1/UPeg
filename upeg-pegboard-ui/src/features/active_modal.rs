@@ -62,7 +62,7 @@ mod tests {
     use super::ActiveModal;
 
     #[test]
-    fn 변형은_술어로_상호_배타성을_보장한다() {
+    fn variants_guarantee_mutual_exclusion_via_predicates() {
         // The whole point of the enum is that no two modals report
         // "open" at the same time. Asserting this via the predicate
         // surface pins the public API contract callers rely on.
@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn 확장된_id는_페이로드를_추출한다() {
+    fn expanded_id_extracts_payload() {
         assert_eq!(
             ActiveModal::Expanded("num.hex_to_decimal").expanded_id(),
             Some("num.hex_to_decimal")

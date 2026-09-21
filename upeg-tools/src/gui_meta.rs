@@ -4,7 +4,7 @@
 //! records in `upeg-tools` lets every surface resolve the same shared
 //! Pegboard layout while each surface still enforces its own run capability.
 
-use upeg_core::{Invoker, PegboardUnits, PinKind, StaticInputSpec, StaticToolMeta};
+use upeg_core::{Invoker, PegboardUnits, PinKind, StaticInputSpec, StaticToolMeta, ToolEffect};
 
 /// Public ids for the Live+Timer GUI tools that ship with dispatchers.
 /// Mirror the `*_TOOL_ID` constants emitted by `#[upeg::tool]` so the
@@ -43,6 +43,7 @@ upeg_core::inventory::submit! {
             }],
         },
         primary_output_id: Some(MEMO_SCRATCH_OUTPUT_ID),
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::UserInput,
         pin: PinKind::Live, pegboard_units: PegboardUnits::U1, invoker: Invoker::Function,
         surfaces: upeg_core::GUI_SURFACES,
@@ -59,6 +60,7 @@ upeg_core::inventory::submit! {
         input_spec: StaticInputSpec::empty(),
         output_spec: upeg_core::StaticOutputSpec::empty(),
         primary_output_id: None,
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::Shortcut { keys: "Cmd+Shift+N" },
         pin: PinKind::Action, pegboard_units: PegboardUnits::U1, invoker: Invoker::Function,
         surfaces: upeg_core::GUI_SURFACES,
@@ -85,6 +87,7 @@ upeg_core::inventory::submit! {
             }],
         },
         primary_output_id: Some(EMBED_TRANSFORM_TOOLS_OUTPUT_ID),
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::Static,
         // Passive Embed: pin = Embed pairs with invoker = Static
         // (no app-driven invocation — user interacts with the webview
@@ -122,6 +125,7 @@ upeg_core::inventory::submit! {
             ],
         },
         primary_output_id: Some(TIME_EPOCH_EPOCH_OUTPUT_ID),
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::Timer { interval_ms: 1000 },
         pin: PinKind::Live, pegboard_units: PegboardUnits::U1, invoker: Invoker::Function,
         surfaces: upeg_core::GUI_SURFACES,
@@ -162,6 +166,7 @@ upeg_core::inventory::submit! {
             ],
         },
         primary_output_id: Some(NET_STATUS_STATUS_OUTPUT_ID),
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::Timer { interval_ms: 5000 },
         pin: PinKind::Live, pegboard_units: PegboardUnits::U1, invoker: Invoker::Function,
         surfaces: upeg_core::GUI_SURFACES,

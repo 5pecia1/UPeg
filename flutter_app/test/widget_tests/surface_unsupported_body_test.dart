@@ -28,11 +28,12 @@ ToolDto _mediaTool() => ToolDto(
   source: const SourceDto.userInput(),
   requiresApproval: false,
   approvalSurfaces: const <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 void main() {
   group('hostAttachCanSolve', () {
-    test('모든_미지원_이유는_host_연결로_해결가능하다', () {
+    test('every_unsupported_reason_is_solvable_by_host_attach', () {
       // Every wasm/PWA-unsupported reason — including nativeOnlyTool — is
       // attach-solvable now that a paired daemon links the native-gated
       // dispatchers the browser lacks.
@@ -40,14 +41,16 @@ void main() {
         expect(
           hostAttachCanSolve(reason),
           isTrue,
-          reason: '$reason 는 host 연결로 실행 가능해야 한다',
+          reason: '$reason should be runnable via host attach',
         );
       }
     });
   });
 
   group('SurfaceUnsupportedBody', () {
-    testWidgets('각 미지원_이유마다_고유한_힌트를_렌더한다', (tester) async {
+    testWidgets('renders_a_unique_hint_for_each_unsupported_reason', (
+      tester,
+    ) async {
       for (final reason in UnsupportedReasonDto.values) {
         await tester.pumpWidget(
           ProviderScope(
@@ -68,59 +71,62 @@ void main() {
   });
 
   group('board_canvas capability', () {
-    testWidgets('media_도구는_wasm_런타임에서_미지원_상태를_렌더한다', (tester) async {
-      final media = _mediaTool();
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            toolsLoaderProvider.overrideWith(
-              (ref) =>
-                  () => [media],
-            ),
-            isWasmRuntimeProvider.overrideWithValue(true),
-            toolCapabilityFnProvider.overrideWithValue(
-              (toolId) => const DispatchCapabilityDto.unsupported(
-                reason: UnsupportedReasonDto.nativeOnlyTool,
+    testWidgets(
+      'media_tool_renders_the_unsupported_state_on_the_wasm_runtime',
+      (tester) async {
+        final media = _mediaTool();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              toolsLoaderProvider.overrideWith(
+                (ref) =>
+                    () => [media],
               ),
-            ),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: debugBoardCanvasGrid(
-                snapshot: const LayoutSnapshotDto(
-                  boardKey: 'dev',
-                  boardCols: 6,
-                  placements: [
-                    PlacementDto(
-                      toolId: 'media.image_to_pdf',
-                      x: 0,
-                      y: 0,
-                      w: 1,
-                      h: 1,
-                    ),
-                  ],
+              isWasmRuntimeProvider.overrideWithValue(true),
+              toolCapabilityFnProvider.overrideWithValue(
+                (toolId) => const DispatchCapabilityDto.unsupported(
+                  reason: UnsupportedReasonDto.nativeOnlyTool,
                 ),
-                onPinTap: (_) {},
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: debugBoardCanvasGrid(
+                  snapshot: const LayoutSnapshotDto(
+                    boardKey: 'dev',
+                    boardCols: 6,
+                    placements: [
+                      PlacementDto(
+                        toolId: 'media.image_to_pdf',
+                        x: 0,
+                        y: 0,
+                        w: 1,
+                        h: 1,
+                      ),
+                    ],
+                  ),
+                  onPinTap: (_) {},
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(surfaceUnsupportedBodyKey), findsOneWidget);
-      expect(
-        find.text(
-          i18nEn(
-            surfaceUnsupportedHintKey(UnsupportedReasonDto.nativeOnlyTool),
+        expect(find.byKey(surfaceUnsupportedBodyKey), findsOneWidget);
+        expect(
+          find.text(
+            i18nEn(
+              surfaceUnsupportedHintKey(UnsupportedReasonDto.nativeOnlyTool),
+            ),
           ),
-        ),
-        findsOneWidget,
-      );
-    });
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('지원_도구는_기존과_동일하게_실행_가능하다', (tester) async {
+    testWidgets('supported_tools_remain_runnable_as_before', (tester) async {
       final media = _mediaTool();
       var consulted = false;
       await tester.pumpWidget(
@@ -161,12 +167,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(consulted, isTrue, reason: 'wasm 런타임에서 capability 를 조회해야 한다');
+      expect(
+        consulted,
+        isTrue,
+        reason: 'capability must be consulted on the wasm runtime',
+      );
       // Supported tools keep their normal pin body — no unsupported notice.
       expect(find.byKey(surfaceUnsupportedBodyKey), findsNothing);
     });
 
-    testWidgets('native_런타임에서는_capability를_조회하지_않는다', (tester) async {
+    testWidgets('capability_is_not_consulted_on_the_native_runtime', (
+      tester,
+    ) async {
       final media = _mediaTool();
       var consulted = false;
       await tester.pumpWidget(
@@ -210,7 +222,8 @@ void main() {
       expect(
         consulted,
         isFalse,
-        reason: 'native 런타임은 모든 도구를 지원하므로 capability 를 조회하지 않는다',
+        reason:
+            'the native runtime supports every tool, so capability is never consulted',
       );
       expect(find.byKey(surfaceUnsupportedBodyKey), findsNothing);
     });

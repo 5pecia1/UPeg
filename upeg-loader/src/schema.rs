@@ -60,10 +60,14 @@ mod tests {
         ("SelectorBindingToml", 10),
         ("TriggerToml", 11),
         ("ControlledEmbedToml", 12),
+        ("PresentationToml", 15),
+        ("PresentationColumnToml", 16),
+        ("PresentationActionToml", 17),
+        ("PresentationBindingToml", 18),
     ];
 
     #[test]
-    fn 도구킷_schema_json은_예상한_형태를_가진다() {
+    fn toolkit_schema_json_has_expected_shape() {
         let schema = toolkit_schema_value().expect("schema should serialize to JSON value");
 
         assert!(schema.get("$schema").and_then(Value::as_str).is_some());
@@ -78,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn schema는_문서_참조와_순서를_담는다() {
+    fn schema_carries_doc_references_and_order() {
         let schema = toolkit_schema_value().expect("schema");
         let defs = schema
             .get("$defs")
@@ -107,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn 문서_참조_schema는_알수없는_필드에_닫혀_있다() {
+    fn doc_reference_schema_is_closed_to_unknown_fields() {
         let schema = toolkit_schema_value().expect("schema");
         let defs = schema
             .get("$defs")
@@ -131,7 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn 도구킷_schema는_id와_비어있지_않은_도구를_요구한다() {
+    fn toolkit_schema_requires_id_and_non_empty_tools() {
         let schema = toolkit_schema_value().expect("schema");
 
         assert_eq!(
@@ -155,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn 생성된_schema와_문서는_명확한_manifest_표현을_사용한다() {
+    fn generated_schema_and_docs_use_clear_manifest_wording() {
         let schema = toolkit_schema_value().expect("schema");
         let tool_properties = schema
             .pointer("/$defs/ToolEntryToml/properties")
@@ -205,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn 필드_설명은_빈_폴백이_아니다() {
+    fn field_descriptions_are_not_empty_fallbacks() {
         let schema = toolkit_schema_value().expect("schema");
         let defs = schema
             .get("$defs")

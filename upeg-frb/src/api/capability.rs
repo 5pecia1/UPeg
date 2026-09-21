@@ -6,7 +6,7 @@
 //! Dart UI. This module joins that pure table to the *current* runtime —
 //! `RuntimeHost::current()` is `Wasm` on the Flutter-web / PWA `wasm32`
 //! build and `Native` on desktop — and to the tool's live dispatcher
-//! registration, so the Flutter layer can render a "미지원" notice instead
+//! registration, so the Flutter layer can render an "unsupported" notice instead
 //! of firing a dispatch that is guaranteed to fail.
 //!
 //! Desktop (native) supports every declared tool, so this verdict is only
@@ -123,19 +123,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn native_런타임에서는_내장_도구가_모두_지원된다() {
+    fn native_runtime_supports_all_builtin_tools() {
         // On the native test host every declared tool is dispatchable.
         for tool_id in ["net.status", "eth.gas", "num.hex_to_decimal"] {
             assert_eq!(
                 dispatch_capability_for(tool_id.to_string()),
                 DispatchCapabilityDto::Supported,
-                "native 런타임에서 {tool_id} 는 지원되어야 한다",
+                "{tool_id} must be supported on the native runtime",
             );
         }
     }
 
     #[test]
-    fn 미등록_도구는_supported로_응답한다() {
+    fn unregistered_tool_answers_supported() {
         assert_eq!(
             dispatch_capability_for("nonexistent.tool".to_string()),
             DispatchCapabilityDto::Supported,
@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn function_도구만_dispatcher_probe를_요구한다() {
+    fn only_function_tools_require_dispatcher_probe() {
         // The broadened rule: every Function tool runs via a dispatcher, so
         // any Function tool missing its dispatcher on this host is
         // native-only — not just the `Source::Timer` ones. `eth.gas`
@@ -162,22 +162,22 @@ mod tests {
         ] {
             assert!(
                 !requires_dispatcher(invoker),
-                "{invoker:?} 는 per-tool dispatcher probe 를 요구하지 않는다",
+                "{invoker:?} must not require the per-tool dispatcher probe",
             );
         }
     }
 
     #[test]
-    fn 런타임_호스트마다_surface가_하나씩_대응한다() {
-        // 이 표가 이 빌드의 surface 정체성이다. dispatch 경로도 같은
-        // 표를 읽으므로 여기가 어긋나면 호출 봉투의 `_upeg.surface`가
-        // 어긋난다.
+    fn each_runtime_host_maps_to_one_surface() {
+        // This table is this build's surface identity. The dispatch
+        // path reads the same table, so if this drifts, the call
+        // envelope's `_upeg.surface` drifts too.
         assert_eq!(surface_for(RuntimeHost::Native), Surface::Desktop);
         assert_eq!(surface_for(RuntimeHost::Wasm), Surface::Pwa);
     }
 
     #[test]
-    fn 미지원_변형은_reason을_dto로_옮긴다() {
+    fn unsupported_variant_moves_reason_to_dto() {
         let dto = DispatchCapabilityDto::from(DispatchCapability::Unsupported(
             UnsupportedReason::NoLoaderRuntime,
         ));

@@ -86,7 +86,7 @@ class _CallCountCanvas implements Canvas {
 
 void main() {
   group('PegboardDotsPainter', () {
-    test('PegboardDotsPainter는_showHoles가_false면_paint를_no_op으로_동작한다', () {
+    test('PegboardDotsPainter_paint_is_a_no_op_when_showHoles_is_false', () {
       final painter = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
         holeDeep: const Color(0xFF222222),
@@ -97,7 +97,7 @@ void main() {
       expect(canvas.drawCircleCalls, 0);
     });
 
-    test('PegboardDotsPainter는_showHoles가_true면_dots를_그린다', () {
+    test('PegboardDotsPainter_draws_dots_when_showHoles_is_true', () {
       final painter = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
         holeDeep: const Color(0xFF222222),
@@ -114,7 +114,7 @@ void main() {
       expect(canvas.drawCircleCalls, greaterThan(0));
     });
 
-    test('PegboardDotsPainter는_showHoles_변경시_repaint한다', () {
+    test('PegboardDotsPainter_repaints_when_showHoles_changes', () {
       final a = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
         holeDeep: const Color(0xFF222222),
@@ -130,22 +130,24 @@ void main() {
   });
 
   group('BoardCanvas showHoles wiring', () {
-    testWidgets('BoardCanvas는_showHoles가_false일때_painter_showHoles도_false다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_harness(tweaks: _holesOff));
-      await tester.pumpAndSettle();
-      final painter = _painterFor(tester);
-      expect(painter.showHoles, isFalse);
-    });
+    testWidgets(
+      'BoardCanvas_sets_painter_showHoles_false_when_showHoles_is_false',
+      (tester) async {
+        await tester.pumpWidget(_harness(tweaks: _holesOff));
+        await tester.pumpAndSettle();
+        final painter = _painterFor(tester);
+        expect(painter.showHoles, isFalse);
+      },
+    );
 
-    testWidgets('BoardCanvas는_showHoles가_true일때_painter_showHoles도_true다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_harness(tweaks: _holesOn));
-      await tester.pumpAndSettle();
-      final painter = _painterFor(tester);
-      expect(painter.showHoles, isTrue);
-    });
+    testWidgets(
+      'BoardCanvas_sets_painter_showHoles_true_when_showHoles_is_true',
+      (tester) async {
+        await tester.pumpWidget(_harness(tweaks: _holesOn));
+        await tester.pumpAndSettle();
+        final painter = _painterFor(tester);
+        expect(painter.showHoles, isTrue);
+      },
+    );
   });
 }

@@ -247,6 +247,7 @@ ToolDto _toolFor(_VisualScenario scenario) {
     source: const SourceDto.manual(),
     requiresApproval: false,
     approvalSurfaces: const <String>[],
+    effect: ToolEffectDto.unknown,
   );
 }
 
@@ -299,6 +300,7 @@ const ToolDto _compactTool = ToolDto(
   source: SourceDto.static_(),
   requiresApproval: false,
   approvalSurfaces: <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 ToolArgs? _initialArgsFor(_VisualScenario scenario) => switch (scenario) {

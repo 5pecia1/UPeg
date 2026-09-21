@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Flutter Web(PWA) 번들의 부팅 + service worker 캐시 계약 스모크.
+# Boot + service worker cache contract smoke for the Flutter Web (PWA) bundle.
 #
-# 이 스크립트는 전제 조건만 본다 — 빌드 산출물이 있는지, 필요한 실행 파일이
-# 있는지, 어떤 Chromium을 쓸지. 실제 계약 단언은
-# `scripts/flutter_web_smoke_check.mjs`가 CDP로 브라우저를 몰면서 한다.
-# 오프라인 재방문 단계에서 정적 서버를 **실제로 내려야** 하므로 서버와
-# 브라우저의 수명은 그쪽 한 곳에 모여 있다.
+# This script checks prerequisites only — that the build output exists, the
+# required executables are installed, and which Chromium to use. The actual
+# contract assertions live in `scripts/flutter_web_smoke_check.mjs`, which
+# drives the browser over CDP. Because the offline-revisit phase must stop
+# the static server *for real*, the server and browser lifetimes are owned
+# in that one place.
 #
-# Chromium이 없으면 하드 실패한다. 브라우저가 없다고 조용히 건너뛰면 CI에서
-# PWA 검증이 통째로 사라져도 초록으로 보인다 (Justfile의 `ci-smoke` 주석 참고).
+# Missing Chromium is a hard failure. Silently skipping when no browser is
+# present would let CI report green while the whole PWA verification is gone
+# (see the `ci-smoke` comment in the Justfile).
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 build_dir="$repo_root/flutter_app/build/web"
@@ -63,7 +65,7 @@ if [ ! -f "$build_dir/index.html" ]; then
   exit 1
 fi
 
-# python3: 정적 서버. node: CDP 러너 (npm 의존성 없이 builtin만 쓴다).
+# python3: static server. node: CDP runner (builtins only, no npm deps).
 require_command python3
 require_command node
 chrome="$(choose_chrome)"

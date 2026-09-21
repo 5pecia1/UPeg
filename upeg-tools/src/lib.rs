@@ -196,7 +196,7 @@ mod embed_pairing_inventory_tests {
     /// tools never carry selector_bindings, so the binding-shape
     /// rules (loader-side) don't apply here.
     #[test]
-    fn 모든_static_tool_meta는_embed_pairing_규칙을_지킨다() {
+    fn every_static_tool_meta_follows_embed_pairing_rules() {
         let mut violations = Vec::<String>::new();
         for meta in inventory::iter::<StaticToolMeta>() {
             if let Err(e) = validate_pin_invoker_pairing(meta.id, meta.pin, meta.invoker) {
@@ -333,7 +333,7 @@ mod consistency_drift_tests {
     }
 
     #[test]
-    fn 도구_id는_문법_규칙을_지킨다() {
+    fn tool_ids_follow_grammar_rules() {
         let syntax = regex::Regex::new(ID_LOCAL_SYNTAX).expect("valid syntax regex");
         let x_to_y = regex::Regex::new(ID_X_TO_Y).expect("valid x_to_y regex");
         let mut violations = Vec::<String>::new();
@@ -361,7 +361,7 @@ mod consistency_drift_tests {
     }
 
     #[test]
-    fn 출력_선언은_규칙을_지킨다() {
+    fn output_declarations_follow_rules() {
         let mut violations = Vec::<String>::new();
         // (a) Any headless single declared output must be named `result`.
         for meta in all_tools() {
@@ -399,7 +399,7 @@ mod consistency_drift_tests {
     }
 
     #[test]
-    fn 태그는_규칙을_지킨다() {
+    fn tags_follow_rules() {
         let toolkits: Vec<&ToolkitMeta> = inventory::iter::<ToolkitMeta>().collect();
         let toolkit_tags = |toolkit_id: &str| -> Vec<&'static str> {
             toolkits
@@ -452,7 +452,7 @@ mod consistency_drift_tests {
     }
 
     #[test]
-    fn 동등군_메타는_균등하다() {
+    fn equivalence_group_metas_are_uniform() {
         let mut violations = Vec::<String>::new();
 
         // (a) uuid_v7 / uuid_v4 / nanoid: identical units, source, boards.
@@ -518,7 +518,7 @@ mod consistency_drift_tests {
     /// shape `qr`/`csv` used to carry as a documented, intentional
     /// exception before `qr.decode`/`csv.to_json`+`csv.select` shipped.
     #[test]
-    fn 모든_툴킷은_최소_두_도구를_가진다() {
+    fn every_toolkit_has_at_least_two_tools() {
         let toolkits: Vec<&ToolkitMeta> = inventory::iter::<ToolkitMeta>().collect();
         assert!(
             !toolkits.is_empty(),
@@ -551,7 +551,7 @@ mod collision_policy_tests {
     use upeg_runtime::manifest::{CollisionError, validate_tool_identity};
 
     #[test]
-    fn 내장_가림은_runtime_manifest_검증기를_사용한다() {
+    fn builtin_shadowing_uses_runtime_manifest_validator() {
         let key = upeg_core::ToolKey::parse_canonical("num", "hex_to_decimal")
             .expect("built-in key is canonical");
 

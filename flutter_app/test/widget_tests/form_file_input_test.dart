@@ -109,7 +109,9 @@ Map<String, dynamic> _encodedInput(GenericFormController controller) {
 
 void main() {
   group('GenericForm File field', () {
-    testWidgets('File_필드는_선택_전에_비어있고_경로_라벨을_달지_않는다', (tester) async {
+    testWidgets('a_file_field_starts_empty_and_carries_no_path_label', (
+      tester,
+    ) async {
       final controller = GenericFormController();
       await tester.pumpWidget(
         _harness(
@@ -119,74 +121,78 @@ void main() {
         ),
       );
 
-      expect(find.text('파일을 선택하거나\n여기로 끌어 놓으세요.'), findsOneWidget);
+      expect(find.text(i18nEn('modal.file.empty_prompt')), findsOneWidget);
       expect(find.byKey(FileInputKeys.pickButton), findsOneWidget);
       expect(controller.value('input'), isNull);
       // No stray "(file path)" label — this field takes bytes, not a path.
       expect(find.textContaining('file path'), findsNothing);
     });
 
-    testWidgets('File_필드는_선택한_파일의_바이트와_mime를_FileFormValue로_저장한다', (
+    testWidgets(
+      'a_file_field_stores_the_picked_file_bytes_and_mime_as_a_fileformvalue',
+      (tester) async {
+        final controller = GenericFormController();
+        final bytes = Uint8List.fromList(const [0x50, 0x4B, 0x03, 0x04]);
+        await tester.pumpWidget(
+          _harness(
+            tool: _fileTool(),
+            controller: controller,
+            bridge: _FileBridge((
+              name: 'deck.pptx',
+              bytes: bytes,
+              mime: 'application/zip',
+            )),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        final stored = controller.value('input');
+        expect(stored, isA<FileFormValue>());
+        final file = (stored! as FileFormValue).value;
+        expect(file.name, 'deck.pptx');
+        expect(file.isDir, isFalse);
+        expect(file.mime, 'application/zip');
+        expect(file.content, CanonicalFileContent.bytes(bytes: bytes));
+        // The field reflects the chosen file by name.
+        expect(find.text('deck.pptx'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a_file_field_encodes_to_the_canonical_json_read_file_expects',
+      (tester) async {
+        final controller = GenericFormController();
+        await tester.pumpWidget(
+          _harness(
+            tool: _fileTool(),
+            controller: controller,
+            bridge: _FileBridge((
+              name: 'a.pdf',
+              bytes: Uint8List.fromList(const [255, 0]),
+              mime: 'application/pdf',
+            )),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // The shape upeg-core's FileContent serde / read_file want.
+        final input = _encodedInput(controller);
+        expect(input['name'], 'a.pdf');
+        expect(input['is_dir'], false);
+        expect(input['mime'], 'application/pdf');
+        final content = input['content'] as Map<String, dynamic>;
+        expect(content['kind'], 'bytes');
+        expect(content['bytes'], '/wA=');
+      },
+    );
+
+    testWidgets('a_file_field_omits_mime_from_the_json_when_absent', (
       tester,
     ) async {
-      final controller = GenericFormController();
-      final bytes = Uint8List.fromList(const [0x50, 0x4B, 0x03, 0x04]);
-      await tester.pumpWidget(
-        _harness(
-          tool: _fileTool(),
-          controller: controller,
-          bridge: _FileBridge((
-            name: 'deck.pptx',
-            bytes: bytes,
-            mime: 'application/zip',
-          )),
-        ),
-      );
-
-      await tester.tap(find.byIcon(Icons.attach_file));
-      await tester.pumpAndSettle();
-
-      final stored = controller.value('input');
-      expect(stored, isA<FileFormValue>());
-      final file = (stored! as FileFormValue).value;
-      expect(file.name, 'deck.pptx');
-      expect(file.isDir, isFalse);
-      expect(file.mime, 'application/zip');
-      expect(file.content, CanonicalFileContent.bytes(bytes: bytes));
-      // The field reflects the chosen file by name.
-      expect(find.text('deck.pptx'), findsOneWidget);
-    });
-
-    testWidgets('File_필드는_read_file이_기대하는_canonical_JSON으로_인코딩된다', (
-      tester,
-    ) async {
-      final controller = GenericFormController();
-      await tester.pumpWidget(
-        _harness(
-          tool: _fileTool(),
-          controller: controller,
-          bridge: _FileBridge((
-            name: 'a.pdf',
-            bytes: Uint8List.fromList(const [255, 0]),
-            mime: 'application/pdf',
-          )),
-        ),
-      );
-
-      await tester.tap(find.byIcon(Icons.attach_file));
-      await tester.pumpAndSettle();
-
-      // The shape upeg-core's FileContent serde / read_file want.
-      final input = _encodedInput(controller);
-      expect(input['name'], 'a.pdf');
-      expect(input['is_dir'], false);
-      expect(input['mime'], 'application/pdf');
-      final content = input['content'] as Map<String, dynamic>;
-      expect(content['kind'], 'bytes');
-      expect(content['bytes'], '/wA=');
-    });
-
-    testWidgets('File_필드는_mime가_없으면_JSON에서_생략한다', (tester) async {
       final controller = GenericFormController();
       await tester.pumpWidget(
         _harness(

@@ -27,6 +27,7 @@ ToolDto _embedTool() => ToolDto(
   source: const SourceDto.static_(),
   requiresApproval: false,
   approvalSurfaces: const <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 class _NoopIframeFactory extends IframeFactory {
@@ -57,7 +58,7 @@ void main() {
     desktopWebViewBuilder = originalBuilder;
   });
 
-  testWidgets('EmbedPage_mount시_resolveEmbedUrl을_1회_호출한다', (tester) async {
+  testWidgets('EmbedPage_calls_resolveEmbedUrl_once_on_mount', (tester) async {
     var calls = 0;
     EmbedResolutionDto? countingResolve({
       required ToolId toolId,
@@ -85,7 +86,7 @@ void main() {
     expect(calls, 1);
   });
 
-  testWidgets('Esc로_닫힌다', (tester) async {
+  testWidgets('EmbedPage_closes_on_Esc', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -113,7 +114,9 @@ void main() {
     expect(find.byType(EmbedPage), findsNothing);
   });
 
-  testWidgets('resolve가_null이면_안내_텍스트를_렌더한다', (tester) async {
+  testWidgets('EmbedPage_renders_hint_text_when_resolve_returns_null', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

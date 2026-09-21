@@ -1,6 +1,6 @@
 use super::*;
 
-fn 바이트_파일() -> FileValue {
+fn bytes_file() -> FileValue {
     FileValue {
         name: "a.png".to_string(),
         mime: Some("image/png".to_string()),
@@ -8,7 +8,7 @@ fn 바이트_파일() -> FileValue {
     }
 }
 
-fn 디렉터리(entries: Vec<FileValue>) -> FileValue {
+fn directory(entries: Vec<FileValue>) -> FileValue {
     FileValue {
         name: "dir".to_string(),
         mime: None,
@@ -17,19 +17,19 @@ fn 디렉터리(entries: Vec<FileValue>) -> FileValue {
 }
 
 /// Nest `depth` file nodes on one root-to-leaf path (the root counts as 1).
-fn 중첩_트리(depth: usize) -> FileValue {
-    let mut node = 바이트_파일();
+fn nested_tree(depth: usize) -> FileValue {
+    let mut node = bytes_file();
     for _ in 1..depth {
-        node = 디렉터리(vec![node]);
+        node = directory(vec![node]);
     }
     node
 }
 
 #[test]
-fn serde_인코딩과_수동_인코딩이_바이트_단위로_같다() {
+fn serde_and_manual_encodings_are_byte_identical() {
     for file in [
-        바이트_파일(),
-        디렉터리(vec![바이트_파일(), 디렉터리(vec![])]),
+        bytes_file(),
+        directory(vec![bytes_file(), directory(vec![])]),
     ] {
         let via_serde = serde_json::to_value(&file).expect("serde encodes FileValue");
         let via_manual = file_value_to_json(file);
@@ -42,12 +42,12 @@ fn serde_인코딩과_수동_인코딩이_바이트_단위로_같다() {
 }
 
 #[test]
-fn 바이트_본문은_패딩된_standard_base64_문자열로_인코딩한다() {
+fn bytes_content_encodes_as_a_padded_standard_base64_string() {
     // Given
-    let file = 바이트_파일();
+    let file = bytes_file();
 
     // When
-    let via_serde = serde_json::to_value(&file).expect("FileValue를 직렬화해야 한다");
+    let via_serde = serde_json::to_value(&file).expect("must serialize the FileValue");
     let via_manual = file_value_to_json(file);
 
     // Then
@@ -56,34 +56,34 @@ fn 바이트_본문은_패딩된_standard_base64_문자열로_인코딩한다() 
 }
 
 #[test]
-fn 빈_바이트_본문은_빈_base64_문자열로_인코딩한다() {
+fn empty_bytes_content_encodes_as_an_empty_base64_string() {
     // Given
     let file = FileValue {
         content: FileContent::Bytes(Vec::new()),
-        ..바이트_파일()
+        ..bytes_file()
     };
 
     // When
-    let json = serde_json::to_value(file).expect("FileValue를 직렬화해야 한다");
+    let json = serde_json::to_value(file).expect("must serialize the FileValue");
 
     // Then
     assert_eq!(json["content"]["bytes"], "");
 }
 
 #[test]
-fn 패딩된_standard_base64_문자열은_바이트로_디코딩한다() {
+fn padded_standard_base64_string_decodes_to_bytes() {
     // Given
     let json = r#"{"name":"a","is_dir":false,"content":{"kind":"bytes","bytes":"AP8="}}"#;
 
     // When
-    let file = serde_json::from_str::<FileValue>(json).expect("정규 base64를 디코딩해야 한다");
+    let file = serde_json::from_str::<FileValue>(json).expect("must decode canonical base64");
 
     // Then
     assert_eq!(file.content, FileContent::Bytes(vec![0, 255]));
 }
 
 #[test]
-fn legacy_바이트_배열은_거부한다() {
+fn legacy_byte_arrays_are_rejected() {
     // Given
     let json = r#"{"name":"a","is_dir":false,"content":{"kind":"bytes","bytes":[0,255]}}"#;
 
@@ -91,14 +91,14 @@ fn legacy_바이트_배열은_거부한다() {
     let result = serde_json::from_str::<FileValue>(json);
 
     // Then
-    result.expect_err("legacy 바이트 배열을 거부해야 한다");
+    result.expect_err("must reject the legacy byte array");
 }
 
 #[test]
-fn 비정규_base64_문자열은_모두_거부한다() {
-    const 비정규_본문: &[&str] = &["Z g==", "-w==", "Zg", "Zg===", "A===", "Zh=="];
+fn noncanonical_base64_strings_are_all_rejected() {
+    const NONCANONICAL_BODIES: &[&str] = &["Z g==", "-w==", "Zg", "Zg===", "A===", "Zh=="];
 
-    for bytes in 비정규_본문 {
+    for bytes in NONCANONICAL_BODIES {
         // Given
         let json = format!(
             r#"{{"name":"a","is_dir":false,"content":{{"kind":"bytes","bytes":"{bytes}"}}}}"#
@@ -108,19 +108,19 @@ fn 비정규_base64_문자열은_모두_거부한다() {
         let result = serde_json::from_str::<FileValue>(&json);
 
         // Then
-        result.expect_err("비정규 base64를 거부해야 한다");
+        result.expect_err("must reject noncanonical base64");
     }
 }
 
 #[test]
-fn is_dir은_본문_variant를_그대로_따라간다() {
-    assert!(!바이트_파일().is_dir());
-    assert!(디렉터리(vec![]).is_dir());
+fn is_dir_tracks_the_content_variant_exactly() {
+    assert!(!bytes_file().is_dir());
+    assert!(directory(vec![]).is_dir());
 }
 
 #[test]
-fn 키_순서는_name_is_dir_mime_content_이다() {
-    let json = serde_json::to_string(&바이트_파일()).expect("serde encodes FileValue");
+fn key_order_is_name_is_dir_mime_content() {
+    let json = serde_json::to_string(&bytes_file()).expect("serde encodes FileValue");
     assert!(
         json.starts_with(r#"{"name":"a.png","is_dir":false,"mime":"image/png","content":"#),
         "unexpected key order: {json}"
@@ -128,8 +128,8 @@ fn 키_순서는_name_is_dir_mime_content_이다() {
 }
 
 #[test]
-fn 라운드트립하면_원래_값이_그대로_돌아온다() {
-    for file in [바이트_파일(), 디렉터리(vec![바이트_파일()]), 중첩_트리(8)] {
+fn roundtrip_returns_the_original_value() {
+    for file in [bytes_file(), directory(vec![bytes_file()]), nested_tree(8)] {
         let json = serde_json::to_string(&file).expect("serde encodes FileValue");
         let decoded: FileValue = serde_json::from_str(&json).expect("serde decodes FileValue");
         assert_eq!(decoded, file);
@@ -137,10 +137,10 @@ fn 라운드트립하면_원래_값이_그대로_돌아온다() {
 }
 
 #[test]
-fn mime이_없으면_키_자체가_사라진다() {
+fn absent_mime_drops_the_key_entirely() {
     let file = FileValue {
         mime: None,
-        ..바이트_파일()
+        ..bytes_file()
     };
     let json = serde_json::to_value(&file).expect("serde encodes FileValue");
     assert_eq!(json, file_value_to_json(file));
@@ -148,21 +148,21 @@ fn mime이_없으면_키_자체가_사라진다() {
 }
 
 #[test]
-fn is_dir이_true인데_bytes_본문이면_거부한다() {
+fn is_dir_true_with_bytes_content_is_rejected() {
     let json = r#"{"name":"a","is_dir":true,"content":{"kind":"bytes","bytes":""}}"#;
     let error = serde_json::from_str::<FileValue>(json).expect_err("inconsistent is_dir");
     assert!(error.to_string().contains(FILE_KEY_IS_DIR), "{error}");
 }
 
 #[test]
-fn is_dir이_false인데_directory_본문이면_거부한다() {
+fn is_dir_false_with_directory_content_is_rejected() {
     let json = r#"{"name":"a","is_dir":false,"content":{"kind":"directory","entries":[]}}"#;
     let error = serde_json::from_str::<FileValue>(json).expect_err("inconsistent is_dir");
     assert!(error.to_string().contains(FILE_KEY_IS_DIR), "{error}");
 }
 
 #[test]
-fn 모르는_키가_있으면_거부한다() {
+fn unknown_keys_are_rejected() {
     let json = r#"{"name":"a","is_dir":false,"content":{"kind":"bytes","bytes":""},"x":1}"#;
     serde_json::from_str::<FileValue>(json).expect_err("unknown FileValue key");
 
@@ -171,12 +171,12 @@ fn 모르는_키가_있으면_거부한다() {
 }
 
 #[test]
-fn base64_문자열이_아닌_본문은_거부한다() {
+fn non_base64_string_content_is_rejected() {
     for bytes in ["256", "-1", "null", "true"] {
         let json = format!(
             r#"{{"name":"a","is_dir":false,"content":{{"kind":"bytes","bytes":{bytes}}}}}"#
         );
-        serde_json::from_str::<FileValue>(&json).expect_err("문자열이 아닌 본문을 거부해야 한다");
+        serde_json::from_str::<FileValue>(&json).expect_err("must reject non-string content");
     }
 }
 
@@ -186,22 +186,22 @@ fn base64_문자열이_아닌_본문은_거부한다() {
 // before this guard ever sees them. `from_value` has no such limit, which
 // is precisely why the guard has to exist.
 #[test]
-fn 최대_깊이까지는_디코딩되고_한_단계_더_깊으면_거부한다() {
-    let 허용 = file_value_to_json(중첩_트리(MAX_FILE_NESTING_DEPTH));
-    serde_json::from_value::<FileValue>(허용).expect("max depth decodes");
+fn decodes_up_to_max_depth_and_rejects_one_level_deeper() {
+    let allowed = file_value_to_json(nested_tree(MAX_FILE_NESTING_DEPTH));
+    serde_json::from_value::<FileValue>(allowed).expect("max depth decodes");
 
-    let 초과 = file_value_to_json(중첩_트리(MAX_FILE_NESTING_DEPTH + 1));
-    let error = serde_json::from_value::<FileValue>(초과).expect_err("over max depth");
+    let exceeded = file_value_to_json(nested_tree(MAX_FILE_NESTING_DEPTH + 1));
+    let error = serde_json::from_value::<FileValue>(exceeded).expect_err("over max depth");
     assert!(error.to_string().contains("depth"), "{error}");
 }
 
 #[test]
-fn 깊이_초과로_실패해도_다음_디코딩에_영향을_주지_않는다() {
-    let 초과 = file_value_to_json(중첩_트리(MAX_FILE_NESTING_DEPTH + 1));
-    serde_json::from_value::<FileValue>(초과).expect_err("over max depth");
+fn a_depth_failure_does_not_affect_the_next_decode() {
+    let exceeded = file_value_to_json(nested_tree(MAX_FILE_NESTING_DEPTH + 1));
+    serde_json::from_value::<FileValue>(exceeded).expect_err("over max depth");
 
     // The thread-local level counter must have unwound; otherwise this
     // shallow decode would inherit the failed run's depth.
-    let json = file_value_to_json(바이트_파일());
+    let json = file_value_to_json(bytes_file());
     serde_json::from_value::<FileValue>(json).expect("counter unwound after failure");
 }

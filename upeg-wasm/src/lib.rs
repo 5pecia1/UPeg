@@ -348,6 +348,8 @@ pub(crate) fn decl_to_meta(decl: PluginToolDecl) -> Result<ToolMeta, LoadError> 
             .output_spec
             .as_ref()
             .and_then(|spec| spec.primary_output_id.clone()),
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         pin: decl.pin,
         pegboard_units: Some(decl.pegboard_units),
         invoker: Some("Wasm".to_string()),

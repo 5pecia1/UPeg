@@ -18,7 +18,7 @@ import '../test_helpers/popup_page_harness.dart';
 
 void main() {
   group('PopupPage', () {
-    testWidgets('esc는_popup_close를_즉시_처리한다', (tester) async {
+    testWidgets('esc_handles_popup_close_immediately', (tester) async {
       // Verifies that pressing Esc returns KeyEventResult.handled and
       // triggers the close path (popup mode → hide window).
       final hider = RecordingWindowHider();
@@ -69,7 +69,9 @@ void main() {
       expect(hider.hideCount, 1);
     });
 
-    testWidgets('full_gui에서_close는_popup으로_즉시_돌아간다', (tester) async {
+    testWidgets('close_from_full_gui_returns_to_popup_immediately', (
+      tester,
+    ) async {
       // When in full GUI mode, close (via Esc) immediately sets mode to popup.
       WindowMode? finalMode;
 
@@ -114,7 +116,7 @@ void main() {
       expect(finalMode, WindowMode.popup);
     });
 
-    testWidgets('명시적_close는_esc와_같은_경로를_사용한다', (tester) async {
+    testWidgets('an_explicit_close_uses_the_same_path_as_esc', (tester) async {
       // Both Esc key and explicit popupCloseProvider invocation should
       // dispatch through the same _handleClose() method. We verify by
       // using a single container: fire Esc (which registers the callback),
@@ -175,7 +177,7 @@ void main() {
       expect(closeModes[0], closeModes[2]);
     });
 
-    testWidgets('close는_지연이나_애니메이션을_사용하지_않는다', (tester) async {
+    testWidgets('close_uses_no_delay_or_animation', (tester) async {
       final closeModes = <WindowMode>[];
       final container = ProviderContainer(
         overrides: [
@@ -217,7 +219,7 @@ void main() {
       expect(container.read(windowModeProvider), WindowMode.popup);
     });
 
-    testWidgets('빈_검색은_6개로_자르지_않는다', (tester) async {
+    testWidgets('an_empty_search_is_not_truncated_to_six', (tester) async {
       // Explicitly verify the absence of a 6-item ceiling.
       final fakeHits = paletteHits(15, prefix: 'test.item_');
       await tester.pumpWidget(
@@ -241,7 +243,9 @@ void main() {
       expect(delegate.childCount, 15);
     });
 
-    testWidgets('검색어가_있으면_기존_검색_결과를_사용한다', (tester) async {
+    testWidgets('a_typed_query_uses_the_existing_search_results', (
+      tester,
+    ) async {
       // Non-empty query must still flow through paletteResultsProvider.
       const searchHits = [
         PaletteHit(
@@ -268,78 +272,81 @@ void main() {
       );
     });
 
-    testWidgets('popup을_다시_열면_이전_palette_query를_비우고_카탈로그를_표시한다', (
+    testWidgets(
+      'reopening_the_popup_clears_the_stale_palette_query_and_shows_the_catalogue',
+      (tester) async {
+        // Simulate a search session that leaves stale query in
+        // `paletteQueryProvider`, then "reopen" the popup. The new mount
+        // must clear the query and show the full catalogue.
+        final fakeHits = paletteHits(8);
+
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...basePopupOverrides(),
+            paletteBrowseOverride(fakeHits),
+            boardsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => const <BoardDto>[],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // Phase 1: pump PopupPage, type a query to leave stale state.
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: PopupPage()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const Key('popup-search-field')),
+          'tool_',
+        );
+        await tester.pumpAndSettle();
+
+        // Verify stale query is in the provider.
+        expect(container.read(paletteQueryProvider), 'tool_');
+
+        // Phase 2: "close" the popup by disposing the widget tree
+        // (simulates hide-to-tray in popup-only mode).
+        await tester.pumpWidget(Container());
+
+        // Phase 3: "reopen" the popup — new PopupPage, same container.
+        // A correct implementation clears paletteQueryProvider in initState,
+        // so the catalogue (all 8 tools) should appear, not filtered results.
+        container.read(paletteQueryProvider.notifier).state = 'tool_';
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: PopupPage()),
+          ),
+        );
+
+        // Wait for async catalogue resolution.
+        await tester.pump();
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        // Assertion: query was cleared, full catalogue rendered.
+        final grid = tester.widget<GridView>(find.byType(GridView));
+        final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
+        expect(
+          delegate.childCount,
+          8,
+          reason:
+              'popup reopen must show full catalogue, not stale query results',
+        );
+      },
+    );
+
+    testWidgets('opening_the_popup_shows_catalogue_tools_after_async_loading', (
       tester,
     ) async {
-      // Simulate a search session that leaves stale query in
-      // `paletteQueryProvider`, then "reopen" the popup. The new mount
-      // must clear the query and show the full catalogue.
-      final fakeHits = paletteHits(8);
-
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...basePopupOverrides(),
-          paletteBrowseOverride(fakeHits),
-          boardsLoaderProvider.overrideWith(
-            (ref) =>
-                () => const <BoardDto>[],
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      // Phase 1: pump PopupPage, type a query to leave stale state.
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.byKey(const Key('popup-search-field')),
-        'tool_',
-      );
-      await tester.pumpAndSettle();
-
-      // Verify stale query is in the provider.
-      expect(container.read(paletteQueryProvider), 'tool_');
-
-      // Phase 2: "close" the popup by disposing the widget tree
-      // (simulates hide-to-tray in popup-only mode).
-      await tester.pumpWidget(Container());
-
-      // Phase 3: "reopen" the popup — new PopupPage, same container.
-      // A correct implementation clears paletteQueryProvider in initState,
-      // so the catalogue (all 8 tools) should appear, not filtered results.
-      container.read(paletteQueryProvider.notifier).state = 'tool_';
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: PopupPage()),
-        ),
-      );
-
-      // Wait for async catalogue resolution.
-      await tester.pump();
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      // Assertion: query was cleared, full catalogue rendered.
-      final grid = tester.widget<GridView>(find.byType(GridView));
-      final delegate = grid.childrenDelegate as SliverChildBuilderDelegate;
-      expect(
-        delegate.childCount,
-        8,
-        reason:
-            'popup reopen must show full catalogue, not stale query results',
-      );
-    });
-
-    testWidgets('검색_진입은_async_로딩_후_카탈로그_도구를_보여준다', (tester) async {
       // Verify the async empty-state: when the user opens the popup/search
       // with an empty query, popupCatalogueHitsProvider resolves and shows
       // palette browse hits instead of an "empty hint" or "no tools match".
@@ -379,7 +386,7 @@ void main() {
       expect(find.byKey(const Key('popup-no-results')), findsNothing);
     });
 
-    testWidgets('Popup_footer는_buildVersion을_렌더한다', (tester) async {
+    testWidgets('the_popup_footer_renders_the_build_version', (tester) async {
       // Use a dedicated container so we can override the same
       // statusSnapshotProvider basePopupOverrides covers — overriding the
       // provider twice in one container is a Riverpod-level error.

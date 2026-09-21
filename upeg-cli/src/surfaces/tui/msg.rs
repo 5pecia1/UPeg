@@ -7,7 +7,7 @@ use upeg_core::{KeyModifiers, KeyStroke, ToolMeta};
 
 pub use upeg_core::Key;
 
-use super::model::RunToken;
+use super::model::{PresentationHost, RunToken};
 use crate::domain::execution::dispatch::Outcome;
 
 /// Phase of a single pointer (button) event.
@@ -93,6 +93,8 @@ pub enum Msg<'a> {
         area: Rect,
     },
     ToolDone {
+        run: RunToken,
+        host: PresentationHost,
         tool_id: &'static str,
         outcome: Outcome,
     },
@@ -171,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn crossterm_key_adapter는_press_event만_typed_key로_변환한다() {
+    fn crossterm_key_adapter_maps_only_press_events_to_typed_key() {
         let release = KeyEvent::new_with_kind(
             KeyCode::Char('k'),
             CrosstermKeyModifiers::CONTROL,
@@ -193,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn crossterm_key_adapter는_backtab과_modifier를_보존한다() {
+    fn crossterm_key_adapter_preserves_backtab_and_modifiers() {
         let event = KeyEvent::new_with_kind(
             KeyCode::BackTab,
             CrosstermKeyModifiers::SHIFT,

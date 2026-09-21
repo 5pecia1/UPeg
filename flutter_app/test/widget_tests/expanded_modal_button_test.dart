@@ -88,33 +88,34 @@ class _ReadyButton extends StatelessWidget {
 
 void main() {
   group('openExpandedModalForToolId', () {
-    testWidgets('openExpandedModalForToolId는_알수없는_id에_sentinel을_반환한다', (
-      tester,
-    ) async {
-      ExpandedModalOpenResult? result;
-      await tester.pumpWidget(
-        _hostHarness((context, ref) async {
-          result = await openExpandedModalForToolId(
-            context,
-            ref,
-            ToolId.parse('nonexistent.tool'),
-          );
-        }),
-      );
-      // Wait for the tools loader to resolve.
-      await tester.pumpAndSettle();
+    testWidgets(
+      'openExpandedModalForToolId_returns_the_sentinel_for_an_unknown_id',
+      (tester) async {
+        ExpandedModalOpenResult? result;
+        await tester.pumpWidget(
+          _hostHarness((context, ref) async {
+            result = await openExpandedModalForToolId(
+              context,
+              ref,
+              ToolId.parse('nonexistent.tool'),
+            );
+          }),
+        );
+        // Wait for the tools loader to resolve.
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('ready-btn')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('ready-btn')));
+        await tester.pumpAndSettle();
 
-      expect(result, isA<ExpandedModalToolUnknown>());
-      expect(
-        (result! as ExpandedModalToolUnknown).toolId,
-        ToolId.parse('nonexistent.tool'),
-      );
-    });
+        expect(result, isA<ExpandedModalToolUnknown>());
+        expect(
+          (result! as ExpandedModalToolUnknown).toolId,
+          ToolId.parse('nonexistent.tool'),
+        );
+      },
+    );
 
-    testWidgets('openExpandedModalForToolId는_알려진_id에_modal을_연다', (
+    testWidgets('openExpandedModalForToolId_opens_a_modal_for_a_known_id', (
       tester,
     ) async {
       ExpandedModalOpenResult? result;
@@ -146,32 +147,37 @@ void main() {
   });
 
   group('openExpandedModalForPlacement', () {
-    testWidgets('openExpandedModalForPlacement는_placement의_toolId로_위임한다', (
-      tester,
-    ) async {
-      ExpandedModalOpenResult? result;
-      const placement = PlacementDto(
-        toolId: 'num.hex_to_decimal',
-        x: 0,
-        y: 0,
-        w: 1,
-        h: 1,
-      );
-      await tester.pumpWidget(
-        _hostHarness((context, ref) async {
-          result = await openExpandedModalForPlacement(context, ref, placement);
-        }),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'openExpandedModalForPlacement_delegates_to_the_placement_toolId',
+      (tester) async {
+        ExpandedModalOpenResult? result;
+        const placement = PlacementDto(
+          toolId: 'num.hex_to_decimal',
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+        );
+        await tester.pumpWidget(
+          _hostHarness((context, ref) async {
+            result = await openExpandedModalForPlacement(
+              context,
+              ref,
+              placement,
+            );
+          }),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('ready-btn')));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+        await tester.tap(find.byKey(const Key('ready-btn')));
+        await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      expect(find.byType(ExpandedModalPage), findsOneWidget);
-      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-      navigator.pop();
-      await tester.pumpAndSettle();
-      expect(result, isA<ExpandedModalOpened>());
-    });
+        expect(find.byType(ExpandedModalPage), findsOneWidget);
+        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+        navigator.pop();
+        await tester.pumpAndSettle();
+        expect(result, isA<ExpandedModalOpened>());
+      },
+    );
   });
 }

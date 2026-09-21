@@ -179,7 +179,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 설정_루트는_일반적인_개발_env에서_무언가를_반환한다() {
+    fn config_root_returns_something_under_a_typical_dev_env() {
         if std::env::var_os(env::UPEG_HOME).is_some() || std::env::var_os(env::HOME).is_some() {
             let root = config_root().expect("expected Some when HOME-class env is set");
             assert!(!root.as_os_str().is_empty());
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn 서버_json_경로는_설정_루트_아래에_위치한다() {
+    fn server_json_path_sits_under_config_root() {
         if let (Some(root), Some(path)) = (config_root(), server_json_path()) {
             assert!(path.starts_with(&root));
             assert!(path.ends_with(SERVER_DISCOVERY_FILE));
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn 도구킷_하위디렉터리_경로는_설정_루트_아래에_조립된다() {
+    fn toolkit_subdirectory_paths_are_assembled_under_config_root() {
         if let Some(root) = config_root() {
             if std::env::var_os(env::TOOLKITS_DIR).is_none()
                 && let Some(p) = toolkits_dir()

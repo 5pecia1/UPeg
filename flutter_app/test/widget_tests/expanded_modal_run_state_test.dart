@@ -50,7 +50,7 @@ Widget _harness({required StubDispatch dispatch, ToolDto? tool}) {
 
 void main() {
   group('ExpandedModalPage async run', () {
-    testWidgets('실행_중_Run_버튼은_비활성화된다', (tester) async {
+    testWidgets('the_Run_button_is_disabled_while_running', (tester) async {
       final completer = Completer<CanonicalToolResult>();
       var calls = 0;
       await tester.pumpWidget(
@@ -86,7 +86,7 @@ void main() {
       expect(calls, 1);
     });
 
-    testWidgets('실행이_끝나면_결과가_표시된다', (tester) async {
+    testWidgets('the_result_is_shown_once_the_run_finishes', (tester) async {
       await tester.pumpWidget(
         _harness(
           dispatch:
@@ -102,102 +102,105 @@ void main() {
       expect(find.text('ok'), findsOneWidget);
     });
 
-    testWidgets('inline과 modal 실행이 겹치면 하나가 끝나도 실행 중 상태를 유지한다', (tester) async {
-      final inlineCompleter = Completer<CanonicalToolResult>();
-      final modalCompleter = Completer<CanonicalToolResult>();
-      var inlineCalls = 0;
-      var modalCalls = 0;
-      final tool = fixtureToolDto(
-        id: 'fixture.shared_run',
-        source: const SourceDto.manual(),
-        inputFields: const <InputFieldDto>[
-          InputFieldDto(
-            key: 'value',
-            label: 'Value',
-            fieldType: InputFieldType.text(),
-            required_: true,
-          ),
-        ],
-      );
-      final toolId = ToolId.parse(tool.id);
-      // Both surfaces now share one dispatch seam, so the stub routes by
-      // call order: the inline pin runs first, the modal second.
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          dispatchStreamFnProvider.overrideWithValue(
-            stubDispatchStream(({
-              required toolId,
-              required args,
-              required approve,
-            }) {
-              if (inlineCalls == 0) {
-                inlineCalls += 1;
-                return inlineCompleter.future;
-              }
-              modalCalls += 1;
-              return modalCompleter.future;
-            }),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      final navigatorKey = GlobalKey<NavigatorState>();
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            navigatorKey: navigatorKey,
-            theme: UpegTheme.darkTheme(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 240,
-                height: 200,
-                child: GenericInlinePinBody(
-                  tool: tool,
-                  pinKey: (BoardKey.parse('dev'), toolId),
+    testWidgets(
+      'overlapping_inline_and_modal_runs_keep_the_running_state_until_all_finish',
+      (tester) async {
+        final inlineCompleter = Completer<CanonicalToolResult>();
+        final modalCompleter = Completer<CanonicalToolResult>();
+        var inlineCalls = 0;
+        var modalCalls = 0;
+        final tool = fixtureToolDto(
+          id: 'fixture.shared_run',
+          source: const SourceDto.manual(),
+          inputFields: const <InputFieldDto>[
+            InputFieldDto(
+              key: 'value',
+              label: 'Value',
+              fieldType: InputFieldType.text(),
+              required_: true,
+            ),
+          ],
+        );
+        final toolId = ToolId.parse(tool.id);
+        // Both surfaces now share one dispatch seam, so the stub routes by
+        // call order: the inline pin runs first, the modal second.
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            dispatchStreamFnProvider.overrideWithValue(
+              stubDispatchStream(({
+                required toolId,
+                required args,
+                required approve,
+              }) {
+                if (inlineCalls == 0) {
+                  inlineCalls += 1;
+                  return inlineCompleter.future;
+                }
+                modalCalls += 1;
+                return modalCompleter.future;
+              }),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final navigatorKey = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              theme: UpegTheme.darkTheme(),
+              home: Scaffold(
+                body: SizedBox(
+                  width: 240,
+                  height: 200,
+                  child: GenericInlinePinBody(
+                    tool: tool,
+                    pinKey: (BoardKey.parse('dev'), toolId),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      await tester.enterText(find.byKey(const Key('field-value')), 'inline');
-      await tester.pump();
-      await tester.tap(find.byKey(inlineRunButtonKey));
-      await tester.pump();
-      expect(inlineCalls, 1);
-      expect(container.read(runningToolsProvider), contains(toolId));
+        await tester.enterText(find.byKey(const Key('field-value')), 'inline');
+        await tester.pump();
+        await tester.tap(find.byKey(inlineRunButtonKey));
+        await tester.pump();
+        expect(inlineCalls, 1);
+        expect(container.read(runningToolsProvider), contains(toolId));
 
-      unawaited(
-        navigatorKey.currentState!.push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => ExpandedModalPage(tool: tool),
+        unawaited(
+          navigatorKey.currentState!.push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => ExpandedModalPage(tool: tool),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('field-value')), 'modal');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
-      await tester.pump();
-      expect(modalCalls, 1);
-      expect(container.read(runningToolsProvider), contains(toolId));
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(const Key('field-value')), 'modal');
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pump();
+        expect(modalCalls, 1);
+        expect(container.read(runningToolsProvider), contains(toolId));
 
-      modalCompleter.complete(_emptySuccess);
-      await tester.pumpAndSettle();
-      expect(container.read(runningToolsProvider), contains(toolId));
+        modalCompleter.complete(_emptySuccess);
+        await tester.pumpAndSettle();
+        expect(container.read(runningToolsProvider), contains(toolId));
 
-      inlineCompleter.complete(_emptySuccess);
-      await tester.pump();
-      expect(container.read(runningToolsProvider), isNot(contains(toolId)));
-    });
+        inlineCompleter.complete(_emptySuccess);
+        await tester.pump();
+        expect(container.read(runningToolsProvider), isNot(contains(toolId)));
+      },
+    );
   });
 
   group('ExpandedModalPage footer source', () {
-    testWidgets('footer는_실제_invoker를_표시한다', (tester) async {
+    testWidgets('the_footer_shows_the_real_invoker', (tester) async {
       final wasmTool = fixtureToolDto(
         id: 'fixture.wasm_tool',
         toolkit: 'fixture',
@@ -224,7 +227,9 @@ void main() {
       );
     });
 
-    testWidgets('footer_source는_static_tool에서_static을_표시한다', (tester) async {
+    testWidgets('the_footer_source_shows_static_for_a_static_tool', (
+      tester,
+    ) async {
       final staticTool = fixtureToolDto(
         id: 'fixture.static_tool',
         toolkit: 'fixture',

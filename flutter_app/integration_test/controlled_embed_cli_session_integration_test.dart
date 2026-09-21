@@ -47,7 +47,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'CLI는 데스크톱과 같은 실제 웹뷰 상태와 정수 결과를 사용하고 연결 해제 후 대체 실행하지 않는다',
+    'cli_uses_the_same_real_webview_state_and_integer_result_as_desktop_and_does_not_fall_back_after_disconnect',
     (tester) async {
       final robot = _CliSessionRobot(tester);
       try {

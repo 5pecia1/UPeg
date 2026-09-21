@@ -157,20 +157,20 @@ fn sample_entry() -> DevContainerEntry {
 // ─── decode_hex / decode_hex_json ───────────────────────────────────
 
 #[test]
-fn hex를_바이트로_디코드한다() {
+fn hex_decodes_to_bytes() {
     assert_eq!(decode_hex("00ff41"), Some(vec![0x00, 0xff, 0x41]));
     assert_eq!(decode_hex(""), Some(Vec::new()));
 }
 
 #[test]
-fn hex_디코드는_홀수_길이를_잘라내지_않고_거부한다() {
+fn hex_decode_rejects_odd_length_instead_of_truncating() {
     // Truncating to `[0xab]` would silently accept corrupt input.
     assert_eq!(decode_hex("abc"), None);
     assert_eq!(decode_hex("zz"), None);
 }
 
 #[test]
-fn hex_json_객체를_디코드한다() {
+fn hex_json_decodes_object() {
     // hex of `{"a":1}`
     let hex = "7b2261223a317d";
     let decoded = decode_hex_json(hex).expect("decodes object");
@@ -178,14 +178,14 @@ fn hex_json_객체를_디코드한다() {
 }
 
 #[test]
-fn hex_json은_홀수_길이나_비hex를_거부한다() {
+fn hex_json_rejects_odd_length_and_non_hex() {
     assert!(decode_hex_json("abc").is_none());
     assert!(decode_hex_json("zz").is_none());
     assert!(decode_hex_json("").is_none());
 }
 
 #[test]
-fn hex_json은_객체가_아니면_거부한다() {
+fn hex_json_rejects_non_objects() {
     // hex of `123` (a bare number, not an object)
     assert!(decode_hex_json("313233").is_none());
 }
@@ -193,7 +193,7 @@ fn hex_json은_객체가_아니면_거부한다() {
 // ─── file_uri_to_path ───────────────────────────────────────────────
 
 #[test]
-fn file_uri를_경로로_변환한다() {
+fn file_uri_converts_to_path() {
     assert_eq!(
         file_uri_to_path("file:///home/u/my%20project"),
         "/home/u/my project"
@@ -201,14 +201,14 @@ fn file_uri를_경로로_변환한다() {
 }
 
 #[test]
-fn file가_아닌_값은_그대로_둔다() {
+fn non_file_value_is_left_verbatim() {
     assert_eq!(file_uri_to_path("/plain/path"), "/plain/path");
 }
 
 // ─── split_uri ──────────────────────────────────────────────────────
 
 #[test]
-fn uri를_스킴_권한_경로로_분리한다() {
+fn uri_splits_into_scheme_authority_path() {
     let (scheme, authority, path) =
         split_uri("vscode-remote://dev-container+abc@ssh-remote+xyz/workspaces/app");
     assert_eq!(scheme, "vscode-remote");
@@ -219,7 +219,7 @@ fn uri를_스킴_권한_경로로_분리한다() {
 // ─── parse_devcontainer_uri ─────────────────────────────────────────
 
 #[test]
-fn devcontainer_uri를_파싱한다() {
+fn devcontainer_uri_parses() {
     let hex = hex_encode(&payload("/home/u/proj").to_string());
     let uri = format!("vscode-remote://dev-container+{hex}/workspaces/proj");
     let parsed = parse_devcontainer_uri(&uri).expect("parses dev-container uri");
@@ -236,7 +236,7 @@ fn devcontainer_uri를_파싱한다() {
 }
 
 #[test]
-fn devcontainer가_아닌_uri는_none이다() {
+fn non_devcontainer_uri_is_none() {
     assert!(parse_devcontainer_uri("file:///home/u/proj").is_none());
     assert!(parse_devcontainer_uri("vscode-remote://ssh-remote+abc/x").is_none());
     // The bare marker has no `+<hex>` authority at all.
@@ -244,7 +244,7 @@ fn devcontainer가_아닌_uri는_none이다() {
 }
 
 #[test]
-fn config_file_객체에서_경로를_추출한다() {
+fn config_file_object_path_is_extracted() {
     let body = serde_json::json!({
         "hostPath": "/home/u/proj",
         "configFile": {"fsPath": "/home/u/proj/.devcontainer/devcontainer.json"},
@@ -262,7 +262,7 @@ fn config_file_객체에서_경로를_추출한다() {
 // ─── decode_remote_authority ────────────────────────────────────────
 
 #[test]
-fn ssh_remote_권한에서_호스트를_추출한다() {
+fn ssh_remote_authority_extracts_host() {
     let hex = hex_encode(&serde_json::json!({"hostName": "build.example.test"}).to_string());
     let authority = format!("ssh-remote+{hex}");
     let (full, host) = decode_remote_authority(&authority);
@@ -271,21 +271,21 @@ fn ssh_remote_권한에서_호스트를_추출한다() {
 }
 
 #[test]
-fn 평범한_권한은_그대로_호스트가_된다() {
+fn plain_authority_becomes_host_verbatim() {
     let (full, host) = decode_remote_authority("localhost");
     assert_eq!(full, "localhost");
     assert_eq!(host, "localhost");
 }
 
 #[test]
-fn 빈_권한은_빈_쌍이다() {
+fn empty_authority_is_empty_pair() {
     assert_eq!(decode_remote_authority(""), (String::new(), String::new()));
 }
 
 // ─── entry_matches (filter) ─────────────────────────────────────────
 
 #[test]
-fn 패턴_토큰은_대소문자_무시하고_and로_매칭한다() {
+fn pattern_tokens_match_case_insensitive_and() {
     let entry = sample_entry();
     assert!(entry_matches(&entry, "byfactory"));
     assert!(entry_matches(&entry, "BYFACTORY api"));
@@ -297,7 +297,7 @@ fn 패턴_토큰은_대소문자_무시하고_and로_매칭한다() {
 // ─── Field::value / parse ───────────────────────────────────────────
 
 #[test]
-fn 필드_값을_선택한다() {
+fn field_value_selects() {
     let entry = sample_entry();
     assert_eq!(Field::Container.value(&entry), "/workspaces/byfactory-api");
     assert_eq!(Field::Host.value(&entry), "/home/u/projects/byfactory");
@@ -307,14 +307,14 @@ fn 필드_값을_선택한다() {
 }
 
 #[test]
-fn remote_필드는_호스트가_없으면_권한으로_대체한다() {
+fn remote_field_falls_back_to_authority_without_host() {
     let mut entry = sample_entry();
     entry.remote_host = String::new();
     assert_eq!(Field::Remote.value(&entry), "ssh-remote+deadbeef");
 }
 
 #[test]
-fn 필드_파싱은_빈값을_none으로_알수없는값을_에러로_처리한다() {
+fn field_parse_treats_empty_as_none_and_unknown_as_error() {
     assert_eq!(Field::parse(""), Ok(None));
     assert_eq!(Field::parse("Container"), Ok(Some(Field::Container)));
     assert!(Field::parse("bogus").is_err());
@@ -323,7 +323,7 @@ fn 필드_파싱은_빈값을_none으로_알수없는값을_에러로_처리한�
 // ─── AppFilter::parse / matches ─────────────────────────────────────
 
 #[test]
-fn 앱_필터를_파싱하고_매칭한다() {
+fn app_filter_parses_and_matches() {
     assert_eq!(AppFilter::parse(""), Ok(AppFilter::All));
     assert_eq!(AppFilter::parse("code"), Ok(AppFilter::Code));
     assert!(AppFilter::parse("emacs").is_err());
@@ -338,7 +338,7 @@ fn 앱_필터를_파싱하고_매칭한다() {
 // ─── norm_uri ───────────────────────────────────────────────────────
 
 #[test]
-fn uri_정규화는_퍼센트를_디코드하고_후행_슬래시를_제거한다() {
+fn norm_uri_decodes_percent_and_strips_trailing_slash() {
     assert_eq!(
         norm_uri("vscode-remote://x/workspaces/app/"),
         "vscode-remote://x/workspaces/app"
@@ -349,7 +349,7 @@ fn uri_정규화는_퍼센트를_디코드하고_후행_슬래시를_제거한�
 // ─── RankMap ────────────────────────────────────────────────────────
 
 #[test]
-fn 랭크는_원본과_정규화_키_모두에_최초값으로_기록된다() {
+fn rank_records_first_value_under_raw_and_normalized_keys() {
     let mut ranks = RankMap::default();
     ranks.add("vscode-remote://x/app/", 3);
     ranks.add("vscode-remote://x/app/", 9); // ignored (first wins)
@@ -359,7 +359,7 @@ fn 랭크는_원본과_정규화_키_모두에_최초값으로_기록된다() {
 }
 
 #[test]
-fn 랭크_조회는_정규화_충돌보다_원본_일치를_우선한다() {
+fn rank_lookup_prefers_raw_match_over_normalized_collision() {
     let mut ranks = RankMap::default();
     // `%20` normalizes to the space form, which is also a URI in its own right.
     ranks.add("vscode-remote://x/a%20b", 0);
@@ -370,7 +370,7 @@ fn 랭크_조회는_정규화_충돌보다_원본_일치를_우선한다() {
 }
 
 #[test]
-fn 랭크_병합은_기존_값을_덮어쓰지_않는다() {
+fn rank_merge_does_not_overwrite_existing() {
     let mut ranks = RankMap::default();
     ranks.add("vscode-remote://x/a", 1);
     let mut other = RankMap::default();
@@ -384,7 +384,7 @@ fn 랭크_병합은_기존_값을_덮어쓰지_않는다() {
 // ─── sort_entries ───────────────────────────────────────────────────
 
 #[test]
-fn 정렬은_오픈_랭크_다음_최근_랭크_순이며_랭크가_없으면_뒤로_밀린다() {
+fn sort_orders_open_then_recent_rank_and_unranked_last() {
     let mut a = sample_entry();
     a.storage_id = "a".to_string();
     a.open_rank = Some(0);
@@ -400,7 +400,7 @@ fn 정렬은_오픈_랭크_다음_최근_랭크_순이며_랭크가_없으면_�
 }
 
 #[test]
-fn 랭크가_같으면_mtime이_최신인_엔트리가_앞선다() {
+fn equal_ranks_order_newest_mtime_first() {
     let mut old = sample_entry();
     old.storage_id = "old".to_string();
     old.open_rank = Some(1);
@@ -420,7 +420,7 @@ fn 랭크가_같으면_mtime이_최신인_엔트리가_앞선다() {
 // ─── to_json ────────────────────────────────────────────────────────
 
 #[test]
-fn 엔트리를_json으로_직렬화한다() {
+fn entry_serializes_to_json() {
     // Compared as a whole object: a renamed, dropped, or added field fails
     // here, which per-field assertions would not catch.
     assert_eq!(
@@ -448,7 +448,7 @@ fn 엔트리를_json으로_직렬화한다() {
 }
 
 #[test]
-fn 디코드된_페이로드가_없으면_json에서_null이다() {
+fn missing_decoded_payload_is_null_in_json() {
     let mut entry = sample_entry();
     entry.decoded = None;
     assert_eq!(entry.to_json()["decoded"], serde_json::Value::Null);
@@ -457,7 +457,7 @@ fn 디코드된_페이로드가_없으면_json에서_null이다() {
 // ─── app_name_from_storage_root ─────────────────────────────────────
 
 #[test]
-fn 앱_이름은_경로_성분_검색이_아니라_위치로_정해진다() {
+fn app_name_is_positional_not_path_component_search() {
     // The `Code` home directory must not shadow the real app (`Cursor`).
     assert_eq!(
         app_name_from_storage_root(Path::new("/home/Code/.config/Cursor/User/workspaceStorage")),
@@ -476,7 +476,7 @@ fn 앱_이름은_경로_성분_검색이_아니라_위치로_정해진다() {
 }
 
 #[test]
-fn 앱_이름은_알려지지_않은_디렉터리를_그대로_쓰고_레이아웃이_없으면_unknown이다() {
+fn app_name_uses_unknown_dir_verbatim_and_unknown_without_layout() {
     assert_eq!(
         app_name_from_storage_root(Path::new("/opt/MyEditor/User/workspaceStorage")),
         "MyEditor"
@@ -490,7 +490,7 @@ fn 앱_이름은_알려지지_않은_디렉터리를_그대로_쓰고_레이아�
 // ─── storage_roots_under ────────────────────────────────────────────
 
 #[test]
-fn 스토리지_루트는_실제로_존재하는_앱_디렉터리만_모은다() {
+fn storage_roots_collect_only_existing_app_dirs() {
     let fixture = Fixture::new();
     let cursor = fixture.storage_root("Cursor");
     let code = fixture.storage_root("Code");
@@ -501,7 +501,7 @@ fn 스토리지_루트는_실제로_존재하는_앱_디렉터리만_모은다()
 }
 
 #[test]
-fn 스토리지_루트가_하나도_없으면_빈_목록이다() {
+fn no_storage_roots_is_empty_list() {
     let fixture = Fixture::new();
     assert!(storage_roots_under(fixture.base()).is_empty());
 }
@@ -509,7 +509,7 @@ fn 스토리지_루트가_하나도_없으면_빈_목록이다() {
 // ─── workspace_mtime ────────────────────────────────────────────────
 
 #[test]
-fn workspace_mtime은_상태_파일_중_가장_최신을_고른다() {
+fn workspace_mtime_picks_newest_state_file() {
     const FUTURE_SECS: u64 = 2_000_000_000;
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
@@ -528,7 +528,7 @@ fn workspace_mtime은_상태_파일_중_가장_최신을_고른다() {
 }
 
 #[test]
-fn workspace_mtime은_존재하지_않는_디렉터리에_대해_0이다() {
+fn workspace_mtime_is_zero_for_missing_dir() {
     let fixture = Fixture::new();
     assert_eq!(workspace_mtime(&fixture.base().join("missing")), 0.0);
 }
@@ -536,7 +536,7 @@ fn workspace_mtime은_존재하지_않는_디렉터리에_대해_0이다() {
 // ─── load_workspace_entry ───────────────────────────────────────────
 
 #[test]
-fn workspace_json에서_devcontainer_엔트리를_읽는다() {
+fn workspace_json_reads_devcontainer_entry() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Cursor");
     let dir = Fixture::workspace(&root, "ws1");
@@ -559,7 +559,7 @@ fn workspace_json에서_devcontainer_엔트리를_읽는다() {
 }
 
 #[test]
-fn workspace_json의_workspace_키도_읽는다() {
+fn workspace_json_workspace_key_also_reads() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -571,7 +571,7 @@ fn workspace_json의_workspace_키도_읽는다() {
 }
 
 #[test]
-fn workspace_json이_없거나_devcontainer가_아니면_none이다() {
+fn missing_or_non_devcontainer_workspace_json_is_none() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let empty = Fixture::workspace(&root, "empty");
@@ -589,7 +589,7 @@ fn workspace_json이_없거나_devcontainer가_아니면_none이다() {
 // ─── state_uri_from_db / load_state_entry ───────────────────────────
 
 #[test]
-fn state_vscdb의_debug_selectedroot에서_uri를_읽는다() {
+fn state_vscdb_reads_uri_from_debug_selectedroot() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -603,7 +603,7 @@ fn state_vscdb의_debug_selectedroot에서_uri를_읽는다() {
 }
 
 #[test]
-fn state_vscdb는_history_entries_블롭에_박힌_uri를_뽑아낸다() {
+fn state_vscdb_extracts_uri_embedded_in_history_entries_blob() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -615,7 +615,7 @@ fn state_vscdb는_history_entries_블롭에_박힌_uri를_뽑아낸다() {
 }
 
 #[test]
-fn state_vscdb는_resource_authority_키에서_uri를_복원한다() {
+fn state_vscdb_recovers_uri_from_resource_authority_key() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -635,7 +635,7 @@ fn state_vscdb는_resource_authority_키에서_uri를_복원한다() {
 }
 
 #[test]
-fn state_vscdb는_파싱되지_않는_후보를_버리고_다음_키를_쓴다() {
+fn state_vscdb_drops_unparseable_candidate_and_uses_next_key() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -654,7 +654,7 @@ fn state_vscdb는_파싱되지_않는_후보를_버리고_다음_키를_쓴다()
 }
 
 #[test]
-fn state_vscdb는_파싱되지_않는_후보를_돌려주지_않는다() {
+fn state_vscdb_does_not_return_unparseable_candidate() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -670,7 +670,7 @@ fn state_vscdb는_파싱되지_않는_후보를_돌려주지_않는다() {
 }
 
 #[test]
-fn state_vscdb에_쓸만한_uri가_없으면_none이다() {
+fn state_vscdb_without_usable_uri_is_none() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -687,7 +687,7 @@ fn state_vscdb에_쓸만한_uri가_없으면_none이다() {
 }
 
 #[test]
-fn sqlite가_아닌_state_파일은_none이다() {
+fn non_sqlite_state_file_is_none() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -698,7 +698,7 @@ fn sqlite가_아닌_state_파일은_none이다() {
 }
 
 #[test]
-fn state_vscdb에서_엔트리를_만든다() {
+fn state_vscdb_builds_entry() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -716,7 +716,7 @@ fn state_vscdb에서_엔트리를_만든다() {
 }
 
 #[test]
-fn state_vscdb가_없으면_엔트리가_없다() {
+fn missing_state_vscdb_yields_no_entry() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -726,7 +726,7 @@ fn state_vscdb가_없으면_엔트리가_없다() {
 // ─── collect_entries ────────────────────────────────────────────────
 
 #[test]
-fn 스토리지_스캔은_workspace_json을_state보다_우선한다() {
+fn storage_scan_prefers_workspace_json_over_state() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let dir = Fixture::workspace(&root, "ws1");
@@ -745,7 +745,7 @@ fn 스토리지_스캔은_workspace_json을_state보다_우선한다() {
 }
 
 #[test]
-fn 스토리지_스캔은_devcontainer가_아닌_워크스페이스를_건너뛴다() {
+fn storage_scan_skips_non_devcontainer_workspaces() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let uri = devcontainer_uri(&payload("/home/u/proj"), "/workspaces/proj");
@@ -764,7 +764,7 @@ fn 스토리지_스캔은_devcontainer가_아닌_워크스페이스를_건너뛴
 }
 
 #[test]
-fn 스토리지_스캔은_여러_앱_루트를_합친다() {
+fn storage_scan_merges_multiple_app_roots() {
     let fixture = Fixture::new();
     let code = fixture.storage_root("Code");
     let cursor = fixture.storage_root("Cursor");
@@ -781,7 +781,7 @@ fn 스토리지_스캔은_여러_앱_루트를_합친다() {
 // ─── rank loading ───────────────────────────────────────────────────
 
 #[test]
-fn storage_json에서_오픈_랭크와_최근_랭크를_읽는다() {
+fn storage_json_reads_open_and_recent_ranks() {
     let fixture = Fixture::new();
     let global = fixture.global_storage("Code");
     let open_uri = devcontainer_uri(&payload("/home/u/open"), "/workspaces/open");
@@ -805,7 +805,7 @@ fn storage_json에서_오픈_랭크와_최근_랭크를_읽는다() {
 }
 
 #[test]
-fn storage_json이_없거나_깨졌으면_랭크가_비어있다() {
+fn missing_or_broken_storage_json_yields_empty_ranks() {
     let fixture = Fixture::new();
     let user_dir = fixture.user_dir("Code");
     let (open, recent) = load_storage_json_ranks(&user_dir);
@@ -819,7 +819,7 @@ fn storage_json이_없거나_깨졌으면_랭크가_비어있다() {
 }
 
 #[test]
-fn global_state_vscdb에서_최근_랭크를_리스트_순서대로_읽는다() {
+fn global_state_vscdb_reads_recent_ranks_in_list_order() {
     let fixture = Fixture::new();
     let global = fixture.global_storage("Code");
     let first = devcontainer_uri(&payload("/home/u/first"), "/workspaces/first");
@@ -841,7 +841,7 @@ fn global_state_vscdb에서_최근_랭크를_리스트_순서대로_읽는다() 
 }
 
 #[test]
-fn global_state_vscdb가_없으면_최근_랭크가_비어있다() {
+fn missing_global_state_vscdb_yields_empty_recent_ranks() {
     let fixture = Fixture::new();
     fixture.global_storage("Code");
     let ranks = load_sqlite_recent_ranks(&fixture.user_dir("Code"));
@@ -851,7 +851,7 @@ fn global_state_vscdb가_없으면_최근_랭크가_비어있다() {
 // ─── apply_ranks ────────────────────────────────────────────────────
 
 #[test]
-fn apply_ranks는_엔트리의_스토리지_루트에_맞는_랭크를_붙인다() {
+fn apply_ranks_attaches_ranks_matching_entry_storage_root() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let global = fixture.global_storage("Code");
@@ -890,7 +890,7 @@ fn apply_ranks는_엔트리의_스토리지_루트에_맞는_랭크를_붙인다
 }
 
 #[test]
-fn apply_ranks는_랭크_소스가_없으면_모두_none으로_둔다() {
+fn apply_ranks_without_rank_sources_leaves_all_none() {
     let fixture = Fixture::new();
     let root = fixture.storage_root("Code");
     let uri = devcontainer_uri(&payload("/home/u/proj"), "/workspaces/proj");
@@ -905,7 +905,7 @@ fn apply_ranks는_랭크_소스가_없으면_모두_none으로_둔다() {
 // ─── input validation (no filesystem) ───────────────────────────────
 
 #[test]
-fn 룩업은_빈_패턴을_거부한다() {
+fn lookup_rejects_empty_pattern() {
     assert_eq!(
         devcontainer_lookup("  ", "", ""),
         Err("pattern must not be empty".to_string())

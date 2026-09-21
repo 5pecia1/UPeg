@@ -36,7 +36,7 @@ ProviderContainer _container({
 
 void main() {
   group('selectedTagProvider shared selection', () {
-    test('selectedTagProvider_select은_shared_selection에_쓴다', () {
+    test('selectedTagProvider_select_writes_to_shared_selection', () {
       final saved = <PegboardSelectionDto>[];
       final c = _container(onSave: saved.add);
 
@@ -46,7 +46,7 @@ void main() {
       expect(c.read(selectedTagProvider), const TagSpecific('convert'));
     });
 
-    test('selectedTagProvider_clear는_shared_selection에_all을_쓴다', () {
+    test('selectedTagProvider_clear_writes_all_to_shared_selection', () {
       final saved = <PegboardSelectionDto>[];
       final c = _container(tag: 'convert', onSave: saved.add);
 
@@ -56,7 +56,7 @@ void main() {
       expect(c.read(selectedTagProvider), const TagAll());
     });
 
-    test('selectedTagProvider_restore는_저장된_tag로_초기화한다', () async {
+    test('selectedTagProvider_restore_initializes_to_saved_tag', () async {
       final c = _container(tag: 'convert');
 
       await c.read(selectedTagProvider.notifier).restore();
@@ -64,12 +64,15 @@ void main() {
       expect(c.read(selectedTagProvider), const TagSpecific('convert'));
     });
 
-    test('selectedTagProvider_restore는_저장된_값이_없으면_all로_초기화한다', () async {
-      final c = _container();
+    test(
+      'selectedTagProvider_restore_initializes_to_all_when_no_saved_value',
+      () async {
+        final c = _container();
 
-      await c.read(selectedTagProvider.notifier).restore();
+        await c.read(selectedTagProvider.notifier).restore();
 
-      expect(c.read(selectedTagProvider), const TagAll());
-    });
+        expect(c.read(selectedTagProvider), const TagAll());
+      },
+    );
   });
 }

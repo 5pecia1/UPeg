@@ -10,8 +10,9 @@
 //! strings is cheap because the underlying static slices never move.
 
 use upeg_core::{
-    FileContent, FileValue, Invoker, OutputEntry, OutputKind, OutputValue, PegboardUnits, PinKind,
-    Source, ToolError, ToolId, ToolMeta, ToolResult, ToolSuccess, ToolkitMeta,
+    ActionBinding, ActionScope, ActionSuccess, FileContent, FileValue, Invoker, OutputEntry,
+    OutputKind, OutputValue, PegboardUnits, PinKind, Source, ToolEffect, ToolError, ToolId,
+    ToolMeta, ToolResult, ToolSuccess, ToolkitMeta,
 };
 use upeg_runtime::ToolMetaRuntimeExt;
 
@@ -113,6 +114,173 @@ pub struct ToolDto {
     /// label on the wire, so Dart compares its own surface label against
     /// this list and needs no second vocabulary to keep in sync.
     pub approval_surfaces: Vec<String>,
+    pub effect: ToolEffectDto,
+    pub presentation: Option<ToolPresentationDto>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub enum ToolEffectDto {
+    Read,
+    Write,
+    Unknown,
+}
+
+impl From<ToolEffect> for ToolEffectDto {
+    fn from(value: ToolEffect) -> Self {
+        match value {
+            ToolEffect::Read => Self::Read,
+            ToolEffect::Write => Self::Write,
+            ToolEffect::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct ToolPresentationDto {
+    pub version: u16,
+    pub output: Option<String>,
+    pub rows: Option<String>,
+    pub row_key: Option<String>,
+    pub columns: Vec<PresentationColumnDto>,
+    pub actions: Vec<PresentationActionDto>,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct PresentationColumnDto {
+    pub label: String,
+    pub pointer: String,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct PresentationActionDto {
+    pub id: String,
+    pub scope: ActionScopeDto,
+    pub label: String,
+    pub target_tool: String,
+    pub on_success: Option<ActionSuccessDto>,
+    pub bindings: Vec<PresentationBindingDto>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub enum ActionScopeDto {
+    Row,
+    Result,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub enum ActionSuccessDto {
+    RefreshOrigin,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct PresentationBindingDto {
+    pub target: String,
+    pub source: BindingSourceDto,
+    pub pointer: Option<String>,
+    pub value_json: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub enum BindingSourceDto {
+    Input,
+    Row,
+    Output,
+    Constant,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct PresentationRowsDto {
+    pub rows: Vec<PresentationRowDto>,
+    pub diagnostics: Vec<String>,
+    pub row_actions_enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct PresentationRowDto {
+    pub key: String,
+    pub value_json: String,
+    pub cells_json: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct ActionBindingResolutionDto {
+    pub values_json: String,
+    pub diagnostics: Vec<String>,
+    pub unbound_required_inputs: Vec<String>,
+}
+
+impl From<&upeg_core::ToolPresentation> for ToolPresentationDto {
+    fn from(value: &upeg_core::ToolPresentation) -> Self {
+        let columns = value
+            .columns
+            .iter()
+            .map(|column| PresentationColumnDto {
+                label: column.label.clone(),
+                pointer: column.pointer.clone(),
+            })
+            .collect();
+        let actions = value
+            .actions
+            .iter()
+            .map(|action| PresentationActionDto {
+                id: action.id.clone(),
+                scope: match action.scope {
+                    ActionScope::Row => ActionScopeDto::Row,
+                    ActionScope::Result => ActionScopeDto::Result,
+                },
+                label: action.label.clone(),
+                target_tool: action.target_tool.clone(),
+                on_success: action.on_success.map(|value| match value {
+                    ActionSuccess::RefreshOrigin => ActionSuccessDto::RefreshOrigin,
+                }),
+                bindings: action
+                    .bindings
+                    .iter()
+                    .map(|(target, binding)| {
+                        let (source, pointer, value_json) = match binding {
+                            ActionBinding::Input { pointer } => {
+                                (BindingSourceDto::Input, Some(pointer.clone()), None)
+                            }
+                            ActionBinding::Row { pointer } => {
+                                (BindingSourceDto::Row, Some(pointer.clone()), None)
+                            }
+                            ActionBinding::Output { pointer } => {
+                                (BindingSourceDto::Output, Some(pointer.clone()), None)
+                            }
+                            ActionBinding::Constant { value } => {
+                                (BindingSourceDto::Constant, None, Some(value.to_string()))
+                            }
+                        };
+                        PresentationBindingDto {
+                            target: target.clone(),
+                            source,
+                            pointer,
+                            value_json,
+                        }
+                    })
+                    .collect(),
+            })
+            .collect();
+        Self {
+            version: value.version,
+            output: value.output.clone(),
+            rows: value.rows.clone(),
+            row_key: value.row_key.clone(),
+            columns,
+            actions,
+        }
+    }
 }
 
 /// Sealed enum mirror of [`upeg_core::Source`]. Drives the Dart-side
@@ -334,7 +502,119 @@ impl From<&'static ToolMeta> for ToolDto {
                 .iter()
                 .map(|surface| surface.label().to_string())
                 .collect(),
+            effect: ToolEffectDto::from(meta.effect),
+            presentation: meta.presentation.as_ref().map(ToolPresentationDto::from),
         }
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn resolve_tool_presentation_rows(
+    tool_id: String,
+    outputs_json: String,
+) -> PresentationRowsDto {
+    let Some(tool) = upeg_runtime::toolbox_tools().find(|tool| tool.id == tool_id) else {
+        return PresentationRowsDto {
+            rows: Vec::new(),
+            diagnostics: vec![format!("tool `{tool_id}` is not installed")],
+            row_actions_enabled: false,
+        };
+    };
+    let Some(presentation) = tool.presentation.as_ref() else {
+        return PresentationRowsDto {
+            rows: Vec::new(),
+            diagnostics: vec![format!("tool `{tool_id}` has no presentation")],
+            row_actions_enabled: false,
+        };
+    };
+    let outputs = match serde_json::from_str(&outputs_json) {
+        Ok(value) => value,
+        Err(error) => {
+            return PresentationRowsDto {
+                rows: Vec::new(),
+                diagnostics: vec![format!("outputs JSON is invalid: {error}")],
+                row_actions_enabled: false,
+            };
+        }
+    };
+    let resolved = upeg_core::resolve_rows(presentation, &outputs);
+    PresentationRowsDto {
+        rows: resolved
+            .rows
+            .into_iter()
+            .map(|row| PresentationRowDto {
+                key: row.key,
+                value_json: row.value.to_string(),
+                cells_json: row.cells.into_iter().map(|cell| cell.to_string()).collect(),
+            })
+            .collect(),
+        diagnostics: resolved.diagnostics,
+        row_actions_enabled: resolved.row_actions_enabled,
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn resolve_tool_action_bindings(
+    tool_id: String,
+    action_id: String,
+    current_inputs_json: String,
+    selected_row_json: Option<String>,
+    outputs_json: String,
+) -> ActionBindingResolutionDto {
+    let diagnostic = |message: String| ActionBindingResolutionDto {
+        values_json: "{}".to_string(),
+        diagnostics: vec![message],
+        unbound_required_inputs: Vec::new(),
+    };
+    let Some(source) = upeg_runtime::toolbox_tools().find(|tool| tool.id == tool_id) else {
+        return diagnostic(format!("tool `{tool_id}` is not installed"));
+    };
+    let Some(presentation) = source.presentation.as_ref() else {
+        return diagnostic(format!("tool `{tool_id}` has no presentation"));
+    };
+    let Some(action) = presentation
+        .actions
+        .iter()
+        .find(|action| action.id == action_id)
+    else {
+        return diagnostic(format!(
+            "action `{action_id}` is not declared by `{tool_id}`"
+        ));
+    };
+    let Some(target) = upeg_runtime::toolbox_tools().find(|tool| tool.id == action.target_tool)
+    else {
+        return diagnostic(format!(
+            "target tool `{}` is not installed",
+            action.target_tool
+        ));
+    };
+    let current_inputs = match serde_json::from_str(&current_inputs_json) {
+        Ok(value) => value,
+        Err(error) => return diagnostic(format!("current inputs JSON is invalid: {error}")),
+    };
+    let outputs = match serde_json::from_str(&outputs_json) {
+        Ok(value) => value,
+        Err(error) => return diagnostic(format!("outputs JSON is invalid: {error}")),
+    };
+    let selected_row = match selected_row_json
+        .as_deref()
+        .map(serde_json::from_str)
+        .transpose()
+    {
+        Ok(value) => value,
+        Err(error) => return diagnostic(format!("selected row JSON is invalid: {error}")),
+    };
+    let resolved = upeg_core::resolve_bindings(
+        action,
+        &current_inputs,
+        selected_row.as_ref(),
+        &outputs,
+        &target.input_spec,
+    );
+    ActionBindingResolutionDto {
+        values_json: serde_json::Value::Object(resolved.values.into_iter().collect()).to_string(),
+        diagnostics: resolved.diagnostics,
+        unbound_required_inputs: resolved.unbound_required_inputs,
     }
 }
 

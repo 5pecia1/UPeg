@@ -1,0 +1,371 @@
+/*
+ * UPeg site overrides — product landing + accessible theme tuning.
+ * Self-contained: no remote fonts, no external URLs.
+ * Palette primary is "custom" in zensical.toml; values are set per scheme
+ * below so links keep >= 4.5:1 contrast on both light and dark surfaces.
+ */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #174ea6;
+  --md-primary-fg-color--light: #2f6bca;
+  --md-primary-fg-color--dark: #0f3a80;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+
+  --upeg-hero-bg: #f2f5fa;
+  --upeg-board-bg: #e8edf4;
+  --upeg-board-hole: #b9c4d4;
+  --upeg-pin-bg: #ffffff;
+  --upeg-pin-border: #c7d0dd;
+  --upeg-pin-text: #33404f;
+  --upeg-pin-line: #d5dce6;
+  --upeg-pin-field: #eef2f7;
+  --upeg-pin-result: #e2ecfd;
+  --upeg-card-bg: #f7f9fc;
+  --upeg-card-border: #d9e0ea;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #8ab4f8;
+  --md-primary-fg-color--light: #aecbf9;
+  --md-primary-fg-color--dark: #6695e0;
+  --md-primary-bg-color: hsla(var(--md-hue), 15%, 5%, 1);
+  --md-primary-bg-color--light: hsla(var(--md-hue), 15%, 5%, 0.7);
+
+  --upeg-hero-bg: hsla(var(--md-hue), 20%, 9%, 1);
+  --upeg-board-bg: hsla(var(--md-hue), 18%, 12%, 1);
+  --upeg-board-hole: hsla(var(--md-hue), 15%, 30%, 0.8);
+  --upeg-pin-bg: hsla(var(--md-hue), 18%, 15%, 1);
+  --upeg-pin-border: hsla(var(--md-hue), 15%, 30%, 1);
+  --upeg-pin-text: hsla(var(--md-hue), 15%, 85%, 0.87);
+  --upeg-pin-line: hsla(var(--md-hue), 15%, 40%, 0.6);
+  --upeg-pin-field: hsla(var(--md-hue), 18%, 20%, 1);
+  --upeg-pin-result: hsla(var(--md-hue), 40%, 25%, 0.6);
+  --upeg-card-bg: hsla(var(--md-hue), 18%, 10%, 1);
+  --upeg-card-border: hsla(var(--md-hue), 15%, 25%, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero                                                                */
+/* ------------------------------------------------------------------ */
+
+.upeg-hero {
+  background: var(--upeg-hero-bg);
+  border-bottom: 0.05rem solid var(--md-default-fg-color--lightest);
+}
+
+.upeg-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1.6rem;
+  align-items: center;
+  padding-top: 2.4rem;
+  padding-bottom: 2.2rem;
+}
+
+.upeg-eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--md-primary-fg-color);
+}
+
+.upeg-hero__title {
+  margin: 0 0 0.7rem;
+  font-size: clamp(1.7rem, 1.1rem + 2.4vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--md-default-fg-color);
+}
+
+.upeg-hero__lede {
+  margin: 0 0 1.2rem;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--md-default-fg-color--light);
+}
+
+.upeg-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  list-style: none;
+}
+
+.upeg-button {
+  display: inline-block;
+  padding: 0.5rem 1.05rem;
+  border: 0.075rem solid var(--md-primary-fg-color);
+  border-radius: 0.4rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--md-primary-fg-color);
+  background: transparent;
+  text-decoration: none;
+  transition: background-color 140ms ease, color 140ms ease,
+    border-color 140ms ease;
+}
+
+.upeg-button:hover {
+  background: var(--md-primary-fg-color);
+  border-color: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color, #fff);
+}
+
+.upeg-button--primary {
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color, #fff);
+}
+
+.upeg-button--primary:hover {
+  background: var(--md-primary-fg-color--dark);
+  border-color: var(--md-primary-fg-color--dark);
+}
+
+.upeg-button--ghost {
+  border-color: var(--md-default-fg-color--lighter);
+  color: var(--md-default-fg-color--light);
+}
+
+.upeg-button--ghost:hover {
+  background: transparent;
+  border-color: var(--md-default-fg-color--light);
+  color: var(--md-default-fg-color);
+}
+
+.upeg-hero__note {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+}
+
+.upeg-hero__media {
+  min-width: 0;
+}
+
+.upeg-board {
+  margin: 0;
+}
+
+.upeg-board__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.upeg-board__caption {
+  margin-top: 0.4rem;
+  font-size: 0.62rem;
+  text-align: right;
+  color: var(--md-default-fg-color--lighter);
+}
+
+/* Board illustration (classes are referenced by assets/upeg/board.svg). */
+
+.upeg-board__bg {
+  fill: var(--upeg-board-bg);
+  stroke: var(--md-default-fg-color--lightest);
+  stroke-width: 1.5;
+}
+
+.upeg-board__hole {
+  fill: var(--upeg-board-hole);
+}
+
+.upeg-pin__card {
+  fill: var(--upeg-pin-bg);
+  stroke: var(--upeg-pin-border);
+  stroke-width: 1.5;
+}
+
+.upeg-pin__card--accent {
+  stroke: var(--md-accent-fg-color);
+  stroke-width: 2;
+}
+
+.upeg-pin__dot {
+  fill: var(--md-accent-fg-color);
+}
+
+.upeg-pin__name {
+  fill: var(--upeg-pin-text);
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.upeg-pin__mono {
+  fill: var(--upeg-pin-text);
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 12px;
+}
+
+.upeg-pin__mono--accent {
+  fill: var(--md-accent-fg-color);
+  font-weight: 700;
+}
+
+.upeg-pin__line {
+  fill: var(--upeg-pin-line);
+}
+
+.upeg-pin__field {
+  fill: var(--upeg-pin-field);
+  stroke: var(--upeg-pin-border);
+  stroke-width: 1;
+}
+
+.upeg-pin__result {
+  fill: var(--upeg-pin-result);
+}
+
+.upeg-pin__chip {
+  fill: var(--upeg-pin-field);
+  stroke: var(--upeg-pin-border);
+  stroke-width: 1;
+}
+
+.upeg-pin__chip-label {
+  fill: var(--upeg-pin-text);
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 11px;
+}
+
+.upeg-pin__wire {
+  stroke: var(--upeg-pin-border);
+  stroke-width: 1.5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Landing sections                                                    */
+/* ------------------------------------------------------------------ */
+
+.upeg-section {
+  margin-top: 2.2rem;
+}
+
+.upeg-section > h2 {
+  margin-top: 0;
+}
+
+.upeg-surface-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.55rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upeg-surface-grid > li {
+  padding: 0.6rem 0.7rem;
+  border: 0.05rem solid var(--upeg-card-border);
+  border-radius: 0.4rem;
+  background: var(--upeg-card-bg);
+}
+
+.upeg-surface-grid strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.upeg-surface-grid span {
+  display: block;
+  font-size: 0.64rem;
+  line-height: 1.45;
+  color: var(--md-default-fg-color--light);
+}
+
+.upeg-steps {
+  padding-left: 1.2rem;
+}
+
+.upeg-steps > li {
+  margin-bottom: 0.55rem;
+}
+
+.upeg-boundaries ul {
+  padding-left: 1.1rem;
+}
+
+.upeg-boundaries li {
+  margin-bottom: 0.45rem;
+}
+
+.upeg-faq {
+  margin: 0.5rem 0;
+  border: 0.05rem solid var(--upeg-card-border);
+  border-radius: 0.4rem;
+  background: var(--upeg-card-bg);
+}
+
+.upeg-faq > summary {
+  padding: 0.55rem 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style-position: inside;
+  border-radius: 0.4rem;
+}
+
+.upeg-faq[open] > summary {
+  border-bottom: 0.05rem solid var(--upeg-card-border);
+  border-radius: 0.4rem 0.4rem 0 0;
+}
+
+.upeg-faq > p {
+  margin: 0;
+  padding: 0.55rem 0.8rem 0.7rem;
+}
+
+/* Focus visibility for the details/summary FAQ entries and CTA buttons. */
+.upeg-faq > summary:focus-visible,
+.upeg-button:focus-visible {
+  outline: 0.125rem solid var(--md-accent-fg-color);
+  outline-offset: 0.125rem;
+}
+
+/* Sections reachable via /privacy/, /faq/, /support/ redirects get a clear
+   focus ring instead of a scroll jump when focused. */
+.upeg-section:focus-visible {
+  outline: 0.125rem solid var(--md-accent-fg-color);
+  outline-offset: 0.25rem;
+}
+
+.upeg-footer-links {
+  display: inline-flex;
+  gap: 0.8rem;
+  margin-right: 0.8rem;
+  font-size: inherit;
+}
+
+.upeg-footer-links a {
+  color: inherit;
+}
+
+/* ------------------------------------------------------------------ */
+/* Responsive + motion                                                 */
+/* ------------------------------------------------------------------ */
+
+@media screen and (max-width: 44.9375em) {
+  .upeg-hero__grid {
+    grid-template-columns: 1fr;
+    padding-top: 1.6rem;
+  }
+
+  .upeg-hero__media {
+    order: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upeg-button {
+    transition: none;
+  }
+}

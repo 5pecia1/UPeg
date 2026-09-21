@@ -4,14 +4,15 @@
 //! Manifest rules the CLI and TUI apply on their own attach paths
 //! (docs/architecture/project-manifest.md):
 //!
-//!   - **D-1** — a tool whose provenance is `project-manifest:*` exists
-//!     only in *this* process's Toolbox (the host resolved its own
-//!     `upeg.toml`, or none). Forwarding its `tools/call` would earn an
-//!     `unknown tool` from the host, so it is dispatched in-process and
-//!     merged into `tools/list` on the way back.
-//!   - **D-2** — every other `tools/call` carries the caller's absolute
-//!     working directory in `_upeg.cwd`, so an `External` tool runs
-//!     where the agent is, not where the host happens to live.
+//!   - **Local dispatch** — a tool whose provenance is
+//!     `project-manifest:*` exists only in *this* process's Toolbox
+//!     (the host resolved its own `upeg.toml`, or none). Forwarding its
+//!     `tools/call` would earn an `unknown tool` from the host, so it is
+//!     dispatched in-process and merged into `tools/list` on the way
+//!     back.
+//!   - **Caller cwd** — every other `tools/call` carries the caller's
+//!     absolute working directory in `_upeg.cwd`, so an `External` tool
+//!     runs where the agent is, not where the host happens to live.
 //!
 //! [`proxy_line`] takes the host call as a closure so the routing,
 //! rewriting and merging can be tested against a scripted host without
@@ -36,13 +37,14 @@ enum ProxyRoute {
     /// protocol error).
     Forward,
     /// `tools/call` the host owns: forward with `_upeg.cwd` stamped
-    /// into `params.arguments` (D-2).
+    /// into `params.arguments`.
     ForwardWithCallerCwd,
-    /// `tools/call` for a Project Manifest tool (D-1): the host has
+    /// `tools/call` for a Project Manifest tool: the host has
     /// never heard of it, so dispatch in-process.
     LocalDispatch,
     /// `tools/list`: forward, then merge this process's Project
-    /// Manifest tools into the host's list (D-1's listing half).
+    /// Manifest tools into the host's list (the local-dispatch rule's
+    /// listing half).
     ForwardAndMergeProjectTools,
 }
 
@@ -53,7 +55,7 @@ enum LineOutcome {
     HostGone,
 }
 
-/// PRD §5.7 proxy: stdio JSON-RPC ↔ host's HTTP `/mcp`. Any HTTP
+/// stdio JSON-RPC ↔ host's HTTP `/mcp` proxy. Any HTTP
 /// failure falls through to in-process dispatch for the offending
 /// request and every request after it, so a flaky host doesn't break
 /// the stdio session.
@@ -155,8 +157,8 @@ fn proxy_route(request: &Value) -> ProxyRoute {
     }
 }
 
-/// D-1 for a single `tools/call`: provenance is the authority, not the
-/// id shape (`upeg-runtime::provenance`).
+/// The local-dispatch rule for a single `tools/call`: provenance is
+/// the authority, not the id shape (`upeg-runtime::provenance`).
 fn call_route(request: &Value) -> ProxyRoute {
     let local = request
         .get(FIELD_PARAMS)
@@ -170,7 +172,7 @@ fn call_route(request: &Value) -> ProxyRoute {
     }
 }
 
-/// D-2: stamp `_upeg.cwd` into `params.arguments` before the frame goes
+/// Stamp `_upeg.cwd` into `params.arguments` before the frame goes
 /// to the host. A `params.arguments` of any shape other than
 /// object/null/absent is left alone — that is a protocol error the host
 /// must report as such, and rewriting it would change what the client

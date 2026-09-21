@@ -47,7 +47,7 @@ const HOST_UNAVAILABLE_KEY: &str = "hostUnavailable";
 // a silent runtime blank, so the gate lives here).
 
 #[test]
-fn 로케일_카탈로그는_유효한_json이며_비어있지_않은_메시지를_가진다() {
+fn locale_catalogs_are_valid_json_with_nonempty_messages() {
     for locale in SHIPPED_LOCALES {
         let messages = locale_messages(locale);
         assert!(
@@ -68,7 +68,7 @@ fn 로케일_카탈로그는_유효한_json이며_비어있지_않은_메시지�
 }
 
 #[test]
-fn 로케일_카탈로그는_en_ko_키_패리티를_유지한다() {
+fn locale_catalogs_keep_en_ko_key_parity() {
     let baseline = locale_keys(DEFAULT_LOCALE);
     for locale in SHIPPED_LOCALES {
         let keys = locale_keys(locale);
@@ -82,7 +82,7 @@ fn 로케일_카탈로그는_en_ko_키_패리티를_유지한다() {
 }
 
 #[test]
-fn 로케일_카탈로그의_placeholder는_선언과_사용이_일치하고_en_ko_패리티를_가진다() {
+fn locale_catalog_placeholders_match_declaration_and_use_and_keep_en_ko_parity() {
     let baseline = locale_messages(DEFAULT_LOCALE);
     for locale in SHIPPED_LOCALES {
         let messages = locale_messages(locale);
@@ -118,7 +118,7 @@ fn 로케일_카탈로그의_placeholder는_선언과_사용이_일치하고_en_
 }
 
 #[test]
-fn popup_js가_참조하는_i18n_키는_모든_로케일에_존재한다() {
+fn i18n_keys_referenced_by_popup_js_exist_in_every_locale() {
     let js = read(POPUP_JS);
     let referenced = quoted_keys_after(&js, POPUP_I18N_LOOKUP_PREFIX);
     assert_keys_resolve_in_all_locales(&referenced, POPUP_JS);
@@ -130,14 +130,14 @@ fn popup_js가_참조하는_i18n_키는_모든_로케일에_존재한다() {
 }
 
 #[test]
-fn 콘텐츠_js가_참조하는_i18n_키는_모든_로케일에_존재한다() {
+fn i18n_keys_referenced_by_content_js_exist_in_every_locale() {
     let js = read(CONTENT_JS);
     let referenced = quoted_keys_after(&js, CONTENT_I18N_LOOKUP_PREFIX);
     assert_keys_resolve_in_all_locales(&referenced, CONTENT_JS);
 }
 
 #[test]
-fn 감지기_표의_라벨_키는_모든_로케일에_존재한다() {
+fn detector_table_label_keys_exist_in_every_locale() {
     // content.js resolves a row's label through `labelKeyFor`, so the key
     // never appears as a literal at the chrome.i18n call site — the table
     // is where it has to be checked.
@@ -147,7 +147,7 @@ fn 감지기_표의_라벨_키는_모든_로케일에_존재한다() {
 }
 
 #[test]
-fn popup_html의_data_i18n_속성은_모든_로케일의_키를_참조한다() {
+fn popup_html_data_i18n_attributes_reference_keys_in_every_locale() {
     let html = read(POPUP_HTML);
     let keys = data_i18n_keys(&html);
     let referenced: BTreeSet<&str> = keys.iter().map(String::as_str).collect();
@@ -155,7 +155,7 @@ fn popup_html의_data_i18n_속성은_모든_로케일의_키를_참조한다() {
 }
 
 #[test]
-fn manifest는_default_locale과_지역화된_설명을_선언한다() {
+fn manifest_declares_a_default_locale_and_a_localized_description() {
     let v = manifest();
     assert_eq!(
         v["default_locale"], DEFAULT_LOCALE,
@@ -173,7 +173,7 @@ fn manifest는_default_locale과_지역화된_설명을_선언한다() {
 }
 
 #[test]
-fn 로케일_카탈로그에_고아_키가_남지_않는다() {
+fn the_locale_catalog_keeps_no_orphaned_keys() {
     // Every catalog entry must be reachable from JS, popup.html, or the
     // manifest. A key nobody references is dead weight that survives every
     // other gate here (they are all subset checks).
@@ -214,7 +214,7 @@ fn 로케일_카탈로그에_고아_키가_남지_않는다() {
 }
 
 #[test]
-fn popup_js는_정적_dom_지역화_와이어링을_유지한다() {
+fn popup_js_keeps_the_static_dom_localization_wiring() {
     let js = read(POPUP_JS);
     for marker in [
         // Single lookup point — user-facing strings never re-inline.

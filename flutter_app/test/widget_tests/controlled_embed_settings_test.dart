@@ -14,12 +14,12 @@ import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart'
 
 void main() {
   group('User-Agent resolver', () {
-    test('settings가_null이면_null을_반환한다', () {
+    test('null_settings_return_null', () {
       final result = resolveBrowserSettings(null);
       expect(result, isNull);
     });
 
-    test('settings가_있지만_userAgent가_null이면_hasUserAgentOverride_false', () {
+    test('settings_with_a_null_userAgent_yield_hasUserAgentOverride_false', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(),
       );
@@ -29,19 +29,22 @@ void main() {
       expect(result.viewportSize, isNull);
     });
 
-    test('userAgent_생략되면_userAgent_null_+_hasUserAgentOverride_false', () {
-      final result = resolveBrowserSettings(
-        const frb.ControlledEmbedSettingsDto(
-          viewport: frb.ControlledEmbedViewportDto_Preset(
-            preset: frb.ControlledEmbedViewportPresetDto.mobile,
+    test(
+      'an_omitted_userAgent_yields_userAgent_null_+_hasUserAgentOverride_false',
+      () {
+        final result = resolveBrowserSettings(
+          const frb.ControlledEmbedSettingsDto(
+            viewport: frb.ControlledEmbedViewportDto_Preset(
+              preset: frb.ControlledEmbedViewportPresetDto.mobile,
+            ),
           ),
-        ),
-      );
-      expect(result!.hasUserAgentOverride, isFalse);
-      expect(result.userAgent, isNull);
-    });
+        );
+        expect(result!.hasUserAgentOverride, isFalse);
+        expect(result.userAgent, isNull);
+      },
+    );
 
-    test('mobileSafari면_kMobileUserAgent이_전달된다', () {
+    test('mobileSafari_passes_kMobileUserAgent', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           userAgent: frb.ControlledEmbedUserAgentDto.mobileSafari(),
@@ -51,7 +54,7 @@ void main() {
       expect(result.userAgent, kMobileUserAgent);
     });
 
-    test('custom_문자열이_정확히_전달된다', () {
+    test('a_custom_string_is_passed_through_verbatim', () {
       const customUa = 'CustomBot/1.0 (compatible)';
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
@@ -62,26 +65,29 @@ void main() {
       expect(result.userAgent, customUa);
     });
 
-    test('explicit_default이면_hasUserAgentOverride_true_+_userAgent_null', () {
-      final result = resolveBrowserSettings(
-        const frb.ControlledEmbedSettingsDto(
-          userAgent: frb.ControlledEmbedUserAgentDto.default_(),
-        ),
-      );
-      expect(result!.hasUserAgentOverride, isTrue);
-      expect(result.userAgent, isNull);
-    });
+    test(
+      'an_explicit_default_yields_hasUserAgentOverride_true_+_userAgent_null',
+      () {
+        final result = resolveBrowserSettings(
+          const frb.ControlledEmbedSettingsDto(
+            userAgent: frb.ControlledEmbedUserAgentDto.default_(),
+          ),
+        );
+        expect(result!.hasUserAgentOverride, isTrue);
+        expect(result.userAgent, isNull);
+      },
+    );
   });
 
   group('viewport resolver', () {
-    test('viewport가_null이면_viewportSize_null', () {
+    test('a_null_viewport_yields_viewportSize_null', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(),
       );
       expect(result!.viewportSize, isNull);
     });
 
-    test('preset_mobile이면_390x844', () {
+    test('preset_mobile_yields_390x844', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           viewport: frb.ControlledEmbedViewportDto_Preset(
@@ -92,7 +98,7 @@ void main() {
       expect(result!.viewportSize, const Size(390, 844));
     });
 
-    test('preset_tablet이면_768x1024', () {
+    test('preset_tablet_yields_768x1024', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           viewport: frb.ControlledEmbedViewportDto_Preset(
@@ -103,7 +109,7 @@ void main() {
       expect(result!.viewportSize, const Size(768, 1024));
     });
 
-    test('preset_desktop이면_1366x768', () {
+    test('preset_desktop_yields_1366x768', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           viewport: frb.ControlledEmbedViewportDto_Preset(
@@ -114,7 +120,7 @@ void main() {
       expect(result!.viewportSize, const Size(1366, 768));
     });
 
-    test('custom_viewport이면_정확한_width_height가_double로_전달된다', () {
+    test('a_custom_viewport_passes_the_exact_width_and_height_as_doubles', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           viewport: frb.ControlledEmbedViewportDto_Custom(
@@ -128,7 +134,7 @@ void main() {
   });
 
   group('combined settings', () {
-    test('mobileSafari_+_mobile_viewport를_동시에_해결한다', () {
+    test('mobileSafari_and_a_mobile_viewport_resolve_together', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           userAgent: frb.ControlledEmbedUserAgentDto.mobileSafari(),
@@ -142,7 +148,7 @@ void main() {
       expect(result.viewportSize, const Size(390, 844));
     });
 
-    test('custom_UA_+_custom_viewport를_동시에_해결한다', () {
+    test('a_custom_UA_and_a_custom_viewport_resolve_together', () {
       final result = resolveBrowserSettings(
         const frb.ControlledEmbedSettingsDto(
           userAgent: frb.ControlledEmbedUserAgentDto.custom(value: 'MyBot/2.0'),

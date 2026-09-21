@@ -50,19 +50,24 @@ void main() {
       );
     }
 
-    testWidgets('Pin은_toolId를_헤더_라벨로_그리고_label은_본문에_렌더한다', (tester) async {
-      await tester.pumpWidget(
-        harness(const Pin(placement: placement, toolLabel: 'hex → dec')),
-      );
+    testWidgets(
+      'a_pin_draws_the_toolid_as_the_header_label_and_the_label_in_the_body',
+      (tester) async {
+        await tester.pumpWidget(
+          harness(const Pin(placement: placement, toolLabel: 'hex → dec')),
+        );
 
-      // The Pin renders the canonical id uppercased in the header;
-      // the human label sits in the body (layout inherited from the
-      // retired Dioxus surface).
-      expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
-      expect(find.text('hex → dec'), findsOneWidget);
-    });
+        // The Pin renders the canonical id uppercased in the header;
+        // the human label sits in the body (layout inherited from the
+        // retired Dioxus surface).
+        expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
+        expect(find.text('hex → dec'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Pin은_label이_없으면_본문에_아무것도_표시하지_않는다', (tester) async {
+    testWidgets('a_pin_without_a_label_shows_nothing_in_the_body', (
+      tester,
+    ) async {
       await tester.pumpWidget(harness(const Pin(placement: placement)));
 
       // Header still has the uppercased id.
@@ -71,7 +76,7 @@ void main() {
       expect(find.text('num.hex_to_decimal'), findsNothing);
     });
 
-    testWidgets('Pin은_탭하면_onTap_콜백을_호출한다', (tester) async {
+    testWidgets('a_pin_invokes_the_ontap_callback_when_tapped', (tester) async {
       PlacementDto? tapped;
       await tester.pumpWidget(
         harness(
@@ -89,7 +94,7 @@ void main() {
       expect(tapped, equals(placement));
     });
 
-    testWidgets('Pin은_PinKind_Embed_뱃지를_표시한다', (tester) async {
+    testWidgets('a_pin_shows_the_pinkind_embed_badge', (tester) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -107,38 +112,43 @@ void main() {
       expect(find.text('EMBED'), findsOneWidget);
     });
 
-    testWidgets('Pin은_outputFields가_있으면_각_field_라벨을_본문에_렌더한다', (tester) async {
-      await tester.pumpWidget(
-        harness(
-          const Pin(
-            placement: placement,
-            toolLabel: 'hex → dec',
-            toolDescription: 'description ignored when fields present',
-            outputFields: <rust_tools.OutputFieldDto>[
-              rust_tools.OutputFieldDto(
-                key: 'decimal',
-                label: 'Decimal',
-                fieldType: rust_tools.OutputFieldType_Number(),
-              ),
-              rust_tools.OutputFieldDto(
-                key: 'hex',
-                label: 'hex',
-                fieldType: rust_tools.OutputFieldType_Text(),
-              ),
-            ],
+    testWidgets(
+      'a_pin_with_outputfields_renders_each_field_label_in_the_body',
+      (tester) async {
+        await tester.pumpWidget(
+          harness(
+            const Pin(
+              placement: placement,
+              toolLabel: 'hex → dec',
+              toolDescription: 'description ignored when fields present',
+              outputFields: <rust_tools.OutputFieldDto>[
+                rust_tools.OutputFieldDto(
+                  key: 'decimal',
+                  label: 'Decimal',
+                  fieldType: rust_tools.OutputFieldType_Number(),
+                ),
+                rust_tools.OutputFieldDto(
+                  key: 'hex',
+                  label: 'hex',
+                  fieldType: rust_tools.OutputFieldType_Text(),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Decimal'), findsOneWidget);
-      expect(find.text('hex'), findsOneWidget);
-      expect(
-        find.text('description ignored when fields present'),
-        findsNothing,
-      );
-    });
+        expect(find.text('Decimal'), findsOneWidget);
+        expect(find.text('hex'), findsOneWidget);
+        expect(
+          find.text('description ignored when fields present'),
+          findsNothing,
+        );
+      },
+    );
 
-    testWidgets('Pin은_outputFields가_없으면_description으로_폴백한다', (tester) async {
+    testWidgets('a_pin_without_outputfields_falls_back_to_the_description', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -153,7 +163,7 @@ void main() {
       expect(find.text('shown when no fields'), findsOneWidget);
     });
 
-    testWidgets('Pin은_invoker_External_라벨을_표시한다', (tester) async {
+    testWidgets('a_pin_shows_the_invoker_external_label', (tester) async {
       await tester.pumpWidget(
         harness(
           Pin(
@@ -170,7 +180,9 @@ void main() {
       expect(find.text('external'), findsOneWidget);
     });
 
-    testWidgets('Pin은_screen_reader에_툴_이름과_kind를_라벨로_노출한다', (tester) async {
+    testWidgets('a_pin_exposes_the_tool_name_and_kind_to_screen_readers', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       try {
         await tester.pumpWidget(
@@ -209,7 +221,9 @@ void main() {
       }
     });
 
-    testWidgets('kind가_없으면_라벨은_toolId_기반_평문으로_폴백한다', (tester) async {
+    testWidgets('without_a_kind_the_label_falls_back_to_plain_toolid_text', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       try {
         await tester.pumpWidget(harness(const Pin(placement: placement)));
@@ -225,104 +239,115 @@ void main() {
       }
     });
 
-    testWidgets('대화형_본문을_노출하면_핀과_입력_필드와_실행_버튼의_의미가_모두_보인다', (tester) async {
-      final semantics = tester.ensureSemantics();
-      final robot = _PinInteractionRobot(tester, placement);
-      try {
-        await robot.pumpInteractivePin(onTap: () {});
+    testWidgets(
+      'an_exposed_interactive_body_reveals_the_pin_input_field_and_run_button_semantics',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final robot = _PinInteractionRobot(tester, placement);
+        try {
+          await robot.pumpInteractivePin(onTap: () {});
 
-        robot.expectInteractiveSemanticsVisible();
-      } finally {
-        semantics.dispose();
-      }
-    });
+          robot.expectInteractiveSemanticsVisible();
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
 
-    testWidgets('결과가_있으면_semantics_value로_요약을_노출하고_liveRegion으로_공지한다', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(
-          harness(
-            Pin(
-              placement: placement,
-              toolLabel: 'eth gas',
-              pinKind: UpegPinKind.live,
-              outputResult: canonicalGasResult(),
+    testWidgets(
+      'a_result_is_summarized_in_the_semantics_value_and_announced_via_liveregion',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            harness(
+              Pin(
+                placement: placement,
+                toolLabel: 'eth gas',
+                pinKind: UpegPinKind.live,
+                outputResult: canonicalGasResult(),
+              ),
             ),
-          ),
-        );
+          );
 
-        final label = i18nEn('a11y.pin.label', {
-          'name': 'eth gas',
-          'kind': 'LIVE',
-        });
-        expect(
-          tester.getSemantics(find.bySemanticsLabel(label)),
-          isSemantics(
-            label: label,
-            value: i18nEn('a11y.pin.result_ok', {'preview': '32.5'}),
-            isLiveRegion: true,
-            isFocusable: true,
-            hasEnabledState: true,
-            customActions: <CustomSemanticsAction>[
-              CustomSemanticsAction(label: i18nEn('pin.menu.unpin')),
-            ],
-          ),
-        );
-      } finally {
-        semantics.dispose();
-      }
-    });
+          final label = i18nEn('a11y.pin.label', {
+            'name': 'eth gas',
+            'kind': 'LIVE',
+          });
+          expect(
+            tester.getSemantics(find.bySemanticsLabel(label)),
+            isSemantics(
+              label: label,
+              value: i18nEn('a11y.pin.result_ok', {'preview': '32.5'}),
+              isLiveRegion: true,
+              isFocusable: true,
+              hasEnabledState: true,
+              customActions: <CustomSemanticsAction>[
+                CustomSemanticsAction(label: i18nEn('pin.menu.unpin')),
+              ],
+            ),
+          );
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
 
-    testWidgets('에러_결과는_semantics_value에_ERROR와_첫_줄_메시지를_노출한다', (tester) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(
-          harness(
-            const Pin(
-              placement: placement,
-              toolLabel: 'eth gas',
-              pinKind: UpegPinKind.live,
-              outputResult: rust_tools.CanonicalToolResult(
-                ok: false,
-                outputs: [],
-                error: rust_tools.CanonicalToolError(
-                  code: 'provider_error',
-                  message: 'rpc timeout\nsecond line ignored',
+    testWidgets(
+      'an_error_result_exposes_error_and_its_first_line_in_the_semantics_value',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            harness(
+              const Pin(
+                placement: placement,
+                toolLabel: 'eth gas',
+                pinKind: UpegPinKind.live,
+                outputResult: rust_tools.CanonicalToolResult(
+                  ok: false,
+                  outputs: [],
+                  error: rust_tools.CanonicalToolError(
+                    code: 'provider_error',
+                    message: 'rpc timeout\nsecond line ignored',
+                  ),
                 ),
               ),
             ),
-          ),
-        );
+          );
 
-        final node = tester.getSemantics(
-          find.bySemanticsLabel(
-            i18nEn('a11y.pin.label', {'name': 'eth gas', 'kind': 'LIVE'}),
-          ),
-        );
-        expect(
-          node,
-          isSemantics(
-            label: i18nEn('a11y.pin.label', {
-              'name': 'eth gas',
-              'kind': 'LIVE',
-            }),
-            value: i18nEn('a11y.pin.result_error', {'preview': 'rpc timeout'}),
-            isLiveRegion: true,
-            isFocusable: true,
-            hasEnabledState: true,
-            customActions: <CustomSemanticsAction>[
-              CustomSemanticsAction(label: i18nEn('pin.menu.unpin')),
-            ],
-          ),
-        );
-      } finally {
-        semantics.dispose();
-      }
-    });
+          final node = tester.getSemantics(
+            find.bySemanticsLabel(
+              i18nEn('a11y.pin.label', {'name': 'eth gas', 'kind': 'LIVE'}),
+            ),
+          );
+          expect(
+            node,
+            isSemantics(
+              label: i18nEn('a11y.pin.label', {
+                'name': 'eth gas',
+                'kind': 'LIVE',
+              }),
+              value: i18nEn('a11y.pin.result_error', {
+                'preview': 'rpc timeout',
+              }),
+              isLiveRegion: true,
+              isFocusable: true,
+              hasEnabledState: true,
+              customActions: <CustomSemanticsAction>[
+                CustomSemanticsAction(label: i18nEn('pin.menu.unpin')),
+              ],
+            ),
+          );
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
 
-    testWidgets('실행_중과_stale은_semantics_value에_상태로_노출된다', (tester) async {
+    testWidgets('running_and_stale_states_are_exposed_in_the_semantics_value', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       try {
         await tester.pumpWidget(
@@ -368,111 +393,114 @@ void main() {
       }
     });
 
-    testWidgets('컨텍스트_메뉴_항목은_custom_semantics_action으로도_도달_가능하다', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        PlacementDto? opened;
-        PlacementDto? colorEdited;
+    testWidgets(
+      'context_menu_items_are_reachable_via_custom_semantics_actions',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          PlacementDto? opened;
+          PlacementDto? colorEdited;
+          await tester.pumpWidget(
+            harness(
+              Pin(
+                placement: placement,
+                toolLabel: 'hex → dec',
+                pinKind: UpegPinKind.inline,
+                onTap: (_) {},
+                onOpenModal: (p) => opened = p,
+                onEditColor: (p) => colorEdited = p,
+              ),
+            ),
+          );
+
+          final label = i18nEn('a11y.pin.label', {
+            'name': 'hex → dec',
+            'kind': 'INLINE',
+          });
+          final openAction = CustomSemanticsAction(
+            label: i18nEn('pin.menu.open'),
+          );
+          final editColorAction = CustomSemanticsAction(
+            label: i18nEn('pin.menu.edit_color'),
+          );
+          final unpinAction = CustomSemanticsAction(
+            label: i18nEn('pin.menu.unpin'),
+          );
+          final node = tester.getSemantics(find.bySemanticsLabel(label));
+          expect(
+            node,
+            isSemantics(
+              label: label,
+              hint: i18nEn('a11y.pin.hint_run'),
+              isButton: true,
+              isFocusable: true,
+              hasEnabledState: true,
+              isEnabled: true,
+              hasTapAction: true,
+              customActions: <CustomSemanticsAction>[
+                openAction,
+                editColorAction,
+                unpinAction,
+              ],
+            ),
+          );
+
+          // Assistive-tech invocation: each custom action is wired to a
+          // real handler.
+          final owner = node.owner!;
+          owner.performAction(
+            node.id,
+            SemanticsAction.customAction,
+            CustomSemanticsAction.getIdentifier(openAction),
+          );
+          owner.performAction(
+            node.id,
+            SemanticsAction.customAction,
+            CustomSemanticsAction.getIdentifier(editColorAction),
+          );
+          await tester.pumpAndSettle();
+
+          expect(opened, placement);
+          expect(colorEdited, placement);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+
+    testWidgets(
+      'the_focus_ring_uses_the_focusring_token_regardless_of_pincoloroverride',
+      (tester) async {
         await tester.pumpWidget(
           harness(
-            Pin(
+            const Pin(
               placement: placement,
               toolLabel: 'hex → dec',
-              pinKind: UpegPinKind.inline,
-              onTap: (_) {},
-              onOpenModal: (p) => opened = p,
-              onEditColor: (p) => colorEdited = p,
+              focused: true,
+              pinColorOverride: '#FF5733',
             ),
           ),
         );
 
-        final label = i18nEn('a11y.pin.label', {
-          'name': 'hex → dec',
-          'kind': 'INLINE',
-        });
-        final openAction = CustomSemanticsAction(
-          label: i18nEn('pin.menu.open'),
-        );
-        final editColorAction = CustomSemanticsAction(
-          label: i18nEn('pin.menu.edit_color'),
-        );
-        final unpinAction = CustomSemanticsAction(
-          label: i18nEn('pin.menu.unpin'),
-        );
-        final node = tester.getSemantics(find.bySemanticsLabel(label));
-        expect(
-          node,
-          isSemantics(
-            label: label,
-            hint: i18nEn('a11y.pin.hint_run'),
-            isButton: true,
-            isFocusable: true,
-            hasEnabledState: true,
-            isEnabled: true,
-            hasTapAction: true,
-            customActions: <CustomSemanticsAction>[
-              openAction,
-              editColorAction,
-              unpinAction,
-            ],
-          ),
-        );
+        final tokens = UpegTheme.darkTheme().extension<UpegTokens>()!;
+        final ring = tester.widget<DecoratedBox>(find.byKey(pinFocusRingKey));
+        final ringBorder = (ring.decoration as BoxDecoration).border! as Border;
+        expect(ringBorder.top.color, tokens.focusRing);
+        expect(ringBorder.top.color, isNot(const Color(0xFFFF5733)));
+        expect(ringBorder.top.width, greaterThanOrEqualTo(2.0));
 
-        // 보조기술 경유 호출: custom action 이 실제 핸들러로 배선돼 있다.
-        final owner = node.owner!;
-        owner.performAction(
-          node.id,
-          SemanticsAction.customAction,
-          CustomSemanticsAction.getIdentifier(openAction),
+        // The pin's own border still uses the override color — the focus
+        // indicator doesn't steal the color channel.
+        final chrome = tester.widget<Container>(
+          find.byKey(pinChromeContainerKey),
         );
-        owner.performAction(
-          node.id,
-          SemanticsAction.customAction,
-          CustomSemanticsAction.getIdentifier(editColorAction),
-        );
-        await tester.pumpAndSettle();
+        final chromeBorder =
+            (chrome.decoration! as BoxDecoration).border! as Border;
+        expect(chromeBorder.top.color, const Color(0xFFFF5733));
+      },
+    );
 
-        expect(opened, placement);
-        expect(colorEdited, placement);
-      } finally {
-        semantics.dispose();
-      }
-    });
-
-    testWidgets('포커스_링은_pinColorOverride와_무관하게_focusRing_토큰으로_그린다', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        harness(
-          const Pin(
-            placement: placement,
-            toolLabel: 'hex → dec',
-            focused: true,
-            pinColorOverride: '#FF5733',
-          ),
-        ),
-      );
-
-      final tokens = UpegTheme.darkTheme().extension<UpegTokens>()!;
-      final ring = tester.widget<DecoratedBox>(find.byKey(pinFocusRingKey));
-      final ringBorder = (ring.decoration as BoxDecoration).border! as Border;
-      expect(ringBorder.top.color, tokens.focusRing);
-      expect(ringBorder.top.color, isNot(const Color(0xFFFF5733)));
-      expect(ringBorder.top.width, greaterThanOrEqualTo(2.0));
-
-      // 핀 자체 테두리는 여전히 override 색 — 포커스 표시가 색 채널을
-      // 빼앗지 않는다.
-      final chrome = tester.widget<Container>(
-        find.byKey(pinChromeContainerKey),
-      );
-      final chromeBorder =
-          (chrome.decoration! as BoxDecoration).border! as Border;
-      expect(chromeBorder.top.color, const Color(0xFFFF5733));
-    });
-
-    testWidgets('포커스되지_않으면_포커스_링이_없다', (tester) async {
+    testWidgets('an_unfocused_pin_has_no_focus_ring', (tester) async {
       await tester.pumpWidget(
         harness(const Pin(placement: placement, toolLabel: 'hex → dec')),
       );
@@ -480,22 +508,27 @@ void main() {
       expect(find.byKey(pinFocusRingKey), findsNothing);
     });
 
-    testWidgets('대화형_본문의_입력과_실행은_핀을_열지_않고_헤더_탭만_핀을_연다', (tester) async {
-      var pinTapCount = 0;
-      final robot = _PinInteractionRobot(tester, placement);
-      await robot.pumpInteractivePin(onTap: () => pinTapCount += 1);
+    testWidgets(
+      'interacting_with_body_input_and_run_never_opens_the_pin_only_a_header_tap_does',
+      (tester) async {
+        var pinTapCount = 0;
+        final robot = _PinInteractionRobot(tester, placement);
+        await robot.pumpInteractivePin(onTap: () => pinTapCount += 1);
 
-      await robot.tapField();
-      robot.expectPinTapCount(pinTapCount, 0);
+        await robot.tapField();
+        robot.expectPinTapCount(pinTapCount, 0);
 
-      await robot.tapRunButton();
-      robot.expectPinTapCount(pinTapCount, 0);
+        await robot.tapRunButton();
+        robot.expectPinTapCount(pinTapCount, 0);
 
-      await robot.tapHeader();
-      robot.expectPinTapCount(pinTapCount, 1);
-    });
+        await robot.tapHeader();
+        robot.expectPinTapCount(pinTapCount, 1);
+      },
+    );
 
-    testWidgets('canonical_output이_있으면_label_값_쌍으로_렌더한다', (tester) async {
+    testWidgets('a_canonical_output_renders_as_label_value_pairs', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           Pin(
@@ -527,7 +560,9 @@ void main() {
       expect(find.text('-1.2'), findsOneWidget);
     });
 
-    testWidgets('canonical_output이_없으면_라벨만_렌더한다', (tester) async {
+    testWidgets('without_a_canonical_output_only_labels_render', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -550,7 +585,9 @@ void main() {
       expect(find.text('32.5'), findsNothing);
     });
 
-    testWidgets('stale가_true이면_kind_옆에_작은_점이_표시된다', (tester) async {
+    testWidgets('a_stale_pin_shows_a_small_dot_beside_the_kind', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -565,7 +602,7 @@ void main() {
       expect(find.byKey(const Key('pin-stale-dot')), findsOneWidget);
     });
 
-    testWidgets('핀_실행_중에는_인디케이터가_보인다', (tester) async {
+    testWidgets('a_running_pin_shows_the_indicator', (tester) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -580,7 +617,7 @@ void main() {
       expect(find.byKey(const Key('pin-running-indicator')), findsOneWidget);
     });
 
-    testWidgets('핀_실행_중이_아니면_인디케이터가_없다', (tester) async {
+    testWidgets('a_pin_not_running_has_no_indicator', (tester) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -594,68 +631,78 @@ void main() {
       expect(find.byKey(const Key('pin-running-indicator')), findsNothing);
     });
 
-    testWidgets('좁은 핀에서 실행 중인 Inline footer는 가로로 넘치지 않는다', (tester) async {
-      final robot = _PinFooterRobot(tester, placement);
+    testWidgets(
+      'a_running_inline_footer_on_a_narrow_pin_never_overflows_horizontally',
+      (tester) async {
+        final robot = _PinFooterRobot(tester, placement);
 
-      await robot.pumpRunningInlinePin();
+        await robot.pumpRunningInlinePin();
 
-      robot.expectRunningIndicatorVisible();
-      robot.expectNoFlutterException();
-    });
+        robot.expectRunningIndicatorVisible();
+        robot.expectNoFlutterException();
+      },
+    );
 
-    testWidgets('라이트 핀 footer의 kind와 invoker와 stale 표시는 실제 배경과 4.5 이상 대비된다', (
-      tester,
-    ) async {
-      for (final kind in UpegPinKind.values) {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [...i18nTestOverrides],
-            child: MaterialApp(
-              theme: UpegTheme.lightTheme(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 220,
-                  height: 150,
-                  child: Pin(
-                    placement: placement,
-                    pinKind: kind,
-                    invokerLabel: 'function',
-                    stale: true,
+    testWidgets(
+      'the_light_pin_footer_kind_invoker_and_stale_markers_contrast_with_the_real_background',
+      (tester) async {
+        for (final kind in UpegPinKind.values) {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [...i18nTestOverrides],
+              child: MaterialApp(
+                theme: UpegTheme.lightTheme(),
+                home: Scaffold(
+                  body: SizedBox(
+                    width: 220,
+                    height: 150,
+                    child: Pin(
+                      placement: placement,
+                      pinKind: kind,
+                      invokerLabel: 'function',
+                      stale: true,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-
-        final chrome = tester.widget<Container>(
-          find.byKey(pinChromeContainerKey),
-        );
-        final background = (chrome.decoration! as BoxDecoration).color!;
-        final kindColor = tester
-            .widget<Text>(find.text(kind.label))
-            .style!
-            .color!;
-        final invokerColor = tester
-            .widget<Text>(find.text('function'))
-            .style!
-            .color!;
-        final stale = tester.widget<Container>(
-          find.byKey(const Key('pin-stale-dot')),
-        );
-        final staleColor = (stale.decoration! as BoxDecoration).color!;
-
-        for (final foreground in <Color>[kindColor, invokerColor, staleColor]) {
-          expect(
-            colorContrastRatio(foreground, background),
-            greaterThanOrEqualTo(minimumNormalTextContrastRatio),
-            reason: '${kind.name} footer marker must remain readable',
           );
-        }
-      }
-    });
 
-    testWidgets('Pin은_pinColorOverride가_있으면_테두리_색상을_재정의한다', (tester) async {
+          final chrome = tester.widget<Container>(
+            find.byKey(pinChromeContainerKey),
+          );
+          final background = (chrome.decoration! as BoxDecoration).color!;
+          final kindColor = tester
+              .widget<Text>(find.text(kind.label))
+              .style!
+              .color!;
+          final invokerColor = tester
+              .widget<Text>(find.text('function'))
+              .style!
+              .color!;
+          final stale = tester.widget<Container>(
+            find.byKey(const Key('pin-stale-dot')),
+          );
+          final staleColor = (stale.decoration! as BoxDecoration).color!;
+
+          for (final foreground in <Color>[
+            kindColor,
+            invokerColor,
+            staleColor,
+          ]) {
+            expect(
+              colorContrastRatio(foreground, background),
+              greaterThanOrEqualTo(minimumNormalTextContrastRatio),
+              reason: '${kind.name} footer marker must remain readable',
+            );
+          }
+        }
+      },
+    );
+
+    testWidgets('a_pin_with_a_pincoloroverride_recolors_its_border', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -669,7 +716,9 @@ void main() {
       expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
     });
 
-    testWidgets('restored_결과는_지난_실행_타임스탬프_배지를_렌더한다', (tester) async {
+    testWidgets('a_restored_result_renders_the_last_run_timestamp_badge', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           Pin(
@@ -689,7 +738,7 @@ void main() {
       );
     });
 
-    testWidgets('fresh_결과에는_타임스탬프_배지가_없다', (tester) async {
+    testWidgets('a_fresh_result_has_no_timestamp_badge', (tester) async {
       await tester.pumpWidget(
         harness(
           Pin(
@@ -704,7 +753,9 @@ void main() {
       expect(find.byKey(pinRestoredBadgeKey), findsNothing);
     });
 
-    testWidgets('truncated_결과의_프리뷰에는_말줄임이_붙는다', (tester) async {
+    testWidgets('a_truncated_result_preview_carries_an_ellipsis', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -735,40 +786,41 @@ void main() {
       expect(find.text('partial output'), findsNothing);
     });
 
-    testWidgets('restored_결과는_semantics_value에_복원_상태와_상대_시각을_노출한다', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(
-          harness(
-            Pin(
-              placement: placement,
-              toolLabel: 'eth gas',
-              pinKind: UpegPinKind.live,
-              outputResult: canonicalGasResult(),
-              restoredAt: DateTime.now().subtract(const Duration(minutes: 5)),
+    testWidgets(
+      'a_restored_result_exposes_the_restored_state_and_relative_time_in_the_semantics_value',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            harness(
+              Pin(
+                placement: placement,
+                toolLabel: 'eth gas',
+                pinKind: UpegPinKind.live,
+                outputResult: canonicalGasResult(),
+                restoredAt: DateTime.now().subtract(const Duration(minutes: 5)),
+              ),
             ),
-          ),
-        );
+          );
 
-        final label = i18nEn('a11y.pin.label', {
-          'name': 'eth gas',
-          'kind': 'LIVE',
-        });
-        final expectedValue = [
-          i18nEn('a11y.pin.result_ok', {'preview': '32.5'}),
-          i18nEn('a11y.pin.restored'),
-          i18nEn('pin.last_run.minutes_ago', {'minutes': '5'}),
-        ].join(' · ');
-        expect(
-          tester.getSemantics(find.bySemanticsLabel(label)),
-          isSemantics(label: label, value: expectedValue, isLiveRegion: true),
-        );
-      } finally {
-        semantics.dispose();
-      }
-    });
+          final label = i18nEn('a11y.pin.label', {
+            'name': 'eth gas',
+            'kind': 'LIVE',
+          });
+          final expectedValue = [
+            i18nEn('a11y.pin.result_ok', {'preview': '32.5'}),
+            i18nEn('a11y.pin.restored'),
+            i18nEn('pin.last_run.minutes_ago', {'minutes': '5'}),
+          ].join(' · ');
+          expect(
+            tester.getSemantics(find.bySemanticsLabel(label)),
+            isSemantics(label: label, value: expectedValue, isLiveRegion: true),
+          );
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
   });
 }
 

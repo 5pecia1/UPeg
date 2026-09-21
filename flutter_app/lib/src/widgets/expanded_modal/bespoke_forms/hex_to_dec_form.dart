@@ -155,7 +155,7 @@ class _HexToDecFormState extends ConsumerState<HexToDecForm> {
                   color: tokens.fg,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'hex', // i18n-exempt: CLI/technical token
+                  labelText: 'hex',
                   hintText: t(ref, 'modal.hex.hint'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(UpegSizing.radius1),
@@ -247,7 +247,7 @@ class _PreviewBlock extends ConsumerWidget {
         );
       case HexDecodeError():
         return Text(
-          r.message,
+          t(ref, r.messageKey),
           style: TextStyle(color: tokens.warn, fontSize: 11),
         );
     }

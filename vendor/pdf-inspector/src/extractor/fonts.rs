@@ -1069,10 +1069,10 @@ fn embedded_style_flags(doc: &Document, ff_ref: ObjectId) -> (bool, bool) {
     let Some(data) = font_file_data(doc, ff_ref) else {
         return (false, false);
     };
-    if let Ok(face) = ttf_parser::Face::parse(&data, 0) {
+    if let Some(face) = crate::sfnt::parse(&data) {
         (
-            face.is_italic() || face.italic_angle().abs() >= 4.0,
-            face.is_bold(),
+            crate::sfnt::is_italic(&face) || crate::sfnt::italic_angle(&face).abs() >= 4.0,
+            crate::sfnt::is_bold(&face),
         )
     } else if let Some(name) = cff_font_name(&data) {
         // FontFile3 is bare CFF (no sfnt container) — ttf_parser

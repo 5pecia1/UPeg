@@ -222,7 +222,7 @@ fn skipped_tool_lines(skipped: &[upeg_loader::SkippedTool]) -> Vec<String> {
 /// named through `UPEG_PROJECT_MANIFEST_PATH` needs no consent notice,
 /// and with zero tools there is nothing else to report either. `-q`
 /// suppresses the whole report, this line included
-/// (docs/architecture/project-manifest.md, 동의 고지).
+/// (docs/architecture/project-manifest.md, "consent notice").
 fn project_manifest_summary_line(
     origin: upeg_sources::project::ProjectManifestOrigin,
     path: &std::path::Path,
@@ -247,14 +247,14 @@ fn project_manifest_summary_line(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn 존재하지_않는_working_directory는_로드_전에_오류로_반환된다() {
+    fn a_missing_working_directory_returns_an_error_before_loading() {
         let missing = std::env::temp_dir().join(format!(
             "upeg-missing-working-directory-{}",
             std::process::id()
         ));
 
         let error = super::apply_working_directory(Some(&missing))
-            .expect_err("없는 working directory는 거절해야 한다");
+            .expect_err("a missing working directory must be refused");
 
         assert!(error.contains("--working-directory"), "{error}");
         assert!(error.contains(&missing.display().to_string()), "{error}");
@@ -263,14 +263,20 @@ mod tests {
     use super::{project_manifest_summary_line, skipped_tool_lines};
     use upeg_sources::project::ProjectManifestOrigin;
 
-    fn 경로() -> std::path::PathBuf {
+    fn manifest_path() -> std::path::PathBuf {
         std::path::PathBuf::from("/w/upeg.toml")
     }
 
     #[test]
-    fn 탐지된_매니페스트는_고지와_집계를_한_줄로_합친다() {
-        let line = project_manifest_summary_line(ProjectManifestOrigin::Detected, &경로(), 3, 1, 0)
-            .expect("한 줄");
+    fn a_detected_manifest_folds_notice_and_tally_into_one_line() {
+        let line = project_manifest_summary_line(
+            ProjectManifestOrigin::Detected,
+            &manifest_path(),
+            3,
+            1,
+            0,
+        )
+        .expect("one line");
         assert_eq!(
             line,
             "upeg: loaded project manifest /w/upeg.toml (3 tool(s), 1 failed)"
@@ -278,17 +284,28 @@ mod tests {
     }
 
     #[test]
-    fn 도구가_없는_탐지된_매니페스트는_고지만_남긴다() {
-        let line = project_manifest_summary_line(ProjectManifestOrigin::Detected, &경로(), 0, 0, 0)
-            .expect("한 줄");
+    fn a_detected_manifest_with_no_tools_leaves_only_the_notice() {
+        let line = project_manifest_summary_line(
+            ProjectManifestOrigin::Detected,
+            &manifest_path(),
+            0,
+            0,
+            0,
+        )
+        .expect("one line");
         assert_eq!(line, "upeg: loaded project manifest /w/upeg.toml");
     }
 
     #[test]
-    fn 명시된_매니페스트는_동의_고지_없이_집계만_남긴다() {
-        let line =
-            project_manifest_summary_line(ProjectManifestOrigin::EnvOverride, &경로(), 2, 0, 0)
-                .expect("한 줄");
+    fn an_explicit_manifest_leaves_only_the_tally_without_the_consent_notice() {
+        let line = project_manifest_summary_line(
+            ProjectManifestOrigin::EnvOverride,
+            &manifest_path(),
+            2,
+            0,
+            0,
+        )
+        .expect("one line");
         assert_eq!(
             line,
             "upeg: loaded 2 project tool(s) from /w/upeg.toml (0 failed)"
@@ -296,19 +313,32 @@ mod tests {
     }
 
     #[test]
-    fn 도구가_없는_명시된_매니페스트는_아무_줄도_남기지_않는다() {
+    fn an_explicit_manifest_with_no_tools_leaves_no_line_at_all() {
         assert_eq!(
-            project_manifest_summary_line(ProjectManifestOrigin::EnvOverride, &경로(), 0, 0, 0),
+            project_manifest_summary_line(
+                ProjectManifestOrigin::EnvOverride,
+                &manifest_path(),
+                0,
+                0,
+                0
+            ),
             None
         );
     }
 
     #[test]
-    fn 전부_건너뛴_탐지된_매니페스트도_집계_줄을_남긴다() {
-        // 선언된 도구가 이 호스트에서 전부 빠져도 "도구 없음"으로
-        // 내려가면 안 된다 — 뒤따르는 `~` 줄이 매달릴 머리글이 사라진다.
-        let line = project_manifest_summary_line(ProjectManifestOrigin::Detected, &경로(), 0, 0, 1)
-            .expect("한 줄");
+    fn a_detected_manifest_with_every_tool_skipped_still_leaves_the_tally_line() {
+        // Even when every declared tool is skipped on this host, the
+        // line must not drop to "no tools" — the following `~` lines
+        // would lose the header they hang under.
+        let line = project_manifest_summary_line(
+            ProjectManifestOrigin::Detected,
+            &manifest_path(),
+            0,
+            0,
+            1,
+        )
+        .expect("one line");
         assert_eq!(
             line,
             "upeg: loaded project manifest /w/upeg.toml (0 tool(s), 0 failed)"
@@ -316,14 +346,14 @@ mod tests {
     }
 
     #[test]
-    fn 건너뛴_도구는_실패가_아니라_물결표_줄로_사유와_함께_적힌다() {
+    fn a_skipped_tool_is_written_on_a_tilde_line_with_its_reason_not_as_a_failure() {
         let lines = skipped_tool_lines(&[upeg_loader::SkippedTool {
             id: "t.terminal".to_string(),
             reason: upeg_loader::LoadError::PtyUnsupportedOnHost,
         }]);
 
         let [line] = lines.as_slice() else {
-            panic!("한 줄이어야 한다: {lines:?}");
+            panic!("must be exactly one line: {lines:?}");
         };
         assert!(
             line.starts_with("upeg:   ~ t.terminal: skipped ("),
@@ -331,24 +361,29 @@ mod tests {
         );
         assert!(
             !line.contains('✗'),
-            "건너뜀은 실패가 아니다 — 실패 표식을 쓰면 안 된다: {line}"
+            "a skip is not a failure — it must not carry the failure marker: {line}"
         );
         assert!(
             line.contains(&upeg_loader::LoadError::PtyUnsupportedOnHost.to_string()),
-            "사유가 없는 줄은 구멍만 남긴다: {line}"
+            "a line without the reason leaves only a hole: {line}"
         );
     }
 
     #[test]
-    fn 건너뛴_도구가_없으면_물결표_줄도_없다() {
+    fn no_skipped_tools_means_no_tilde_lines() {
         assert!(skipped_tool_lines(&[]).is_empty());
     }
 
     #[test]
-    fn 전부_건너뛴_명시된_매니페스트도_집계_줄을_남긴다() {
-        let line =
-            project_manifest_summary_line(ProjectManifestOrigin::EnvOverride, &경로(), 0, 0, 2)
-                .expect("한 줄");
+    fn an_explicit_manifest_with_every_tool_skipped_still_leaves_the_tally_line() {
+        let line = project_manifest_summary_line(
+            ProjectManifestOrigin::EnvOverride,
+            &manifest_path(),
+            0,
+            0,
+            2,
+        )
+        .expect("one line");
         assert_eq!(
             line,
             "upeg: loaded 0 project tool(s) from /w/upeg.toml (0 failed)"

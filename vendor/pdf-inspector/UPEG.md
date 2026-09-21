@@ -26,6 +26,18 @@ Local patches:
 - `src/lib.rs`: add `process_pdf_mem_with_page_limit`. It checks the page
   count after parsing, before detection/extraction, and reuses the parsed
   document. Upstream APIs and defaults remain unchanged.
+- `Cargo.toml`: `lopdf` bumped from `0.42.0` to `0.44.0` on both targets
+  (matching upstream main at review time). In 0.44 `ttf-parser` moved behind
+  the optional `font_embedding` feature, which nothing here enables.
+- `Cargo.toml`, `src/sfnt.rs` (new), `src/tounicode.rs`, `src/detector.rs`,
+  `src/extractor/fonts.rs`: `ttf-parser` (RUSTSEC-2026-0192, unmaintained)
+  replaced by `skrifa` 0.44 / `read-fonts` 0.41, already in UPeg's graph via
+  hayro/usvg. `src/sfnt.rs` reimplements the exact `ttf_parser` semantics
+  used upstream — cmap subtable iteration and `is_unicode`, `glyph_index`,
+  `codepoints`-has-mappings, post italic angle, OS/2 fsSelection italic/bold,
+  maxp glyph count — and `skrifa::GlyphNames` supplies the post/CFF glyph
+  names `face.glyph_name` provided (synthesized `gidNNN` names are skipped
+  where `ttf_parser` returned `None`).
 
 No OCR features are enabled. MIT license: `LICENSE`. Adobe CMap redistribution
 notice: `external/bcmaps/LICENSE`; preserve both with distributions.

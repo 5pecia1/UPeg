@@ -18,7 +18,9 @@ import '../test_helpers/board_canvas_harness.dart';
 
 void main() {
   group('BoardCanvas', () {
-    testWidgets('BoardCanvas는_빈_레이아웃에서_안내_텍스트를_표시한다', (tester) async {
+    testWidgets('BoardCanvas_shows_hint_text_for_an_empty_layout', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardCanvasHarness(
           snapshot: const LayoutSnapshotDto(
@@ -33,7 +35,7 @@ void main() {
       expect(find.text(emptyBoardHint), findsOneWidget);
     });
 
-    testWidgets('BoardCanvas는_각_placement_마다_Pin을_렌더한다', (tester) async {
+    testWidgets('BoardCanvas_renders_a_Pin_for_each_placement', (tester) async {
       await tester.pumpWidget(
         boardCanvasHarness(
           snapshot: const LayoutSnapshotDto(
@@ -67,7 +69,7 @@ void main() {
       expect(find.text('CONVERT.BASE64_DECODE'), findsOneWidget);
     });
 
-    testWidgets('BoardCanvas는_U2_pin을_2배_너비로_렌더한다', (tester) async {
+    testWidgets('BoardCanvas_renders_a_U2_pin_at_double_width', (tester) async {
       await tester.pumpWidget(
         boardCanvasHarness(
           snapshot: const LayoutSnapshotDto(
@@ -89,7 +91,9 @@ void main() {
       expect(size.width, closeTo(344, 0.1));
     });
 
-    testWidgets('BoardCanvas는_placement_x_y를_셀_좌표로_그대로_사용한다', (tester) async {
+    testWidgets('BoardCanvas_uses_placement_x_y_as_cell_coordinates_verbatim', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardCanvasHarness(
           snapshot: const LayoutSnapshotDto(
@@ -122,7 +126,9 @@ void main() {
       );
     });
 
-    testWidgets('BoardCanvas의_canvas_크기는_trailing_row를_포함한다', (tester) async {
+    testWidgets('the_BoardCanvas_canvas_size_includes_the_trailing_row', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardCanvasHarness(
           snapshot: const LayoutSnapshotDto(
@@ -153,7 +159,7 @@ void main() {
       );
     });
 
-    testWidgets('BoardCanvas는_selected_tag를_layout_query로_전달한다', (
+    testWidgets('BoardCanvas_passes_selected_tag_to_the_layout_query', (
       tester,
     ) async {
       late LayoutQuery observed;
@@ -197,7 +203,9 @@ void main() {
       expect(observed.tag, const TagSpecific('pure'));
     });
 
-    testWidgets('BoardCanvas는_항상_6열_너비로_렌더한다', (tester) async {
+    testWidgets('BoardCanvas_always_renders_at_six_column_width', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -262,79 +270,80 @@ void main() {
       expect(canvasSize.height, greaterThanOrEqualTo(expectedMinHeight));
     });
 
-    testWidgets('TagChipRow_클릭은_BoardCanvas의_보이는_pin을_필터링하고_all로_복구한다', (
-      tester,
-    ) async {
-      const allPlacements = [
-        PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
-        PlacementDto(toolId: 'text.lowercase', x: 1, y: 0, w: 1, h: 1),
-      ];
-      const purePlacements = [
-        PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
-      ];
-      final observedTags = <TagSelection>[];
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(
-            boardKey: 'dev',
-            tagOptions: (_) => const ['all', 'pure'],
-          ),
-          boardTagOptionsLoaderProvider.overrideWithValue(
-            (_) => const ['all', 'pure'],
-          ),
-          boardTagCountLoaderProvider.overrideWithValue((_, _) => 0),
-          layoutLoaderProvider.overrideWithValue((query) {
-            observedTags.add(query.tag);
-            return LayoutSnapshotDto(
-              boardKey: query.boardKey.value,
-              boardCols: 6,
-              placements: query.tag == const TagSpecific('pure')
-                  ? purePlacements
-                  : allPlacements,
-            );
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
-      await container.read(pegboardSelectionProvider.notifier).restore(const [
-        BoardDto(key: 'dev', title: 'Dev'),
-      ]);
+    testWidgets(
+      'clicking_a_TagChipRow_filters_the_visible_BoardCanvas_pins_and_all_restores_them',
+      (tester) async {
+        const allPlacements = [
+          PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
+          PlacementDto(toolId: 'text.lowercase', x: 1, y: 0, w: 1, h: 1),
+        ];
+        const purePlacements = [
+          PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
+        ];
+        final observedTags = <TagSelection>[];
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(
+              boardKey: 'dev',
+              tagOptions: (_) => const ['all', 'pure'],
+            ),
+            boardTagOptionsLoaderProvider.overrideWithValue(
+              (_) => const ['all', 'pure'],
+            ),
+            boardTagCountLoaderProvider.overrideWithValue((_, _) => 0),
+            layoutLoaderProvider.overrideWithValue((query) {
+              observedTags.add(query.tag);
+              return LayoutSnapshotDto(
+                boardKey: query.boardKey.value,
+                boardCols: 6,
+                placements: query.tag == const TagSpecific('pure')
+                    ? purePlacements
+                    : allPlacements,
+              );
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(pegboardSelectionProvider.notifier).restore(const [
+          BoardDto(key: 'dev', title: 'Dev'),
+        ]);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.darkTheme(),
-            home: Scaffold(
-              body: Column(
-                children: [
-                  const TagChipRow(),
-                  Expanded(
-                    child: BoardCanvas(
-                      boardKey: BoardKey.parse('dev'),
-                      onPinTap: (_) {},
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: UpegTheme.darkTheme(),
+              home: Scaffold(
+                body: Column(
+                  children: [
+                    const TagChipRow(),
+                    Expanded(
+                      child: BoardCanvas(
+                        boardKey: BoardKey.parse('dev'),
+                        onPinTap: (_) {},
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(Pin), findsNWidgets(2));
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(Pin), findsNWidgets(2));
 
-      await tester.tap(find.byKey(const Key('tag-chip-pure')));
-      await tester.pumpAndSettle();
-      expect(find.byType(Pin), findsOneWidget);
+        await tester.tap(find.byKey(const Key('tag-chip-pure')));
+        await tester.pumpAndSettle();
+        expect(find.byType(Pin), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('tag-chip-all')));
-      await tester.pumpAndSettle();
-      expect(find.byType(Pin), findsNWidgets(2));
-      expect(container.read(selectedTagProvider), const TagAll());
-      expect(observedTags, contains(const TagSpecific('pure')));
-      expect(observedTags, contains(const TagAll()));
-    });
+        await tester.tap(find.byKey(const Key('tag-chip-all')));
+        await tester.pumpAndSettle();
+        expect(find.byType(Pin), findsNWidgets(2));
+        expect(container.read(selectedTagProvider), const TagAll());
+        expect(observedTags, contains(const TagSpecific('pure')));
+        expect(observedTags, contains(const TagAll()));
+      },
+    );
   });
 }

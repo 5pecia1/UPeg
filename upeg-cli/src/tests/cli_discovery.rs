@@ -4,7 +4,7 @@ use crate::*;
 // ─── --board filter + text.slugify ──────────────
 
 #[test]
-fn 도구_목록의_고정된_필터는_일치하는_것만_유지한다() {
+fn tool_list_board_filter_keeps_only_matching_tools() {
     // Built-ins like `convert.base64_encode` declare
     // `boards = ["dev"]`; nothing pins to a made-up "iter56_zzz".
     let dev_view = run(parse(&["upeg", "tool", "list", "--board", "dev"])).unwrap();
@@ -31,7 +31,7 @@ fn 도구_목록의_고정된_필터는_일치하는_것만_유지한다() {
 }
 
 #[test]
-fn 도구_목록의_태그와_보드_필터는_합성된다() {
+fn tool_list_combines_tag_and_board_filters() {
     // --tag AND --board compose. `convert.base64_encode` inherits the
     // `convert` Toolkit tag and is pinned to "dev" — it should appear under both.
     let combo = run(parse(&[
@@ -46,7 +46,7 @@ fn 도구_목록의_태그와_보드_필터는_합성된다() {
 }
 
 #[test]
-fn 텍스트_slugify_하위명령은_기본과_유니코드를_모두_처리한다() {
+fn text_slugify_subcommand_handles_ascii_and_unicode_input() {
     let s = run(parse(&["upeg", "text", "slugify", "Hello, World!"])).unwrap();
     assert_eq!(s, "hello-world\n");
     // Non-ASCII drops gracefully (no transliteration; it's documented).
@@ -55,7 +55,7 @@ fn 텍스트_slugify_하위명령은_기본과_유니코드를_모두_처리한�
 }
 
 #[test]
-fn slugify_도구는_text_태그_목록과_dispatch_모두에_나타난다() {
+fn slugify_is_listed_under_the_text_tag_and_dispatches_through_call() {
     let listed = run(parse(&["upeg", "tool", "list", "--tag", "text"])).unwrap();
     assert!(listed.contains("text.slugify"));
     let direct = run(parse(&["upeg", "text", "slugify", "Foo Bar"])).unwrap();
@@ -73,7 +73,7 @@ fn slugify_도구는_text_태그_목록과_dispatch_모두에_나타난다() {
 // ─── --pin filter + embed_url on tool show ──────
 
 #[test]
-fn 도구_목록의_pin_필터는_일치하는_종류만_유지한다() {
+fn tool_list_pin_filter_keeps_only_matching_kinds() {
     // Register a Launcher-only tool to verify negative filtering.
     let id = "test.iter91.launcher_only";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
@@ -88,6 +88,8 @@ fn 도구_목록의_pin_필터는_일치하는_종류만_유지한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Launcher,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -117,7 +119,7 @@ fn 도구_목록의_pin_필터는_일치하는_종류만_유지한다() {
 }
 
 #[test]
-fn 도구_표시는_패딩된_id를_거부한다() {
+fn tool_show_rejects_padded_ids() {
     let text = run(parse(&["upeg", "tool", "show", " num.hex_to_decimal "]));
     assert!(
         matches!(text, Err(CliError::UnknownTool(_))),
@@ -138,7 +140,7 @@ fn 도구_표시는_패딩된_id를_거부한다() {
 }
 
 #[test]
-fn 호출은_패딩된_도구_id를_거부한다() {
+fn call_rejects_padded_tool_ids() {
     let result = run(parse(&[
         "upeg",
         "call",
@@ -165,7 +167,7 @@ fn 호출은_패딩된_도구_id를_거부한다() {
 }
 
 #[test]
-fn 도구_목록의_필터_플래그는_공백을_잘라낸다() {
+fn tool_list_trims_whitespace_in_surface_and_pin_filters() {
     // parallel to upeg-loader / upeg-wasm whitespace trimming.
     // Shell paste with trailing space (`--surface "cli "`) must not
     // produce an "unknown surface" error; same for `--pin "Inline "`.
@@ -192,7 +194,7 @@ fn 도구_목록의_필터_플래그는_공백을_잘라낸다() {
 }
 
 #[test]
-fn 도구_목록의_태그와_보드_필터는_공백을_잘라낸다() {
+fn tool_list_trims_whitespace_in_tag_and_board_filters() {
     // parallel to the pin-filter trim. A padded `--tag " convert"`
     // (shell paste) must trim before comparison against registered
     // Toolkit tags; loader-side trim guarantees no registered tag carries
@@ -226,7 +228,7 @@ fn 도구_목록의_태그와_보드_필터는_공백을_잘라낸다() {
 }
 
 #[test]
-fn 도구_목록_pin_필터_알수없는_종류는_깨끗한_오류를_반환한다() {
+fn tool_list_pin_filter_returns_a_clear_error_for_unknown_kinds() {
     let r = run(parse(&["upeg", "tool", "list", "--pin", "Mauve"]));
     match r {
         Err(CliError::ToolFailed(msg)) => {
@@ -238,7 +240,7 @@ fn 도구_목록_pin_필터_알수없는_종류는_깨끗한_오류를_반환한
 }
 
 #[test]
-fn 도구_목록_pin_필터는_모든_알려진_변형을_허용한다() {
+fn tool_list_pin_filter_accepts_all_known_variants() {
     // cli pin validation now delegates to
     // `PinKind::parse`. Pin the round-trip — every label produced
     // by `PinKind::label()` must be accepted by `--pin`. If a
@@ -268,7 +270,7 @@ fn 도구_목록_pin_필터는_모든_알려진_변형을_허용한다() {
 }
 
 #[test]
-fn 태그가_있는_도구_목록_pin_필터는_합성된다() {
+fn tool_list_combines_pin_and_tag_filters() {
     // --pin AND --tag compose. convert.base64_encode is Inline plus the convert Toolkit tag.
     let combo = run(parse(&[
         "upeg", "tool", "list", "--tag", "convert", "--pin", "Inline",
@@ -283,7 +285,7 @@ fn 태그가_있는_도구_목록_pin_필터는_합성된다() {
 }
 
 #[test]
-fn 도구_목록_json은_embed_url_필드를_포함한다() {
+fn tool_list_json_includes_the_embed_url_field() {
     // every JSON entry must have an `embedUrl` field (string
     // when registered, null otherwise) so consumers can rely on shape.
     let id = "test.iter91.embed_url_in_list";
@@ -299,6 +301,8 @@ fn 도구_목록_json은_embed_url_필드를_포함한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -320,7 +324,7 @@ fn 도구_목록_json은_embed_url_필드를_포함한다() {
 }
 
 #[test]
-fn 등록되어_있으면_도구_표시는_embed_url을_보여준다() {
+fn tool_show_displays_a_registered_embed_url() {
     let id = "test.iter91.show_embed_url";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -334,6 +338,8 @@ fn 등록되어_있으면_도구_표시는_embed_url을_보여준다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -357,7 +363,7 @@ fn 등록되어_있으면_도구_표시는_embed_url을_보여준다() {
 }
 
 #[test]
-fn 등록되지_않으면_도구_표시는_embed_url_행을_생략한다() {
+fn tool_show_omits_the_embed_url_row_when_none_is_registered() {
     // Tabular: no row. JSON: field is `null` (always present).
     let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"])).unwrap();
     assert!(
@@ -383,7 +389,7 @@ fn 등록되지_않으면_도구_표시는_embed_url_행을_생략한다() {
 // ─── surface selector_bindings via CLI ─────────────
 
 #[test]
-fn 등록되어_있으면_도구_표시는_선택자_바인딩들을_나열한다() {
+fn tool_show_lists_registered_selector_bindings() {
     let id = "test.iter93.show_bindings";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -397,6 +403,8 @@ fn 등록되어_있으면_도구_표시는_선택자_바인딩들을_나열한�
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::ControlledEmbed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -440,7 +448,7 @@ fn 등록되어_있으면_도구_표시는_선택자_바인딩들을_나열한�
 }
 
 #[test]
-fn 도구_표시_json은_선택자_바인딩들_배열을_포함한다() {
+fn tool_show_json_includes_the_selector_bindings_array() {
     let id = "test.iter93.show_bindings_json";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -454,6 +462,8 @@ fn 도구_표시_json은_선택자_바인딩들_배열을_포함한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::ControlledEmbed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -483,7 +493,7 @@ fn 도구_표시_json은_선택자_바인딩들_배열을_포함한다() {
 }
 
 #[test]
-fn 바인딩이_없으면_도구_표시_json의_선택자_바인딩은_빈_배열이다() {
+fn tool_show_json_uses_an_empty_array_when_no_selector_bindings_exist() {
     // Shape stability: the field is always an array, never `null` or
     // missing. Empty array when none registered.
     let out = run(parse(&[
@@ -500,7 +510,7 @@ fn 바인딩이_없으면_도구_표시_json의_선택자_바인딩은_빈_배�
 }
 
 #[test]
-fn 바인딩이_등록되어_있지_않으면_도구_표시는_선택자_바인딩_섹션을_생략한다() {
+fn tool_show_omits_the_selector_bindings_section_when_none_are_registered() {
     // Tabular: no rows. The header line shouldn't appear either —
     // empty registry means the section is fully suppressed.
     let out = run(parse(&["upeg", "tool", "show", "num.hex_to_decimal"])).unwrap();
@@ -511,13 +521,13 @@ fn 바인딩이_등록되어_있지_않으면_도구_표시는_선택자_바인�
 }
 
 #[test]
-fn 도구_목록_json은_선택자_바인딩들_필드를_포함한다() {
+fn tool_list_json_includes_the_selector_bindings_field() {
     // `tool list --json` carries the `selectorBindings` field on
     // every entry for shape parity with `tool show --json`. The
     // CLI surface only lists tools exposed on CLI, so a built-in
     // (which has no selector bindings) is sufficient to pin the
     // empty-array shape contract. ControlledEmbed-with-bindings
-    // testing lives in `도구_표시_json은_선택자_바인딩들_배열을_포함한다`,
+    // testing lives in `tool_show_json_includes_the_selector_bindings_array`,
     // which uses `tool show` (no surface filter).
     let out = run(parse(&["upeg", "tool", "list", "--json"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
@@ -540,7 +550,7 @@ fn 도구_목록_json은_선택자_바인딩들_필드를_포함한다() {
 // ─── color tools ────────────────────────────────────
 
 #[test]
-fn 색상_하위명령은_왕복_변환을_지원한다() {
+fn color_subcommands_round_trip_between_hex_and_rgb() {
     let rgb = run(parse(&["upeg", "color", "hex-to-rgb", "#ff8800"])).unwrap();
     assert_eq!(rgb, "255,136,0\n");
     let hex = run(parse(&["upeg", "color", "rgb-to-hex", "255,136,0"])).unwrap();
@@ -548,7 +558,7 @@ fn 색상_하위명령은_왕복_변환을_지원한다() {
 }
 
 #[test]
-fn 색상_하위명령은_cli로_오류를_전파한다() {
+fn color_subcommands_propagate_errors_to_cli() {
     let r = run(parse(&["upeg", "color", "hex-to-rgb", "#zz0000"]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
     let r2 = run(parse(&["upeg", "color", "rgb-to-hex", "256,0,0"]));
@@ -556,7 +566,7 @@ fn 색상_하위명령은_cli로_오류를_전파한다() {
 }
 
 #[test]
-fn 색상_변환_도구는_color_태그_목록과_dispatch_모두에_나타난다() {
+fn color_conversion_tools_appear_in_the_color_tag_list_and_dispatch() {
     let listed = run(parse(&["upeg", "tool", "list", "--tag", "color"])).unwrap();
     for expected in ["color.hex_to_rgb", "color.rgb_to_hex"] {
         assert!(
@@ -580,7 +590,7 @@ fn 색상_변환_도구는_color_태그_목록과_dispatch_모두에_나타난�
 // ─── url/csv tools ──────────────────────────────────────────
 
 #[test]
-fn 텍스트_개수_하위명령은_call_dispatch와_바이트_단위로_일치한다() {
+fn text_count_subcommands_match_call_dispatch_byte_for_byte() {
     // Direct subcommand and `upeg call` must produce identical bytes —
     // proves the runtime dispatcher and the hardcoded subcommand path
     // are in sync. (Same invariant as the hash.md5 parity test.)
@@ -608,7 +618,7 @@ fn 텍스트_개수_하위명령은_call_dispatch와_바이트_단위로_일치�
 }
 
 #[test]
-fn 글자_세기_도구군은_text_태그_목록에_나타난다() {
+fn text_counting_tools_appear_in_the_text_tag_list() {
     let listed = run(parse(&["upeg", "tool", "list", "--tag", "text"])).unwrap();
     for expected in ["text.word_count", "text.char_count", "text.line_count"] {
         assert!(
@@ -621,13 +631,13 @@ fn 글자_세기_도구군은_text_태그_목록에_나타난다() {
 // ─── hash tools ──────────────────────────────────────────
 
 #[test]
-fn 해시_md5_하위명령은_알려진_벡터와_일치한다() {
+fn hash_md5_subcommand_matches_a_known_vector() {
     let out = run(parse(&["upeg", "hash", "md5", "abc"])).unwrap();
     assert_eq!(out, "900150983cd24fb0d6963f7d28e17f72\n");
 }
 
 #[test]
-fn 인코딩_base32는_하위명령을_통해_왕복된다() {
+fn convert_base32_round_trips_through_subcommands() {
     let enc = run(parse(&["upeg", "convert", "base32-encode", "foo"])).unwrap();
     assert_eq!(enc, "MZXW6===\n");
     let dec = run(parse(&["upeg", "convert", "base32-decode", "MZXW6==="])).unwrap();
@@ -635,7 +645,7 @@ fn 인코딩_base32는_하위명령을_통해_왕복된다() {
 }
 
 #[test]
-fn 인코딩_base32_디코딩은_유효하지_않은_입력에_도구_실패를_반환한다() {
+fn convert_base32_decode_returns_tool_failure_for_invalid_input() {
     let r = run(parse(&["upeg", "convert", "base32-decode", "not-valid!"]));
     assert!(matches!(r, Err(CliError::ToolFailed(_))));
 }
@@ -645,7 +655,7 @@ fn 인코딩_base32_디코딩은_유효하지_않은_입력에_도구_실패를_
 // ─── upeg doctor  ────────────────────────────────
 
 #[test]
-fn 닥터는_필수_섹션과_개수를_내보낸다() {
+fn doctor_prints_the_required_sections_and_counts() {
     let out = run(parse(&["upeg", "doctor"])).expect("doctor");
     // Section headers users rely on.
     assert!(out.contains("=== upeg doctor ==="));
@@ -701,7 +711,7 @@ fn 닥터는_필수_섹션과_개수를_내보낸다() {
 }
 
 #[test]
-fn 닥터_json은_필수_필드가_있는_유효한_json을_내보낸다() {
+fn doctor_json_emits_valid_json_with_the_required_fields() {
     let out = run(parse(&["upeg", "doctor", "--json"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out)
         .unwrap_or_else(|e| panic!("--json must emit valid JSON: {e}\n{out}"));
@@ -726,7 +736,7 @@ fn 닥터_json은_필수_필드가_있는_유효한_json을_내보낸다() {
 }
 
 #[test]
-fn 닥터_json은_표면_진단_섹션의_모양을_갖춘다() {
+fn doctor_json_shapes_the_surface_diagnosis_section() {
     let out = run(parse(&["upeg", "doctor", "--json"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     let diagnosis = v
@@ -766,7 +776,7 @@ fn 닥터_json은_표면_진단_섹션의_모양을_갖춘다() {
 }
 
 #[test]
-fn 닥터_텍스트는_표면_진단_섹션을_포함한다() {
+fn doctor_text_includes_the_surface_diagnosis_section() {
     let out = run(parse(&["upeg", "doctor"])).unwrap();
     assert!(out.contains("surface diagnosis:"), "got:\n{out}");
     for label in ["cli", "tui", "desktop", "pwa", "ext", "mcp", "http"] {
@@ -781,7 +791,7 @@ fn 닥터_텍스트는_표면_진단_섹션을_포함한다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn 닥터_json은_wasm_플러그인_기능을_참으로_보고한다() {
+fn doctor_json_reports_the_wasm_plugin_feature_as_true() {
     let out = run(parse(&["upeg", "doctor", "--json"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["features"]["wasm-plugin"], true);
@@ -789,7 +799,7 @@ fn 닥터_json은_wasm_플러그인_기능을_참으로_보고한다() {
 
 #[cfg(not(feature = "wasm-plugin"))]
 #[test]
-fn 닥터_json은_wasm_플러그인_기능을_거짓으로_보고한다() {
+fn doctor_json_reports_the_wasm_plugin_feature_as_false() {
     let out = run(parse(&["upeg", "doctor", "--json"])).unwrap();
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["features"]["wasm-plugin"], false);
@@ -797,7 +807,7 @@ fn 닥터_json은_wasm_플러그인_기능을_거짓으로_보고한다() {
 
 #[cfg(feature = "wasm-plugin")]
 #[test]
-fn 기능이_빌드되어_있으면_닥터는_wasm_플러그인을_활성화됨으로_보고한다() {
+fn doctor_reports_wasm_plugin_enabled_when_the_feature_is_built() {
     let out = run(parse(&["upeg", "doctor"])).unwrap();
     assert!(
         out.contains("wasm-plugin (enabled)"),
@@ -807,7 +817,7 @@ fn 기능이_빌드되어_있으면_닥터는_wasm_플러그인을_활성화됨�
 
 #[cfg(not(feature = "wasm-plugin"))]
 #[test]
-fn 기능이_빌드되어_있지_않으면_닥터는_wasm_플러그인을_비활성화됨으로_보고한다() {
+fn doctor_reports_wasm_plugin_disabled_when_the_feature_is_not_built() {
     let out = run(parse(&["upeg", "doctor"])).unwrap();
     assert!(
         out.contains("wasm-plugin (disabled"),
@@ -816,7 +826,7 @@ fn 기능이_빌드되어_있지_않으면_닥터는_wasm_플러그인을_비활
 }
 
 #[test]
-fn 완성_배시는_빈이_아닌_스크립트를_내보낸다() {
+fn completion_bash_emits_a_non_empty_script() {
     let out = run(parse(&["upeg", "completion", "bash"])).unwrap();
     assert!(!out.is_empty());
     // `complete -F` is the bash completion declaration line clap_complete emits.
@@ -832,7 +842,7 @@ fn 완성_배시는_빈이_아닌_스크립트를_내보낸다() {
 }
 
 #[test]
-fn 완성_지셸은_빈이_아닌_스크립트를_내보낸다() {
+fn completion_zsh_emits_a_non_empty_script() {
     let out = run(parse(&["upeg", "completion", "zsh"])).unwrap();
     assert!(!out.is_empty());
     // zsh completion uses #compdef.
@@ -840,7 +850,7 @@ fn 완성_지셸은_빈이_아닌_스크립트를_내보낸다() {
 }
 
 #[test]
-fn 완성_피시는_빈이_아닌_스크립트를_내보낸다() {
+fn completion_fish_emits_a_non_empty_script() {
     let out = run(parse(&["upeg", "completion", "fish"])).unwrap();
     assert!(!out.is_empty());
     // fish completion uses `complete -c <bin>`.
@@ -848,7 +858,7 @@ fn 완성_피시는_빈이_아닌_스크립트를_내보낸다() {
 }
 
 #[test]
-fn md5와_base32_도구는_도구_목록과_호출_dispatch_모두를_지원한다() {
+fn md5_and_base32_tools_support_tool_list_and_call_dispatch() {
     let listed = run(parse(&["upeg", "tool", "list"])).unwrap();
     for expected in ["hash.md5", "convert.base32_encode", "convert.base32_decode"] {
         assert!(
@@ -864,7 +874,7 @@ fn md5와_base32_도구는_도구_목록과_호출_dispatch_모두를_지원한�
 }
 
 #[test]
-fn 새_도구는_호출_하위명령_dispatch를_통해_접근된다() {
+fn new_tools_are_reachable_through_call_dispatch() {
     // `upeg call` exercises the runtime dispatcher path — must agree
     // with the hardcoded `upeg text lowercase ...` route.
     let lc_call = run(parse(&[

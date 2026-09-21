@@ -126,8 +126,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn args_preset은_json_object를_정규_문자열로_보관한다() {
-        let preset = ArgsPreset::parse(r#" { "city" : "Seoul", "days": 3 } "#).expect("유효 객체");
+    fn args_preset_keeps_a_json_object_as_a_canonical_string() {
+        let preset =
+            ArgsPreset::parse(r#" { "city" : "Seoul", "days": 3 } "#).expect("valid object");
 
         assert_eq!(preset.as_str(), r#"{"city":"Seoul","days":3}"#);
         assert_eq!(preset.to_object().len(), 2);
@@ -138,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn args_preset은_object가_아닌_json을_거부한다() {
+    fn args_preset_rejects_non_object_json() {
         const NON_OBJECTS: &[(&str, &str)] = &[
             ("[]", "array"),
             (r#""seoul""#, "string"),
@@ -153,13 +154,13 @@ mod tests {
                 Err(ArgsPresetError::NotAnObject {
                     actual: expected_label
                 }),
-                "{candidate} 값은 object가 아니므로 거부되어야 한다",
+                "{candidate} is not an object and must be rejected",
             );
         }
     }
 
     #[test]
-    fn args_preset은_잘못된_json을_거부한다() {
+    fn args_preset_rejects_invalid_json() {
         assert!(matches!(
             ArgsPreset::parse("{"),
             Err(ArgsPresetError::InvalidJson { .. })
@@ -167,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn args_preset은_예약된_실행_컨텍스트_키를_거부한다() {
+    fn args_preset_rejects_the_reserved_execution_context_key() {
         let candidate = format!(r#"{{"{EXECUTION_CONTEXT_ARG}": true}}"#);
 
         assert_eq!(
@@ -180,19 +181,19 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn args_preset은_json_object로_직렬화되고_왕복한다() {
-        let preset = ArgsPreset::parse(r#"{"city":"Seoul"}"#).expect("유효 객체");
+    fn args_preset_serializes_as_a_json_object_and_round_trips() {
+        let preset = ArgsPreset::parse(r#"{"city":"Seoul"}"#).expect("valid object");
 
-        let json = serde_json::to_string(&preset).expect("직렬화");
+        let json = serde_json::to_string(&preset).expect("serialize");
         assert_eq!(json, r#"{"city":"Seoul"}"#);
 
-        let back: ArgsPreset = serde_json::from_str(&json).expect("역직렬화");
+        let back: ArgsPreset = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, preset);
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn args_preset_역직렬화는_예약_키와_비객체를_거부한다() {
+    fn args_preset_deserialization_rejects_reserved_keys_and_non_objects() {
         let reserved = format!(r#"{{"{EXECUTION_CONTEXT_ARG}": 1}}"#);
         assert!(serde_json::from_str::<ArgsPreset>(&reserved).is_err());
         assert!(serde_json::from_str::<ArgsPreset>("[]").is_err());

@@ -1,5 +1,5 @@
 /// Widget tests for the pegboard drop-target hover highlight
-/// ("pegboard 표현 회복" spec §2/§3).
+/// ("pegboard expression restoration" spec §2/§3).
 ///
 /// While a pin is being dragged over the grid, `_AbsoluteGrid` must show
 /// a `Key('board-canvas-drop-highlight')` overlay sized to the DRAGGED
@@ -93,8 +93,10 @@ BoxDecoration _highlightDecoration(WidgetTester tester) {
 }
 
 void main() {
-  group('BoardCanvas 드롭 하이라이트', () {
-    testWidgets('충돌없는_드롭은_accent_하이라이트를_보여준다', (tester) async {
+  group('BoardCanvas drop highlight', () {
+    testWidgets('a_collision_free_drop_shows_the_accent_highlight', (
+      tester,
+    ) async {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
@@ -141,7 +143,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('다른_pin을_밀어내는_드롭은_warn_하이라이트를_보여준다', (tester) async {
+    testWidgets('a_drop_that_pushes_another_pin_shows_the_warn_highlight', (
+      tester,
+    ) async {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
@@ -184,34 +188,41 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('빈_preview로_거부되는_드롭은_warn_하이라이트를_보여준다', (tester) async {
-      const snapshot = LayoutSnapshotDto(
-        boardKey: 'dev',
-        boardCols: 6,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
-      );
-      // Empty preview list == FRB rejected the anchor.
-      List<PlacementDto> rejectLoader(
-        BoardKey boardKey,
-        ToolId toolId,
-        int x,
-        int y,
-      ) => const <PlacementDto>[];
+    testWidgets(
+      'a_drop_rejected_by_an_empty_preview_shows_the_warn_highlight',
+      (tester) async {
+        const snapshot = LayoutSnapshotDto(
+          boardKey: 'dev',
+          boardCols: 6,
+          placements: [
+            PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
+          ],
+        );
+        // Empty preview list == FRB rejected the anchor.
+        List<PlacementDto> rejectLoader(
+          BoardKey boardKey,
+          ToolId toolId,
+          int x,
+          int y,
+        ) => const <PlacementDto>[];
 
-      await tester.pumpWidget(
-        _harness(snapshot: snapshot, pushPreviewLoader: rejectLoader),
-      );
-      final gesture = await _dragOneColumnRight(tester);
+        await tester.pumpWidget(
+          _harness(snapshot: snapshot, pushPreviewLoader: rejectLoader),
+        );
+        final gesture = await _dragOneColumnRight(tester);
 
-      expect(find.byKey(_highlightKey), findsOneWidget);
-      final decoration = _highlightDecoration(tester);
-      expect(decoration.color, UpegTokens.dark.warn.withValues(alpha: 0.18));
+        expect(find.byKey(_highlightKey), findsOneWidget);
+        final decoration = _highlightDecoration(tester);
+        expect(decoration.color, UpegTokens.dark.warn.withValues(alpha: 0.18));
 
-      await gesture.up();
-      await tester.pumpAndSettle();
-    });
+        await gesture.up();
+        await tester.pumpAndSettle();
+      },
+    );
 
-    testWidgets('드롭_완료_후에는_하이라이트가_사라진다', (tester) async {
+    testWidgets('the_highlight_disappears_after_the_drop_completes', (
+      tester,
+    ) async {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
@@ -238,7 +249,7 @@ void main() {
       expect(find.byKey(_highlightKey), findsNothing);
     });
 
-    testWidgets('드래그_취소_후에는_하이라이트가_사라진다', (tester) async {
+    testWidgets('the_highlight_disappears_after_a_drag_cancel', (tester) async {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
@@ -266,8 +277,8 @@ void main() {
     });
   });
 
-  group('BoardCanvas 빈 셀 마우스 hover', () {
-    testWidgets('마우스가_빈_셀_위에_있으면_경계를_보여준다', (tester) async {
+  group('BoardCanvas empty-cell mouse hover', () {
+    testWidgets('hovering_an_empty_cell_shows_its_border', (tester) async {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,

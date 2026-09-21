@@ -9,7 +9,7 @@
 //! Storage shape: a per-locale `phf::Map<&'static str, &'static str>`
 //! for compile-time perfect-hash lookup. Adding a key means an entry in
 //! both [`EN`] and [`KO`]; the test
-//! `모든_영어_키는_하나의_한국어_번역을_가진다` pins that contract.
+//! `every_english_key_has_a_korean_translation` pins that contract.
 //!
 //! Active-locale resolution is the **caller's** concern — the surface
 //! holding `Tweaks` (Riverpod on the Flutter side) passes the chosen
@@ -17,6 +17,7 @@
 
 mod board_guidance;
 mod media;
+mod surface_io;
 
 use phf::{Map, phf_map};
 use upeg_core::ToolMeta;
@@ -45,11 +46,13 @@ pub fn catalog(locale: Locale, key: &str) -> Option<&'static str> {
     match locale {
         Locale::En => EN
             .get(key)
+            .or_else(|| surface_io::EN.get(key))
             .or_else(|| board_guidance::EN.get(key))
             .or_else(|| media::EN.get(key))
             .copied(),
         Locale::Ko => KO
             .get(key)
+            .or_else(|| surface_io::KO.get(key))
             .or_else(|| board_guidance::KO.get(key))
             .or_else(|| media::KO.get(key))
             .copied(),
@@ -152,7 +155,6 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "settings.close"                => "close",
     "settings.section.theme"        => "theme",
     "settings.section.layout"       => "layout",
-    "settings.section.backup"       => "backup",
     "settings.section.language"     => "language",
     "settings.radio.mode"           => "mode",
     "settings.radio.accent"         => "accent",
@@ -166,10 +168,6 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "settings.toggle.peg_holes"     => "peg holes",
     "settings.toggle.on"            => "on",
     "settings.toggle.off"           => "off",
-    "settings.backup.export"        => "export",
-    "settings.backup.import"        => "import",
-    "settings.backup.export_failed" => "export failed: {msg}",
-    "settings.backup.import_failed" => "import failed: {msg}",
     "settings.section.host"                => "host",
     "settings.toggle.local_http_host"      => "local HTTP host",
     "settings.toggle.local_http_host_help" => "serve the REST/MCP host from this app; restart to apply",
@@ -268,6 +266,27 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "modal.generic.press_to_run"    => "(press [F1] Run to dispatch this tool)",
     "modal.generic.required"        => "REQUIRED",
     "modal.generic.error_prefix"    => "error: {msg}",
+    "modal.presentation.search"     => "Search results",
+    "modal.presentation.empty"      => "No matching rows",
+    "modal.presentation.board_changed_not_refreshed" => "The board changed; the list was not refreshed.",
+    "modal.presentation.write_refresh_failed" => "The write succeeded, but the list refresh failed.",
+    "modal.presentation.board_changed_run_again" => "The board changed; run the list again.",
+
+    // Generic-form field validation errors
+    // (expanded_modal/form_validation.dart). `FieldValidationError`
+    // carries only the key + args; the widget resolves the localized
+    // text through `t()`.
+    "modal.validation.required"        => "required",
+    "modal.validation.invalid_value"   => "invalid value",
+    "modal.validation.not_a_number"    => "not a number",
+    "modal.validation.not_an_integer"  => "not an integer",
+    "modal.validation.invalid_format"  => "invalid format",
+    "modal.validation.not_a_url"       => "not a url",
+    "modal.validation.min"             => "min {value}",
+    "modal.validation.max"             => "max {value}",
+
+    // Structured-output URL action (expanded_modal/structured_output.dart).
+    "modal.output.open_url"         => "open",
     "modal.footer.source_prefix"    => "source: ",
     "modal.footer.source_body"      => "static · #[upeg::tool] · invoker={invoker}",
     "modal.footer.surfaces"         => "surfaces: {label}",
@@ -279,14 +298,6 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "modal.embed.set_to_toml"       => " to its TOML manifest.",
     "modal.embed.url_arrow"         => "→ {url}",
     "modal.embed.iframe_title"      => "{tool_id} sandboxed embed",
-
-    // Backup pipeline error messages (backup.rs). Internal technical
-    // strings ("Blob creation failed", "FileReader unavailable…") stay
-    // English on purpose — they're diagnostic context the user only
-    // ever sees behind the localised wrapper. The native-stub strings
-    // and the import-wrapper here are the user-facing top lines.
-    "backup.unavailable.export"     => "Backup export is not available on desktop yet",
-    "backup.unavailable.import"     => "Backup import is not available on desktop yet",
 
     // Shared strings used by more than one Flutter surface.
     "common.unknown_tool"           => "unknown tool: {tool_id}",
@@ -359,14 +370,11 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "modal.approval.denied_body"    => "{tool} only accepts approval from: {surfaces}. This desktop app is not one of them, so the run would stop at the barrier.",
     "modal.approval.dismiss"        => "Got it",
 
-    // Bespoke forms (hex_to_dec_form.dart, uuid_v7_form.dart) and the
-    // generic form (generic_form.dart).
+    // Bespoke forms (hex_to_dec_form.dart, uuid_v7_form.dart).
     "modal.hex.hint"                => "e.g. ff or 0xCAFE",
     "modal.hex.empty"               => "(empty)",
+    "modal.hex.invalid"             => "not a valid hex value",
     "modal.hex.shortcut_hints"      => "[F1] run · [F2] copy",
-    "modal.generic.file_path_suffix" => "{label} (file path)",
-    "modal.generic.file_pick"       => "Choose file",
-    "modal.generic.file_clear"      => "clear selection",
 
     // Pin color dialog (flutter_app/lib/src/widgets/pin_color_dialog.dart).
     "pin_color.title"               => "Pin Color",
@@ -374,23 +382,8 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "pin_color.save"                => "Save",
     "pin_color.reset"               => "Reset",
 
-    // Settings load failure + host-attach section
-    // (tweaks_form.dart, host_attach_section.dart).
+    // Settings load failure (tweaks_form.dart).
     "settings.load_failed"          => "failed to load tweaks: {msg}",
-    "settings.section.host_attach"  => "host attach",
-    "host_attach.base_url_label"    => "Host URL",
-    "host_attach.token_label"       => "Host token",
-    "host_attach.check_button"      => "Check connection",
-    "host_attach.checking"          => "checking…",
-    "host_attach.connected"          => "connected",
-    "host_attach.unreachable"       => "connection failed · check that the daemon is running",
-
-    // Host-attach failure notice on pins (host_attach_notice_body.dart).
-    "host_attach.notice.unauthorized_label" => "authentication failed",
-    "host_attach.notice.unauthorized_hint"  => "check the host token in Settings",
-    "host_attach.notice.unreachable_label"  => "host connection failed",
-    "host_attach.notice.unreachable_hint"   => "check that the daemon is running",
-    "host_attach.notice.tool_error_label"   => "run error",
 
     // "Unsupported on this surface" honest state
     // (surface_unsupported_body.dart).
@@ -408,7 +401,7 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     // comes from `upeg_core::binding_catalog()`; these keys are its
     // `keys.scope.*` / `keys.cmd.*` labels. Wording follows
     // docs/ui-ux-surface-contract.md. The coverage test
-    // `치트시트_카탈로그의_모든_라벨_키는_양쪽_로케일에_존재한다` pins
+    // `all_cheatsheet_label_keys_exist_in_both_locales` pins
     // completeness against the catalog.
     "keys.title"                   => "Keyboard shortcuts",
     "keys.footer.close"            => "close",
@@ -540,7 +533,6 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "settings.close"                => "닫기",
     "settings.section.theme"        => "테마",
     "settings.section.layout"       => "레이아웃",
-    "settings.section.backup"       => "백업",
     "settings.section.language"     => "언어",
     "settings.radio.mode"           => "모드",
     "settings.radio.accent"         => "강조색",
@@ -554,10 +546,6 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "settings.toggle.peg_holes"     => "페그 구멍",
     "settings.toggle.on"            => "켬",
     "settings.toggle.off"           => "끔",
-    "settings.backup.export"        => "내보내기",
-    "settings.backup.import"        => "가져오기",
-    "settings.backup.export_failed" => "내보내기 실패: {msg}",
-    "settings.backup.import_failed" => "가져오기 실패: {msg}",
     "settings.section.host"                => "호스트",
     "settings.toggle.local_http_host"      => "로컬 HTTP host",
     "settings.toggle.local_http_host_help" => "이 앱이 REST/MCP host가 된다. 적용하려면 재시작한다",
@@ -631,6 +619,22 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "modal.generic.press_to_run"    => "([F1] 실행을 눌러 이 도구를 호출)",
     "modal.generic.required"        => "필수",
     "modal.generic.error_prefix"    => "오류: {msg}",
+    "modal.presentation.search"     => "결과 검색",
+    "modal.presentation.empty"      => "일치하는 행이 없습니다",
+    "modal.presentation.board_changed_not_refreshed" => "보드가 변경되어 목록을 새로 고치지 못했습니다.",
+    "modal.presentation.write_refresh_failed" => "쓰기는 성공했지만 목록을 새로 고치지 못했습니다.",
+    "modal.presentation.board_changed_run_again" => "보드가 변경되었습니다. 목록을 다시 실행하세요.",
+
+    "modal.validation.required"        => "필수 입력입니다",
+    "modal.validation.invalid_value"   => "올바르지 않은 값입니다",
+    "modal.validation.not_a_number"    => "숫자가 아닙니다",
+    "modal.validation.not_an_integer"  => "정수가 아닙니다",
+    "modal.validation.invalid_format"  => "형식이 올바르지 않습니다",
+    "modal.validation.not_a_url"       => "URL이 아닙니다",
+    "modal.validation.min"             => "최소 {value}",
+    "modal.validation.max"             => "최대 {value}",
+
+    "modal.output.open_url"         => "열기",
     "modal.footer.source_prefix"    => "출처: ",
     "modal.footer.source_body"      => "static · #[upeg::tool] · invoker={invoker}",
     "modal.footer.surfaces"         => "표면: {label}",
@@ -642,9 +646,6 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "modal.embed.set_to_toml"       => " 를 TOML 매니페스트에 추가.",
     "modal.embed.url_arrow"         => "→ {url}",
     "modal.embed.iframe_title"      => "{tool_id} 샌드박스 임베드",
-
-    "backup.unavailable.export"     => "데스크탑에서는 백업 내보내기를 아직 지원하지 않습니다",
-    "backup.unavailable.import"     => "데스크탑에서는 백업 가져오기를 아직 지원하지 않습니다",
 
     "common.unknown_tool"           => "알 수 없는 도구: {tool_id}",
     "common.search_failed"          => "검색 실패: {msg}",
@@ -704,10 +705,8 @@ static KO: Map<&'static str, &'static str> = phf_map! {
 
     "modal.hex.hint"                => "예: ff 또는 0xCAFE",
     "modal.hex.empty"               => "(비어 있음)",
+    "modal.hex.invalid"             => "올바른 hex 값이 아닙니다",
     "modal.hex.shortcut_hints"      => "[F1] 실행 · [F2] 복사",
-    "modal.generic.file_path_suffix" => "{label} (파일 경로)",
-    "modal.generic.file_pick"       => "파일 선택",
-    "modal.generic.file_clear"      => "선택 지우기",
 
     "pin_color.title"               => "핀 색상",
     "pin_color.invalid_hex"         => "잘못된 HEX 색상입니다",
@@ -715,19 +714,6 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "pin_color.reset"               => "초기화",
 
     "settings.load_failed"          => "설정을 불러오지 못했습니다: {msg}",
-    "settings.section.host_attach"  => "호스트 연결",
-    "host_attach.base_url_label"    => "호스트 주소",
-    "host_attach.token_label"       => "호스트 토큰",
-    "host_attach.check_button"      => "연결 확인",
-    "host_attach.checking"          => "확인 중…",
-    "host_attach.connected"          => "연결됨",
-    "host_attach.unreachable"       => "연결 실패 · 데몬이 실행 중인지 확인하세요",
-
-    "host_attach.notice.unauthorized_label" => "인증 실패",
-    "host_attach.notice.unauthorized_hint"  => "설정에서 host 토큰을 확인하세요",
-    "host_attach.notice.unreachable_label"  => "호스트 연결 실패",
-    "host_attach.notice.unreachable_hint"   => "데몬이 실행 중인지 확인하세요",
-    "host_attach.notice.tool_error_label"   => "실행 오류",
 
     "surface.unsupported.label"       => "이 표면에서는 미지원",
     "surface.unsupported.attach_hint" => "호스트 연결로 실행 가능 — 설정에서 host를 연결하세요",
@@ -818,13 +804,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 모든_영어_키는_하나의_한국어_번역을_가진다() {
-        // Adding an entry to EN without a matching KO entry would silently        // serve English under Locale::Ko via the core fallback chain —
+    fn every_english_key_has_a_korean_translation() {
+        // Adding an entry to EN without a matching KO entry would silently
+        // serve English under Locale::Ko via the core fallback chain —
         // intentional for a future-language onboarding ramp, but unwanted
         // here because Ko is a shipping locale we want fully translated.
         let missing: Vec<&str> = EN
             .keys()
+            .chain(surface_io::EN.keys())
             .chain(board_guidance::EN.keys())
+            .chain(media::EN.keys())
             .copied()
             .filter(|key| catalog(Locale::Ko, key).is_none())
             .collect();
@@ -835,13 +824,15 @@ mod tests {
     }
 
     #[test]
-    fn 고아_한국어_키는_없다() {
+    fn there_are_no_orphan_korean_keys() {
         // A Ko-only key would never be reached — the core lookup hits Ko
         // first, but every call site identifies a key by the literal it
         // wrote in EN. An orphan Ko entry means a stale catalog row.
         let orphans: Vec<&str> = KO
             .keys()
+            .chain(surface_io::KO.keys())
             .chain(board_guidance::KO.keys())
+            .chain(media::KO.keys())
             .copied()
             .filter(|key| catalog(Locale::En, key).is_none())
             .collect();
@@ -852,7 +843,7 @@ mod tests {
     }
 
     #[test]
-    fn 치트시트_카탈로그의_모든_라벨_키는_양쪽_로케일에_존재한다() {
+    fn all_cheatsheet_label_keys_exist_in_both_locales() {
         // The cheatsheet renders `upeg_core::binding_catalog()` labels
         // through this catalog — a missing key would leak the raw i18n
         // key (`???` marker chain) into the overlay.
@@ -860,13 +851,13 @@ mod tests {
             for scope_bindings in upeg_core::binding_catalog() {
                 assert!(
                     catalog(locale, scope_bindings.label_key).is_some(),
-                    "{locale:?} 카탈로그에 스코프 라벨 {}가 없다",
+                    "{locale:?} catalog is missing scope label {}",
                     scope_bindings.label_key,
                 );
                 for entry in &scope_bindings.entries {
                     assert!(
                         catalog(locale, entry.label_key).is_some(),
-                        "{locale:?} 카탈로그에 엔트리 라벨 {}가 없다",
+                        "{locale:?} catalog is missing entry label {}",
                         entry.label_key,
                     );
                 }
@@ -876,14 +867,14 @@ mod tests {
             for key in ["keys.title", "keys.footer.close", "keys.requires_focus"] {
                 assert!(
                     catalog(locale, key).is_some(),
-                    "{locale:?} 카탈로그에 치트시트 크롬 키 {key}가 없다",
+                    "{locale:?} catalog is missing cheatsheet chrome key {key}",
                 );
             }
         }
     }
 
     #[test]
-    fn 한국어_로케일은_한국어_텍스트_카탈로그를_반환한다() {
+    fn korean_locale_returns_korean_catalog_text() {
         assert_eq!(
             catalog(Locale::Ko, "empty.suggestion_header"),
             Some("추천 시작 도구"),
@@ -891,7 +882,7 @@ mod tests {
     }
 
     #[test]
-    fn 영어_로케일은_영어_텍스트_카탈로그를_반환한다() {
+    fn english_locale_returns_english_catalog_text() {
         assert_eq!(
             catalog(Locale::En, "empty.suggestion_header"),
             Some("Suggested starters"),
@@ -899,25 +890,25 @@ mod tests {
     }
 
     #[test]
-    fn 알수없는_키에_대해_카탈로그는_없음을_반환한다() {
+    fn catalog_returns_none_for_unknown_keys() {
         assert_eq!(catalog(Locale::En, "no.such.key"), None);
         assert_eq!(catalog(Locale::Ko, "no.such.key"), None);
     }
 
     #[test]
-    fn t는_로케일_파라미터를_존중한다() {
+    fn t_respects_the_locale_parameter() {
         assert_eq!(t("settings.theme.dark", Locale::En), "dark");
         assert_eq!(t("settings.theme.dark", Locale::Ko), "다크");
     }
 
     #[test]
-    fn t_args는_명명된_자리표시자를_바꾼다() {
+    fn t_args_replaces_named_placeholders() {
         let out = t_args("popup.no_match", &[("needle", "uuid")], Locale::En);
         assert_eq!(out, "no tools match \"uuid\"");
     }
 
     #[test]
-    fn 지원되는_로케일은_영어와_한국어를_정확히_포함한다() {
+    fn supported_locales_are_exactly_english_and_korean() {
         // Pin the shipping locale set so adding a locale becomes a
         // deliberate change (catalog parity + Settings dropdown +
         // detect_from_str all have to update together).
@@ -925,10 +916,10 @@ mod tests {
     }
 
     #[test]
-    fn 핀_접근성_키는_양쪽_로케일에_존재한다() {
-        // Flutter Pin Semantics(label/value/hint)와 context-menu /
-        // CustomSemanticsAction 라벨이 소비하는 키. 하나라도 빠지면
-        // 스크린리더가 raw key 를 읽게 된다.
+    fn pin_accessibility_keys_exist_in_both_locales() {
+        // Keys consumed by Flutter Pin Semantics(label/value/hint), context-menu
+        // labels, and CustomSemanticsAction labels. A missing key makes screen
+        // readers announce the raw key.
         for key in [
             "a11y.pin.label",
             "a11y.pin.label_plain",
@@ -959,11 +950,14 @@ mod tests {
     // ─── tool meta lookup ─────────────────────────────
 
     #[test]
-    fn 도구_네임스페이스_아래의_카탈로그_키도_로케일_동등성을_유지한다() {
+    fn tool_namespace_keys_maintain_locale_parity() {
         let missing: Vec<&str> = EN
             .keys()
+            .chain(surface_io::EN.keys())
+            .chain(board_guidance::EN.keys())
+            .chain(media::EN.keys())
             .copied()
-            .filter(|k| k.starts_with("tool.") && KO.get(*k).is_none())
+            .filter(|key| key.starts_with("tool.") && catalog(Locale::Ko, key).is_none())
             .collect();
         assert!(
             missing.is_empty(),
@@ -972,7 +966,7 @@ mod tests {
     }
 
     #[test]
-    fn 알려진_도구_키는_자기_네임스페이스_아래에서_해석된다() {
+    fn known_tool_keys_resolve_in_their_namespace() {
         for id in [
             "num.hex_to_decimal",
             "id.uuid_v7",

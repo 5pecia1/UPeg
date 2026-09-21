@@ -269,7 +269,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 비어있지_않은_디렉터리는_거부된다() {
+    fn a_nonempty_directory_is_rejected() {
         let tmp = std::env::temp_dir().join(format!(
             "upeg_plugin_new_nonempty_{}_{}",
             std::process::id(),
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn 존재하지_않거나_빈_디렉터리는_허용된다() {
+    fn a_missing_or_empty_directory_is_allowed() {
         let tmp = std::env::temp_dir().join(format!(
             "upeg_plugin_new_missing_{}_{}",
             std::process::id(),
@@ -303,7 +303,7 @@ mod tests {
 
     #[cfg(feature = "wasm-plugin")]
     #[test]
-    fn wasm_파일_하나만_있으면_그_경로를_고른다() {
+    fn a_single_wasm_file_picks_its_path() {
         let tmp = std::env::temp_dir().join(format!(
             "upeg_plugin_resolve_one_{}_{}",
             std::process::id(),
@@ -325,7 +325,7 @@ mod tests {
 
     #[cfg(feature = "wasm-plugin")]
     #[test]
-    fn wasm_파일이_여러개면_모호하다는_에러를_반환한다() {
+    fn multiple_wasm_files_return_an_ambiguity_error() {
         let tmp = std::env::temp_dir().join(format!(
             "upeg_plugin_resolve_many_{}_{}",
             std::process::id(),
@@ -345,7 +345,7 @@ mod tests {
 
     #[cfg(feature = "wasm-plugin")]
     #[test]
-    fn 빌드된_아티팩트가_없으면_안내_메시지를_반환한다() {
+    fn no_built_artifact_returns_a_guidance_message() {
         let tmp = std::env::temp_dir().join(format!(
             "upeg_plugin_resolve_none_{}_{}",
             std::process::id(),

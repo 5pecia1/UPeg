@@ -1,0 +1,32 @@
+{#-
+  UPeg theme override. Renders the product landing chrome (hero, capability
+  and boundary sections, privacy/FAQ/support) around the Markdown body of
+  docs/index.md — the homepage is detected by its empty page.url so the
+  landing still renders if the `template: home.html` front matter is ever
+  dropped. All landing markup lives in partials/upeg-*.html.
+-#}
+{% extends "base.html" %}
+
+{% block htmltitle %}
+  {% if page.url == "" %}
+    <title>{{ config.site_name }} — Universal Pegboard</title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block hero %}
+  {% if page.url == "" %}
+    {% include "partials/upeg-hero.html" %}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if page.url == "" %}
+    {% include "partials/upeg-capabilities.html" %}
+  {% endif %}
+  {{ super() }}
+  {% if page.url == "" %}
+    {% include "partials/upeg-meta.html" %}
+  {% endif %}
+{% endblock %}

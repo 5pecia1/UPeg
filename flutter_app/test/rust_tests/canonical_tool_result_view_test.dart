@@ -6,8 +6,8 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 
 void main() {
-  test('errorDetailsText는 details JSON을 들여쓴 텍스트로 보여준다', () {
-    // External 실패 봉투는 exit_code와 두 스트림을 details에 담는다.
+  test('errorDetailsText renders details JSON as indented text', () {
+    // The External failure envelope packs exit_code and both streams into details.
     final result = CanonicalToolResult(
       ok: false,
       outputs: const <CanonicalOutputEntry>[],
@@ -22,10 +22,14 @@ void main() {
     expect(text, isNotNull);
     expect(text, contains('"exit_code": 1'));
     expect(text, contains('warning: unused'));
-    expect(text!.contains('\n'), isTrue, reason: 'JSON은 들여써서 여러 줄이 된다');
+    expect(
+      text!.contains('\n'),
+      isTrue,
+      reason: 'indented JSON spans multiple lines',
+    );
   });
 
-  test('details가 없으면 errorDetailsText는 널이다', () {
+  test('errorDetailsText is null when details are absent', () {
     final result = CanonicalToolResult(
       ok: false,
       outputs: const <CanonicalOutputEntry>[],
@@ -35,7 +39,7 @@ void main() {
     expect(result.errorDetailsText, isNull);
   });
 
-  test('JSON이 아닌 details는 그대로 보여준다', () {
+  test('non-JSON details are shown verbatim', () {
     final result = CanonicalToolResult(
       ok: false,
       outputs: const <CanonicalOutputEntry>[],
@@ -49,7 +53,7 @@ void main() {
     expect(result.errorDetailsText, 'plain text detail');
   });
 
-  test('File structuredValue는 typed 인스턴스를 그대로 유지한다', () {
+  test('File structuredValue keeps the typed instance as-is', () {
     final file = CanonicalFileValue(
       name: 'report.bin',
       isDir: false,
@@ -63,7 +67,7 @@ void main() {
     expect(output.displayText, 'report.bin · 3 bytes');
   });
 
-  test('canonical JSON을 요청할 때 File을 base64 wire 형식으로 직렬화한다', () {
+  test('canonical JSON request serializes File in base64 wire format', () {
     final result = CanonicalToolResult(
       ok: true,
       primaryOutputId: 'file',

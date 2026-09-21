@@ -1,12 +1,12 @@
-//! Regression coverage for E-6(c): `upeg mcp`'s serve loops must exit
+//! Regression coverage: `upeg mcp`'s serve loops must exit
 //! cleanly when stdout is a broken pipe, never panic.
 //!
 //! Every write in this module already goes through `let _ =
 //! writeln!(...)` / `let _ = out.flush();`, which cannot panic (the
-//! `Result` is discarded, not `.unwrap()`ed) — the audit for E-6(c)
+//! `Result` is discarded, not `.unwrap()`ed) — an earlier audit
 //! found no panicking write site *here*. The actual panic came from
 //! `eprint!` in `infrastructure::mcp_imports` on a closed inherited
-//! stderr (see that module's `broken_pipe_라이터에_써도_패닉하지_않는다`
+//! stderr (see that module's `write_to_broken_pipe_writer_does_not_panic`
 //! test for the fix). These tests pin the "no panic on a broken
 //! stdout" contract for `surfaces::mcp`'s own loops against
 //! regression, since a future edit swapping `writeln!` for `println!`
@@ -31,7 +31,7 @@ impl std::io::Write for AlwaysBrokenPipe {
 }
 
 #[test]
-fn stdout가_broken_pipe여도_serve_loop_with_board는_패닉없이_종료한다() {
+fn serve_loop_with_board_exits_without_panic_when_stdout_is_broken_pipe() {
     let mut reader = std::io::Cursor::new(
         b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}\n".to_vec(),
     );
@@ -43,7 +43,7 @@ fn stdout가_broken_pipe여도_serve_loop_with_board는_패닉없이_종료한�
 }
 
 #[test]
-fn 잘못된_json_오류_응답_기록도_broken_pipe에서_패닉하지_않는다() {
+fn invalid_json_error_response_write_does_not_panic_on_broken_pipe() {
     let mut reader = std::io::Cursor::new(b"not json\n".to_vec());
     let mut writer = AlwaysBrokenPipe;
 
@@ -51,7 +51,7 @@ fn 잘못된_json_오류_응답_기록도_broken_pipe에서_패닉하지_않는�
 }
 
 #[test]
-fn stdout가_broken_pipe여도_serve_loop_once는_패닉없이_반환한다() {
+fn serve_loop_once_returns_without_panic_when_stdout_is_broken_pipe() {
     let mut writer = AlwaysBrokenPipe;
 
     serve_loop_once(

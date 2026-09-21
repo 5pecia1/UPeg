@@ -126,32 +126,32 @@ mod tests {
     use crate::dispatcher::DEFAULT_APPROVAL_SURFACES;
     use crate::parse_toolkit_full;
 
-    /// 한 Toolkit + 한 Tool 짜리 최소 매니페스트. `body`는 `[[tools]]`
-    /// 블록 안에 그대로 들어간다.
-    fn 단일_도구_매니페스트(body: &str) -> Result<(), LoadError> {
+    /// Minimal manifest of one Toolkit + one Tool. `body` is spliced
+    /// verbatim inside the `[[tools]]` block.
+    fn single_tool_manifest(body: &str) -> Result<(), LoadError> {
         let manifest = format!(
             "id = \"chaincontract\"\n\n[[tools]]\nid = \"gate\"\npegboard_units = \"U1\"\n{body}\n"
         );
         parse_toolkit_full(&manifest).map(|_| ())
     }
 
-    fn 오류(body: &str) -> LoadError {
-        단일_도구_매니페스트(body).expect_err("이 매니페스트는 거부되어야 한다")
+    fn load_error(body: &str) -> LoadError {
+        single_tool_manifest(body).expect_err("this manifest must be rejected")
     }
 
-    const 승인_단계: &str =
+    const APPROVAL_STEP: &str =
         "[[tools.steps]]\ntool = \"text.uppercase\"\nrequires_approval = true\n";
 
     #[test]
-    fn approval_surfaces를_생략한_체인은_로드된다() {
-        단일_도구_매니페스트(&format!("invoker = \"Chain\"\n{승인_단계}"))
-            .expect("선언을 생략하면 기본 승인 surface가 쓰인다");
+    fn chain_omitting_approval_surfaces_loads() {
+        single_tool_manifest(&format!("invoker = \"Chain\"\n{APPROVAL_STEP}"))
+            .expect("omitting the declaration uses the default approval surfaces");
     }
 
     #[test]
-    fn 알수없는_approval_surfaces_항목은_로드에서_거부된다() {
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\napproval_surfaces = [\"cli\", \"telepathy\"]\n{승인_단계}"
+    fn unknown_approval_surfaces_entry_fails_load() {
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\napproval_surfaces = [\"cli\", \"telepathy\"]\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(
@@ -169,9 +169,9 @@ mod tests {
     }
 
     #[test]
-    fn 빈_approval_surfaces_항목은_로드에서_거부된다() {
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\napproval_surfaces = [\"  \"]\n{승인_단계}"
+    fn empty_approval_surfaces_entry_fails_load() {
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\napproval_surfaces = [\"  \"]\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(error, LoadError::EmptyInApprovalSurfaces { position: 0 }),
@@ -180,9 +180,9 @@ mod tests {
     }
 
     #[test]
-    fn 아무_표면도_인가하지_않는_approval_surfaces는_로드에서_거부된다() {
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\napproval_surfaces = []\n{승인_단계}"
+    fn approval_surfaces_authorizing_nobody_fails_load() {
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\napproval_surfaces = []\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(error, LoadError::EmptyApprovalSurfaces),
@@ -191,9 +191,10 @@ mod tests {
     }
 
     #[test]
-    fn 체인이_아닌_도구의_approval_surfaces는_로드에서_거부된다() {
-        let error =
-            오류("invoker = \"External\"\ncommand = \"true\"\napproval_surfaces = [\"cli\"]\n");
+    fn approval_surfaces_on_non_chain_tool_fails_load() {
+        let error = load_error(
+            "invoker = \"External\"\ncommand = \"true\"\napproval_surfaces = [\"cli\"]\n",
+        );
         assert!(
             matches!(error, LoadError::ApprovalSurfacesWithoutChain),
             "got {error:?}"
@@ -201,12 +202,13 @@ mod tests {
     }
 
     #[test]
-    fn 승인_surface가_도구_surface와_겹치지_않으면_로드에서_거부된다() {
-        // 기본 승인 surface는 사람이 앉아있는 세 표면인데 도구는
-        // `mcp`에만 노출된다 — 승인할 수 있는 호출자가 이 도구에 닿을 수
-        // 없으므로 이 체인의 승인 step은 영원히 통과하지 못한다.
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\nsurfaces = [\"mcp\"]\n{승인_단계}"
+    fn approval_surfaces_not_overlapping_tool_surfaces_fail_load() {
+        // The default approval surfaces are the three attended ones, yet
+        // this tool is exposed only on `mcp` — no caller who can approve
+        // can reach this tool, so this chain's approval step could
+        // never pass.
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\nsurfaces = [\"mcp\"]\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(
@@ -220,27 +222,27 @@ mod tests {
     }
 
     #[test]
-    fn 승인_surface가_도구_surface와_하나라도_겹치면_로드된다() {
-        단일_도구_매니페스트(&format!(
-            "invoker = \"Chain\"\nsurfaces = [\"mcp\", \"cli\"]\n{승인_단계}"
+    fn approval_surfaces_overlapping_tool_surfaces_load() {
+        single_tool_manifest(&format!(
+            "invoker = \"Chain\"\nsurfaces = [\"mcp\", \"cli\"]\n{APPROVAL_STEP}"
         ))
-        .expect("승인할 수 있는 surface가 하나라도 있으면 실행 가능한 체인이다");
+        .expect("any single approving surface makes the chain runnable");
     }
 
     #[test]
-    fn 승인_step이_없는_체인은_surface가_겹치지_않아도_로드된다() {
-        // 승인 장벽이 없으면 `approval_surfaces`는 아무것도 막지 않는다 —
-        // 그런 체인의 surface를 좁히는 것은 실수가 아니다.
-        단일_도구_매니페스트(
+    fn chain_without_approval_steps_loads_despite_surface_mismatch() {
+        // Without an approval barrier `approval_surfaces` gates nothing —
+        // narrowing such a chain's surfaces is not a mistake.
+        single_tool_manifest(
             "invoker = \"Chain\"\nsurfaces = [\"mcp\"]\n[[tools.steps]]\ntool = \"text.uppercase\"\n",
         )
-        .expect("승인 step이 없는 체인은 reach 검사 대상이 아니다");
+        .expect("a chain without approval steps is not subject to the reach check");
     }
 
     #[test]
-    fn 알수없는_surface는_reach_검사가_아니라_자기_오류로_보고된다() {
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\nsurfaces = [\"telepathy\"]\n{승인_단계}"
+    fn unknown_surface_reports_own_error_not_reach_check() {
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\nsurfaces = [\"telepathy\"]\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(&error, LoadError::UnknownSurface(surface) if surface == "telepathy"),
@@ -249,9 +251,9 @@ mod tests {
     }
 
     #[test]
-    fn 체인이_예약된_steps_출력을_선언하면_로드에서_거부된다() {
-        let error = 오류(&format!(
-            "invoker = \"Chain\"\noutputs = [{{ name = \"steps\", type = \"string\" }}]\nprimary_output_id = \"steps\"\n{승인_단계}"
+    fn chain_declaring_reserved_steps_output_fails_load() {
+        let error = load_error(&format!(
+            "invoker = \"Chain\"\noutputs = [{{ name = \"steps\", type = \"string\" }}]\nprimary_output_id = \"steps\"\n{APPROVAL_STEP}"
         ));
         assert!(
             matches!(

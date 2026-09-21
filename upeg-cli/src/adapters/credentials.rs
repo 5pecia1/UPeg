@@ -284,7 +284,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 자격증명_추가는_env_참조만_저장한다() {
+    fn adding_credential_stores_only_env_reference() {
         let path = std::env::temp_dir().join("upeg_credentials_ref.json");
         let _ = std::fs::remove_file(&path);
         let record = add_reference_at(&path, "etherscan_api_key", None, Some("Authorization"))
@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn 키체인_참조는_비밀값_자체가_아니라_schema만_저장한다() {
+    fn keychain_reference_stores_schema_not_secret_value() {
         let path = std::env::temp_dir().join("upeg_credentials_keychain_ref.json");
         let _ = std::fs::remove_file(&path);
         let record = add_reference_with_schema_at(
@@ -330,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn 기본_env는_이름들을_정규화한다() {
+    fn default_env_normalizes_names() {
         assert_eq!(
             default_env_for("open-ai key"),
             "UPEG_CREDENTIAL_OPEN_AI_KEY"

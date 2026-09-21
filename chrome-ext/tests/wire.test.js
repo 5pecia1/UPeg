@@ -19,14 +19,14 @@ const {
   serializeJsonRequestBody,
 } = require('../file_input.js');
 
-test('base64는_exact_bytes와_empty를_round_trip한다', () => {
+test('base64_round_trips_exact_bytes_and_empty', () => {
   assert.equal(encodeBase64(Uint8Array.from([0, 1, 255])), 'AAH/');
   assert.equal(encodeBase64(new Uint8Array()), '');
   assert.deepEqual(decodeBase64('AAH/'), Uint8Array.from([0, 1, 255]));
   assert.deepEqual(decodeBase64(''), new Uint8Array());
 });
 
-test('base64_decoder는_비정규_wire와_legacy_numeric_array를_거부한다', () => {
+test('the_base64_decoder_rejects_noncanonical_wire_and_legacy_numeric_arrays', () => {
   const rejected = [
     [0, 1, 255],
     'AAH_',
@@ -41,7 +41,7 @@ test('base64_decoder는_비정규_wire와_legacy_numeric_array를_거부한다',
   }
 });
 
-test('base64_decoder는_16MiB_canonical_payload를_stack_overflow없이_해독한다', () => {
+test('the_base64_decoder_handles_a_16mib_canonical_payload_without_stack_overflow', () => {
   const rawBytes = 16 * 1024 * 1024;
   const encoded = Buffer.alloc(rawBytes).toString('base64');
 
@@ -52,7 +52,7 @@ test('base64_decoder는_16MiB_canonical_payload를_stack_overflow없이_해독�
   assert.equal(decoded[decoded.byteLength - 1], 0);
 });
 
-test('base64_decoder는_64MiB_output_cap_초과를_allocation_전에_typed_error로_거부한다', () => {
+test('the_base64_decoder_rejects_over_64mib_with_a_typed_error_before_allocating', () => {
   const rawBytes = MAX_FILE_OUTPUT_RAW_BYTES + 1;
   const encodedLength = Math.ceil(rawBytes / 3) * 4;
   const encoded = `${'A'.repeat(encodedLength - 1)}=`;
@@ -67,7 +67,7 @@ test('base64_decoder는_64MiB_output_cap_초과를_allocation_전에_typed_error
   );
 });
 
-test('File_output_cap_오류는_popup에서_모든_locale로_안내한다', () => {
+test('the_file_output_cap_error_is_surfaced_in_every_popup_locale', () => {
   const extensionRoot = path.join(__dirname, '..');
   const popup = fs.readFileSync(path.join(extensionRoot, 'popup.js'), 'utf8');
   const en = JSON.parse(
@@ -83,7 +83,7 @@ test('File_output_cap_오류는_popup에서_모든_locale로_안내한다', () =
   assert.ok(ko.fileOutputTooLarge.message.length > 0);
 });
 
-test('직렬화된_요청_body는_server_cap보다_작아야_한다', () => {
+test('the_serialized_request_body_stays_under_the_server_cap', () => {
   const emptyBodyBytes = new TextEncoder().encode(JSON.stringify({ value: '' })).byteLength;
   const allowedValue = 'a'.repeat(MAX_REQUEST_BODY_BYTES - emptyBodyBytes - 1);
   const rejectedValue = `${allowedValue}a`;
@@ -100,7 +100,7 @@ test('직렬화된_요청_body는_server_cap보다_작아야_한다', () => {
   );
 });
 
-test('numeric_array를_만들지_않고_base64_string만_직렬화한다', () => {
+test('serialization_emits_only_base64_strings_never_numeric_arrays', () => {
   const body = serializeJsonRequestBody({
     file: {
       name: 'bytes.bin',
@@ -113,7 +113,7 @@ test('numeric_array를_만들지_않고_base64_string만_직렬화한다', () =>
   assert.equal(Array.isArray(parsed.file.content.bytes), false);
 });
 
-test('최악의_FileValue_wire도_server_body_cap_아래에_머문다', () => {
+test('the_worst_case_filevalue_wire_stays_under_the_server_body_cap', () => {
   const rawBytes = encodeBase64(new Uint8Array(MAX_EXT_RAW_AGGREGATE_BYTES));
   const escapedMetadata = '\0'.repeat(MAX_FILE_VALUE_METADATA_BYTES);
   const metadataPerEntry = Math.floor(

@@ -1049,26 +1049,23 @@ fn embedded_font_has_cmap(doc: &Document, font_ref: lopdf::ObjectId) -> bool {
         Ok(d) => d,
         Err(_) => return false,
     };
-    let face = match ttf_parser::Face::parse(&data, 0) {
-        Ok(f) => f,
-        Err(_) => return false,
+    let face = match crate::sfnt::parse(&data) {
+        Some(f) => f,
+        None => return false,
     };
     // Check that the font has a cmap table with at least some Unicode mappings
-    if let Some(cmap) = face.tables().cmap {
-        for subtable in cmap.subtables {
-            if subtable.is_unicode()
-                || (subtable.platform_id == ttf_parser::PlatformId::Windows
-                    && subtable.encoding_id == 0)
-            {
-                let mut count = 0u32;
-                subtable.codepoints(|_| count += 1);
-                if count > 0 {
-                    return true;
-                }
+    let mut has_cmap = false;
+    crate::sfnt::cmap_subtables(&face, |record, subtable| {
+        if has_cmap {
+            return;
+        }
+        if crate::sfnt::is_unicode_subtable(record, subtable) || record.is_symbol() {
+            if crate::sfnt::has_mappings(subtable) {
+                has_cmap = true;
             }
         }
-    }
-    false
+    });
+    has_cmap
 }
 
 /// Returns true if every font on the page is Type3 (no normal text fonts).

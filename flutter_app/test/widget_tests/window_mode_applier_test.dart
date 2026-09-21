@@ -25,7 +25,9 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 void main() {
   group('WindowModeApplier', () {
-    testWidgets('App은_windowMode가_바뀌면_geometry를_재적용한다', (tester) async {
+    testWidgets('App_reapplies_geometry_when_windowMode_changes', (
+      tester,
+    ) async {
       // Start in popup; flip to full; assert the apply seam was called
       // for the flip. The boot-time call is observed too so the test
       // also catches a regression that drops the initial application.
@@ -66,47 +68,52 @@ void main() {
       );
     });
 
-    testWidgets('WindowModeApplier는_같은_모드_재설정시_재적용하지_않는다', (tester) async {
-      // Idempotency guard: setting the same mode twice in a row must
-      // not re-fire the platform call. The Riverpod listen contract
-      // already swallows equal states, but pin the behaviour at the
-      // observer level so a future refactor that switches to a manual
-      // `addListener` (where equal-state semantics differ) is forced
-      // to re-add the dedupe.
-      final applied = <WindowMode>[];
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...i18nTestOverrides,
-            windowModeProvider.overrideWith(
-              () => WindowModeNotifier(initial: WindowMode.full),
-            ),
-          ],
-          child: MaterialApp(
-            home: WindowModeApplier(
-              applyWindowMode: (mode) async {
-                applied.add(mode);
-              },
-              child: const SizedBox.shrink(),
+    testWidgets(
+      'WindowModeApplier_does_not_reapply_when_the_same_mode_is_set_again',
+      (tester) async {
+        // Idempotency guard: setting the same mode twice in a row must
+        // not re-fire the platform call. The Riverpod listen contract
+        // already swallows equal states, but pin the behaviour at the
+        // observer level so a future refactor that switches to a manual
+        // `addListener` (where equal-state semantics differ) is forced
+        // to re-add the dedupe.
+        final applied = <WindowMode>[];
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              windowModeProvider.overrideWith(
+                () => WindowModeNotifier(initial: WindowMode.full),
+              ),
+            ],
+            child: MaterialApp(
+              home: WindowModeApplier(
+                applyWindowMode: (mode) async {
+                  applied.add(mode);
+                },
+                child: const SizedBox.shrink(),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
-      expect(applied, [WindowMode.full]);
+        );
+        await tester.pump();
+        expect(applied, [WindowMode.full]);
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(WindowModeApplier)),
-      );
-      container.read(windowModeProvider.notifier).set(WindowMode.full);
-      await tester.pump();
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(WindowModeApplier)),
+        );
+        container.read(windowModeProvider.notifier).set(WindowMode.full);
+        await tester.pump();
 
-      expect(applied, [
-        WindowMode.full,
-      ], reason: 'Equal-state re-set must not re-fire applyWindowMode');
-    });
+        expect(applied, [
+          WindowMode.full,
+        ], reason: 'Equal-state re-set must not re-fire applyWindowMode');
+      },
+    );
 
-    testWidgets('WindowModeApplier는_platform_call_예외를_격리한다', (tester) async {
+    testWidgets('WindowModeApplier_isolates_platform_call_exceptions', (
+      tester,
+    ) async {
       final originalDebugPrint = debugPrint;
       final logs = <String>[];
       debugPrint = (String? message, {int? wrapWidth}) {

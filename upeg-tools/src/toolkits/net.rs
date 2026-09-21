@@ -101,19 +101,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn net_reachability_라벨은_ok_fail_매핑이다() {
+    fn net_reachability_labels_map_to_ok_fail() {
         assert_eq!(NetReachability::Ok.label(), "OK");
         assert_eq!(NetReachability::Fail.label(), "FAIL");
     }
 
     #[test]
-    fn first_socket_addr는_유효한_target에서_addr를_반환한다() {
+    fn first_socket_addr_returns_addr_for_valid_target() {
         assert!(first_socket_addr("127.0.0.1:80").is_some());
         assert!(first_socket_addr("[::1]:80").is_some());
     }
 
     #[test]
-    fn first_socket_addr는_빈_문자열에_none을_반환한다() {
+    fn first_socket_addr_returns_none_for_empty_string() {
         assert!(first_socket_addr("").is_none());
     }
 
@@ -123,7 +123,7 @@ mod tests {
     /// dependency in tests. The probe target is intentionally weird
     /// (port 1, which never has a service) so the connect always fails.
     #[test]
-    fn probe는_도달불가_host에_대해_fail을_반환한다() {
+    fn probe_returns_fail_for_unreachable_host() {
         let (status, ping) = probe("127.0.0.1:1");
         assert_eq!(status, NetReachability::Fail);
         assert_eq!(ping, 0);

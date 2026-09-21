@@ -17,7 +17,7 @@ List<BoardDto> _boards(List<String> keys) => [
 
 void main() {
   group('currentBoardKeyProvider shared selection', () {
-    test('currentBoardKeyProvider_select은_shared_selection에_쓴다', () {
+    test('currentBoardKeyProvider_select_writes_to_shared_selection', () {
       final saved = <PegboardSelectionDto>[];
       final container = ProviderContainer(
         overrides: [
@@ -39,7 +39,7 @@ void main() {
     });
 
     test(
-      'currentBoardKeyProvider_restore는_shared_selection의_board로_초기화한다',
+      'currentBoardKeyProvider_restore_initializes_to_shared_selection_board',
       () async {
         final container = ProviderContainer(
           overrides: [
@@ -59,7 +59,7 @@ void main() {
     );
 
     test(
-      'currentBoardKeyProvider_restore는_저장된_보드가_사라지면_첫번째_보드로_폴백한다',
+      'currentBoardKeyProvider_restore_falls_back_to_first_board_when_saved_board_is_gone',
       () async {
         final container = ProviderContainer(
           overrides: [
@@ -79,7 +79,7 @@ void main() {
     );
 
     test(
-      'currentBoardKeyProvider_restore는_저장된_보드가_없으면_첫번째_보드로_초기화한다',
+      'currentBoardKeyProvider_restore_initializes_to_first_board_when_no_saved_board',
       () async {
         final container = ProviderContainer(
           overrides: [

@@ -13,7 +13,7 @@ import 'package:upeg/src/platform/tray.dart';
 
 void main() {
   group('isTraySupported', () {
-    test('isTraySupported는_target에_맞는_지원여부를_반환한다', () {
+    test('isTraySupported_returns_the_support_flag_matching_the_target', () {
       // VM tests run on a desktop host; browser tests run on Web. The
       // getter must be true for desktop targets and false for Web so
       // platform channels are never touched in the browser build.

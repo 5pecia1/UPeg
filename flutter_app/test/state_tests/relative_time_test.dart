@@ -7,7 +7,7 @@ import 'package:upeg/src/i18n/relative_time.dart';
 
 void main() {
   group('lastRunAgoLabel', () {
-    test('1분_미만은_방금으로_버킷된다', () {
+    test('under_a_minute_buckets_as_just_now', () {
       final label = lastRunAgoLabel(Duration.zero);
       expect(label.key, 'pin.last_run.just_now');
       expect(label.args, isEmpty);
@@ -17,14 +17,17 @@ void main() {
       );
     });
 
-    test('음수_경과시간은_미래_예측_대신_방금으로_클램프된다', () {
-      expect(
-        lastRunAgoLabel(const Duration(minutes: -5)).key,
-        'pin.last_run.just_now',
-      );
-    });
+    test(
+      'negative_elapsed_time_clamps_to_just_now_instead_of_predicting_future',
+      () {
+        expect(
+          lastRunAgoLabel(const Duration(minutes: -5)).key,
+          'pin.last_run.just_now',
+        );
+      },
+    );
 
-    test('1시간_미만은_분_단위로_버킷된다', () {
+    test('under_an_hour_buckets_in_minutes', () {
       final five = lastRunAgoLabel(const Duration(minutes: 5));
       expect(five.key, 'pin.last_run.minutes_ago');
       expect(five.args, {'minutes': '5'});
@@ -33,7 +36,7 @@ void main() {
       expect(edge.args, {'minutes': '59'});
     });
 
-    test('하루_미만은_시간_단위로_버킷된다', () {
+    test('under_a_day_buckets_in_hours', () {
       final one = lastRunAgoLabel(const Duration(hours: 1));
       expect(one.key, 'pin.last_run.hours_ago');
       expect(one.args, {'hours': '1'});
@@ -42,7 +45,7 @@ void main() {
       expect(edge.args, {'hours': '23'});
     });
 
-    test('하루_이상은_일_단위로_버킷된다', () {
+    test('a_day_or_more_buckets_in_days', () {
       final one = lastRunAgoLabel(const Duration(days: 1));
       expect(one.key, 'pin.last_run.days_ago');
       expect(one.args, {'days': '1'});

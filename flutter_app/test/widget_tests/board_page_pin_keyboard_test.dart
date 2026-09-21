@@ -1,7 +1,7 @@
 /// Widget tests for the BoardPage keyboard wiring (G5).
 ///
 /// The keyboard FRB itself is exercised in upeg-frb Rust unit tests
-/// (`keyboard_command_for_가_*`). Here we verify that the Dart side
+/// (`keyboard_command_for_maps_*`). Here we verify that the Dart side
 /// translates Flutter `KeyEvent`s into the right FRB call, and that
 /// the resulting [`KeyboardCommandDto`] drives the right page-level
 /// side effect (open palette / open settings / cycle tag / …).
@@ -26,7 +26,7 @@ import '../test_helpers/board_page_harness.dart';
 
 void main() {
   group('BoardPage keyboard wiring', () {
-    testWidgets('BoardPage는_TogglePin_command로_focused_pin을_unpin한다', (
+    testWidgets('BoardPage_unpins_the_focused_pin_on_the_TogglePin_command', (
       tester,
     ) async {
       PinKey? observed;
@@ -64,86 +64,88 @@ void main() {
       ));
     });
 
-    testWidgets('BoardPage는_TogglePin_command로_unpinned_focused_tool을_pin한다', (
-      tester,
-    ) async {
-      PinKey? observed;
-      await tester.pumpWidget(
-        boardPageHarness(
-          currentBoardKey: 'dev',
-          focusedToolId: 'num.hex_to_decimal',
-          isPinnedLoader: (boardKey, toolId) => false,
-          pinMutator: (boardKey, toolId) {
-            observed = (boardKey, toolId);
-          },
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == 'p') return const KeyboardCommandDto.togglePin();
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_pins_an_unpinned_focused_tool_on_the_TogglePin_command',
+      (tester) async {
+        PinKey? observed;
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: 'dev',
+            focusedToolId: 'num.hex_to_decimal',
+            isPinnedLoader: (boardKey, toolId) => false,
+            pinMutator: (boardKey, toolId) {
+              observed = (boardKey, toolId);
+            },
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == 'p') return const KeyboardCommandDto.togglePin();
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
-      await tester.pump();
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+        await tester.pump();
 
-      expect(observed, (
-        BoardKey.parse('dev'),
-        ToolId.parse('num.hex_to_decimal'),
-      ));
-    });
+        expect(observed, (
+          BoardKey.parse('dev'),
+          ToolId.parse('num.hex_to_decimal'),
+        ));
+      },
+    );
 
-    testWidgets('BoardPage는_Reorder_previous_command를_reorder_provider로_보낸다', (
-      tester,
-    ) async {
-      ToolId? observedTool;
-      OrderDirectionDto? observedDirection;
-      await tester.pumpWidget(
-        boardPageHarness(
-          currentBoardKey: 'dev',
-          focusedToolId: 'num.hex_to_decimal',
-          reorderPin: (toolId, direction) async {
-            observedTool = toolId;
-            observedDirection = direction;
-          },
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required bool hasToolFocus,
-                required KeyboardScopeDto scope,
-              }) {
-                if (key == '[') {
-                  return const KeyboardCommandDto.reorder(
-                    direction: OrderDirectionDto.previous,
-                  );
-                }
-                return null;
-              },
-        ),
-      );
+    testWidgets(
+      'BoardPage_routes_the_Reorder_previous_command_to_the_reorder_provider',
+      (tester) async {
+        ToolId? observedTool;
+        OrderDirectionDto? observedDirection;
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: 'dev',
+            focusedToolId: 'num.hex_to_decimal',
+            reorderPin: (toolId, direction) async {
+              observedTool = toolId;
+              observedDirection = direction;
+            },
+            resolver:
+                ({
+                  required String key,
+                  required bool ctrl,
+                  required bool meta,
+                  required bool shift,
+                  required bool alt,
+                  required bool hasToolFocus,
+                  required KeyboardScopeDto scope,
+                }) {
+                  if (key == '[') {
+                    return const KeyboardCommandDto.reorder(
+                      direction: OrderDirectionDto.previous,
+                    );
+                  }
+                  return null;
+                },
+          ),
+        );
 
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
-      await tester.pump();
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
+        await tester.pump();
 
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
-      expect(observedDirection, OrderDirectionDto.previous);
-    });
+        expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+        expect(observedDirection, OrderDirectionDto.previous);
+      },
+    );
 
-    testWidgets('BoardPage는_Run_command로_focused_pin을_activation한다', (
+    testWidgets('BoardPage_activates_the_focused_pin_on_the_Run_command', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -179,7 +181,7 @@ void main() {
       expect(find.byType(ExpandedModalPage), findsOneWidget);
     });
 
-    testWidgets('BoardPage는_Move_command로_첫_pin에_focus한_뒤_Run할_수_있다', (
+    testWidgets('BoardPage_can_focus_the_first_pin_on_Move_command_then_Run', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -236,7 +238,9 @@ void main() {
       expect(find.byType(ExpandedModalPage), findsOneWidget);
     });
 
-    testWidgets('BoardPage는_방향키로_공간상_오른쪽_pin에_focus한다', (tester) async {
+    testWidgets('BoardPage_focuses_the_spatially_right_pin_on_arrow_keys', (
+      tester,
+    ) async {
       ToolId? activated;
       await tester.pumpWidget(
         boardPageHarness(
@@ -291,7 +295,7 @@ void main() {
       expect(activated, ToolId.parse('fixture.right'));
     });
 
-    testWidgets('BoardPage는_pin_focus가_없으면_Tab으로_GUI_focus를_이동한다', (
+    testWidgets('BoardPage_moves_GUI_focus_with_Tab_without_pin_focus', (
       tester,
     ) async {
       var resolverCalls = 0;
@@ -328,7 +332,7 @@ void main() {
       expect(FocusManager.instance.primaryFocus, isNot(boardFocus));
     });
 
-    testWidgets('BoardPage는_pin_focus가_있으면_Tab을_board_focus_명령으로_쓴다', (
+    testWidgets('BoardPage_uses_Tab_as_a_board_focus_command_with_pin_focus', (
       tester,
     ) async {
       var resolverCalls = 0;
@@ -365,7 +369,9 @@ void main() {
       expect(resolverCalls, 1);
     });
 
-    testWidgets('우클릭_핀_메뉴에_색상_편집이_있다', (tester) async {
+    testWidgets('the_right_click_pin_menu_has_a_color_edit_entry', (
+      tester,
+    ) async {
       await pumpBoardPageWithPinnedTool(tester);
 
       await openPinContextMenu(tester);
@@ -379,7 +385,7 @@ void main() {
       );
     });
 
-    testWidgets('우클릭_색상_편집은_dialog를_연다', (tester) async {
+    testWidgets('the_right_click_color_edit_opens_a_dialog', (tester) async {
       await pumpBoardPageWithPinnedTool(tester);
 
       await openPinContextMenu(tester);
@@ -389,7 +395,9 @@ void main() {
       expect(find.byKey(pinColorDialogKey), findsOneWidget);
     });
 
-    testWidgets('색상_버튼은_focused_pin이_있으면_dialog를_연다', (tester) async {
+    testWidgets('the_color_button_opens_a_dialog_when_a_pin_is_focused', (
+      tester,
+    ) async {
       await pumpBoardPageWithPinnedTool(
         tester,
         focusedToolId: contextMenuToolId,
@@ -401,7 +409,9 @@ void main() {
       expect(find.byKey(pinColorDialogKey), findsOneWidget);
     });
 
-    testWidgets('색상_버튼은_focused_pin이_없으면_disabled_상태다', (tester) async {
+    testWidgets('the_color_button_is_disabled_without_a_focused_pin', (
+      tester,
+    ) async {
       await pumpBoardPageWithPinnedTool(tester);
 
       final buttonFinder = find.byKey(const Key('edit-pin-color-btn'));
@@ -417,7 +427,9 @@ void main() {
       expect(find.byKey(pinColorDialogKey), findsNothing);
     });
 
-    testWidgets('c_누르면_focused_pin_색상_대화가_열린다', (tester) async {
+    testWidgets('pressing_c_opens_the_focused_pin_color_dialog', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardPageHarness(
           currentBoardKey: 'dev',
@@ -470,7 +482,9 @@ void main() {
       expect(find.byKey(const Key('pin-color-dialog')), findsOneWidget);
     });
 
-    testWidgets('focused_pin이_없으면_색상_커맨드가_아무것도_하지_않는다', (tester) async {
+    testWidgets('the_color_command_does_nothing_without_a_focused_pin', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         boardPageHarness(
           currentBoardKey: 'dev',

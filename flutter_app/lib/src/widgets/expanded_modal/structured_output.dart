@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/platform/file_picker_bridge.dart';
 import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/tools.dart';
@@ -229,14 +230,14 @@ class _StructuredOutputValue extends StatelessWidget {
   }
 }
 
-class _UrlOutput extends StatelessWidget {
+class _UrlOutput extends ConsumerWidget {
   const _UrlOutput({required this.url, required this.tokens});
 
   final String url;
   final UpegTokens tokens;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(child: SelectableText(url, style: _monoStyle(tokens))),
@@ -244,7 +245,7 @@ class _UrlOutput extends StatelessWidget {
         TextButton.icon(
           key: const Key('structured-output-url-open'),
           icon: const Icon(Icons.open_in_new, size: 16),
-          label: const Text('open'),
+          label: Text(t(ref, 'modal.output.open_url')),
           onPressed: () async {
             await launchUrl(
               Uri.parse(url),

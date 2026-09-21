@@ -195,11 +195,11 @@ fn diagnostic_text(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    fn 종료(termination: ProcessTermination, stderr: &str) -> ExternalExit {
-        취소_포함_종료(ExternalTermination::Process(termination), stderr)
+    fn exit(termination: ProcessTermination, stderr: &str) -> ExternalExit {
+        exit_with_termination(ExternalTermination::Process(termination), stderr)
     }
 
-    fn 취소_포함_종료(termination: ExternalTermination, stderr: &str) -> ExternalExit {
+    fn exit_with_termination(termination: ExternalTermination, stderr: &str) -> ExternalExit {
         ExternalExit {
             command: "cargo".to_string(),
             termination,
@@ -209,33 +209,33 @@ mod tests {
     }
 
     #[test]
-    fn 종료_코드_메시지는_코드를_그대로_읽는다() {
+    fn exit_code_message_reads_the_code() {
         assert_eq!(
-            종료(ProcessTermination::Exited { code: 1 }, "").message(),
+            exit(ProcessTermination::Exited { code: 1 }, "").message(),
             "`cargo` exited with code 1"
         );
     }
 
     #[test]
-    fn 시그널_메시지는_시그널_번호를_읽는다() {
+    fn signal_message_reads_the_signal_number() {
         assert_eq!(
-            종료(ProcessTermination::Signaled { signal: 9 }, "").message(),
+            exit(ProcessTermination::Signaled { signal: 9 }, "").message(),
             "`cargo` was killed by signal 9"
         );
     }
 
     #[test]
-    fn 제한시간_메시지는_밀리초를_읽는다() {
+    fn timeout_message_reads_milliseconds() {
         assert_eq!(
-            종료(ProcessTermination::TimedOut { timeout_ms: 30000 }, "").message(),
+            exit(ProcessTermination::TimedOut { timeout_ms: 30000 }, "").message(),
             "`cargo` timed out after 30000 ms"
         );
     }
 
     #[test]
-    fn 표준오류가_있으면_첫_줄만_덧붙인다() {
+    fn stderr_appends_only_first_line() {
         assert_eq!(
-            종료(
+            exit(
                 ProcessTermination::Exited { code: 1 },
                 "error: first\nerror: second"
             )
@@ -245,57 +245,57 @@ mod tests {
     }
 
     #[test]
-    fn 표준오류가_공백뿐이면_콜론을_남기지_않는다() {
+    fn blank_stderr_leaves_no_dangling_colon() {
         assert_eq!(
-            종료(ProcessTermination::Exited { code: 1 }, "  \n\n").message(),
+            exit(ProcessTermination::Exited { code: 1 }, "  \n\n").message(),
             "`cargo` exited with code 1"
         );
     }
 
     #[test]
-    fn 취소_메시지는_취소라고_말한다() {
+    fn cancel_message_says_cancelled() {
         assert_eq!(
-            취소_포함_종료(ExternalTermination::Cancelled, "").message(),
+            exit_with_termination(ExternalTermination::Cancelled, "").message(),
             "`cargo` was cancelled"
         );
     }
 
     #[test]
-    fn 취소된_실행의_상세는_cancelled를_싣는다() {
-        let 상세 = 취소_포함_종료(ExternalTermination::Cancelled, "").details();
+    fn cancelled_run_details_carry_cancelled_key() {
+        let details = exit_with_termination(ExternalTermination::Cancelled, "").details();
 
-        assert_eq!(상세[CANCELLED_DETAIL_KEY], Value::Bool(true));
+        assert_eq!(details[CANCELLED_DETAIL_KEY], Value::Bool(true));
         assert_eq!(
-            상세["exit_code"],
+            details["exit_code"],
             Value::Null,
-            "취소된 자식은 종료 코드를 보고할 기회가 없었다"
+            "a cancelled child had no chance to report an exit code"
         );
     }
 
     #[test]
-    fn 취소가_아니면_cancelled_키가_없다() {
-        let 상세 = 종료(ProcessTermination::Exited { code: 1 }, "").details();
+    fn non_cancelled_details_have_no_cancelled_key() {
+        let details = exit(ProcessTermination::Exited { code: 1 }, "").details();
 
-        assert!(상세.get(CANCELLED_DETAIL_KEY).is_none());
+        assert!(details.get(CANCELLED_DETAIL_KEY).is_none());
     }
 
     #[test]
-    fn 진단_출력은_예산에서_잘리고_표식을_남긴다() {
-        let 원본 = "x".repeat(MAX_DIAGNOSTIC_STREAM_BYTES + 10);
-        let 잘림 = diagnostic_text(원본.as_bytes());
-        assert!(잘림.ends_with(DIAGNOSTIC_TRUNCATION_MARKER));
+    fn diagnostic_output_is_cut_at_budget_with_marker() {
+        let source = "x".repeat(MAX_DIAGNOSTIC_STREAM_BYTES + 10);
+        let truncated = diagnostic_text(source.as_bytes());
+        assert!(truncated.ends_with(DIAGNOSTIC_TRUNCATION_MARKER));
         assert_eq!(
-            잘림.len(),
+            truncated.len(),
             MAX_DIAGNOSTIC_STREAM_BYTES + DIAGNOSTIC_TRUNCATION_MARKER.len()
         );
     }
 
     #[test]
-    fn 진단_출력은_멀티바이트_경계를_깨지_않는다() {
-        let 반복 = MAX_DIAGNOSTIC_STREAM_BYTES / "가".len() + 4;
-        let 원본 = "가".repeat(반복);
-        let 잘림 = diagnostic_text(원본.as_bytes());
-        assert!(잘림.starts_with('가'));
-        assert!(잘림.ends_with(DIAGNOSTIC_TRUNCATION_MARKER));
+    fn diagnostic_output_respects_multibyte_boundaries() {
+        let repeats = MAX_DIAGNOSTIC_STREAM_BYTES / "가".len() + 4;
+        let source = "가".repeat(repeats);
+        let truncated = diagnostic_text(source.as_bytes());
+        assert!(truncated.starts_with('가'));
+        assert!(truncated.ends_with(DIAGNOSTIC_TRUNCATION_MARKER));
     }
 }

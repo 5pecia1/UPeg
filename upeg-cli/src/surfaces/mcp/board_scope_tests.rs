@@ -6,10 +6,10 @@
 use crate::surfaces::mcp::*;
 use serde_json::json;
 
-// ─── 보드 스코프 ("board = server") ─────────────────
+// ─── Board scope ("board = server") ─────────────────
 
 #[test]
-fn 보드_스코프_tools_list는_핀된_도구와_안내_조회를_노출한다() {
+fn board_scoped_tools_list_exposes_pinned_tools_and_guidance_query() {
     crate::test_support::with_seeded_pegboard_home(
         "mcp-board-list",
         |state| {
@@ -24,7 +24,7 @@ fn 보드_스코프_tools_list는_핀된_도구와_안내_조회를_노출한다
             );
         },
         || {
-            let board = upeg_core::BoardKey::parse("mcp-dev").expect("보드 키");
+            let board = upeg_core::BoardKey::parse("mcp-dev").expect("board key");
             let resp = handle_with_board(
                 json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }),
                 upeg_core::Surface::Mcp,
@@ -39,18 +39,18 @@ fn 보드_스코프_tools_list는_핀된_도구와_안내_조회를_노출한다
             assert_eq!(
                 names,
                 vec!["num.hex_to_decimal", "upeg.board_context"],
-                "핀된 실행 도구와 안내 조회만 노출되어야 한다"
+                "only the pinned tool and the guidance query should be exposed"
             );
         },
     );
 }
 
 #[test]
-fn 보드_스코프_tools_call은_핀_preset을_병합하고_핀되지_않은_도구를_거부한다() {
+fn board_scoped_tools_call_merges_pin_preset_and_rejects_unpinned_tool() {
     crate::test_support::with_seeded_pegboard_home(
         "mcp-board-call",
         |state| {
-            let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("유효 preset");
+            let preset = upeg_core::ArgsPreset::parse(r#"{"input":"0xff"}"#).expect("valid preset");
             state.boards.push(upeg_sources::pegboard::BoardData {
                 guidance: upeg_core::BoardGuidance::default(),
                 key: "mcp-preset".into(),
@@ -65,9 +65,9 @@ fn 보드_스코프_tools_call은_핀_preset을_병합하고_핀되지_않은_�
             );
         },
         || {
-            let board = upeg_core::BoardKey::parse("mcp-preset").expect("보드 키");
+            let board = upeg_core::BoardKey::parse("mcp-preset").expect("board key");
 
-            // 인자 없는 호출 — 핀 preset이 기본값으로 병합된다.
+            // Argument-free call — the pin preset merges as defaults.
             let resp = handle_with_board(
                 json!({
                     "jsonrpc": "2.0",
@@ -81,10 +81,10 @@ fn 보드_스코프_tools_call은_핀_preset을_병합하고_핀되지_않은_�
             .expect("response owed");
             assert_eq!(
                 resp["result"]["content"][0]["text"], "255",
-                "preset input=0xff가 기본값이 되어야 한다: {resp}"
+                "preset input=0xff should become the default: {resp}"
             );
 
-            // 명시 인자는 preset을 덮어쓴다.
+            // Explicit args override the preset.
             let resp = handle_with_board(
                 json!({
                     "jsonrpc": "2.0",
@@ -98,8 +98,8 @@ fn 보드_스코프_tools_call은_핀_preset을_병합하고_핀되지_않은_�
             .expect("response owed");
             assert_eq!(resp["result"]["content"][0]["text"], "16");
 
-            // 핀되지 않은 도구는 알 수 없는 메서드와 같은 -32601이며,
-            // 힌트는 그 보드의 핀 목록으로 한정된다.
+            // An unpinned tool gets the same -32601 as an unknown method,
+            // and the hint is scoped to that board's pin list.
             let resp = handle_with_board(
                 json!({
                     "jsonrpc": "2.0",
@@ -115,7 +115,7 @@ fn 보드_스코프_tools_call은_핀_preset을_병합하고_핀되지_않은_�
             let message = resp["error"]["message"].as_str().expect("message");
             assert!(
                 message.contains("num.hex_to_decimal"),
-                "보드 핀 목록이 힌트로 나와야 한다: {message}"
+                "the board pin list should appear in the hint: {message}"
             );
         },
     );

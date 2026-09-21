@@ -125,7 +125,7 @@ fn assert_variant_lists_match(enum_name: &str, const_name: &str) {
 }
 
 #[test]
-fn 매크로_허용_variant_목록은_core_enum과_일치한다() {
+fn macro_allowed_variant_lists_match_core_enums() {
     assert_variant_lists_match("PinKind", "ALLOWED_PIN_KINDS");
     assert_variant_lists_match("PegboardUnits", "ALLOWED_PEGBOARD_UNITS");
     assert_variant_lists_match("Invoker", "ALLOWED_INVOKERS");

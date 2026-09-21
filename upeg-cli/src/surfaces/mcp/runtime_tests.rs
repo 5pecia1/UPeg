@@ -4,7 +4,7 @@ use crate::surfaces::mcp::*;
 use serde_json::json;
 
 #[test]
-fn 서버_정보_버전은_카고_패키지를_일치시킨다() {
+fn server_info_version_matches_cargo_package() {
     // env!("CARGO_PKG_VERSION") drives serverInfo.version. If the upeg-cli
     // version diverges from this constant, MCP clients will see stale data.
     let resp = handle(json!({"jsonrpc":"2.0","id":1,"method":"initialize"})).unwrap();
@@ -14,7 +14,7 @@ fn 서버_정보_버전은_카고_패키지를_일치시킨다() {
 }
 
 #[test]
-fn 도구_호출은_base64_인코딩_왕복을_지원한다() {
+fn tool_call_supports_base64_encode_round_trip() {
     let enc = handle(json!({
         "jsonrpc": "2.0", "id": 100, "method": "tools/call",
         "params": { "name": "convert.base64_encode", "arguments": { "input": "hello" } },
@@ -31,7 +31,7 @@ fn 도구_호출은_base64_인코딩_왕복을_지원한다() {
 }
 
 #[test]
-fn base64_디코딩_도구_호출은_유효하지_않은_입력에_오류상태를_표시한다() {
+fn base64_decode_tool_call_marks_invalid_input_as_error() {
     let resp = handle(json!({
         "jsonrpc": "2.0", "id": 102, "method": "tools/call",
         "params": { "name": "convert.base64_decode", "arguments": { "input": "!!!" } },
@@ -40,12 +40,12 @@ fn base64_디코딩_도구_호출은_유효하지_않은_입력에_오류상태�
     assert_eq!(resp["result"]["isError"], true);
 }
 
-// Iter 161: dropped the local raw-schema parsing wrapper after MCP
+// The local raw-schema parsing wrapper was dropped after MCP
 // tools/list switched to `to_json_object`. Schema object parsing is now
 // covered by upeg-core's typed input adapter tests.
 
 #[test]
-fn 도구_목록의_입력_schema는_도구_메타에서_나온다() {
+fn tools_list_input_schema_comes_from_tool_meta() {
     let resp = handle(
         json!({        "jsonrpc":"2.0","id":110,"method":"tools/list",
         }),
@@ -79,7 +79,7 @@ fn 도구_목록의_입력_schema는_도구_메타에서_나온다() {
 }
 
 #[test]
-fn 도구_목록의_description은_하드코딩된_값이_아니라_도구_메타에서_나온다() {
+fn tools_list_description_comes_from_tool_meta_not_hardcoded() {
     // Descriptions live on `ToolMeta::description` and flow through
     // automatically. Each annotated tool should produce a non-empty,
     // distinct description.
@@ -113,8 +113,8 @@ fn 도구_목록의_description은_하드코딩된_값이_아니라_도구_메�
 /// must surface in MCP `tools/list` AND be callable via `tools/call`.
 /// This is the cross-surface contract the dispatcher primitive promises.
 #[test]
-fn 도구_목록은_description이_있는_runtime_등록된_도구를_포함한다() {
-    let id = "test.iter38.mcp_visible";
+fn tools_list_includes_runtime_registered_tool_with_description() {
+    let id = "test.runtime.mcp_visible";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
@@ -123,10 +123,12 @@ fn 도구_목록은_description이_있는_runtime_등록된_도구를_포함한�
             .local(),
         tags: &[],
         display_label: "Test tool",
-        description: "iter 38 visibility check",
+        description: "runtime visibility check",
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -144,15 +146,15 @@ fn 도구_목록은_description이_있는_runtime_등록된_도구를_포함한�
         .iter()
         .find(|t| t["name"] == id)
         .unwrap_or_else(|| panic!("runtime tool missing from tools/list:\n{tools:?}"));
-    assert_eq!(entry["description"], "iter 38 visibility check");
+    assert_eq!(entry["description"], "runtime visibility check");
     // Empty input_schema falls back to permissive object shape.
     assert_eq!(entry["inputSchema"]["type"], "object");
     assert_eq!(entry["outputSchema"]["type"], "object");
 }
 
 #[test]
-fn 도구_호출은_로_runtime_dispatcher를_라우팅한다() {
-    let id = "test.iter38.mcp_dispatch";
+fn tool_call_routes_to_runtime_dispatcher() {
+    let id = "test.runtime.mcp_dispatch";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
@@ -165,6 +167,8 @@ fn 도구_호출은_로_runtime_dispatcher를_라우팅한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -190,8 +194,8 @@ fn 도구_호출은_로_runtime_dispatcher를_라우팅한다() {
 }
 
 #[test]
-fn 도구_호출은_runtime_dispatcher_오류를_오류상태로_표시한다() {
-    let id = "test.iter38.mcp_dispatch_err";
+fn tool_call_marks_runtime_dispatcher_error_as_error() {
+    let id = "test.runtime.mcp_dispatch_err";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
@@ -204,6 +208,8 @@ fn 도구_호출은_runtime_dispatcher_오류를_오류상태로_표시한다() 
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -225,8 +231,8 @@ fn 도구_호출은_runtime_dispatcher_오류를_오류상태로_표시한다() 
 // ─── Surface gating  ─────────────────────────────────
 
 #[test]
-fn 도구_목록은_mcp_표면_없이_도구를_제외한다() {
-    let id = "test.iter41.mcp_excluded_from_list";
+fn tools_list_excludes_tools_without_mcp_surface() {
+    let id = "test.surfacegate.mcp_excluded_from_list";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
@@ -239,6 +245,8 @@ fn 도구_목록은_mcp_표면_없이_도구를_제외한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -260,7 +268,7 @@ fn 도구_목록은_mcp_표면_없이_도구를_제외한다() {
 }
 
 #[test]
-fn 표면별_핸들은_요청된_표면만_나열한다() {
+fn surface_specific_handle_lists_only_requested_surface() {
     let id = "test.http_surface.handle_for_surface_http_only";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
@@ -274,6 +282,8 @@ fn 표면별_핸들은_요청된_표면만_나열한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -307,13 +317,13 @@ fn 표면별_핸들은_요청된_표면만_나열한다() {
 }
 
 #[test]
-fn 도구_호출의_method_not_found_브랜치는_구별할_수_없다() {
+fn tools_call_method_not_found_branches_are_indistinguishable() {
     // Info-leak invariant (MCP half), mirrored by the HTTP test.
     // The two -32601 paths in tools_call (surface-gate refusal vs
     // genuine NotFound) must produce byte-identical error responses
     // (after id-normalisation); otherwise a client could learn that
     // a tool exists on another surface.
-    let gated_id = "test.iter166.mcp_surface_gated";
+    let gated_id = "test.infleak.mcp_surface_gated";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: gated_id,
         toolkit: "test",
@@ -326,6 +336,8 @@ fn 도구_호출의_method_not_found_브랜치는_구별할_수_없다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -333,7 +345,7 @@ fn 도구_호출의_method_not_found_브랜치는_구별할_수_없다() {
         surfaces: &[upeg_core::Surface::Cli],
         boards: &[],
     });
-    let absent_id = "test.iter166.mcp_totally_missing";
+    let absent_id = "test.infleak.mcp_totally_missing";
 
     let gated = handle(json!({
         "jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -361,8 +373,8 @@ fn 도구_호출의_method_not_found_브랜치는_구별할_수_없다() {
 }
 
 #[test]
-fn mcp_표면을_선언하지_않은_도구_호출은_메서드_없음으로_거부된다() {
-    let id = "test.iter41.mcp_call_refused";
+fn call_for_tool_without_mcp_surface_is_rejected_as_method_not_found() {
+    let id = "test.surfacegate.mcp_call_refused";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
@@ -375,6 +387,8 @@ fn mcp_표면을_선언하지_않은_도구_호출은_메서드_없음으로_거
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,

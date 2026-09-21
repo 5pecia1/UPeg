@@ -7,8 +7,9 @@
 /// the widget never has to dispatch on stringly-typed flags.
 library;
 
-/// Common error message for a non-hex input. Centralised so tests can
-/// pin it and the UI never has to know the exact wording.
+/// Common locale-independent diagnostic for a non-hex input. Centralised
+/// so tests can pin it; the UI renders [HexDecodeError.messageKey]
+/// through the catalog instead of showing this literal.
 const String hexDecodeErrorMessage = 'not a valid hex value';
 
 /// Sealed result of [decodeHex]. The three variants map 1:1 to the
@@ -57,7 +58,13 @@ final class HexDecodeOk extends HexDecodeResult {
 final class HexDecodeError extends HexDecodeResult {
   const HexDecodeError({required this.message});
 
+  /// Locale-independent diagnostic for tests and logs — user-facing
+  /// copy comes from [messageKey], never from this field.
   final String message;
+
+  /// Catalog key (upeg-pegboard-ui/src/i18n.rs) for the localized
+  /// presentation of this failure — render via `t(ref, key)`.
+  String get messageKey => 'modal.hex.invalid';
 
   @override
   bool operator ==(Object other) =>

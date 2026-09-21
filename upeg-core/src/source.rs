@@ -75,13 +75,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 소스_기본값은_user_input이다() {
+    fn source_default_is_user_input() {
         assert_eq!(Source::default(), Source::UserInput);
         assert_eq!(StaticSource::default_value(), StaticSource::UserInput);
     }
 
     #[test]
-    fn 소스_타이머는_밀리초를_지속시간으로_변환한다() {
+    fn timer_source_converts_milliseconds_to_a_duration() {
         let static_src = StaticSource::Timer {
             interval_ms: 30_000,
         };
@@ -95,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn 소스_단축키는_정적_문자열을_owned로_옮긴다() {
+    fn shortcut_source_moves_the_static_string_to_owned() {
         let static_src = StaticSource::Shortcut {
             keys: "Cmd+Shift+N",
         };
@@ -109,7 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn 소스_라벨은_변형별로_고유하다() {
+    fn source_labels_are_unique_per_variant() {
         let labels = [
             StaticSource::UserInput.label(),
             StaticSource::Timer { interval_ms: 0 }.label(),
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn 소스_manual과_static은_데이터_없이_왕복한다() {
+    fn manual_and_static_sources_round_trip_without_data() {
         assert_eq!(StaticSource::Manual.to_owned_source(), Source::Manual);
         assert_eq!(StaticSource::Static.to_owned_source(), Source::Static);
     }

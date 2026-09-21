@@ -39,7 +39,7 @@ const MCP_DOCS_PATH: &str = "README.md";
 const MCP_TEST_PATH: &str = "upeg-cli/src/inventory/tests.rs";
 /// The test inside [`MCP_TEST_PATH`] that actually asserts these
 /// entries — pinned by the inventory honesty check.
-const MCP_TEST_NAME: &str = "인터페이스_인벤토리는_cli_http_mcp를_완전히_포함한다";
+const MCP_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
 
 /// JSON-RPC 2.0 protocol version string every frame carries.
 const JSON_RPC_VERSION: &str = "2.0";
@@ -574,8 +574,8 @@ pub(crate) enum LineReadOutcome {
     CapHit,
 }
 
-/// bounded `read_line` parallel to the 4 inline copies
-/// from iters 229-231. The `take(MAX)` wrapper prevents buffer
+/// Bounded `read_line` shared by the framing call sites.
+/// The `take(MAX)` wrapper prevents buffer
 /// growth on a malicious/buggy peer that sends unbounded bytes
 /// without `\n`; the `CapHit` discriminant tells the caller to
 /// surface a clean error and (typically) close the connection.
@@ -737,7 +737,7 @@ fn write_tools_list_changed<W: std::io::Write>(out: &mut W) {
     let _ = out.flush();
 }
 
-/// PRD §5.7: long-running attach surfaces surface themselves in the
+/// Long-running attach surfaces announce themselves in the
 /// host's "Connected clients" panel via a periodic heartbeat. 25 s
 /// interval beats the 30 s TTL with margin; once the surface exits
 /// the entry ages out naturally.

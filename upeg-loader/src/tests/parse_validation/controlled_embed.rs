@@ -82,7 +82,7 @@ fn assert_binding_wait(
 }
 
 #[test]
-fn controlled_embed_설정은_mobile_safari와_mobile_viewport를_등록한다() {
+fn controlled_embed_settings_register_mobile_safari_and_mobile_viewport() {
     let dir = std::env::temp_dir().join("upeg_loader_task4_mobile_settings");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -134,7 +134,7 @@ selector = "#r""##,
 }
 
 #[test]
-fn controlled_embed_설정은_custom_user_agent와_custom_viewport를_등록한다() {
+fn controlled_embed_settings_register_custom_user_agent_and_custom_viewport() {
     let dir = std::env::temp_dir().join("upeg_loader_task4_custom_settings");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -190,7 +190,7 @@ selector = "#r""##,
 }
 
 #[test]
-fn controlled_embed_설정은_trigger_action_enter를_선택자_바인딩에_등록한다() {
+fn controlled_embed_settings_register_trigger_action_enter_on_selector_binding() {
     let dir = std::env::temp_dir().join("upeg_loader_task4_enter_action");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -223,7 +223,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_registry는_input_trigger_output_wait를_dispatcher_request까지_보존한다()
+fn controlled_embed_wait_option_registry_preserves_input_trigger_output_waits_through_dispatcher_request()
  {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let previous_backend = upeg_runtime::controlled_embed::controlled_embed_backend();
@@ -336,7 +336,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_파싱은_기본값을_적용한다() {
+fn controlled_embed_wait_option_parsing_applies_defaults() {
     let dir = std::env::temp_dir().join("upeg_loader_binding_wait_defaults");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -378,7 +378,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_파싱은_명시값을_보존한다() {
+fn controlled_embed_wait_option_parsing_preserves_explicit_values() {
     let dir = std::env::temp_dir().join("upeg_loader_binding_wait_explicit");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -416,7 +416,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_알수없는_condition을_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_unknown_condition() {
     let s = r##"id = "waitinvalid.condition"
 toolkit = "waitinvalid"
 pin = "ControlledEmbed"
@@ -441,7 +441,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_알수없는_on_timeout을_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_unknown_on_timeout() {
     let s = r##"id = "waitinvalid.on_timeout"
 toolkit = "waitinvalid"
 pin = "ControlledEmbed"
@@ -466,7 +466,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_최대_ms_초과를_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_over_max_ms() {
     for field in ["timeout_ms", "settle_ms"] {
         let value = MAX_CONTROLLED_EMBED_WAIT_MS + 1;
         let s = format!(
@@ -500,7 +500,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_알수없는_wait_key를_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_unknown_wait_key() {
     let s = r##"id = "waitinvalid.unknown_key"
 toolkit = "waitinvalid"
 pin = "ControlledEmbed"
@@ -522,7 +522,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_음수_ms를_toml_타입오류로_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_negative_ms_as_toml_type_error() {
     let s = r##"id = "waitinvalid.negative"
 toolkit = "waitinvalid"
 pin = "ControlledEmbed"
@@ -545,7 +545,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_검증은_custom_user_agent_누락을_거부한다() {
+fn controlled_embed_validation_rejects_missing_custom_user_agent() {
     let s = r#"id = "task4invalid.custom_ua"
 toolkit = "task4invalid"
 invoker = "External"
@@ -559,7 +559,7 @@ controlled_embed = { browser = { user_agent = "custom" } }"#;
 }
 
 #[test]
-fn controlled_embed_검증은_custom_viewport_너비나_높이_누락을_거부한다() {
+fn controlled_embed_validation_rejects_missing_custom_viewport_dimensions() {
     for (body, expected_field) in [
         (
             r#"controlled_embed = { browser = { viewport = "custom", viewport_height = 720 } }"#,
@@ -587,7 +587,7 @@ command = "echo"
 }
 
 #[test]
-fn controlled_embed_검증은_viewport_범위_밖_값을_거부한다() {
+fn controlled_embed_validation_rejects_out_of_range_viewport_dimensions() {
     for (body, expected_field, expected_value) in [
         (
             r#"controlled_embed = { browser = { viewport = "custom", viewport_width = 0, viewport_height = 720 } }"#,
@@ -618,7 +618,7 @@ command = "echo"
 }
 
 #[test]
-fn controlled_embed_검증은_custom_전용_필드를_다른_mode에서_거부한다() {
+fn controlled_embed_validation_rejects_custom_only_fields_in_other_modes() {
     let cases = [
         (
             r#"controlled_embed = { browser = { custom_user_agent = "UA" } }"#,
@@ -657,7 +657,7 @@ command = "echo"
 }
 
 #[test]
-fn controlled_embed_검증은_알수없는_user_agent와_viewport_label을_거부한다() {
+fn controlled_embed_validation_rejects_unknown_user_agent_and_viewport_labels() {
     for (body, expected_field) in [
         (
             r#"controlled_embed = { browser = { user_agent = "desktop_chrome" } }"#,
@@ -688,7 +688,7 @@ command = "echo"
 }
 
 #[test]
-fn controlled_embed_검증은_non_trigger_enter_action을_거부한다() {
+fn controlled_embed_validation_rejects_non_trigger_enter_action() {
     let s = r##"id = "task4invalid.non_trigger_enter"
 toolkit = "task4invalid"
 pin = "ControlledEmbed"
@@ -712,7 +712,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_검증은_알수없는_trigger_action을_거부한다() {
+fn controlled_embed_validation_rejects_unknown_trigger_action() {
     let s = r##"id = "task4invalid.unknown_action"
 toolkit = "task4invalid"
 pin = "ControlledEmbed"
@@ -734,7 +734,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_파싱은_timeout_ms_0과_settle_ms_0을_보존한다() {
+fn controlled_embed_wait_option_parsing_preserves_zero_timeout_and_settle() {
     let dir = std::env::temp_dir().join("upeg_loader_wait_zero_values");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -769,7 +769,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_max_ms_정확한_값은_허용한다() {
+fn controlled_embed_wait_option_validation_allows_exact_max_ms() {
     let dir = std::env::temp_dir().join("upeg_loader_wait_max_boundary");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -808,7 +808,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_검증은_빈_for_selector를_거부한다() {
+fn controlled_embed_wait_option_validation_rejects_empty_for_selector() {
     let s = r##"id = "waitinvalid.empty_for_selector"
 toolkit = "waitinvalid"
 pin = "ControlledEmbed"
@@ -829,7 +829,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn controlled_embed_대기옵션_파싱은_for_selector를_trim해서_등록한다() {
+fn controlled_embed_wait_option_parsing_registers_trimmed_for_selector() {
     let dir = std::env::temp_dir().join("upeg_loader_wait_for_selector_trim");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

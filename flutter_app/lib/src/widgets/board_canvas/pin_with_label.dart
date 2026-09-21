@@ -172,7 +172,7 @@ class PinWithLabel extends ConsumerWidget {
     // Inline bodyOverride pins: replace the text body with a widget that
     // IS the tool. `bodyOwnsGesture` is true when that widget must own
     // the pointer (embed webviews, the memo text field) so tap-to-modal
-    // is disabled; it stays false for the passive "설정 필요" state, which
+    // is disabled; it stays false for the passive "needs setup" state, which
     // keeps the tap so the user still gets the clear message.
     //
     // Modeless: the live body is ALWAYS rendered — there is no edit-mode
@@ -250,7 +250,7 @@ class PinWithLabel extends ConsumerWidget {
     // tapping dispatches remotely and the canonical result renders inline
     // via `lastOutcomeProvider`, exactly like an in-process run. When no
     // host is paired (or the reason is native-only) fall back to the honest
-    // "미지원" notice, with a pairing nudge for attach-solvable reasons.
+    // "unsupported" notice, with a pairing nudge for attach-solvable reasons.
     var attachRouted = false;
     if (tool != null &&
         bodyOverride == null &&

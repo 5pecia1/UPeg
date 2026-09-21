@@ -13,8 +13,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:upeg/src/features/host_attach/attach_canonical_result_decoder.dart';
 import 'package:upeg/src/features/host_attach/attach_client.dart';
 import 'package:upeg/src/i18n/t.dart';
+import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 
 /// Widget key so tests locate the notice without depending on copy.
@@ -32,6 +34,12 @@ const String kHostAttachUnreachableHintKey =
     'host_attach.notice.unreachable_hint';
 const String kHostAttachToolErrorLabelKey =
     'host_attach.notice.tool_error_label';
+const String kHostAttachResponseTooLargeHintKey =
+    'host_attach.notice.response_too_large_hint';
+const String kHostAttachMalformedHintKey =
+    'host_attach.notice.malformed_response_hint';
+const String kHostAttachInvalidFileHintKey =
+    'host_attach.notice.invalid_file_hint';
 
 /// The user-facing badge + hint for a failed attach dispatch, or `null`
 /// when there is nothing to show (ok, or not dispatched yet, or a
@@ -47,10 +55,44 @@ HostAttachNotice? hostAttachNoticeFor(AttachDispatchResult? result) {
       labelKey: kHostAttachUnreachableLabelKey,
       hintKey: kHostAttachUnreachableHintKey,
     ),
+    // A daemon-supplied 503 hint is authored copy — pass it through. The
+    // client's own fallback is a fixed English diagnostic, so it renders
+    // as the localized hint key instead.
+    AttachDispatchUnavailable(:final hint)
+        when hint.isEmpty || hint == kHostUnavailableDefaultHint =>
+      const HostAttachNotice(
+        labelKey: kHostAttachUnreachableLabelKey,
+        hintKey: kHostAttachUnreachableHintKey,
+      ),
     AttachDispatchUnavailable(:final hint) => HostAttachNotice(
       labelKey: kHostAttachUnreachableLabelKey,
       hintText: hint,
     ),
+    // Client-side failure codes (attach_client.dart) carry fixed English
+    // diagnostics, so they render as localized hint keys instead. Codes
+    // the daemon itself produced pass its message through — that text is
+    // the payload the tool author wrote.
+    AttachDispatchToolError(
+      error: CanonicalToolError(code: kAttachResponseTooLargeErrorCode),
+    ) =>
+      const HostAttachNotice(
+        labelKey: kHostAttachToolErrorLabelKey,
+        hintKey: kHostAttachResponseTooLargeHintKey,
+      ),
+    AttachDispatchToolError(
+      error: CanonicalToolError(code: kAttachMalformedResponseErrorCode),
+    ) =>
+      const HostAttachNotice(
+        labelKey: kHostAttachToolErrorLabelKey,
+        hintKey: kHostAttachMalformedHintKey,
+      ),
+    AttachDispatchToolError(
+      error: CanonicalToolError(code: kAttachInvalidFileOutputErrorCode),
+    ) =>
+      const HostAttachNotice(
+        labelKey: kHostAttachToolErrorLabelKey,
+        hintKey: kHostAttachInvalidFileHintKey,
+      ),
     AttachDispatchToolError(:final error) => HostAttachNotice(
       labelKey: kHostAttachToolErrorLabelKey,
       hintText: error.message.isEmpty ? error.code : error.message,

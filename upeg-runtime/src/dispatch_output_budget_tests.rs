@@ -10,7 +10,7 @@ const EXTERNAL_TYPED_FILE_TOOL_ID: &str = "test.output_budget.external_typed_fil
 const CHAIN_TYPED_FILE_TOOL_ID: &str = "test.output_budget.chain_typed_file";
 const NATIVE_TYPED_FILE_TOOL_ID: &str = "test.output_budget.native_typed_file";
 
-fn 노드_예산을_초과한_file_json() -> String {
+fn file_json_exceeding_node_budget() -> String {
     let entries = (0..FILE_OUTPUT_NODE_BUDGET_EXCESS_CHILD_COUNT)
         .map(|index| {
             serde_json::json!({
@@ -34,7 +34,7 @@ fn 노드_예산을_초과한_file_json() -> String {
     .to_string()
 }
 
-fn 노드_예산을_초과한_file_value() -> FileValue {
+fn file_value_exceeding_node_budget() -> FileValue {
     let entries = (0..FILE_OUTPUT_NODE_BUDGET_EXCESS_CHILD_COUNT)
         .map(|index| FileValue {
             name: format!("{index}.bin"),
@@ -67,6 +67,8 @@ fn file_tool_meta(id: &'static str, local_id: &'static str, invoker: Invoker) ->
         }])
         .expect("fixture output spec is valid"),
         primary_output_id: Some("archive"),
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -76,7 +78,7 @@ fn file_tool_meta(id: &'static str, local_id: &'static str, invoker: Invoker) ->
     }
 }
 
-fn 노드_예산을_초과한_성공_결과() -> ToolResult {
+fn success_result_exceeding_node_budget() -> ToolResult {
     ToolResult::Success(
         ToolSuccess::new(
             Some("archive".to_string()),
@@ -84,7 +86,7 @@ fn 노드_예산을_초과한_성공_결과() -> ToolResult {
                 id: "archive".to_string(),
                 label: None,
                 kind: OutputKind::File,
-                value: OutputValue::File(노드_예산을_초과한_file_value()),
+                value: OutputValue::File(file_value_exceeding_node_budget()),
             }],
         )
         .expect("fixture success is valid"),
@@ -92,64 +94,64 @@ fn 노드_예산을_초과한_성공_결과() -> ToolResult {
 }
 
 #[test]
-fn plugin_file_출력은_aggregate_노드_예산을_decode_전에_검사한다() {
-    let error = output_value_from_text(&OutputKind::File, &노드_예산을_초과한_file_json(), true)
-        .expect_err("plugin File 출력은 aggregate 노드 예산 초과를 거부해야 한다");
+fn plugin_file_output_checks_aggregate_node_budget_before_decode() {
+    let error = output_value_from_text(&OutputKind::File, &file_json_exceeding_node_budget(), true)
+        .expect_err("plugin File output must reject exceeding the aggregate node budget");
 
     assert!(error.contains("node count"), "{error}");
 }
 
 #[test]
-fn external_typed_file_출력은_최종_runtime_경계에서_예산을_검사한다() {
+fn external_typed_file_output_checks_budget_at_final_runtime_boundary() {
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             EXTERNAL_TYPED_FILE_TOOL_ID,
             "output_budget.external_typed_file",
             Invoker::External,
         ),
-        |_| 노드_예산을_초과한_성공_결과(),
+        |_| success_result_exceeding_node_budget(),
     );
 
     let result = try_runtime_dispatch(EXTERNAL_TYPED_FILE_TOOL_ID, &serde_json::json!({}))
         .expect("fixture dispatcher is registered");
 
     let ToolResult::Failure(failure) = result else {
-        panic!("External typed File 출력은 runtime 경계에서 예산 초과를 거부해야 한다");
+        panic!("External typed File output must reject budget excess at the runtime boundary");
     };
     assert_eq!(failure.error.code, OUTPUT_CONVERSION_ERROR_CODE);
     assert!(failure.error.message.contains("node count"));
 }
 
 #[test]
-fn chain_typed_file_출력은_최종_runtime_경계에서_예산을_검사한다() {
+fn chain_typed_file_output_checks_budget_at_final_runtime_boundary() {
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             CHAIN_TYPED_FILE_TOOL_ID,
             "output_budget.chain_typed_file",
             Invoker::Chain,
         ),
-        |_| 노드_예산을_초과한_성공_결과(),
+        |_| success_result_exceeding_node_budget(),
     );
 
     let result = try_runtime_dispatch(CHAIN_TYPED_FILE_TOOL_ID, &serde_json::json!({}))
         .expect("fixture dispatcher is registered");
 
     let ToolResult::Failure(failure) = result else {
-        panic!("Chain typed File 출력은 runtime 경계에서 예산 초과를 거부해야 한다");
+        panic!("Chain typed File output must reject budget excess at the runtime boundary");
     };
     assert_eq!(failure.error.code, OUTPUT_CONVERSION_ERROR_CODE);
     assert!(failure.error.message.contains("node count"));
 }
 
 #[test]
-fn trusted_native_typed_file_출력은_기존_동작을_유지한다() {
+fn trusted_native_typed_file_output_keeps_existing_behavior() {
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             NATIVE_TYPED_FILE_TOOL_ID,
             "output_budget.native_typed_file",
             Invoker::Function,
         ),
-        |_| 노드_예산을_초과한_성공_결과(),
+        |_| success_result_exceeding_node_budget(),
     );
 
     let result = try_runtime_dispatch(NATIVE_TYPED_FILE_TOOL_ID, &serde_json::json!({}))
@@ -157,6 +159,6 @@ fn trusted_native_typed_file_출력은_기존_동작을_유지한다() {
 
     assert!(
         matches!(result, ToolResult::Success(_)),
-        "trusted native typed File 출력은 새 untrusted 경계 정책의 영향을 받지 않아야 한다"
+        "trusted native typed File output must be unaffected by the new untrusted boundary policy"
     );
 }

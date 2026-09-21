@@ -61,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn prefs는_파일로_저장되고_다시_읽힌다() {
+    fn prefs_are_saved_to_file_and_read_back() {
         // Prefs-level round trip: a full Tweaks record persisted through the
         // io layer must parse back byte-for-byte identical.
         let dir = temp_path("prefs-round-trip");
@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn 파일이_유효하면_저장된_레코드를_반환한다() {
+    fn valid_file_returns_saved_record() {
         let dir = temp_path("saved");
         let path = dir.join("tweaks.json");
         let probe = Tweaks {
@@ -105,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn 파일이_없으면_감지된_한국어로_기본값을_준비하고_저장한다() {
+    fn missing_file_seeds_detected_korean_defaults_and_saves() {
         let dir = temp_path("first-ko");
         let path = dir.join("tweaks.json");
         assert!(!path.exists());
@@ -128,7 +128,7 @@ mod tests {
     }
 
     #[test]
-    fn 파일이_없고_힌트가_지원되지_않으면_영어_기본값을_준비한다() {
+    fn missing_file_with_unsupported_hint_seeds_english_defaults() {
         let dir = temp_path("first-en");
         let path = dir.join("tweaks.json");
 
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn 손상된_파일은_첫_실행으로_취급된다() {
+    fn corrupt_file_is_treated_as_first_run() {
         let dir = temp_path("corrupt");
         let path = dir.join("tweaks.json");
         io::save_to_path(&path, "{not valid json").unwrap();
@@ -162,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn 저장_실패에도_메모리_결과를_반환한다() {
+    fn save_failure_still_returns_in_memory_result() {
         // Stage a regular file where bootstrap would want to create a
         // directory — std::fs::create_dir_all then errors with NotADirectory,
         // so the best-effort save aborts. Bootstrap must still return a

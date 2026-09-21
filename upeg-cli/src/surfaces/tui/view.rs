@@ -25,6 +25,7 @@ use super::style::accent_color;
 mod confirm;
 mod field_hint;
 mod pin_color_editor;
+mod presentation;
 mod running;
 mod tool_card;
 mod tool_picker;
@@ -32,6 +33,7 @@ mod tool_picker;
 use confirm::{render_confirm_approval, render_confirm_delete_board, render_confirm_quit};
 use field_hint::constraint_hint;
 use pin_color_editor::render_pin_color_editor;
+use presentation::append_presentation;
 use running::running_body;
 use tool_card::render_tool_card;
 use tool_picker::{ToolPickerRender, render_tool_picker};
@@ -708,7 +710,14 @@ fn right_pane_content(state: &State, tools: &[&'static ToolMeta]) -> (&'static s
             is_error,
         } => (
             t(locale, "tui.right_pane.result"),
-            result_body(tool_id, outputs, text, *is_error),
+            result_body(
+                tool_id,
+                outputs,
+                text,
+                *is_error,
+                state.result_row,
+                state.result_action,
+            ),
         ),
         View::Running {
             tool_id,
@@ -747,6 +756,8 @@ fn result_body(
     outputs: &[OutputEntry],
     text: &str,
     is_error: bool,
+    selected_row: usize,
+    selected_action: usize,
 ) -> String {
     let mut body = format!("{tool_id} → {}", result_status_label(is_error));
     let detail = if !is_error && !outputs.is_empty() {
@@ -754,8 +765,22 @@ fn result_body(
     } else {
         text.to_string()
     };
+    let rendered_presentation = append_presentation(
+        &mut body,
+        tool_id,
+        outputs,
+        is_error,
+        selected_row,
+        selected_action,
+    );
+    // Keep the canonical output available, but put the actionable table first
+    // so a long JSON value cannot push the presentation below the viewport.
     if !detail.is_empty() {
-        body.push_str("\n\n");
+        body.push_str(if rendered_presentation {
+            "\n\nRaw output:\n"
+        } else {
+            "\n\n"
+        });
         body.push_str(&detail);
     }
     body

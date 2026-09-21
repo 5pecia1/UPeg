@@ -1,4 +1,4 @@
-//! 파일 크기 예산 때문에 분리한 TUI 상세 보기 회귀 테스트.
+//! TUI detail-view regression tests, split out for the file-size budget.
 
 use crate::surfaces::tui::*;
 use ratatui::Terminal;
@@ -15,17 +15,19 @@ fn detail_input_tool() -> &'static upeg_core::ToolMeta {
         description: "Parse a hex string into decimal.",
         input_spec: InputSpec::new(vec![
             InputFieldSpec::new(
-                InputName::new("input").expect("테스트 입력 이름"),
+                InputName::new("input").expect("test input name"),
                 None,
                 None,
                 true,
                 InputKind::String,
             )
-            .expect("테스트 입력 필드"),
+            .expect("test input field"),
         ])
-        .expect("테스트 입력 명세"),
+        .expect("test input spec"),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -46,6 +48,8 @@ fn detail_no_input_tool() -> &'static upeg_core::ToolMeta {
         input_spec: InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Inline,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -57,13 +61,13 @@ fn detail_no_input_tool() -> &'static upeg_core::ToolMeta {
 }
 
 #[test]
-fn 상세_보기는_embed_메타데이터를_표시한다() {
+fn detail_view_shows_embed_metadata() {
     let id = "test.iter142.tui_embed";
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id,
         toolkit: "test",
         local_id: upeg_core::ToolId::parse_canonical_in_toolkit(id, "test")
-            .expect("테스트 ToolMeta id는 정규 형식이어야 한다")
+            .expect("test ToolMeta id must be in canonical form")
             .local(),
         tags: &[],
         display_label: "Test tool",
@@ -71,6 +75,8 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: upeg_core::PinKind::Embed,
         pegboard_units: upeg_core::PegboardUnits::U1,
@@ -90,7 +96,7 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
         }],
     );
 
-    let tools = vec![upeg_runtime::toolbox_tool(id).expect("도구가 등록되어야 한다")];
+    let tools = vec![upeg_runtime::toolbox_tool(id).expect("tool must be registered")];
     let state = State {
         cursor: 0,
         view: View::Detail,
@@ -104,28 +110,28 @@ fn 상세_보기는_embed_메타데이터를_표시한다() {
 
     assert!(
         buf_string.contains("embed_url"),
-        "TUI Detail은 embed_url을 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show embed_url. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("iter142.example"),
-        "TUI Detail은 URL 값을 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the URL value. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("controlled_embed.bindings"),
-        "TUI Detail은 controlled_embed.bindings 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the controlled_embed.bindings header. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("input"),
-        "TUI Detail은 바인딩 필드를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the binding field. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains(".q"),
-        "TUI Detail은 바인딩 선택자를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the binding selector. rendered: {buf_string}"
     );
 }
 
 #[test]
-fn 상세_보기는_입력_schema를_표시한다() {
+fn detail_view_shows_input_schema() {
     let tools = vec![detail_input_tool()];
     let state = State {
         cursor: 0,
@@ -140,16 +146,16 @@ fn 상세_보기는_입력_schema를_표시한다() {
 
     assert!(
         buf_string.contains("inputs"),
-        "TUI Detail은 inputs 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the inputs header. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("(string, required)"),
-        "TUI Detail은 필드 타입과 필수 표시를 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show the field type and required marker. rendered: {buf_string}"
     );
 }
 
 #[test]
-fn 상세_보기는_schema가_비어_있으면_없음을_표시한다() {
+fn detail_view_shows_none_when_schema_empty() {
     let tools = vec![detail_no_input_tool()];
     let state = State {
         cursor: 0,
@@ -164,10 +170,10 @@ fn 상세_보기는_schema가_비어_있으면_없음을_표시한다() {
 
     assert!(
         buf_string.contains("inputs"),
-        "스키마가 비어 있어도 TUI Detail은 inputs 헤더를 표시해야 한다. rendered: {buf_string}"
+        "TUI Detail must show the inputs header even with an empty schema. rendered: {buf_string}"
     );
     assert!(
         buf_string.contains("(none)"),
-        "TUI Detail은 무인자 도구에 `(none)`을 보여줘야 한다. rendered: {buf_string}"
+        "TUI Detail must show `(none)` for a no-arg tool. rendered: {buf_string}"
     );
 }

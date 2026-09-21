@@ -13,24 +13,24 @@ struct RecordingSink {
 
 impl ProgressSink for RecordingSink {
     fn emit(&self, event: ProgressEvent) {
-        self.events.lock().expect("기록 sink 잠금").push(event);
+        self.events.lock().expect("recording sink lock").push(event);
     }
 }
 
-fn 기록기() -> (Arc<RecordingSink>, SharedProgressSink) {
+fn recorder() -> (Arc<RecordingSink>, SharedProgressSink) {
     let sink = Arc::new(RecordingSink::default());
     let shared: SharedProgressSink = Arc::clone(&sink) as SharedProgressSink;
     (sink, shared)
 }
 
 #[test]
-fn sink이_없으면_주변_sink는_비어_있다() {
+fn ambient_sink_is_empty_when_none_installed() {
     assert!(active_progress_sink().is_none());
 }
 
 #[test]
-fn 설치된_sink는_범위_안에서만_보인다() {
-    let (_, shared) = 기록기();
+fn installed_sink_is_only_visible_inside_scope() {
+    let (_, shared) = recorder();
     with_progress_sink(shared, || {
         assert!(active_progress_sink().is_some());
     });
@@ -38,159 +38,159 @@ fn 설치된_sink는_범위_안에서만_보인다() {
 }
 
 #[test]
-fn 중첩_설치는_안쪽이_이기고_바깥이_복원된다() {
-    let (바깥_기록, 바깥) = 기록기();
-    let (안쪽_기록, 안쪽) = 기록기();
-    with_progress_sink(바깥, || {
-        with_progress_sink(안쪽, || {
+fn nested_installation_inner_wins_and_outer_is_restored() {
+    let (outer_recording, outer) = recorder();
+    let (inner_recording, inner) = recorder();
+    with_progress_sink(outer, || {
+        with_progress_sink(inner, || {
             ProgressReporter::capture()
-                .expect("안쪽 sink")
+                .expect("inner sink")
                 .report(ProgressStream::Stdout, "inner\n".to_string());
         });
         ProgressReporter::capture()
-            .expect("바깥 sink")
+            .expect("outer sink")
             .report(ProgressStream::Stdout, "outer\n".to_string());
     });
 
-    assert_eq!(안쪽_기록.events.lock().expect("잠금").len(), 1);
-    assert_eq!(바깥_기록.events.lock().expect("잠금").len(), 1);
+    assert_eq!(inner_recording.events.lock().expect("lock").len(), 1);
+    assert_eq!(outer_recording.events.lock().expect("lock").len(), 1);
 }
 
 #[test]
-fn 패닉이_나도_주변_sink는_복원된다() {
-    let (_, shared) = 기록기();
+fn ambient_sink_is_restored_even_on_panic() {
+    let (_, shared) = recorder();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        with_progress_sink(shared, || panic!("도구가 터졌다"));
+        with_progress_sink(shared, || panic!("the tool blew up"));
     }));
     assert!(result.is_err());
     assert!(active_progress_sink().is_none());
 }
 
 #[test]
-fn 순번은_두_스트림에_걸쳐_단조증가한다() {
-    let (기록, shared) = 기록기();
+fn sequence_numbers_increase_monotonically_across_both_streams() {
+    let (recording, shared) = recorder();
     let reporter = ProgressReporter::new(shared);
-    let 다른_스레드용 = reporter.clone();
+    let for_other_thread = reporter.clone();
 
     reporter.report(ProgressStream::Stdout, "a\n".to_string());
-    다른_스레드용.report(ProgressStream::Stderr, "b\n".to_string());
+    for_other_thread.report(ProgressStream::Stderr, "b\n".to_string());
     reporter.report(ProgressStream::Stdout, "c\n".to_string());
 
-    let events = 기록.events.lock().expect("잠금");
+    let events = recording.events.lock().expect("lock");
     let seqs: Vec<u64> = events.iter().map(|event| event.seq).collect();
     assert_eq!(seqs, vec![0, 1, 2]);
     assert_eq!(events[1].stream, ProgressStream::Stderr);
 }
 
 #[test]
-fn 빈_청크는_순번을_소비하지_않는다() {
-    let (기록, shared) = 기록기();
+fn empty_chunks_do_not_consume_sequence_numbers() {
+    let (recording, shared) = recorder();
     let reporter = ProgressReporter::new(shared);
 
     reporter.report(ProgressStream::Stdout, String::new());
     reporter.report(ProgressStream::Stdout, "real\n".to_string());
 
-    let events = 기록.events.lock().expect("잠금");
+    let events = recording.events.lock().expect("lock");
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].seq, 0);
 }
 
 #[test]
-fn 채널_sink는_수신자에게_이벤트를_전달한다() {
+fn channel_sink_delivers_events_to_receiver() {
     let (sink, receiver) = progress_channel();
     let reporter = ProgressReporter::new(sink);
     reporter.report(ProgressStream::Stderr, "compiling\n".to_string());
 
-    let event = receiver.recv().expect("이벤트 수신");
+    let event = receiver.recv().expect("event received");
     assert_eq!(event.stream, ProgressStream::Stderr);
     assert_eq!(event.chunk, "compiling\n");
 }
 
 #[test]
-fn 수신자가_사라진_채널_sink는_조용히_버린다() {
+fn channel_sink_with_gone_receiver_drops_silently() {
     let (sink, receiver) = progress_channel();
     drop(receiver);
     ProgressReporter::new(sink).report(ProgressStream::Stdout, "무주공산\n".to_string());
 }
 
 #[test]
-fn 클로저도_sink가_된다() {
-    let 수집 = Arc::new(Mutex::new(Vec::new()));
-    let 수집기 = Arc::clone(&수집);
+fn a_closure_is_also_a_sink() {
+    let collected = Arc::new(Mutex::new(Vec::new()));
+    let collector = Arc::clone(&collected);
     let sink: SharedProgressSink = Arc::new(move |event: ProgressEvent| {
-        수집기.lock().expect("잠금").push(event.chunk);
+        collector.lock().expect("lock").push(event.chunk);
     });
 
     ProgressReporter::new(sink).report(ProgressStream::Stdout, "closure\n".to_string());
 
-    assert_eq!(수집.lock().expect("잠금").as_slice(), &["closure\n"]);
+    assert_eq!(collected.lock().expect("lock").as_slice(), &["closure\n"]);
 }
 
 #[test]
-fn 스트림_이름은_wire_철자와_일치한다() {
+fn stream_names_match_wire_spelling() {
     assert_eq!(ProgressStream::Stdout.to_string(), "stdout");
     assert_eq!(ProgressStream::Stderr.wire_name(), "stderr");
 }
 
 #[test]
-fn 같은_설치_범위에서_잡은_보고자들은_순번을_이어받는다() {
+fn reporters_captured_in_same_installed_scope_inherit_sequence_numbers() {
     // A Chain runs its steps one after another on the dispatching
     // thread, so each step's invoker calls `capture()` inside the one
     // sink the surface installed. The consumer was promised one stream.
-    let (기록, shared) = 기록기();
+    let (recording, shared) = recorder();
     with_progress_sink(shared, || {
-        for 단계 in ["first\n", "second\n", "third\n"] {
+        for step in ["first\n", "second\n", "third\n"] {
             ProgressReporter::capture()
-                .expect("설치된 sink")
-                .report(ProgressStream::Stdout, 단계.to_string());
+                .expect("installed sink")
+                .report(ProgressStream::Stdout, step.to_string());
         }
     });
 
-    let events = 기록.events.lock().expect("잠금");
+    let events = recording.events.lock().expect("lock");
     let seqs: Vec<u64> = events.iter().map(|event| event.seq).collect();
-    assert_eq!(seqs, vec![0, 1, 2], "단계마다 0으로 되돌아가면 안 된다");
+    assert_eq!(seqs, vec![0, 1, 2], "each step must not reset to 0");
 }
 
 #[test]
-fn 설치를_새로_하면_순번도_0부터_다시_시작한다() {
+fn fresh_installation_restarts_sequence_numbers_at_zero() {
     // A different `with_progress_sink` call is a different consumer, so
     // it gets its own stream — the counter must not be process-global.
-    let (기록, shared) = 기록기();
+    let (recording, shared) = recorder();
     for _ in 0..2 {
         with_progress_sink(SharedProgressSink::clone(&shared), || {
             ProgressReporter::capture()
-                .expect("설치된 sink")
+                .expect("installed sink")
                 .report(ProgressStream::Stdout, "call\n".to_string());
         });
     }
 
-    let events = 기록.events.lock().expect("잠금");
+    let events = recording.events.lock().expect("lock");
     let seqs: Vec<u64> = events.iter().map(|event| event.seq).collect();
     assert_eq!(seqs, vec![0, 0]);
 }
 
 #[test]
-fn 중첩된_안쪽_범위는_자기_순번을_쓴다() {
+fn nested_inner_scope_uses_its_own_sequence_numbers() {
     // The inner scope has its own consumer, so it starts at 0 while the
     // outer scope's counter keeps going where it left off.
-    let (바깥_기록, 바깥) = 기록기();
-    let (안쪽_기록, 안쪽) = 기록기();
-    with_progress_sink(바깥, || {
-        let 바깥_보고자 = ProgressReporter::capture().expect("바깥 sink");
-        바깥_보고자.report(ProgressStream::Stdout, "outer-0\n".to_string());
-        with_progress_sink(안쪽, || {
+    let (outer_recording, outer) = recorder();
+    let (inner_recording, inner) = recorder();
+    with_progress_sink(outer, || {
+        let outer_reporter = ProgressReporter::capture().expect("outer sink");
+        outer_reporter.report(ProgressStream::Stdout, "outer-0\n".to_string());
+        with_progress_sink(inner, || {
             ProgressReporter::capture()
-                .expect("안쪽 sink")
+                .expect("inner sink")
                 .report(ProgressStream::Stdout, "inner-0\n".to_string());
         });
         ProgressReporter::capture()
-            .expect("복원된 바깥 sink")
+            .expect("restored outer sink")
             .report(ProgressStream::Stdout, "outer-1\n".to_string());
     });
 
-    let 안쪽_이벤트 = 안쪽_기록.events.lock().expect("잠금");
-    assert_eq!(안쪽_이벤트[0].seq, 0);
-    let 바깥_이벤트 = 바깥_기록.events.lock().expect("잠금");
-    let seqs: Vec<u64> = 바깥_이벤트.iter().map(|event| event.seq).collect();
+    let inner_events = inner_recording.events.lock().expect("lock");
+    assert_eq!(inner_events[0].seq, 0);
+    let outer_events = outer_recording.events.lock().expect("lock");
+    let seqs: Vec<u64> = outer_events.iter().map(|event| event.seq).collect();
     assert_eq!(seqs, vec![0, 1]);
 }

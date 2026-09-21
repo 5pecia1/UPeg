@@ -363,21 +363,23 @@ fn render(edges: &BTreeSet<(String, String)>) -> String {
     })
 }
 
-/// 별칭 의존이 그래프에서 통째로 사라지던 구멍의 재현.
+/// Reproduces the hole where an aliased dependency vanished from the
+/// graph entirely.
 ///
-/// 멤버가 `alias = { workspace = true }`로 상속하면 실제 패키지 이름은
-/// 루트 `[workspace.dependencies]`에만 있다. 그걸 읽지 않으면 노드
-/// 이름이 `alias`가 되어 `upeg-` 접두사 필터에서 탈락하고, 계층 위반이
-/// 있어도 정확 일치 비교가 통과해 버린다.
+/// When a member inherits `alias = { workspace = true }`, the real
+/// package name lives only in the root `[workspace.dependencies]`.
+/// Without reading it, the node is named `alias`, falls out of the
+/// `upeg-` prefix filter, and the exact-set comparison passes even when
+/// a layering violation exists.
 #[test]
-fn 루트에서_이름을_바꾼_의존도_실제_패키지로_해석된다() {
+fn dependency_renamed_at_the_root_resolves_to_the_real_package() {
     let root: toml::Table = r#"
 [workspace.dependencies]
 domain = { package = "upeg-core", version = "0.1" }
 serde = "1"
 "#
     .parse()
-    .expect("합성 루트 매니페스트");
+    .expect("synthetic root manifest");
     let renames = workspace_renames(&root);
 
     let member: toml::Table = "
@@ -386,7 +388,7 @@ domain = { workspace = true }
 serde = { workspace = true }
 "
     .parse()
-    .expect("합성 멤버 매니페스트");
+    .expect("synthetic member manifest");
 
     let mut out = BTreeSet::new();
     collect_from_tables(&member, &renames, &mut out);
@@ -394,18 +396,18 @@ serde = { workspace = true }
     assert_eq!(
         out,
         BTreeSet::from(["upeg-core".to_string()]),
-        "별칭은 실제 패키지 이름으로 해석되고, upeg 밖 의존은 그대로 무시된다"
+        "aliases resolve to real package names and non-upeg dependencies are ignored"
     );
 }
 
 #[test]
-fn 멤버가_직접_적은_package_별칭이_루트_별칭보다_우선한다() {
+fn member_local_package_alias_wins_over_the_root_alias() {
     let root: toml::Table = r#"
 [workspace.dependencies]
 domain = { package = "upeg-core", version = "0.1" }
 "#
     .parse()
-    .expect("합성 루트 매니페스트");
+    .expect("synthetic root manifest");
     let renames = workspace_renames(&root);
 
     let member: toml::Table = r#"
@@ -413,7 +415,7 @@ domain = { package = "upeg-core", version = "0.1" }
 domain = { package = "upeg-runtime", version = "0.1" }
 "#
     .parse()
-    .expect("합성 멤버 매니페스트");
+    .expect("synthetic member manifest");
 
     let mut out = BTreeSet::new();
     collect_from_tables(&member, &renames, &mut out);
@@ -422,32 +424,35 @@ domain = { package = "upeg-runtime", version = "0.1" }
 }
 
 #[test]
-fn 상속하지_않는_같은_이름_의존에는_루트_별칭을_적용하지_않는다() {
+fn same_name_dependency_that_does_not_inherit_ignores_the_root_alias() {
     let root: toml::Table = r#"
 [workspace.dependencies]
 domain = { package = "upeg-core", version = "0.1" }
 "#
     .parse()
-    .expect("합성 루트 매니페스트");
+    .expect("synthetic root manifest");
     let renames = workspace_renames(&root);
 
-    // 같은 키지만 `workspace = true`가 아니다 — 진짜로 `domain`이라는
-    // 크레이트를 쓰는 것이므로 upeg 그래프의 노드가 아니다.
+    // Same key but no `workspace = true` — this really uses a crate named
+    // `domain`, so it is not a node in the upeg graph.
     let member: toml::Table = r#"
 [dependencies]
 domain = "1.0"
 "#
     .parse()
-    .expect("합성 멤버 매니페스트");
+    .expect("synthetic member manifest");
 
     let mut out = BTreeSet::new();
     collect_from_tables(&member, &renames, &mut out);
 
-    assert!(out.is_empty(), "상속하지 않은 동명 의존: {out:?}");
+    assert!(
+        out.is_empty(),
+        "non-inherited same-name dependency: {out:?}"
+    );
 }
 
 #[test]
-fn 크레이트_의존_그래프는_허용_표와_정확히_일치한다() {
+fn crate_dependency_graph_matches_the_allowed_table_exactly() {
     let actual = actual_edges();
     let allowed = allowed_edge_set();
 
@@ -457,24 +462,24 @@ fn 크레이트_의존_그래프는_허용_표와_정확히_일치한다() {
     assert!(
         unexpected.is_empty() && stale.is_empty(),
         "crate dependency graph drifted from ALLOWED_EDGES.\n\
-         새로 생긴(허용되지 않은) 엣지:\n{}\
-         사라진(표에만 남은) 엣지:\n{}\
-         고치는 방법: 의존을 되돌리거나, 계층이 정말 바뀌었다면 \
-         upeg-core/tests/crate_boundaries.rs 의 ALLOWED_EDGES 와 \
-         docs/architecture/crate-boundaries.md 를 함께 갱신한다.",
+         new (not allowed) edges:\n{}\
+         vanished (still listed) edges:\n{}\
+         how to fix: revert the dependency, or if layering really changed, \
+         update ALLOWED_EDGES in upeg-core/tests/crate_boundaries.rs \
+         together with docs/architecture/crate-boundaries.md.",
         render(&unexpected),
         render(&stale),
     );
 }
 
 #[test]
-fn 모든_의존은_같거나_더_안쪽_계층을_향한다() {
+fn every_dependency_points_to_the_same_or_an_inner_layer() {
     for (from, to) in actual_edges() {
         let from_layer = layer_of(&from);
         let to_layer = layer_of(&to);
         assert!(
             to_layer.rank <= from_layer.rank,
-            "의존이 바깥으로 향한다: {from}({}, rank {}) -> {to}({}, rank {})",
+            "dependency points outward: {from}({}, rank {}) -> {to}({}, rank {})",
             from_layer.name,
             from_layer.rank,
             to_layer.name,
@@ -484,7 +489,7 @@ fn 모든_의존은_같거나_더_안쪽_계층을_향한다() {
 }
 
 #[test]
-fn 진입점_크레이트를_향한_의존은_문서화된_예외뿐이다() {
+fn dependencies_on_entry_point_crates_are_documented_exceptions_only() {
     for (from, to) in actual_edges() {
         if layer_of(&to).kind != LayerKind::EntryPoint {
             continue;
@@ -494,16 +499,16 @@ fn 진입점_크레이트를_향한_의존은_문서화된_예외뿐이다() {
             .any(|(ex_from, ex_to)| *ex_from == from && *ex_to == to);
         assert!(
             documented,
-            "{to} 는 진입점을 소유한 크레이트다 ({}). {from} 이 이를 의존하려면 \
-             upeg-core/tests/crate_boundaries.rs 의 DOCUMENTED_EXCEPTIONS 에 \
-             이유와 함께 등록되어야 한다.",
+            "{to} is a crate that owns entry points ({}). For {from} to depend \
+             on it, it must be registered with a reason in \
+             DOCUMENTED_EXCEPTIONS in upeg-core/tests/crate_boundaries.rs.",
             layer_of(&to).name,
         );
     }
 }
 
 #[test]
-fn 모든_워크스페이스_멤버는_정확히_한_계층에_속한다() {
+fn every_workspace_member_belongs_to_exactly_one_layer() {
     let root = workspace_root();
     for member in workspace_members(&root) {
         let hits = LAYERS
@@ -512,24 +517,25 @@ fn 모든_워크스페이스_멤버는_정확히_한_계층에_속한다() {
             .count();
         assert_eq!(
             hits, 1,
-            "{member} 는 정확히 한 계층에 속해야 한다 (현재 {hits}개)",
+            "{member} must belong to exactly one layer (currently {hits})",
         );
     }
     let listed: usize = LAYERS.iter().map(|layer| layer.crates.len()).sum();
     assert_eq!(
         listed,
         workspace_members(&root).len(),
-        "LAYERS 에만 있고 워크스페이스에는 없는 크레이트가 있다",
+        "a crate is listed in LAYERS but missing from the workspace",
     );
 }
 
 #[test]
-fn 계층_순위는_중복_없이_오름차순이다() {
-    // rank 는 비교의 기준이므로 표 자체가 흐트러지면 모든 판정이 무의미해진다.
+fn layer_ranks_are_strictly_ascending_without_duplicates() {
+    // rank is the basis of comparison, so if the table itself drifts, every
+    // verdict becomes meaningless.
     for pair in LAYERS.windows(2) {
         assert!(
             pair[0].rank < pair[1].rank,
-            "LAYERS 는 rank 오름차순이어야 한다: {} ({}) vs {} ({})",
+            "LAYERS must be in ascending rank order: {} ({}) vs {} ({})",
             pair[0].name,
             pair[0].rank,
             pair[1].name,

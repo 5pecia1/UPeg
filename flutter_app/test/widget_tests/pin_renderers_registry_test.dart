@@ -18,58 +18,58 @@ import 'package:upeg/src/widgets/pin_renderers/registry.dart';
 
 void main() {
   group('pinKindChrome', () {
-    test('action은_button_variant를_반환한다', () {
+    test('action_returns_the_button_variant', () {
       expect(
         pinKindChrome(UpegPinKind.action).variant,
         PinChromeVariant.button,
       );
     });
 
-    test('launcher는_button_variant를_반환한다', () {
+    test('launcher_returns_the_button_variant', () {
       expect(
         pinKindChrome(UpegPinKind.launcher).variant,
         PinChromeVariant.button,
       );
     });
 
-    test('chain은_button_variant를_반환한다', () {
+    test('chain_returns_the_button_variant', () {
       expect(pinKindChrome(UpegPinKind.chain).variant, PinChromeVariant.button);
     });
 
-    test('llm은_button_variant를_반환한다', () {
+    test('llm_returns_the_button_variant', () {
       expect(pinKindChrome(UpegPinKind.llm).variant, PinChromeVariant.button);
     });
 
-    test('inline은_output_variant를_반환한다', () {
+    test('inline_returns_the_output_variant', () {
       expect(
         pinKindChrome(UpegPinKind.inline).variant,
         PinChromeVariant.output,
       );
     });
 
-    test('live는_live_variant를_반환한다', () {
+    test('live_returns_the_live_variant', () {
       expect(pinKindChrome(UpegPinKind.live).variant, PinChromeVariant.live);
     });
 
-    test('embed는_frame_variant를_반환한다', () {
+    test('embed_returns_the_frame_variant', () {
       expect(pinKindChrome(UpegPinKind.embed).variant, PinChromeVariant.frame);
     });
 
-    test('controlledEmbed는_frame_variant를_반환한다', () {
+    test('controlledembed_returns_the_frame_variant', () {
       expect(
         pinKindChrome(UpegPinKind.controlledEmbed).variant,
         PinChromeVariant.frame,
       );
     });
 
-    test('8종_PinKind_모두_서로_다른_아이콘을_가진다', () {
+    test('all_eight_pinkinds_have_distinct_icons', () {
       final icons = {
         for (final kind in UpegPinKind.values) kind: pinKindChrome(kind).icon,
       };
       expect(icons.values.toSet(), hasLength(UpegPinKind.values.length));
     });
 
-    test('8종_PinKind_모두_chrome_해석이_가능하다_누락_없음', () {
+    test('all_eight_pinkinds_resolve_chrome_without_gaps', () {
       // Exhaustive-switch smoke test: if a new UpegPinKind variant is
       // ever added without updating `pinKindChrome`, this file fails to
       // *compile* (not just fail this test) — see the switch in

@@ -1,5 +1,5 @@
-//! `cli_call` 모듈의 짝 — `upeg tool validate` 회귀 테스트만 모은다.
-//! 워크스페이스 1000-LoC 파일 크기 예산 때문에 분리했다.
+//! `upeg tool validate` regression tests for the `cli_call` module.
+//! Kept separate to stay within the workspace's 1000-line file-size budget.
 
 use super::*;
 
@@ -12,7 +12,7 @@ fn write_tmp_toml(name: &str, content: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn 검증은_최소_유효한_toml을_허용한다() {
+fn validate_accepts_minimal_valid_toml() {
     let path = write_tmp_toml(
         "valid_minimal.toml",
         r#"id = "validate.minimal"
@@ -29,7 +29,7 @@ fn 검증은_최소_유효한_toml을_허용한다() {
 }
 
 #[test]
-fn 체인_도구는_체인_단계를_되돌려준다() {
+fn validate_echoes_chain_steps_for_chain_tools() {
     let path = write_tmp_toml(
         "valid_chain.toml",
         r#"id = "validate.chain"
@@ -49,7 +49,7 @@ steps = [
 }
 
 #[test]
-fn description이_설정되면_validate는_그것을_표시한다() {
+fn validate_shows_the_description_when_set() {
     // validate must echo the parsed description so authors    // can confirm the loader understood it. Empty description stays
     // suppressed (test below pins that branch).
     let path = write_tmp_toml(
@@ -70,7 +70,7 @@ fn description이_설정되면_validate는_그것을_표시한다() {
 }
 
 #[test]
-fn 비어_있으면_검증은_description을_생략한다() {
+fn validate_omits_an_empty_description() {
     // Compactness: don't print "description: " with nothing after it    // for tools that don't declare one.
     let path = write_tmp_toml(
         "valid_no_desc.toml",
@@ -89,7 +89,7 @@ fn 비어_있으면_검증은_description을_생략한다() {
 }
 
 #[test]
-fn 부분집합인_표면도_표시된다() {
+fn validate_shows_an_explicit_surface_subset() {
     // surfaces shown only when narrower than ALL_SURFACES
     // (the default). A typo'd surface that silently defaulted to "all"
     // would be visible here.
@@ -111,7 +111,7 @@ fn 부분집합인_표면도_표시된다() {
 }
 
 #[test]
-fn 기본이_전체이면_검증은_표면을_생략한다() {
+fn validate_omits_surfaces_when_defaulting_to_all() {
     // ALL_SURFACES (the implicit default) is the common case — keep
     // the line out so the validate output stays scannable.
     let path = write_tmp_toml(
@@ -131,7 +131,7 @@ fn 기본이_전체이면_검증은_표면을_생략한다() {
 }
 
 #[test]
-fn 보드가_설정되면_validate는_그것을_표시한다() {
+fn validate_shows_boards_when_set() {
     // Pinned boards default empty; show only when non-empty so the
     // author can confirm the parse landed.
     let path = write_tmp_toml(
@@ -152,7 +152,7 @@ fn 보드가_설정되면_validate는_그것을_표시한다() {
 }
 
 #[test]
-fn validate는_embed_도구에_대해_embed_url을_되돌려준다() {
+fn validate_echoes_the_embed_url_for_embed_tools() {
     // An Embed-tool author validates their TOML and wants to    // confirm `embed_url` parsed correctly without loading the
     // desktop UI. Validate output must mention the URL.
     let path = write_tmp_toml(
@@ -173,7 +173,7 @@ embed_url = "https://example.org/test""#,
 }
 
 #[test]
-fn validate는_embed_도구에_대해_선택자_바인딩을_되돌려준다() {
+fn validate_echoes_selector_bindings_for_embed_tools() {
     // same for selector_bindings — an embed tool's binding    // table should be visible at validate time. Field names + count
     // are enough; selectors stay in the TOML.
     let path = write_tmp_toml(
@@ -210,7 +210,7 @@ selector = "#result""##,
 }
 
 #[test]
-fn 검증은_embed가_아닌_도구의_embed_줄을_생략한다() {
+fn validate_omits_embed_rows_for_non_embed_tools() {
     // regular non-Embed tools shouldn't gain noise
     // — validate should keep its compact output for tools that don't
     // declare these fields.
@@ -235,7 +235,7 @@ fn 검증은_embed가_아닌_도구의_embed_줄을_생략한다() {
 }
 
 #[test]
-fn 외부_도구는_명령을_되돌려준다() {
+fn validate_echoes_the_command_for_external_tools() {
     let path = write_tmp_toml(
         "valid_ext.toml",
         r#"id = "validate.ext"
@@ -253,7 +253,7 @@ args_template = ["hi"]"#,
 }
 
 #[test]
-fn 검증은_알수없는_pin_종류를_거부한다() {
+fn validate_rejects_unknown_pin_kinds() {
     let path = write_tmp_toml(
         "bad_pin.toml",
         r#"id = "validate.bad"
@@ -271,7 +271,7 @@ fn 검증은_알수없는_pin_종류를_거부한다() {
 }
 
 #[test]
-fn 검증은_빈_체인을_거부한다() {
+fn validate_rejects_empty_chains() {
     let path = write_tmp_toml(
         "empty_chain.toml",
         r#"id = "validate.empty_chain"
@@ -287,10 +287,9 @@ steps = []"#,
 }
 
 #[test]
-fn 필드가_없는_진단은_전체_원인을_포괄한다() {
-    // Iter 211: With typed inputs, an empty `inputs = []` is intentional
-    // and doesn't need the old "zero-field causes" diagnostic.
-    // The inputs row is simply omitted when empty (no inputs = no row).
+fn validate_omits_the_inputs_row_for_explicitly_empty_inputs() {
+    // An explicit `inputs = []` is intentional, not a diagnostic condition.
+    // The inputs row is omitted when empty.
     let path = write_tmp_toml(
         "iter211_empty_schema.toml",
         r#"id = "validate.iter211.empty_schema"
@@ -311,7 +310,7 @@ fn 필드가_없는_진단은_전체_원인을_포괄한다() {
 }
 
 #[test]
-fn 입력_schema_필드도_되돌려진다() {
+fn validate_echoes_input_schema_fields_when_present() {
     // Parity with the `format_tool_show` inputs section. An author    // validating a TOML should see the schema parsed without also
     // running `tool show`. Pin that the section appears for tools
     // with a schema and is suppressed for tools without one.
@@ -371,7 +370,7 @@ fn 입력_schema_필드도_되돌려진다() {
 }
 
 #[test]
-fn 검증은_빈_필드_오류를_거부한다() {
+fn validate_reports_each_empty_field_error() {
     // End-to-end coverage of every empty-field LoadError variant
     // (Empty{Id,Toolkit,ChainStep,Board,BindingField,Invoker,
     // PinKind,InSurfaces}) flowing through `upeg tool validate`.
@@ -462,7 +461,7 @@ surfaces = ["cli", ""]"#,
 }
 
 #[test]
-fn 누락된_파일의_검증은_깨끗한_오류를_반환한다() {
+fn validate_returns_a_clear_error_for_a_missing_file() {
     let r = run(parse(&[
         "upeg",
         "tool",

@@ -1,5 +1,10 @@
-# 제품
+# Product
 
-* [제품 정체성과 경계](identity-and-boundaries.md) - upeg이 무엇이고 무엇이 아닌지 — 한 줄 정의, 하는 일 / 하지 않는 일 / 한계.
-* [보드와 에이전트 작업 흐름](board-agent-workflow.md) - 개인과 저장소의 보드를 준비하고 안내·연결 미리보기를 거쳐 MCP 에이전트에서 재사용하는 방법.
-* [보안 절대 원칙](security-absolutes.md) - 어떤 기능도 위반할 수 없는 비밀·네트워크·임베드 취급 규칙.
+- [Product identity and boundaries](identity-and-boundaries.md) — what upeg
+  is and what it is not: the one-line definition, what it does / does not
+  do / its limits.
+- [Boards and agent workflow](board-agent-workflow.md) — prepare personal
+  and repository boards, review guidance and connection previews, then
+  reuse them from MCP agents.
+- [Security absolutes](security-absolutes.md) — the secret, network, and
+  embed handling rules no feature may violate.

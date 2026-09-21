@@ -28,8 +28,8 @@ StatusSnapshotDto statusSnapshot() =>
 ///
 /// The desktop-embedded host registers imports on a background thread
 /// AFTER it starts serving, so `Loading` is a real, seconds-long state
-/// a user can watch go by (docs/architecture/mcp.md, "desktop 내장
-/// host: 비동기 창"). A desktop that only attaches to a separate host
+/// a user can watch go by (docs/architecture/mcp.md, "desktop embedded
+/// host: async window"). A desktop that only attaches to a separate host
 /// imports nothing itself and honestly reports `NotStarted`.
 ///
 /// `Done` deliberately carries no counts: the chip renders

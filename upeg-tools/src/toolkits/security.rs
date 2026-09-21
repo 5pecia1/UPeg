@@ -68,7 +68,7 @@ pub fn bytes_generate(count: usize) -> Result<String, &'static str> {
     inputs = [
         // Range/default are machine-readable constraints, not prose: they
         // must stay equal to the PASSWORD_* consts below, which
-        // `비밀번호_길이_제약은_선언과_상수가_일치한다` pins (the macro
+        // `password_length_constraints_match_declared_constants` pins (the macro
         // grammar only accepts literals here).
         optional count: Integer(min=8, max=128, default=20) = "Password length",
         optional include_symbols: Boolean = "Include punctuation symbols (default false)",
@@ -254,7 +254,7 @@ mod tests {
     // ─── bytes_generate (consolidated from random.hex_bytes) ─────
 
     #[test]
-    fn 랜덤_바이트는_기본_길이를_사용한다() {
+    fn random_bytes_use_default_length() {
         let s = bytes_generate(BYTES_GENERATE_DEFAULT_COUNT).unwrap();
         assert_eq!(s.len(), 32);
         assert!(
@@ -264,12 +264,12 @@ mod tests {
     }
 
     #[test]
-    fn 길이가_0이면_랜덤_바이트는_빈_문자열을_반환한다() {
+    fn random_bytes_return_empty_string_for_zero_length() {
         assert_eq!(bytes_generate(0).unwrap(), "");
     }
 
     #[test]
-    fn 랜덤_바이트는_길이에_1024_상한을_둔다() {
+    fn random_bytes_cap_length_at_1024() {
         assert!(bytes_generate(BYTES_GENERATE_MAX_COUNT).is_ok());
         match bytes_generate(BYTES_GENERATE_MAX_COUNT + 1) {
             Err(msg) => assert!(msg.contains("count too large")),
@@ -278,14 +278,14 @@ mod tests {
     }
 
     #[test]
-    fn 랜덤_바이트의_두_호출은_거의_항상_다르다() {
+    fn random_bytes_two_calls_almost_always_differ() {
         let a = bytes_generate(32).unwrap();
         let b = bytes_generate(32).unwrap();
         assert_ne!(a, b);
     }
 
     #[test]
-    fn 비밀번호_생성_기본_계약은_로컬_영숫자이다() {
+    fn password_generate_default_contract_is_local_alphanumeric() {
         const { assert!(!PASSWORD_DEFAULT_INCLUDE_SYMBOLS) };
         let s =
             password_generate(PASSWORD_DEFAULT_LENGTH, PASSWORD_DEFAULT_INCLUDE_SYMBOLS).unwrap();
@@ -297,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn 비밀번호_생성은_극단적인_길이를_거부한다() {
+    fn password_generate_rejects_extreme_lengths() {
         assert_eq!(
             password_generate(PASSWORD_MIN_LENGTH - 1, true),
             Err(password_too_short_message())
@@ -313,7 +313,7 @@ mod tests {
     /// reference the PASSWORD_* consts directly. This pins the two
     /// together so they can never drift apart silently.
     #[test]
-    fn 비밀번호_길이_제약은_선언과_상수가_일치한다() {
+    fn password_length_constraints_match_declared_constants() {
         let meta = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>()
             .find(|meta| meta.id == crate::PASSWORD_GENERATE_TOOL_ID)
             .expect("security.password_generate must exist in the static inventory");
@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn 기호들_없이_비밀번호_생성은_영숫자만_사용한다() {
+    fn password_generate_without_symbols_uses_alphanumeric_only() {
         let s = password_generate(32, false).unwrap();
         assert!(
             s.chars().all(|c| c.is_ascii_alphanumeric()),
@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn 비밀번호_강도는_흔한_약한_입력에_경고_플래그를_단다() {
+    fn password_estimate_flags_common_weak_inputs() {
         let raw = password_estimate("password123");
         let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(v["label"], "weak");
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn 비밀번호_강도는_l33t_흔한_비밀번호들에_대해_zxcvbn를_사용한다() {
+    fn password_estimate_uses_zxcvbn_for_l33t_common_passwords() {
         let raw = password_estimate("P@ssword1");
         let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(
@@ -385,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn 비밀번호_강도는_길고_혼합된_비밀번호를_높게_점수화한다() {
+    fn password_estimate_scores_long_mixed_passwords_highly() {
         let raw = password_estimate("Tr0ub4dor&Correct-Horse-2026");
         let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(

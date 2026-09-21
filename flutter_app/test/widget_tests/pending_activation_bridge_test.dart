@@ -30,7 +30,7 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 void main() {
   group('PendingActivationBridge', () {
-    testWidgets('mount는_pending_toolId에_대해_pinActivationFor를_호출한다', (
+    testWidgets('mount_calls_pinactivationfor_for_the_pending_toolid', (
       tester,
     ) async {
       String? observedToolId;
@@ -66,7 +66,7 @@ void main() {
       expect(observedToolId, 'num.hex_to_decimal');
     });
 
-    testWidgets('dispatch_후_pendingActivationProvider는_null로_초기화된다', (
+    testWidgets('after_dispatch_the_pendingactivationprovider_resets_to_null', (
       tester,
     ) async {
       final container = ProviderContainer(
@@ -98,7 +98,9 @@ void main() {
       expect(container.read(pendingActivationProvider), isNull);
     });
 
-    testWidgets('OpenModal_activation은_ExpandedModalPage를_연다', (tester) async {
+    testWidgets('an_openmodal_activation_opens_the_expandedmodalpage', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           ...i18nTestOverrides,

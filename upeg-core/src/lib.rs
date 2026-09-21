@@ -39,6 +39,7 @@ pub mod output;
 pub mod paths;
 mod pin_span;
 pub mod prefs;
+pub mod presentation;
 mod principal;
 mod project_board;
 pub mod search;
@@ -96,6 +97,11 @@ pub use output::{
     ToolSuccess,
 };
 pub use pin_span::{ColSpan, PinSpan, PinSpanError, RowSpan};
+pub use presentation::{
+    ActionBinding, ActionScope, ActionSuccess, BindingResolution, PRESENTATION_VERSION_V1,
+    PresentationAction, PresentationColumn, PresentationRow, RowsResolution, ToolEffect,
+    ToolPresentation, resolve_bindings, resolve_rows, validate_json_pointer,
+};
 pub use principal::{
     ALL_PRINCIPAL_ROLES, PRINCIPAL_ROLE_KEY, PRINCIPAL_SURFACE_KEY, Principal, PrincipalRole,
 };

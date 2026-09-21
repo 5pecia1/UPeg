@@ -135,7 +135,7 @@ mod tests {
     // ─── sha256 ─────────────────────────────────────────────────
 
     #[test]
-    fn sha256_알려진_벡터들을_검증한다() {
+    fn sha256_matches_known_vectors() {
         assert_eq!(
             sha256_hex(""),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -147,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn sha256는_64_소문자_hex_문자들이다() {
+    fn sha256_is_64_lowercase_hex_chars() {
         let h = sha256_hex("anything");
         assert_eq!(h.len(), 64);
         assert!(
@@ -159,14 +159,14 @@ mod tests {
     // ─── crc32 ──────────────────────────────────────────────────
 
     #[test]
-    fn crc32_알려진_벡터들을_검증한다() {
+    fn crc32_matches_known_vectors() {
         assert_eq!(crc32_hex(""), "00000000");
         assert_eq!(crc32_hex("123456789"), "cbf43926");
         assert_eq!(crc32_hex("abc"), "352441c2");
     }
 
     #[test]
-    fn crc32는_8_소문자_hex_문자들이다() {
+    fn crc32_is_8_lowercase_hex_chars() {
         let h = crc32_hex("anything");
         assert_eq!(h.len(), 8);
         assert!(
@@ -178,13 +178,13 @@ mod tests {
     // ─── sha1 / sha512 ─────────────────────────────────────────
 
     #[test]
-    fn sha1_알려진_벡터들을_검증한다() {
+    fn sha1_matches_known_vectors() {
         assert_eq!(sha1_hex(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
         assert_eq!(sha1_hex("abc"), "a9993e364706816aba3e25717850c26c9cd0d89d");
     }
 
     #[test]
-    fn sha1는_40_소문자_hex_문자들이다() {
+    fn sha1_is_40_lowercase_hex_chars() {
         let h = sha1_hex("anything");
         assert_eq!(h.len(), 40);
         assert!(
@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn sha512_알려진_벡터들을_검증한다() {
+    fn sha512_matches_known_vectors() {
         assert_eq!(
             sha512_hex(""),
             "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
@@ -206,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn sha512는_128_소문자_hex_문자들이다() {
+    fn sha512_is_128_lowercase_hex_chars() {
         let h = sha512_hex("anything");
         assert_eq!(h.len(), 128);
         assert!(
@@ -218,13 +218,13 @@ mod tests {
     // ─── md5 ────────────────────────────────────────────────────
 
     #[test]
-    fn md5_알려진_벡터들을_검증한다() {
+    fn md5_matches_known_vectors() {
         assert_eq!(md5_hex(""), "d41d8cd98f00b204e9800998ecf8427e");
         assert_eq!(md5_hex("abc"), "900150983cd24fb0d6963f7d28e17f72");
     }
 
     #[test]
-    fn md5는_32_소문자_hex_문자들이다() {
+    fn md5_is_32_lowercase_hex_chars() {
         let h = md5_hex("anything");
         assert_eq!(h.len(), 32);
         assert!(

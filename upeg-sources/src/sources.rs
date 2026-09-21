@@ -363,7 +363,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_소스_로드는_누락된_디렉터리를_빈_상태로_취급한다() {
+    fn runtime_source_load_treats_missing_directory_as_empty() {
         let root =
             std::env::temp_dir().join(format!("upeg-sources-missing-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -382,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn 로컬_runtime_소스_로드는_mcp_imports_디렉터리가_있어도_임포트하지_않는다() {
+    fn local_runtime_source_load_does_not_import_even_when_mcp_imports_dir_exists() {
         let root = std::env::temp_dir().join(format!("upeg-sources-local-{}", std::process::id()));
         let mcp_imports = root.join("mcp_imports");
         let _ = std::fs::remove_dir_all(&root);
@@ -402,20 +402,21 @@ args = ["60"]"#,
 
         let report = load_local_runtime_sources(&config);
 
-        // 디렉터리 조사만 한다: 선언 파일 1개는 세지만 서버는 spawn하지 않는다.
+        // Directory survey only: counts the one declaration file but
+        // spawns no server.
         assert!(matches!(
             report.mcp_imports,
             DirectoryStatus::Loaded { count: 1, .. }
         ));
         assert!(
             upeg_runtime::toolbox_tool("silent.anything").is_none(),
-            "로컬 시작은 MCP 서버를 생성하거나 등록하면 안 된다"
+            "local startup must not spawn or register MCP servers"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn 디렉터리_조사는_선언_파일만_세고_아무것도_등록하지_않는다() {
+    fn directory_survey_counts_only_declaration_files_and_registers_nothing() {
         let root = std::env::temp_dir().join(format!("upeg-sources-survey-{}", std::process::id()));
         let toolkits = root.join("toolkits");
         let mcp_imports = root.join("mcp_imports");
@@ -435,14 +436,14 @@ args = ["60"]"#,
 
         let dirs = survey_runtime_source_dirs(&config);
 
-        assert_eq!(dirs.toolkits.count(), 2, "toml만 센다");
+        assert_eq!(dirs.toolkits.count(), 2, "counts only toml");
         assert_eq!(dirs.mcp_imports.count(), 1);
         assert!(matches!(dirs.wasm, DirectoryStatus::Unconfigured));
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn 호스트용_mcp_임포트_로드는_미설정_디렉터리에서_빈_결과를_준다() {
+    fn host_mcp_import_load_returns_empty_for_unconfigured_directory() {
         let config = RuntimeSourceConfig {
             toolkits_dir: None,
             project_manifest: None,
@@ -458,13 +459,14 @@ args = ["60"]"#,
         assert_eq!(load.tool_count(), 0);
     }
 
-    /// 장수명 서버 프로세스(`upeg host start`, desktop embed, in-process
-    /// `upeg mcp`)가 쓰는 유일한 임포트 진입점이 실제로 upstream 서버를
-    /// spawn하고 도구를 Toolbox에 등록하는지 확인한다. supervisor가
-    /// 사라진 뒤 이 경로가 유일한 프로덕션 로더다.
+    /// Verifies that the single import entry point used by long-lived
+    /// server processes (`upeg host start`, desktop embed, in-process
+    /// `upeg mcp`) actually spawns an upstream server and registers its
+    /// tools in the Toolbox. With the supervisor gone, this path is the
+    /// only production loader.
     #[cfg(unix)]
     #[test]
-    fn 호스트용_mcp_임포트_로드는_upstream_도구를_toolbox에_등록한다() {
+    fn host_mcp_import_load_registers_upstream_tools_in_toolbox() {
         use std::os::unix::fs::PermissionsExt;
 
         let unique = format!("upeg_sources_host_import_{}", std::process::id());
@@ -506,30 +508,31 @@ done
         assert_eq!(
             load.loaded_server_count(),
             1,
-            "서버 1개가 임포트되어야 한다"
+            "exactly one server must be imported"
         );
         assert_eq!(load.failed_server_count(), 0);
         assert_eq!(load.tool_count(), 1);
         let tool_id = format!("{unique}.echo");
         assert!(
             upeg_runtime::toolbox_tool(&tool_id).is_some(),
-            "호스트 임포트는 {tool_id}를 등록해야 한다"
+            "host import must register {tool_id}"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// 선언 디렉터리 사전 스캔은 upstream을 spawn하지 않고 `reexport`
-    /// opt-in 여부만 본다. in-process `upeg mcp`가 이걸 보고 eager
-    /// import 로딩 자체를 건너뛴다.
+    /// The declaration-directory prescan does not spawn upstream; it
+    /// only checks the `reexport` opt-in. The in-process `upeg mcp`
+    /// reads this to skip eager import loading entirely.
     #[test]
-    fn reexport_사전스캔은_opt_in_선언이_있을_때만_opt_in을_보고한다() {
+    fn reexport_prescan_reports_opt_in_only_when_opted_in_declaration_exists() {
         let root = std::env::temp_dir().join(format!("upeg-reexport-scan-{}", std::process::id()));
         let blocked_dir = root.join("blocked");
         let opted_dir = root.join("opted");
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&blocked_dir).unwrap();
         std::fs::create_dir_all(&opted_dir).unwrap();
-        // 절대 spawn되면 안 되는 명령 — 스캔이 파일만 읽는다는 증거다.
+        // A command that must never be spawned — proof the scan only
+        // reads files.
         std::fs::write(
             blocked_dir.join("plain.toml"),
             "command = \"definitely_not_a_real_program\"\n",
@@ -565,7 +568,7 @@ done
     }
 
     #[test]
-    fn reexport_사전스캔은_미설정과_누락_디렉터리를_차단으로_본다() {
+    fn reexport_prescan_treats_unconfigured_and_missing_directories_as_blocked() {
         let missing =
             std::env::temp_dir().join(format!("upeg-reexport-missing-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&missing);
@@ -582,10 +585,11 @@ done
     }
 
     #[test]
-    fn 경로_계산은_core_paths에_위임한다() {
-        // 예전에는 config_root 위임 헬퍼를 검사했지만, memos가 SQLite
-        // store로 이전하면서 이 크레이트에 config-root 헬퍼가 사라졌다.
-        // 남은 불변식: 디렉터리 경로 정책은 전부 upeg_core::paths 위임.
+    fn path_computation_delegates_to_core_paths() {
+        // This used to test a config_root delegation helper, but once
+        // memos moved to the SQLite store this crate's config-root
+        // helper disappeared. Remaining invariant: all directory path
+        // policy delegates to upeg_core::paths.
         let source = include_str!("sources.rs");
         for delegated_fn in ["toolkits_dir()", "wasm_dir()", "mcp_import_dir()"] {
             let delegated = ["upeg_core", "paths", delegated_fn].join("::");
@@ -597,7 +601,7 @@ done
     }
 
     #[test]
-    fn runtime_소스_로드는_도구킷과_프로젝트_manifest를_로드한다() {
+    fn runtime_source_load_loads_toolkits_and_project_manifest() {
         let root = std::env::temp_dir().join(format!("upeg-sources-load-{}", std::process::id()));
         let toolkits = root.join("toolkits");
         let project_manifest = root.join("upeg.toml");
@@ -641,7 +645,7 @@ args_template = ["project"]"#,
 
         assert_eq!(report.toolkits.count(), 1);
         assert!(report.toolkits_outcome.failed.is_empty());
-        let project = report.project_manifest.expect("프로젝트 매니페스트");
+        let project = report.project_manifest.expect("project manifest");
         assert_eq!(
             project.origin,
             crate::project::ProjectManifestOrigin::Detected
@@ -658,7 +662,7 @@ args_template = ["project"]"#,
                 upeg_runtime::ToolProvenance::ProjectManifest {
                     path: project.path.display().to_string(),
                 },
-                "project manifest 도구 `{id}` 는 provenance가 찍혀야 한다"
+                "project manifest tool `{id}` must carry provenance"
             );
         }
         // Toolkit-dir tools stay `Local` — the stamp is manifest-only.
@@ -666,7 +670,7 @@ args_template = ["project"]"#,
             assert_eq!(
                 upeg_runtime::tool_provenance(id),
                 upeg_runtime::ToolProvenance::Local,
-                "toolkits 디렉터리 도구 `{id}` 는 project manifest 출신이 아니다"
+                "toolkits-directory tool `{id}` is not from the project manifest"
             );
         }
         assert!(matches!(report.wasm, DirectoryStatus::Unconfigured));

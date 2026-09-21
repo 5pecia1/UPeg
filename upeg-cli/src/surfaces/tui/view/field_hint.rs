@@ -55,14 +55,14 @@ mod tests {
 
     fn field(kind: InputKind, constraints: FieldConstraints) -> InputFieldSpec {
         InputFieldSpec::with_constraints(
-            InputName::new("value").expect("테스트 입력 이름은 유효해야 한다"),
+            InputName::new("value").expect("test input name must be valid"),
             None,
             None,
             false,
             kind,
             constraints,
         )
-        .expect("테스트 입력 필드는 유효해야 한다")
+        .expect("test input field must be valid")
     }
 
     fn number(min: Option<f64>, max: Option<f64>) -> FieldConstraints {
@@ -77,14 +77,14 @@ mod tests {
     }
 
     #[test]
-    fn 숫자_범위는_최소와_최대를_함께_보여준다() {
+    fn number_range_shows_min_and_max_together() {
         let hint = constraint_hint(&field(InputKind::Integer, number(Some(8.0), Some(128.0))));
 
         assert_eq!(hint.as_deref(), Some("min 8 · max 128"));
     }
 
     #[test]
-    fn 한쪽만_선언된_범위는_그쪽만_보여준다() {
+    fn range_with_only_one_bound_shows_only_that_bound() {
         assert_eq!(
             constraint_hint(&field(InputKind::Number, number(Some(0.0), None))).as_deref(),
             Some("min 0"),
@@ -96,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn 기본값만_선언된_숫자_필드는_힌트가_없다() {
+    fn number_field_with_only_default_has_no_hint() {
         let constraints = FieldConstraints {
             number: Some(upeg_core::NumberConstraints {
                 min: None,
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn 플레이스홀더는_예시로_보여준다() {
+    fn placeholder_shown_as_example() {
         let constraints = FieldConstraints {
             number: None,
             string: Some(StringConstraints {
@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn 제약이_없으면_힌트도_없다() {
+    fn no_constraints_means_no_hint() {
         assert_eq!(
             constraint_hint(&field(InputKind::String, FieldConstraints::default())),
             None

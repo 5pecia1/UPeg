@@ -122,7 +122,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 조건이_없으면_now로_해석한다() {
+    fn absent_condition_parses_as_now() {
         assert_eq!(
             ScheduleCondition::parse_optional(None),
             Ok(ScheduleCondition::Now)
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn every_조건은_humantime_주기로_해석한다() {
+    fn every_condition_parses_as_humantime_interval() {
         assert_eq!(
             ScheduleCondition::parse_optional(Some("every:30s")),
             Ok(ScheduleCondition::Every(Duration::from_secs(30)))
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn 해석할_수_없는_주기는_거부한다() {
+    fn unparsable_interval_is_rejected() {
         let error = ScheduleCondition::parse_optional(Some("every:soon")).unwrap_err();
         assert!(
             matches!(error, ScheduleConditionError::UnparsableInterval { .. }),
@@ -160,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn 영초_주기는_거부한다() {
+    fn zero_second_interval_is_rejected() {
         assert_eq!(
             ScheduleCondition::parse_optional(Some("every:0s")),
             Err(ScheduleConditionError::IntervalBelowPollResolution {
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn 폴_주기보다_짧은_주기는_해상도를_밝히며_거부한다() {
+    fn interval_shorter_than_poll_interval_is_rejected_naming_resolution() {
         // `every:500ms` used to load and then quantize up to the 1s poll in
         // silence; it now names the resolution at load time.
         let error = ScheduleCondition::parse_optional(Some("every:500ms")).unwrap_err();
@@ -188,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn 폴_주기와_같은_주기는_허용한다() {
+    fn interval_equal_to_poll_interval_is_allowed() {
         assert_eq!(
             ScheduleCondition::parse_optional(Some("every:1s")),
             Ok(ScheduleCondition::Every(WATCH_POLL_INTERVAL))
@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn now도_every도_아닌_조건은_거부한다() {
+    fn condition_that_is_neither_now_nor_every_is_rejected() {
         let error = ScheduleCondition::parse_optional(Some("cron(* * * * *)")).unwrap_err();
         assert_eq!(
             error,

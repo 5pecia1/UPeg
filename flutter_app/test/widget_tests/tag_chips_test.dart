@@ -67,7 +67,7 @@ ProviderContainer _container(List<String> tags, {String boardKey = 'dev'}) {
 
 void main() {
   group('TagChipRow', () {
-    testWidgets('TagChipRow는_각_태그_옵션을_렌더한다', (tester) async {
+    testWidgets('TagChipRow_renders_each_tag_option', (tester) async {
       await tester.pumpWidget(_harness(tags: const ['all', 'convert', 'id']));
       await tester.pumpAndSettle();
 
@@ -77,7 +77,9 @@ void main() {
       expect(find.text('TAGS'), findsOneWidget);
     });
 
-    testWidgets('TagChipRow는_현재_보드에_핀된_태그만_보여준다', (tester) async {
+    testWidgets('TagChipRow_shows_only_the_tags_pinned_to_the_current_board', (
+      tester,
+    ) async {
       await tester.pumpWidget(_harness(tags: const ['all', 'convert']));
       await tester.pumpAndSettle();
 
@@ -86,7 +88,9 @@ void main() {
       expect(find.byKey(const Key('tag-chip-text')), findsNothing);
     });
 
-    testWidgets('TagChipRow_탭하면_selectedTagProvider가_갱신된다', (tester) async {
+    testWidgets('tapping_a_TagChipRow_chip_updates_selectedTagProvider', (
+      tester,
+    ) async {
       final container = _container(const ['all', 'convert']);
       addTearDown(container.dispose);
 
@@ -103,53 +107,60 @@ void main() {
       expect(container.read(selectedTagProvider), const TagSpecific('convert'));
     });
 
-    testWidgets('선택된_칩은_semantics_selected와_체크_아이콘을_함께_노출한다', (tester) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(_harness(tags: const ['all', 'convert']));
-        await tester.pumpAndSettle();
+    testWidgets(
+      'the_selected_chip_exposes_semantics_selected_and_the_check_icon_together',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(_harness(tags: const ['all', 'convert']));
+          await tester.pumpAndSettle();
 
-        // 기본 선택은 'all' — 체크 아이콘은 선택된 칩 안에서만 그려진다
-        // (색상만으로 선택 상태를 전달하지 않는다는 비색상 큐).
-        expect(find.byKey(tagChipCheckIconKey), findsOneWidget);
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('tag-chip-all')),
-            matching: find.byKey(tagChipCheckIconKey),
-          ),
-          findsOneWidget,
-        );
+          // 'all' is selected by default — the check icon is drawn only
+          // inside the selected chip (the non-color cue: selection is not
+          // conveyed by color alone).
+          expect(find.byKey(tagChipCheckIconKey), findsOneWidget);
+          expect(
+            find.descendant(
+              of: find.byKey(const Key('tag-chip-all')),
+              matching: find.byKey(tagChipCheckIconKey),
+            ),
+            findsOneWidget,
+          );
 
-        expect(
-          tester.getSemantics(find.byKey(const Key('tag-chip-all'))),
-          isSemantics(isButton: true, isSelected: true),
-        );
-        expect(
-          tester.getSemantics(find.byKey(const Key('tag-chip-convert'))),
-          isSemantics(isButton: true, isSelected: false),
-        );
+          expect(
+            tester.getSemantics(find.byKey(const Key('tag-chip-all'))),
+            isSemantics(isButton: true, isSelected: true),
+          );
+          expect(
+            tester.getSemantics(find.byKey(const Key('tag-chip-convert'))),
+            isSemantics(isButton: true, isSelected: false),
+          );
 
-        // 선택을 옮기면 체크 아이콘과 selected 플래그가 함께 이동한다.
-        await tester.tap(find.byKey(const Key('tag-chip-convert')));
-        await tester.pumpAndSettle();
+          // Moving the selection moves the check icon and the selected
+          // flag together.
+          await tester.tap(find.byKey(const Key('tag-chip-convert')));
+          await tester.pumpAndSettle();
 
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('tag-chip-convert')),
-            matching: find.byKey(tagChipCheckIconKey),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          tester.getSemantics(find.byKey(const Key('tag-chip-convert'))),
-          isSemantics(isButton: true, isSelected: true),
-        );
-      } finally {
-        semantics.dispose();
-      }
-    });
+          expect(
+            find.descendant(
+              of: find.byKey(const Key('tag-chip-convert')),
+              matching: find.byKey(tagChipCheckIconKey),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            tester.getSemantics(find.byKey(const Key('tag-chip-convert'))),
+            isSemantics(isButton: true, isSelected: true),
+          );
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
 
-    testWidgets('TagChipRow는_키보드로_선택_tag를_이동한다', (tester) async {
+    testWidgets('TagChipRow_moves_the_selected_tag_with_the_keyboard', (
+      tester,
+    ) async {
       final container = _container(const ['all', 'convert', 'id']);
       addTearDown(container.dispose);
 

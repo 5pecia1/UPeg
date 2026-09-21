@@ -33,7 +33,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pin_종류_색상은_모든_변형에_대해_css를_반환한다() {
+    fn pin_kind_color_returns_css_for_every_variant() {
         // No `_ =>` catch-all; if a new variant lands without a color, this
         // test fails at compile time once we exhaustively match. For now,
         // smoke-check each known variant.
@@ -60,7 +60,7 @@ mod tests {
         clippy::panic,
         reason = "registration failure is a fixture bug, not runtime"
     )]
-    fn 데스크톱_도구는_표시_라벨을_가진_메타데이터로_등록된다() {
+    fn desktop_tools_are_registered_with_display_label_metadata() {
         upeg_tools::register_all();
         for id in [
             "num.hex_to_decimal",

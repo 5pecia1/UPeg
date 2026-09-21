@@ -138,6 +138,8 @@ mod tests {
             input_spec: upeg_core::InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: upeg_core::PinKind::Inline,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -148,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn 표면_필터는_해당_표면에_없는_도구를_숨김으로_센다() {
+    fn surface_filter_counts_tools_not_on_surface_as_hidden() {
         let tools = [
             make_tool("a.one", Invoker::Function, upeg_core::ALL_SURFACES),
             make_tool("a.two", Invoker::Function, &[Surface::Mcp, Surface::Http]),
@@ -172,14 +174,14 @@ mod tests {
     }
 
     #[test]
-    fn 모든_표면이_보고서에_한_번씩_등장한다() {
+    fn every_surface_appears_once_in_report() {
         let tools: Vec<ToolMeta> = Vec::new();
         let diagnosis = diagnose(tools.iter());
         assert_eq!(diagnosis.by_surface.len(), ALL_SURFACES.len());
     }
 
     #[test]
-    fn wasm_기능이_없으면_wasm_invoker_도구가_스텁으로_집계된다() {
+    fn wasm_invoker_tools_count_as_stubbed_without_wasm_feature() {
         let tools = [
             make_tool("a.wasm", Invoker::Wasm, upeg_core::ALL_SURFACES),
             make_tool("a.fn", Invoker::Function, upeg_core::ALL_SURFACES),
@@ -193,14 +195,14 @@ mod tests {
     }
 
     #[test]
-    fn 네이티브_전용_제외는_이_네이티브_바이너리에서_항상_0이다() {
+    fn native_only_excluded_is_always_zero_on_native_binary() {
         let tools: Vec<ToolMeta> = Vec::new();
         let diagnosis = diagnose(tools.iter());
         assert_eq!(diagnosis.native_only_excluded, 0);
     }
 
     #[test]
-    fn json_렌더링은_표면_개수와_why_클래스_필드를_포함한다() {
+    fn json_rendering_includes_surface_counts_and_why_class_fields() {
         let tools: Vec<ToolMeta> = Vec::new();
         let diagnosis = diagnose(tools.iter());
         let json = to_json(&diagnosis);

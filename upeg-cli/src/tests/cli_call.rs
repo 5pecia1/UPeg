@@ -16,6 +16,8 @@ fn register_cli_multi_output_tool(id: &'static str) {
         input_spec: upeg_core::InputSpec::empty(),
         output_spec: upeg_core::OutputSpec::empty(),
         primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
         source: upeg_core::Source::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -183,12 +185,12 @@ selector = "#summary"
 }
 
 #[test]
-fn 파싱_kv_인자는_빈_키를_거부한다() {
+fn kv_arg_parsing_rejects_empty_keys() {
     assert!(parse_kv_arg("=value").is_err());
 }
 
 #[test]
-fn kv_인자_파싱은_값에_등호가_있어도_나머지를_그대로_유지한다() {
+fn kv_arg_parsing_preserves_equals_signs_in_values() {
     // base64 padding, k=v=foo style — split on FIRST `=` only.
     let (k, v) = parse_kv_arg("input=Zm9v=").unwrap();
     assert_eq!(k, "input");
@@ -196,7 +198,7 @@ fn kv_인자_파싱은_값에_등호가_있어도_나머지를_그대로_유지�
 }
 
 #[test]
-fn 인자_플래그가_있는_호출은_로컬로_dispatch한다() {
+fn call_with_arg_flags_dispatches_locally() {
     let out = run(parse(&[
         "upeg",
         "call",
@@ -209,7 +211,7 @@ fn 인자_플래그가_있는_호출은_로컬로_dispatch한다() {
 }
 
 #[test]
-fn call은_dash_표기_tool_id를_underscore로_정규화한다() {
+fn call_normalizes_dashes_in_tool_ids_to_underscores() {
     let out = run(parse(&[
         "upeg",
         "call",
@@ -222,7 +224,7 @@ fn call은_dash_표기_tool_id를_underscore로_정규화한다() {
 }
 
 #[test]
-fn 기본_호출은_기본_output_값만_표준출력으로_반환한다() {
+fn default_call_returns_only_the_primary_output_value_on_stdout() {
     let id = "test.cli_call.default_primary_only";
     register_cli_multi_output_tool(id);
 
@@ -232,7 +234,7 @@ fn 기본_호출은_기본_output_값만_표준출력으로_반환한다() {
 }
 
 #[test]
-fn json_호출은_정식_성공_envelope를_표준출력으로_반환한다() {
+fn json_call_returns_the_canonical_success_envelope_on_stdout() {
     let id = "test.cli_call.json_success";
     register_cli_multi_output_tool(id);
 
@@ -248,7 +250,7 @@ fn json_호출은_정식_성공_envelope를_표준출력으로_반환한다() {
 }
 
 #[test]
-fn 필드_호출은_요청한_output_값만_반환한다() {
+fn call_with_field_returns_only_the_requested_output_value() {
     let id = "test.cli_call.field_count";
     register_cli_multi_output_tool(id);
 
@@ -258,7 +260,7 @@ fn 필드_호출은_요청한_output_값만_반환한다() {
 }
 
 #[test]
-fn pretty_호출은_라벨이_붙은_행들을_반환한다() {
+fn pretty_call_returns_labeled_output_rows() {
     let id = "test.cli_call.pretty_rows";
     register_cli_multi_output_tool(id);
 
@@ -268,7 +270,7 @@ fn pretty_호출은_라벨이_붙은_행들을_반환한다() {
 }
 
 #[test]
-fn controlled_embed_cli_json은_정식_success_envelope를_반환한다() {
+fn controlled_embed_cli_json_returns_the_canonical_success_envelope() {
     let _guard = crate::test_support::controlled_embed_backend_test_lock()
         .lock()
         .unwrap();
@@ -302,7 +304,7 @@ fn controlled_embed_cli_json은_정식_success_envelope를_반환한다() {
 }
 
 #[test]
-fn controlled_embed_cli_pretty는_라벨과_줄바꿈_값을_보존한다() {
+fn controlled_embed_cli_pretty_preserves_labels_and_multiline_values() {
     let _guard = crate::test_support::controlled_embed_backend_test_lock()
         .lock()
         .unwrap();
@@ -335,7 +337,7 @@ fn controlled_embed_cli_pretty는_라벨과_줄바꿈_값을_보존한다() {
 }
 
 #[test]
-fn controlled_embed_cli_json은_backend_unavailable_code를_반환한다() {
+fn controlled_embed_cli_json_returns_the_backend_unavailable_code() {
     let _guard = crate::test_support::controlled_embed_backend_test_lock()
         .lock()
         .unwrap();
@@ -365,7 +367,7 @@ fn controlled_embed_cli_json은_backend_unavailable_code를_반환한다() {
 }
 
 #[test]
-fn controlled_embed_cli_json은_wait_timeout_failure_envelope를_반환한다() {
+fn controlled_embed_cli_json_returns_a_wait_timeout_failure_envelope() {
     let _guard = crate::test_support::controlled_embed_backend_test_lock()
         .lock()
         .unwrap();
@@ -408,7 +410,7 @@ fn controlled_embed_cli_json은_wait_timeout_failure_envelope를_반환한다() 
 }
 
 #[test]
-fn json_호출의_도구_오류는_표준출력_failure_envelope로_반환된다() {
+fn json_call_returns_tool_errors_as_stdout_failure_envelopes() {
     let result = run(parse(&[
         "upeg",
         "call",
@@ -436,7 +438,7 @@ fn json_호출의_도구_오류는_표준출력_failure_envelope로_반환된다
 }
 
 #[test]
-fn 알수없는_도구의_json_호출은_정식_오류를_표준출력으로_반환한다() {
+fn json_call_for_an_unknown_tool_returns_a_canonical_error_on_stdout() {
     let result = run(parse(&["upeg", "call", "no.such.tool", "--json"]));
 
     match result {
@@ -456,7 +458,7 @@ fn 알수없는_도구의_json_호출은_정식_오류를_표준출력으로_반
 }
 
 #[test]
-fn 인자_플래그는_위치인자_json이_있는_호출에서도_덮어쓴다() {
+fn call_arg_flags_override_positional_json() {
     // Positional `{}` ignored when `-a` present — otherwise `{}` would
     // dispatch with empty args and the tool would error.
     let out = run(parse(&[
@@ -472,7 +474,7 @@ fn 인자_플래그는_위치인자_json이_있는_호출에서도_덮어쓴다(
 }
 
 #[test]
-fn 여러_인자_플래그가_있는_호출은_객체를_빌드한다() {
+fn call_builds_an_object_from_multiple_arg_flags() {
     // text.regex_match wants two fields; chained `-a` should compose them.
     let out = run(parse(&[
         "upeg",
@@ -488,7 +490,7 @@ fn 여러_인자_플래그가_있는_호출은_객체를_빌드한다() {
 }
 
 #[test]
-fn 인자_플래그가_없는_호출은_위치인자_json으로_대체된다() {
+fn call_without_arg_flags_uses_positional_json() {
     let out = run(parse(&[
         "upeg",
         "call",
@@ -500,7 +502,7 @@ fn 인자_플래그가_없는_호출은_위치인자_json으로_대체된다() {
 }
 
 #[test]
-fn 호출은_객체가_아닌_위치인자_인자를_거부한다() {
+fn call_rejects_non_object_positional_args() {
     // parallel to MCP/HTTP non-object args. Shape-check at the
     // boundary so the user sees a clear "args must be a JSON object"
     // instead of a confusing tool error pointing at the wrong place
@@ -527,10 +529,10 @@ fn 호출은_객체가_아닌_위치인자_인자를_거부한다() {
 }
 
 #[test]
-fn 키_이퀄_값을_위치인자로_넘기면_인자_플래그를_알려준다() {
-    // `-a`를 빠뜨린 호출은 의도가 명확하다. serde_json의 "expected
-    // value at line 1 column 1"만 돌려주면 JSON을 고치라는 말로
-    // 읽히므로, 쓰려던 명령을 플래그와 함께 그대로 되돌려준다.
+fn positional_key_value_args_suggest_the_arg_flag() {
+    // A missing `-a` has an obvious intent. A bare serde_json "expected
+    // value at line 1 column 1" error would suggest fixing JSON instead,
+    // so echo the intended argument with its flag.
     let r = run(parse(&["upeg", "call", "num.hex_to_decimal", "input=0xff"]));
     match r {
         Err(CliError::ToolFailed(msg)) => {
@@ -544,10 +546,10 @@ fn 키_이퀄_값을_위치인자로_넘기면_인자_플래그를_알려준다(
 }
 
 #[test]
-fn 잘못된_json은_더_쉬운_인자_형식과_기대_입력을_알려준다() {
-    // 원시 JSON 파싱 실패는 호출자가 손으로 JSON을 쓰다 틀린
-    // 순간이다. 이때가 `-a key=value`가 있다는 사실과 이 Tool이
-    // 무엇을 받는지 알려줄 유일한 지점이다.
+fn invalid_json_suggests_the_simpler_arg_form_and_expected_inputs() {
+    // A raw JSON parse failure is where callers need to learn about
+    // `-a key=value` and the tool's declared inputs, rather than having
+    // to keep correcting handwritten JSON.
     let r = run(parse(&["upeg", "call", "num.hex_to_decimal", "0xff"]));
     match r {
         Err(CliError::ToolFailed(msg)) => {
@@ -569,9 +571,9 @@ fn 잘못된_json은_더_쉬운_인자_형식과_기대_입력을_알려준다()
 }
 
 #[test]
-fn 미등록_툴의_잘못된_json은_기대_입력을_지어내지_않는다() {
-    // InputSpec이 없으면 알려줄 입력 목록도 없다. 없는 스펙을
-    // 추측해 출력하지 않는지 고정한다.
+fn invalid_json_for_an_unregistered_tool_does_not_invent_expected_inputs() {
+    // Without an InputSpec there are no known inputs to list. The diagnostic
+    // must not guess a schema for an unregistered tool.
     let r = run(parse(&["upeg", "call", "no.such_tool", "0xff"]));
     match r {
         Err(CliError::ToolFailed(msg)) => {
@@ -585,7 +587,7 @@ fn 미등록_툴의_잘못된_json은_기대_입력을_지어내지_않는다() 
 }
 
 #[test]
-fn 인자가_없는_호출은_기본값으로_빈_객체를_가진다() {
+fn call_without_args_defaults_to_an_empty_object() {
     // Pin the interaction between clap's `default_value = "{}"`
     // on the `args` positional and the JSON-object shape check.
     // `upeg call <zero-arg-tool>` with no positional/stdin args
@@ -603,7 +605,7 @@ fn 인자가_없는_호출은_기본값으로_빈_객체를_가진다() {
 }
 
 #[test]
-fn 호출은_객체_또는_널_위치인자_인자를_허용한다() {
+fn call_accepts_object_or_null_positional_args() {
     // zero-arg tools (uuid_v7) work with `{}` or `null`
     // positional args; arg-taking tools work with `{"key": ...}`.
     // All three shapes pass the JSON-object shape check.
@@ -632,7 +634,7 @@ fn 호출은_객체_또는_널_위치인자_인자를_허용한다() {
 // ─── `upeg http` subcommand parsing (PRD §5.5) ─────────────────
 
 #[test]
-fn http_그대로의는_액션이_없는_있음을_파싱한다() {
+fn bare_http_parses_with_action_none() {
     let cli = parse(&["upeg", "http"]);
     match cli.command {
         Some(Command::Http { action, daemon, .. }) => {
@@ -644,7 +646,7 @@ fn http_그대로의는_액션이_없는_있음을_파싱한다() {
 }
 
 #[test]
-fn http_데몬_플래그는_파싱한다() {
+fn http_daemon_flag_parses() {
     let cli = parse(&["upeg", "http", "--daemon"]);
     match cli.command {
         Some(Command::Http { daemon, .. }) => assert!(daemon),
@@ -653,7 +655,7 @@ fn http_데몬_플래그는_파싱한다() {
 }
 
 #[test]
-fn http_url_와_토큰_플래그들은_파싱한다() {
+fn http_addr_and_token_flags_parse() {
     let cli = parse(&[
         "upeg",
         "http",
@@ -672,7 +674,7 @@ fn http_url_와_토큰_플래그들은_파싱한다() {
 }
 
 #[test]
-fn http_상태_하위명령은_json_플래그_있음을_파싱한다() {
+fn http_status_subcommand_parses_the_json_flag() {
     let cli = parse(&["upeg", "http", "status", "--json"]);
     match cli.command {
         Some(Command::Http {
@@ -684,7 +686,7 @@ fn http_상태_하위명령은_json_플래그_있음을_파싱한다() {
 }
 
 #[test]
-fn http_상태_하위명령은_페어링_플래그_있음을_파싱한다() {
+fn http_status_subcommand_parses_the_pairing_flag() {
     let cli = parse(&["upeg", "http", "status", "--pairing"]);
     match cli.command {
         Some(Command::Http {
@@ -696,7 +698,7 @@ fn http_상태_하위명령은_페어링_플래그_있음을_파싱한다() {
 }
 
 #[test]
-fn http_상태_하위명령은_페어링_플래그_기본값_거짓이다() {
+fn http_status_subcommand_defaults_pairing_to_false() {
     let cli = parse(&["upeg", "http", "status"]);
     match cli.command {
         Some(Command::Http {
@@ -708,7 +710,7 @@ fn http_상태_하위명령은_페어링_플래그_기본값_거짓이다() {
 }
 
 #[test]
-fn http_중지_하위명령은_강제_플래그_있음을_파싱한다() {
+fn http_stop_subcommand_parses_the_force_flag() {
     let cli = parse(&["upeg", "http", "stop", "--force"]);
     match cli.command {
         Some(Command::Http {
@@ -720,7 +722,7 @@ fn http_중지_하위명령은_강제_플래그_있음을_파싱한다() {
 }
 
 #[test]
-fn 호스트_시작_하위명령은_데몬_플래그를_파싱한다() {
+fn host_start_subcommand_parses_the_daemon_flag() {
     let cli = parse(&["upeg", "host", "start", "--daemon"]);
     match cli.command {
         Some(Command::Host {
@@ -731,11 +733,11 @@ fn 호스트_시작_하위명령은_데몬_플래그를_파싱한다() {
 }
 
 #[test]
-fn 삭제된_service_하위명령은_더이상_내장_명령이_아니다() {
-    // service/source control plane은 삭제되었다. host 프로세스 자체가
-    // 명시적 활성화이므로 desired-state 명령이 존재하면 안 된다.
-    // 남은 것은 동적 도구 라우팅(External)뿐 — 즉 `service`라는 이름의
-    // 내장 하위명령은 사라졌다.
+fn removed_service_subcommand_is_no_longer_builtin() {
+    // The service/source control plane was removed. The host process
+    // itself is explicit activation, so no desired-state commands may
+    // exist. All that remains is dynamic tool routing (External) —
+    // i.e. there is no builtin subcommand named `service` anymore.
     let cli = parse(&["upeg", "service", "enable", "rest-api"]);
     match cli.command {
         Some(Command::External(argv)) => assert_eq!(argv[0], "service"),
@@ -744,7 +746,7 @@ fn 삭제된_service_하위명령은_더이상_내장_명령이_아니다() {
 }
 
 #[test]
-fn 삭제된_source_하위명령은_더이상_내장_명령이_아니다() {
+fn removed_source_subcommand_is_no_longer_builtin() {
     let cli = parse(&["upeg", "source", "load", "mcp-imports"]);
     match cli.command {
         Some(Command::External(argv)) => assert_eq!(argv[0], "source"),
@@ -753,7 +755,7 @@ fn 삭제된_source_하위명령은_더이상_내장_명령이_아니다() {
 }
 
 #[test]
-fn http_재시작_하위명령은_상단_수준_데몬_있음을_파싱한다() {
+fn http_restart_subcommand_parses_the_top_level_daemon_flag() {
     // The `--daemon` flag is parsed at the top level of `Http`, not    // inside the Restart subcommand — the iter-pre-tray design
     // intentionally shares startup flags between bare-start and
     // restart so the same binding/token apply to both paths.
@@ -772,7 +774,7 @@ fn http_재시작_하위명령은_상단_수준_데몬_있음을_파싱한다() 
 }
 
 #[test]
-fn http는_하위명령_기본값_로_100_줄들을_로그에_기록한다() {
+fn http_logs_subcommand_defaults_to_100_lines() {
     let cli = parse(&["upeg", "http", "logs"]);
     match cli.command {
         Some(Command::Http {
@@ -784,7 +786,7 @@ fn http는_하위명령_기본값_로_100_줄들을_로그에_기록한다() {
 }
 
 #[test]
-fn http_logs_하위명령은_명시한_줄_개수를_그대로_기록한다() {
+fn http_logs_subcommand_uses_the_given_line_count() {
     let cli = parse(&["upeg", "http", "logs", "--lines", "42"]);
     match cli.command {
         Some(Command::Http {
@@ -796,7 +798,7 @@ fn http_logs_하위명령은_명시한_줄_개수를_그대로_기록한다() {
 }
 
 #[test]
-fn 호출은_데몬_변경_없이_플래그를_허용한다() {
+fn call_no_longer_accepts_daemon_flag() {
     // PRD §11 removed `--daemon` from `upeg call`. clap's `parse_from`
     // calls `process::exit` on error which we can't catch from a
     // unit test; use `try_parse_from` so the error is returned.

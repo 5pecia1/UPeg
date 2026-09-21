@@ -17,7 +17,7 @@ void main() {
     await RustLib.init();
   });
 
-  test('toolbox는_핵심_빌트인_도구를_노출한다', () async {
+  test('toolbox_exposes_core_built_in_tools', () async {
     final tools = listTools();
     final ids = tools.map((t) => t.id).toSet();
 
@@ -27,7 +27,7 @@ void main() {
     expect(ids, contains('id.uuid_v7'));
   });
 
-  test('toolbox는_toolkit별로_필터링된다', () async {
+  test('toolbox_filters_by_toolkit', () async {
     final convert = listTools(toolkit: 'convert');
     expect(convert.every((t) => t.toolkit == 'convert'), isTrue);
     expect(convert, isNotEmpty);

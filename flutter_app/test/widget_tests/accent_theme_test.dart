@@ -68,7 +68,7 @@ class _AccentHarness extends ConsumerWidget {
 
 void main() {
   group('UpegTheme.forAccent', () {
-    test('forAccent는_Green_Dark에서_초록_palette_accent를_반환한다', () {
+    test('forAccent_returns_the_green_palette_accent_for_Green_Dark', () {
       final theme = UpegTheme.forAccent(
         Accent.green,
         brightness: Brightness.dark,
@@ -79,7 +79,7 @@ void main() {
       expect(tokens.accent, const Color(0xFF5BD16C));
     });
 
-    test('forAccent는_Pink_Dark에서_핑크_palette_accent를_반환한다', () {
+    test('forAccent_returns_the_pink_palette_accent_for_Pink_Dark', () {
       final theme = UpegTheme.forAccent(
         Accent.pink,
         brightness: Brightness.dark,
@@ -89,7 +89,7 @@ void main() {
       expect(tokens.accent, isNot(equals(const Color(0xFF5BD16C))));
     });
 
-    test('forAccent는_Cyan_Light에서_시안_palette_accent를_반환한다', () {
+    test('forAccent_returns_the_cyan_palette_accent_for_Cyan_Light', () {
       final theme = UpegTheme.forAccent(
         Accent.cyan,
         brightness: Brightness.light,
@@ -100,60 +100,72 @@ void main() {
       expect(tokens.accent, isNot(equals(const Color(0xFF2E8C44))));
     });
 
-    test('forAccent는_네_변형_모두_상호_고유한_accent_색을_반환한다', () {
-      final greens = UpegTheme.forAccent(
-        Accent.green,
-        brightness: Brightness.dark,
-      ).extension<UpegTokens>()!.accent;
-      final amber = UpegTheme.forAccent(
-        Accent.amber,
-        brightness: Brightness.dark,
-      ).extension<UpegTokens>()!.accent;
-      final cyan = UpegTheme.forAccent(
-        Accent.cyan,
-        brightness: Brightness.dark,
-      ).extension<UpegTokens>()!.accent;
-      final pink = UpegTheme.forAccent(
-        Accent.pink,
-        brightness: Brightness.dark,
-      ).extension<UpegTokens>()!.accent;
-      final all = {greens, amber, cyan, pink};
-      expect(all.length, 4, reason: 'each variant must be distinct');
-    });
-
-    test('라이트 테마의 모든 accent 전경은 실제 primary 배경과 4.5 이상 대비된다', () {
-      for (final accent in Accent.values) {
-        final scheme = UpegTheme.forAccent(
-          accent,
-          brightness: Brightness.light,
-        ).colorScheme;
-
-        expect(
-          colorContrastRatio(scheme.onPrimary, scheme.primary),
-          greaterThanOrEqualTo(minimumNormalTextContrastRatio),
-          reason: '${accent.name} Run foreground must remain readable',
-        );
-      }
-    });
-
-    test('compact 선택 chip의 secondary 전경 배경 쌍은 4.5 이상 대비된다', () {
-      for (final brightness in Brightness.values) {
-        final scheme = UpegTheme.forAccent(
+    test(
+      'forAccent_returns_mutually_distinct_accent_colors_for_all_four_variants',
+      () {
+        final greens = UpegTheme.forAccent(
           Accent.green,
-          brightness: brightness,
-        ).colorScheme;
+          brightness: Brightness.dark,
+        ).extension<UpegTokens>()!.accent;
+        final amber = UpegTheme.forAccent(
+          Accent.amber,
+          brightness: Brightness.dark,
+        ).extension<UpegTokens>()!.accent;
+        final cyan = UpegTheme.forAccent(
+          Accent.cyan,
+          brightness: Brightness.dark,
+        ).extension<UpegTokens>()!.accent;
+        final pink = UpegTheme.forAccent(
+          Accent.pink,
+          brightness: Brightness.dark,
+        ).extension<UpegTokens>()!.accent;
+        final all = {greens, amber, cyan, pink};
+        expect(all.length, 4, reason: 'each variant must be distinct');
+      },
+    );
 
-        expect(
-          colorContrastRatio(scheme.onSecondary, scheme.secondary),
-          greaterThanOrEqualTo(minimumNormalTextContrastRatio),
-          reason: '${brightness.name} selected chip pair must remain readable',
-        );
-      }
-    });
+    test(
+      'every_light_theme_accent_foreground_contrasts_at_least_4_5_with_the_real_primary_background',
+      () {
+        for (final accent in Accent.values) {
+          final scheme = UpegTheme.forAccent(
+            accent,
+            brightness: Brightness.light,
+          ).colorScheme;
+
+          expect(
+            colorContrastRatio(scheme.onPrimary, scheme.primary),
+            greaterThanOrEqualTo(minimumNormalTextContrastRatio),
+            reason: '${accent.name} Run foreground must remain readable',
+          );
+        }
+      },
+    );
+
+    test(
+      'the_compact_selected_chip_secondary_foreground_background_pair_contrasts_at_least_4_5',
+      () {
+        for (final brightness in Brightness.values) {
+          final scheme = UpegTheme.forAccent(
+            Accent.green,
+            brightness: brightness,
+          ).colorScheme;
+
+          expect(
+            colorContrastRatio(scheme.onSecondary, scheme.secondary),
+            greaterThanOrEqualTo(minimumNormalTextContrastRatio),
+            reason:
+                '${brightness.name} selected chip pair must remain readable',
+          );
+        }
+      },
+    );
   });
 
   group('MaterialApp accent wiring', () {
-    testWidgets('App은_tweaks_accent_Green일때_초록_primary를_사용한다', (tester) async {
+    testWidgets('the_App_uses_the_green_primary_when_tweaks_accent_is_Green', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -172,7 +184,7 @@ void main() {
       expect(primary, const Color(0xFF5BD16C));
     });
 
-    testWidgets('App은_tweaks_accent_Pink일때_초록과_다른_primary를_사용한다', (
+    testWidgets('the_App_uses_a_non_green_primary_when_tweaks_accent_is_Pink', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -193,7 +205,9 @@ void main() {
       expect(primary, isNot(equals(const Color(0xFF5BD16C))));
     });
 
-    testWidgets('App은_tweaks_accent_save_후_primary가_갱신된다', (tester) async {
+    testWidgets('the_App_primary_updates_after_a_tweaks_accent_save', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           tweaksLoaderProvider.overrideWith(

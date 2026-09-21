@@ -12,11 +12,11 @@
     reason = "integration tests use unwrap/expect/panic idiomatically and need not satisfy production restriction lints"
 )]
 
-//! Controlled Embed 예제·wait 계약의 E2E — `examples_validate`에서
-//! 분리해 나왔다. 이쪽 테스트는 전부 `controlled-embed` feature와 실제
-//! 시스템 브라우저(headless Chrome/Chromium/Edge)를 요구하므로, 파일
-//! 하나를 통째로 cfg-gate 하는 편이 항목마다 같은 `#[cfg]`를 반복하는
-//! 것보다 읽기 쉽고 예산(파일당 1000줄)도 지킨다.
+//! E2E for the Controlled Embed example and wait contract — split out of
+//! `examples_validate`. Every test here requires the `controlled-embed`
+//! feature and a real system browser (headless Chrome/Chromium/Edge), so
+//! cfg-gating the whole file reads better than repeating the same `#[cfg]`
+//! per item and keeps the per-file budget (1000 lines) too.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -224,9 +224,8 @@ fn controlled_embed_failure_message(tool_id: &str, expected_code: &str) -> Strin
     }
 }
 #[test]
-fn controlled_embed는_enter_navigation_후_output을_읽는다() {
-    if controlled_embed_browser_missing("controlled_embed는_enter_navigation_후_output을_읽는다")
-    {
+fn controlled_embed_reads_output_after_enter_navigation() {
+    if controlled_embed_browser_missing("controlled_embed_reads_output_after_enter_navigation") {
         return;
     }
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
@@ -304,7 +303,7 @@ type = "string"
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
-fn controlled_embed는_wait_timeout_error_code를_전달한다() {
+fn controlled_embed_delivers_the_wait_timeout_error_code() {
     let _guard = controlled_embed_backend_test_lock().lock().unwrap();
     let _restore = RestoreNoopControlledEmbedBackend;
     upeg_runtime::controlled_embed::set_controlled_embed_backend(Arc::new(
@@ -380,14 +379,10 @@ type = "string"
 
     let _ = std::fs::remove_dir_all(&dir);
 }
-#[allow(
-    non_snake_case,
-    reason = "Korean test name intentionally includes DOM term casing"
-)]
 #[test]
-fn controlled_embed는_exists와_visible을_실제_DOM_가시성으로_구분한다() {
+fn controlled_embed_distinguishes_exists_from_visible_by_real_dom_visibility() {
     if controlled_embed_browser_missing(
-        "controlled_embed는_exists와_visible을_실제_DOM_가시성으로_구분한다",
+        "controlled_embed_distinguishes_exists_from_visible_by_real_dom_visibility",
     ) {
         return;
     }
@@ -426,9 +421,9 @@ fn controlled_embed는_exists와_visible을_실제_DOM_가시성으로_구분한
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
-fn controlled_embed_visible은_여러_매치중_하나만_보여도_성공한다() {
+fn controlled_embed_visible_succeeds_when_only_one_of_many_matches_is_shown() {
     if controlled_embed_browser_missing(
-        "controlled_embed_visible은_여러_매치중_하나만_보여도_성공한다",
+        "controlled_embed_visible_succeeds_when_only_one_of_many_matches_is_shown",
     ) {
         return;
     }
@@ -452,9 +447,9 @@ fn controlled_embed_visible은_여러_매치중_하나만_보여도_성공한다
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
-fn controlled_embed_대기옵션_잘못된_css_selector는_명확한_오류로_전파된다() {
+fn a_bad_css_selector_in_controlled_embed_wait_options_propagates_as_a_clear_error() {
     if controlled_embed_browser_missing(
-        "controlled_embed_대기옵션_잘못된_css_selector는_명확한_오류로_전파된다",
+        "a_bad_css_selector_in_controlled_embed_wait_options_propagates_as_a_clear_error",
     ) {
         return;
     }

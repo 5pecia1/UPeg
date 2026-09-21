@@ -174,7 +174,7 @@ void _useWideSurface(WidgetTester tester) {
 
 void main() {
   group('Embed pin activation catalog await (PR#24)', () {
-    test('카탈로그가_로드되지_않았을_때_toolByIdProvider는_null을_반환한다', () async {
+    test('toolByIdProvider_returns_null_before_the_catalog_loads', () async {
       // When tools haven't loaded yet, toolByIdProvider returns null.
       final container = ProviderContainer(
         overrides: [
@@ -196,7 +196,7 @@ void main() {
     });
 
     test(
-      'toolsProvider_future를_await하면_이후_toolByIdProvider가_tool을_찾는다',
+      'after_awaiting_toolsProvider_future_toolByIdProvider_finds_the_tool',
       () async {
         // After awaiting toolsProvider.future, toolByIdProvider finds the tool.
         final container = ProviderContainer(
@@ -232,31 +232,36 @@ void main() {
       },
     );
 
-    test('빈_카탈로그에서는_존재하지_않는_tool이_await후에도_null을_반환한다', () async {
-      // Even after loading an empty catalog, unknown tools remain null.
-      final container = ProviderContainer(
-        overrides: [
-          toolsLoaderProvider.overrideWith(
-            (ref) =>
-                () => [],
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'an_unknown_tool_still_returns_null_after_awaiting_an_empty_catalog',
+      () async {
+        // Even after loading an empty catalog, unknown tools remain null.
+        final container = ProviderContainer(
+          overrides: [
+            toolsLoaderProvider.overrideWith(
+              (ref) =>
+                  () => [],
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // Await the catalog to load (empty)
-      await container.read(toolsProvider.future);
+        // Await the catalog to load (empty)
+        await container.read(toolsProvider.future);
 
-      // Unknown tool is still null
-      final tool = container.read(
-        toolByIdProvider(ToolId.parse('nonexistent.tool')),
-      );
-      expect(tool, isNull);
-    });
+        // Unknown tool is still null
+        final tool = container.read(
+          toolByIdProvider(ToolId.parse('nonexistent.tool')),
+        );
+        expect(tool, isNull);
+      },
+    );
   });
 
   group('BoardPage embed activation (widget tests)', () {
-    testWidgets('보드에_핀된_embed는_인라인_핀으로_포커스된다', (tester) async {
+    testWidgets('an_embed_pinned_on_the_board_is_focused_as_an_inline_pin', (
+      tester,
+    ) async {
       // E3: an embed tool pinned on the visible board is already rendered
       // inline. Activation focuses that pin instead of pushing a
       // full-screen EmbedPage (inline-canonical, no activation step).
@@ -289,7 +294,7 @@ void main() {
       expect(container.read(focusedPinProvider), equals(ToolId.parse(tool.id)));
     });
 
-    testWidgets('핀되지_않은_embed는_전체화면으로_열린다', (tester) async {
+    testWidgets('an_unpinned_embed_opens_full_screen', (tester) async {
       // E3: a tool NOT pinned on the visible board (off-board entry) still
       // opens the full-screen EmbedPage after the catalog loads. The
       // activation targets the off-board tool regardless of which pin was
@@ -319,7 +324,9 @@ void main() {
       expect(find.byType(EmbedPage), findsOneWidget);
     });
 
-    testWidgets('핀되지_않은_미지_도구는_스낵바만_표시한다', (tester) async {
+    testWidgets('an_unpinned_unknown_tool_only_shows_a_snackbar', (
+      tester,
+    ) async {
       // Off-board activation of a tool missing from the catalog surfaces a
       // "not found" snackbar (catalog-await regression coverage) and does
       // NOT open EmbedPage.
@@ -347,99 +354,105 @@ void main() {
       expect(find.text('Tool not found: $missingToolId'), findsOneWidget);
     });
 
-    testWidgets('현재 보드의 inline draft만 expanded modal 입력으로 넘긴다', (tester) async {
-      _useWideSurface(tester);
-      final tool = fixtureToolDto(
-        id: 'demo.modal_seed',
-        label: 'Modal seed',
-        source: const SourceDto.manual(),
-        inputFields: const <InputFieldDto>[
-          InputFieldDto(
-            key: 'value',
-            label: 'Value',
-            fieldType: InputFieldType.text(),
-            required_: true,
+    testWidgets(
+      'only_the_current_board_inline_draft_is_passed_to_the_expanded_modal_input',
+      (tester) async {
+        _useWideSurface(tester);
+        final tool = fixtureToolDto(
+          id: 'demo.modal_seed',
+          label: 'Modal seed',
+          source: const SourceDto.manual(),
+          inputFields: const <InputFieldDto>[
+            InputFieldDto(
+              key: 'value',
+              label: 'Value',
+              fieldType: InputFieldType.text(),
+              required_: true,
+            ),
+          ],
+        );
+        final toolId = ToolId.parse(tool.id);
+        final drafts = InlineDraftStore()
+          ..set(
+            (BoardKey.parse(_testBoardKey), toolId),
+            ToolArgs.fromJsonObject(const <String, Object?>{
+              'value': 'current board value',
+            }),
+          )
+          ..set(
+            (BoardKey.parse('other'), toolId),
+            ToolArgs.fromJsonObject(const <String, Object?>{
+              'value': 'other board value',
+            }),
+          );
+
+        await tester.pumpWidget(
+          _boardHarness(
+            toolsLoader: () => <ToolDto>[tool],
+            snapshot: _singlePlacement(tool.id),
+            inlineDraftStore: drafts,
           ),
-        ],
-      );
-      final toolId = ToolId.parse(tool.id);
-      final drafts = InlineDraftStore()
-        ..set(
-          (BoardKey.parse(_testBoardKey), toolId),
-          ToolArgs.fromJsonObject(const <String, Object?>{
-            'value': 'current board value',
-          }),
-        )
-        ..set(
-          (BoardKey.parse('other'), toolId),
-          ToolArgs.fromJsonObject(const <String, Object?>{
-            'value': 'other board value',
-          }),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(GenericInlinePinBody), findsOneWidget);
+        final pin = tester.widget<Pin>(find.byType(Pin));
+        pin.onTap!.call(pin.placement);
+        await tester.pumpAndSettle();
+
+        final modal = find.byType(ExpandedModalPage);
+        expect(modal, findsOneWidget);
+        final initialInput = tester
+            .widget<ExpandedModalPage>(modal)
+            .initialInput!
+            .toJsonObject();
+        expect(initialInput['value'], 'current board value');
+        expect(initialInput['value'], isNot('other board value'));
+      },
+    );
+
+    testWidgets(
+      'the_running_state_is_cleared_even_when_immediate_dispatch_throws_synchronously',
+      (tester) async {
+        _useWideSurface(tester);
+        // `PinKindDto.action` (not `.inline`) deliberately keeps this pin
+        // OUTSIDE the generic-inline-body gate in board_canvas.dart: an
+        // Inline+Function tool's tap now opens the expanded modal (the
+        // inline body owns its own Run affordance), so a plain
+        // tap-to-dispatch-immediately pin — which is what this test
+        // exercises — needs a pin kind the generic-inline path never claims.
+        final tool = fixtureToolDto(
+          id: 'fixture.sync_failure',
+          pinKind: PinKindDto.action,
+        );
+        final toolId = ToolId.parse(tool.id);
+
+        await tester.pumpWidget(
+          _boardHarness(
+            toolsLoader: () => <ToolDto>[tool],
+            snapshot: _singlePlacement(tool.id),
+            activation: ({required toolId, required argsJson}) =>
+                PinActivationDto_DispatchImmediate(toolId: toolId.value),
+            liveDispatch: ({required toolId, required args}) {
+              throw StateError('synchronous dispatch failure');
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(BoardPage)),
+        );
+        final pin = tester.widget<Pin>(find.byType(Pin));
+        final uncaughtError = Completer<Object>();
+
+        runZonedGuarded(
+          () => pin.onTap!.call(pin.placement),
+          (error, _) => uncaughtError.complete(error),
         );
 
-      await tester.pumpWidget(
-        _boardHarness(
-          toolsLoader: () => <ToolDto>[tool],
-          snapshot: _singlePlacement(tool.id),
-          inlineDraftStore: drafts,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(GenericInlinePinBody), findsOneWidget);
-      final pin = tester.widget<Pin>(find.byType(Pin));
-      pin.onTap!.call(pin.placement);
-      await tester.pumpAndSettle();
-
-      final modal = find.byType(ExpandedModalPage);
-      expect(modal, findsOneWidget);
-      final initialInput = tester
-          .widget<ExpandedModalPage>(modal)
-          .initialInput!
-          .toJsonObject();
-      expect(initialInput['value'], 'current board value');
-      expect(initialInput['value'], isNot('other board value'));
-    });
-
-    testWidgets('즉시 실행이 동기 예외를 던져도 실행 중 상태를 해제한다', (tester) async {
-      _useWideSurface(tester);
-      // `PinKindDto.action` (not `.inline`) deliberately keeps this pin
-      // OUTSIDE the generic-inline-body gate in board_canvas.dart: an
-      // Inline+Function tool's tap now opens the expanded modal (the
-      // inline body owns its own Run affordance), so a plain
-      // tap-to-dispatch-immediately pin — which is what this test
-      // exercises — needs a pin kind the generic-inline path never claims.
-      final tool = fixtureToolDto(
-        id: 'fixture.sync_failure',
-        pinKind: PinKindDto.action,
-      );
-      final toolId = ToolId.parse(tool.id);
-
-      await tester.pumpWidget(
-        _boardHarness(
-          toolsLoader: () => <ToolDto>[tool],
-          snapshot: _singlePlacement(tool.id),
-          activation: ({required toolId, required argsJson}) =>
-              PinActivationDto_DispatchImmediate(toolId: toolId.value),
-          liveDispatch: ({required toolId, required args}) {
-            throw StateError('synchronous dispatch failure');
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(BoardPage)),
-      );
-      final pin = tester.widget<Pin>(find.byType(Pin));
-      final uncaughtError = Completer<Object>();
-
-      runZonedGuarded(
-        () => pin.onTap!.call(pin.placement),
-        (error, _) => uncaughtError.complete(error),
-      );
-
-      expect(await uncaughtError.future, isA<StateError>());
-      expect(container.read(runningToolsProvider), isNot(contains(toolId)));
-    });
+        expect(await uncaughtError.future, isA<StateError>());
+        expect(container.read(runningToolsProvider), isNot(contains(toolId)));
+      },
+    );
   });
 }

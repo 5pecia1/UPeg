@@ -31,7 +31,7 @@ fn upeg_mcp_config() -> UpstreamMcpConfig {
 }
 
 #[test]
-fn upeg_mcp는_자신을_대상으로_스폰과_목록을_수행한다() {
+fn upeg_mcp_spawns_and_lists_against_itself() {
     let mut server =
         UpstreamMcpServer::spawn("self", &upeg_mcp_config()).expect("spawn `upeg mcp`");
     let listing = server.tools_list().expect("tools/list");
@@ -56,7 +56,7 @@ fn upeg_mcp는_자신을_대상으로_스폰과_목록을_수행한다() {
 }
 
 #[test]
-fn upeg_mcp는_프록시_호출을_통해_자신을_호출한다() {
+fn upeg_mcp_calls_itself_through_the_proxy_call() {
     let mut server = UpstreamMcpServer::spawn("selfcall", &upeg_mcp_config()).expect("spawn");
     let result = server
         .call("num.hex_to_decimal", &json!({"input": "0xff"}))
@@ -65,7 +65,7 @@ fn upeg_mcp는_프록시_호출을_통해_자신을_호출한다() {
 }
 
 #[test]
-fn 등록된_서버는_네임스페이스가_붙은_dispatch를_받는다() {
+fn a_registered_server_gets_namespaced_dispatch() {
     // End-to-end: register `upeg mcp` itself under namespace `upself_iter50`.
     // After registration, `upself_iter50.num.hex_to_decimal` must be in the
     // global registry and dispatch back to the subprocess.
@@ -86,7 +86,7 @@ fn 등록된_서버는_네임스페이스가_붙은_dispatch를_받는다() {
 }
 
 #[test]
-fn 등록_서버는_점이_포함된_네임스페이스와_dispatch를_허용한다() {
+fn a_registered_server_allows_a_dotted_namespace_and_dispatch() {
     let server_name = "upself.iter50";
     let outcome = register_upstream_mcp_server(server_name, &upeg_mcp_config())
         .expect("register dotted namespace");
@@ -106,7 +106,7 @@ fn 등록_서버는_점이_포함된_네임스페이스와_dispatch를_허용한
 }
 
 #[test]
-fn 상위_도구_오류는_dispatcher_오류로_표면화된다() {
+fn an_upstream_tool_error_surfaces_as_a_dispatch_error() {
     let server_name = "upself_err_iter50";
     let _outcome = register_upstream_mcp_server(server_name, &upeg_mcp_config()).expect("register");
     let ns_id = format!("{server_name}.num.hex_to_decimal");
@@ -130,7 +130,7 @@ fn 상위_도구_오류는_dispatcher_오류로_표면화된다() {
 /// recovery path, the server would be permanently broken until the
 /// upeg process restarts.
 #[test]
-fn dispatch는_하위프로세스_충돌에서_복구한다() {
+fn dispatch_recovers_from_a_subprocess_crash() {
     let mut server =
         UpstreamMcpServer::spawn("crash_recovery", &upeg_mcp_config()).expect("initial spawn");
     // First call works normally.

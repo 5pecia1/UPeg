@@ -1482,14 +1482,14 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
             encoding="utf-8",
         )
         assert_raises(
-            "실패한 cargo 실행은 누락 테스트보다 종료 코드를 먼저 보고한다",
+            "a failed cargo run reports the exit code before missing tests",
             "cargo test failed with exit code 1; existing baseline was not changed\n"
             "     Running unittests src/lib.rs (target/debug/deps/fixture-1111111111111111)\n"
             "test fixture::failed ... FAILED",
             lambda: run_suite(repo_root(), "workspace", [sys.executable, str(cargo_fixture)]),
         )
         assert_raises(
-            "성공한 cargo 실행은 발견된 테스트의 누락을 계속 검사한다",
+            "a successful cargo run still checks for missing discovered tests",
             "missing from actual libtest output",
             lambda: run_suite(
                 repo_root(),
@@ -1499,9 +1499,10 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
         )
     with tempfile.TemporaryDirectory() as temp_dir:
         flutter_fixture = Path(temp_dir) / "flutter_test_fixture.py"
-        # 한 파일이 로드/컴파일에 실패하면 flutter는 non-zero로 끝나지만
-        # 기록된 테스트는 전부 통과로 남는다 — 그 파일의 테스트들이
-        # "원래 없던 것"처럼 baseline에 박히던 구멍의 재현.
+        # When one file fails to load/compile, flutter exits non-zero while
+        # every *recorded* test stays passed — reproduces the hole where
+        # that file's tests were frozen into the baseline as if they never
+        # existed.
         flutter_fixture.write_text(
             "import json, sys\n"
             "events = [\n"
@@ -1519,7 +1520,7 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
             encoding="utf-8",
         )
         assert_raises(
-            "실패한 flutter 실행은 기록된 실패가 없어도 baseline을 쓰지 않는다",
+            "a failed flutter run does not write a baseline even with no recorded failures",
             "flutter test failed with exit code 1; existing baseline was not changed",
             lambda: run_flutter_suite(
                 repo_root(), FLUTTER_SUITE_NAME, [sys.executable, str(flutter_fixture)]
@@ -1532,7 +1533,7 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
             tolerate_failures=True,
         )
         assert_equal(
-            "compare 모드는 같은 실행을 계속 관용한다",
+            "compare mode still tolerates the same run",
             [test["fullName"] for test in tolerated["tests"]],
             ["App::loads"],
         )

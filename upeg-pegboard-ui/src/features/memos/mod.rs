@@ -58,7 +58,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 저장소가_비어있으면_빈_맵_또는_없음을_반환한다() {
+    fn empty_store_returns_empty_map_or_none() {
         // The platform shim returns None / empty for a fresh store;
         // the round-trip semantics are exercised on the FRB layer
         // where the test can swing the config root via UPEG_HOME.

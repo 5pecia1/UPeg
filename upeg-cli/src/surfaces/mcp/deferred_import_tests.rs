@@ -45,7 +45,7 @@ impl std::io::Write for SharedBuffer {
 }
 
 #[test]
-fn reexport_opt_in이_없으면_임포트를_아예_로드하지_않는다() {
+fn without_reexport_opt_in_imports_are_not_loaded_at_all() {
     let out = SharedBuffer::default();
     let gate = Arc::new(InitializeGate::default());
 
@@ -53,10 +53,13 @@ fn reexport_opt_in이_없으면_임포트를_아예_로드하지_않는다() {
 
     assert!(
         loader.is_none(),
-        "Blocked 정책에서는 로더 스레드조차 뜨지 않아야 한다"
+        "the loader thread must not even spawn under the Blocked policy"
     );
     gate.open();
-    assert!(out.contents().is_empty(), "알림도 나가지 않아야 한다");
+    assert!(
+        out.contents().is_empty(),
+        "no notification may go out either"
+    );
 }
 
 /// How long the deferred loader gets to finish before the test declares a
@@ -84,26 +87,27 @@ fn join_within(handle: std::thread::JoinHandle<()>, timeout: std::time::Duration
         .spawn(move || {
             let _ = done_tx.send(handle.join());
         })
-        .expect("조인 대기 스레드");
+        .expect("join courier thread");
     use std::sync::mpsc::RecvTimeoutError;
     match done_rx.recv_timeout(timeout) {
         Ok(Ok(())) => {}
         Ok(Err(payload)) => std::panic::resume_unwind(payload),
         Err(RecvTimeoutError::Timeout) => {
-            panic!("로더 스레드가 {timeout:?} 안에 끝나지 않았다")
+            panic!("loader thread did not finish within {timeout:?}")
         }
         Err(RecvTimeoutError::Disconnected) => {
-            panic!("조인 대기 스레드가 결과를 보내지 못하고 사라졌다")
+            panic!("join courier thread vanished without sending a result")
         }
     }
 }
 
-/// `reexport = true` 선언이 있으면 로드가 백그라운드에서 돌고, 끝난
-/// 뒤 `initialize`가 답해진 다음에야 `tools/list_changed`가 나간다.
-/// 빠른 fake upstream 서버로 로드 자체를 실제로 태운다.
+/// With a `reexport = true` declaration the load runs in the
+/// background, and `tools/list_changed` goes out only after
+/// `initialize` has been answered. A fast fake upstream server
+/// actually drives the load.
 #[cfg(unix)]
 #[test]
-fn reexport_선언이_있으면_로드_후_initialize_뒤에_list_changed를_알린다() {
+fn reexport_declaration_loads_then_notifies_list_changed_after_initialize() {
     use std::os::unix::fs::PermissionsExt;
 
     let _home_guard = crate::test_support::pegboard_home_test_lock()
@@ -165,13 +169,13 @@ while IFS= read -r line; do :; done
     with_mcp_import_dir(&imports, || {
         let loader =
             spawn_deferred_import_load(McpReexport::OptedIn, Arc::clone(&gate), out.clone())
-                .expect("opt-in 정책은 로더 스레드를 띄워야 한다");
+                .expect("opt-in policy must spawn the loader thread");
 
-        // 게이트가 닫혀 있는 동안에는 알림이 나갈 수 없다 — 로더는
-        // `initialize` 응답을 기다린다.
+        // No notification may go out while the gate is closed — the
+        // loader waits for the `initialize` answer.
         assert!(
             out.contents().is_empty(),
-            "initialize 전에는 알림이 나가면 안 된다"
+            "no notification may go out before initialize"
         );
         gate.open();
         join_within(loader, LOADER_JOIN_TIMEOUT);
@@ -180,12 +184,12 @@ while IFS= read -r line; do :; done
     assert_eq!(
         out.contents().trim(),
         json!({ "jsonrpc": JSON_RPC_VERSION, "method": METHOD_TOOLS_LIST_CHANGED }).to_string(),
-        "로드가 끝나면 tools/list_changed 알림 한 줄이 나가야 한다"
+        "once the load finishes, a single tools/list_changed notification line must go out"
     );
     let imported = format!("{namespace}.echo");
     assert!(
         upeg_runtime::toolbox_tool(&imported).is_some(),
-        "백그라운드 로드가 {imported}를 실제로 등록해야 한다"
+        "the background load must actually register {imported}"
     );
 
     let _ = std::fs::remove_dir_all(&root);

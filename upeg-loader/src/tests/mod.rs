@@ -8,6 +8,7 @@ mod loader;
 mod parse_boards;
 mod parse_core;
 mod parse_validation;
+mod presentation;
 
 fn controlled_embed_backend_test_lock() -> &'static std::sync::Mutex<()> {
     static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();

@@ -160,7 +160,7 @@ mod tests {
     use super::*;
 
     /// Every name a tool could send that must not become a path of its own.
-    const 탈출_시도: &[&str] = &[
+    const ESCAPE_ATTEMPTS: &[&str] = &[
         "/etc/passwd",
         "/home/user/.bashrc",
         "../../etc/cron.d/evil",
@@ -174,23 +174,23 @@ mod tests {
     ];
 
     /// Bytes a hostile tool would like written wherever it names.
-    const 페이로드: &[u8] = b"pwned";
+    const PAYLOAD: &[u8] = b"pwned";
 
     /// Output id of the single `File` entry the fixtures below produce.
-    const 출력_ID: &str = "file";
+    const OUTPUT_ID: &str = "file";
 
-    fn 파일_출력(name: &str) -> upeg_core::ToolSuccess {
+    fn file_output(name: &str) -> upeg_core::ToolSuccess {
         use upeg_core::{FileContent, FileValue, OutputEntry, OutputKind, OutputValue};
         upeg_core::ToolSuccess::new(
-            Some(출력_ID.to_string()),
+            Some(OUTPUT_ID.to_string()),
             vec![OutputEntry {
-                id: 출력_ID.to_string(),
+                id: OUTPUT_ID.to_string(),
                 label: Some("File".to_string()),
                 kind: OutputKind::File,
                 value: OutputValue::File(FileValue {
                     name: name.to_string(),
                     mime: None,
-                    content: FileContent::Bytes(페이로드.to_vec()),
+                    content: FileContent::Bytes(PAYLOAD.to_vec()),
                 }),
             }],
         )
@@ -198,7 +198,7 @@ mod tests {
     }
 
     /// A fresh empty directory, named per-test so parallel runs don't collide.
-    fn 임시_디렉터리(name: &str) -> std::path::PathBuf {
+    fn temp_dir(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "upeg_cli_file_output_{name}_{}",
             std::process::id()
@@ -208,7 +208,7 @@ mod tests {
         dir
     }
 
-    fn 출력_옵션(out: Option<&std::path::Path>, force: bool) -> FileOutputOptions {
+    fn output_options(out: Option<&std::path::Path>, force: bool) -> FileOutputOptions {
         FileOutputOptions {
             out: out.map(std::path::Path::to_path_buf),
             force,
@@ -216,8 +216,8 @@ mod tests {
     }
 
     #[test]
-    fn 절대경로나_상위_탈출_이름은_거부된다() {
-        for name in 탈출_시도 {
+    fn absolute_or_parent_escaping_names_are_rejected() {
+        for name in ESCAPE_ATTEMPTS {
             // `"   "` is a legal (if silly) component; everything else must go.
             if *name == "   " {
                 continue;
@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn 평범한_basename은_그대로_통과한다() {
+    fn a_plain_basename_passes_through_verbatim() {
         for name in ["a.png", "a-images.zip", "file.txt", ".hidden", "   "] {
             let parsed = OutputFileName::parse(name).expect("plain basename is accepted");
             assert_eq!(parsed.as_str(), name);
@@ -237,13 +237,13 @@ mod tests {
     }
 
     #[test]
-    fn 탈출_이름은_출력_디렉터리_밖에_쓰이지_못한다() {
-        let dir = 임시_디렉터리("escape");
-        for name in 탈출_시도 {
+    fn escape_names_cannot_be_written_outside_the_output_directory() {
+        let dir = temp_dir("escape");
+        for name in ESCAPE_ATTEMPTS {
             if *name == "   " {
                 continue;
             }
-            let error = write_file_output(&파일_출력(name), &출력_옵션(Some(&dir), false))
+            let error = write_file_output(&file_output(name), &output_options(Some(&dir), false))
                 .err()
                 .unwrap_or_else(|| panic!("`{name}` must not be written"));
             assert!(
@@ -260,26 +260,26 @@ mod tests {
     }
 
     #[test]
-    fn 출력_디렉터리에_basename으로_기록된다() {
-        let dir = 임시_디렉터리("basename");
-        let written = write_file_output(&파일_출력("a.png"), &출력_옵션(Some(&dir), false))
+    fn output_is_written_under_the_output_directory_by_basename() {
+        let dir = temp_dir("basename");
+        let written = write_file_output(&file_output("a.png"), &output_options(Some(&dir), false))
             .expect("write succeeds")
             .expect("a file output was written");
         assert_eq!(written, dir.join("a.png").display().to_string());
         assert_eq!(
             std::fs::read(dir.join("a.png")).expect("read back"),
-            페이로드
+            PAYLOAD
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn 이미_존재하는_파일은_force_없이는_덮어쓰지_않는다() {
-        let dir = 임시_디렉터리("no_clobber");
+    fn an_existing_file_is_not_overwritten_without_force() {
+        let dir = temp_dir("no_clobber");
         let target = dir.join("a.png");
         std::fs::write(&target, b"original").expect("seed existing file");
 
-        let error = write_file_output(&파일_출력("a.png"), &출력_옵션(Some(&dir), false))
+        let error = write_file_output(&file_output("a.png"), &output_options(Some(&dir), false))
             .expect_err("existing file must not be clobbered");
         assert!(error.message().contains("--force"), "{}", error.message());
         assert_eq!(std::fs::read(&target).expect("read back"), b"original");
@@ -287,27 +287,29 @@ mod tests {
     }
 
     #[test]
-    fn force를_주면_기존_파일을_덮어쓴다() {
-        let dir = 임시_디렉터리("force");
+    fn force_overwrites_an_existing_file() {
+        let dir = temp_dir("force");
         let target = dir.join("a.png");
         std::fs::write(&target, b"original").expect("seed existing file");
 
-        write_file_output(&파일_출력("a.png"), &출력_옵션(Some(&dir), true))
+        write_file_output(&file_output("a.png"), &output_options(Some(&dir), true))
             .expect("force overwrites");
-        assert_eq!(std::fs::read(&target).expect("read back"), 페이로드);
+        assert_eq!(std::fs::read(&target).expect("read back"), PAYLOAD);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn 명시한_out_경로는_그대로_쓰인다() {
-        let dir = 임시_디렉터리("explicit_out");
+    fn an_explicit_out_path_is_used_verbatim() {
+        let dir = temp_dir("explicit_out");
         let target = dir.join("chosen.bin");
         // The operator's own `--out` wins over the tool's name, and a hostile
         // name cannot redirect it — the name is not consulted on this lane.
-        let written =
-            write_file_output(&파일_출력("/etc/passwd"), &출력_옵션(Some(&target), false))
-                .expect("explicit --out is honoured")
-                .expect("a file output was written");
+        let written = write_file_output(
+            &file_output("/etc/passwd"),
+            &output_options(Some(&target), false),
+        )
+        .expect("explicit --out is honoured")
+        .expect("a file output was written");
         assert_eq!(written, target.display().to_string());
         assert!(target.exists());
         let _ = std::fs::remove_dir_all(&dir);

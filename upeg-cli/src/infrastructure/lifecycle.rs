@@ -245,34 +245,82 @@ pub(crate) fn format_status_json(kind: &HostKind, info: Option<&discovery::Serve
     }
 }
 
+/// Name of the desktop Settings switch that owns the embedded host's
+/// lifecycle (`Tweaks.local_http_host`, docs/architecture/host-topology.md).
+const DESKTOP_LOCAL_HOST_SWITCH: &str = "Local HTTP host";
+
+/// What `upeg host stop` may do to the host `server.json` names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StopDecision {
+    /// A host the user started from the CLI (`upeg host start`, foreground
+    /// or `--daemon`): its pid is a plain `upeg` process, signal it.
+    Signal(u32),
+    /// The desktop app's in-process host: the pid IS the GUI, so the CLI
+    /// never signals it and points the user at the desktop control.
+    RefuseEmbedded(u32),
+}
+
+fn stop_decision(info: &discovery::ServerInfo) -> StopDecision {
+    match info.origin {
+        discovery::HostOrigin::Explicit => StopDecision::Signal(info.pid),
+        discovery::HostOrigin::Embedded => StopDecision::RefuseEmbedded(info.pid),
+    }
+}
+
+fn embedded_host_stop_refused(pid: u32) -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        format!(
+            "the running host is embedded in the upeg desktop app (pid {pid}); \
+             `upeg host stop` does not signal the desktop process — turn off \
+             `{DESKTOP_LOCAL_HOST_SWITCH}` in the desktop app's Settings (or quit the app) instead"
+        ),
+    )
+}
+
 /// Stop the host. PRD §5.5 grace policy: SIGTERM, wait up to 5s for
 /// `server.json` to disappear (its RAII guard removes it on clean
-/// exit), then escalate to SIGKILL only if `force` is true.
+/// exit), then escalate to SIGKILL only if `force` is true. A host the
+/// desktop app embeds in its own process is never signalled — see
+/// [`StopDecision`].
 pub fn stop(force: bool) -> Result<String, std::io::Error> {
+    stop_with(force, signal_pid)
+}
+
+/// [`stop`] with the pid signaller injected, so tests can prove which
+/// pids get signalled (and that an embedded host's never does) without
+/// touching real processes.
+fn stop_with(
+    force: bool,
+    mut signal: impl FnMut(u32, bool) -> std::io::Result<()>,
+) -> Result<String, std::io::Error> {
     let Some(info) = discovery::read() else {
         return Ok("Not running\n".into());
     };
+    let pid = match stop_decision(&info) {
+        StopDecision::Signal(pid) => pid,
+        StopDecision::RefuseEmbedded(pid) => return Err(embedded_host_stop_refused(pid)),
+    };
 
-    signal_pid(info.pid, false)?;
+    signal(pid, false)?;
     if wait_for_shutdown(STOP_GRACE) {
         // Defensive: clean up just in case the guard didn't (e.g. host
         // crashed mid-shutdown).
         let _ = discovery::clear();
-        return Ok(format!("Stopped pid {}\n", info.pid));
+        return Ok(format!("Stopped pid {pid}\n"));
     }
 
     if force {
-        signal_pid(info.pid, true)?;
+        signal(pid, true)?;
         let _ = wait_for_shutdown(STOP_GRACE);
         let _ = discovery::clear();
-        return Ok(format!("Force-killed pid {}\n", info.pid));
+        return Ok(format!("Force-killed pid {pid}\n"));
     }
 
     Err(std::io::Error::new(
         std::io::ErrorKind::TimedOut,
         format!(
-            "pid {} did not exit within {}s — retry with --force",
-            info.pid,
+            "pid {pid} did not exit within {}s — retry with --force",
             STOP_GRACE.as_secs()
         ),
     ))
@@ -369,28 +417,121 @@ fn age_seconds(started_at_ms: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::discovery::ServerInfo;
+    use super::super::discovery::{HostOrigin, ServerInfo};
     use super::*;
+
+    /// Obviously fake credential for fixtures. Never a real secret.
+    const FAKE_TOKEN: &str = "not-a-real-token";
 
     fn fake_info() -> ServerInfo {
         ServerInfo {
             endpoint: "http://127.0.0.1:49317".into(),
             mcp_endpoint: "http://127.0.0.1:49317/mcp".into(),
-            token: "tok".into(),
+            token: FAKE_TOKEN.into(),
             pid: 1234,
             started_at_ms: 1_700_000_000_000,
-            origin: super::discovery::HostOrigin::default(),
+            origin: HostOrigin::default(),
         }
     }
 
+    /// Write `info` as the discovery file of the current (isolated)
+    /// `UPEG_HOME` and return its path. Callers run inside
+    /// [`crate::test_support::with_seeded_pegboard_home`].
+    fn write_discovery(info: &ServerInfo) -> std::path::PathBuf {
+        let path = paths::server_json_path().expect("server.json path under UPEG_HOME");
+        std::fs::write(&path, serde_json::to_string(info).expect("serialize")).expect("write");
+        path
+    }
+
     #[test]
-    fn 형식_상태_텍스트_아닌_실행중을_검증한다() {
+    fn stop_decision_signals_explicit_hosts_and_refuses_embedded_ones() {
+        let explicit = ServerInfo {
+            origin: HostOrigin::Explicit,
+            ..fake_info()
+        };
+        let embedded = ServerInfo {
+            origin: HostOrigin::Embedded,
+            ..fake_info()
+        };
+        assert_eq!(stop_decision(&explicit), StopDecision::Signal(1234));
+        assert_eq!(stop_decision(&embedded), StopDecision::RefuseEmbedded(1234));
+    }
+
+    /// `HostOrigin::Embedded` means the pid is the desktop GUI itself: a
+    /// SIGTERM would close the user's app. The CLI must refuse without
+    /// signalling anything and point at the desktop's own control.
+    #[test]
+    fn stop_never_signals_an_embedded_host_and_points_at_the_desktop_control() {
+        crate::test_support::with_seeded_pegboard_home(
+            "lifecycle-stop-embedded",
+            |_| {},
+            || {
+                let path = write_discovery(&ServerInfo {
+                    origin: HostOrigin::Embedded,
+                    pid: 99_999_999,
+                    ..fake_info()
+                });
+                let mut signalled: Vec<(u32, bool)> = Vec::new();
+
+                let err = stop_with(true, |pid, force| {
+                    signalled.push((pid, force));
+                    Ok(())
+                })
+                .expect_err("an embedded host must not be stopped from the CLI");
+
+                assert!(
+                    signalled.is_empty(),
+                    "no signal may reach the desktop process, not even with --force: {signalled:?}"
+                );
+                assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+                assert!(
+                    err.to_string().contains(DESKTOP_LOCAL_HOST_SWITCH),
+                    "must guide the user to the desktop control; got {err}"
+                );
+                assert!(
+                    path.exists(),
+                    "the embedded host's discovery file must be left in place"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn stop_signals_an_explicit_host_once_and_reports_its_pid() {
+        crate::test_support::with_seeded_pegboard_home(
+            "lifecycle-stop-explicit",
+            |_| {},
+            || {
+                let path = write_discovery(&ServerInfo {
+                    origin: HostOrigin::Explicit,
+                    pid: 4242,
+                    ..fake_info()
+                });
+                let mut signalled: Vec<(u32, bool)> = Vec::new();
+
+                let out = stop_with(false, |pid, force| {
+                    signalled.push((pid, force));
+                    // Stand in for the host's RAII cleanup so the grace wait
+                    // returns at once.
+                    let _ = std::fs::remove_file(&path);
+                    Ok(())
+                })
+                .expect("an explicit host stops");
+
+                assert_eq!(signalled, vec![(4242, false)], "exactly one SIGTERM");
+                assert_eq!(out, "Stopped pid 4242\n");
+            },
+        );
+    }
+
+    #[test]
+    fn format_status_text_not_running() {
         let out = format_status_text(&HostKind::NotRunning, None, "(unavailable)");
         assert_eq!(out, "Not running\n");
     }
 
     #[test]
-    fn 형식_상태_텍스트_실행중은_엔드포인트_와_pid를_포함한다() {
+    fn format_status_text_running_includes_endpoint_and_pid() {
         let info = fake_info();
         let out = format_status_text(&HostKind::Running, Some(&info), "/tmp/server.json");
         assert!(out.starts_with("Running\n"));
@@ -400,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn 오래된_상태_텍스트_형식은_오래됨과_pid를_언급한다() {
+    fn format_status_text_stale_mentions_staleness_and_pid() {
         let info = fake_info();
         let out = format_status_text(&HostKind::Stale, Some(&info), "/tmp/server.json");
         assert!(out.starts_with("Stale "));
@@ -408,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    fn 형식_상태_텍스트_실행중_없는_정보는_아닌_실행중이다() {
+    fn format_status_text_running_without_info_reads_as_not_running() {
         // Defensive: probe() shouldn't produce this combination, but
         // the formatter must not panic if it does.
         let out = format_status_text(&HostKind::Running, None, "/tmp/server.json");
@@ -416,14 +557,14 @@ mod tests {
     }
 
     #[test]
-    fn 형식_상태_json_아닌_실행중은_거짓_만을_반환한다() {
+    fn format_status_json_not_running_returns_only_false() {
         let v = format_status_json(&HostKind::NotRunning, None);
         assert_eq!(v["running"], false);
         assert!(v.get("endpoint").is_none());
     }
 
     #[test]
-    fn 실행중_상태_json_형식은_전체_페이로드를_가진다() {
+    fn format_status_json_running_has_the_full_payload() {
         let info = fake_info();
         let v = format_status_json(&HostKind::Running, Some(&info));
         assert_eq!(v["running"], true);
@@ -439,7 +580,7 @@ mod tests {
     /// `"state": "unknown"` are the same non-answer, and shipping both
     /// shapes makes every consumer handle two.
     #[test]
-    fn mcp_imports_블록은_host가_없어도_unknown으로_나온다() {
+    fn mcp_imports_block_is_unknown_even_without_a_host() {
         for (kind, info) in [
             (HostKind::NotRunning, None),
             (HostKind::Stale, Some(fake_info())),
@@ -447,19 +588,19 @@ mod tests {
             let block = mcp_imports_json(&kind, info.as_ref());
             assert_eq!(
                 block["state"], "unknown",
-                "{kind:?} 상태에서도 블록은 나와야 한다: {block}"
+                "the block must be present in state {kind:?}: {block}"
             );
         }
     }
 
     #[test]
-    fn 오래된_상태_json_형식은_실행중이_아닌_것으로_취급된다() {
+    fn format_status_json_stale_is_treated_as_not_running() {
         let info = fake_info();
         let v = format_status_json(&HostKind::Stale, Some(&info));
         assert_eq!(v["running"], false);
     }
 
-    fn 예시_소스_디렉터리() -> RuntimeSourceDirs {
+    fn sample_source_dirs() -> RuntimeSourceDirs {
         RuntimeSourceDirs {
             toolkits: DirectoryStatus::Loaded {
                 path: std::path::PathBuf::from("/home/u/.upeg/toolkits"),
@@ -473,8 +614,8 @@ mod tests {
     }
 
     #[test]
-    fn 소스_디렉터리_텍스트는_세_디렉터리를_모두_보고한다() {
-        let out = format_source_dirs_text(&예시_소스_디렉터리());
+    fn source_dirs_text_reports_all_three_directories() {
+        let out = format_source_dirs_text(&sample_source_dirs());
 
         assert!(out.starts_with("Sources (declared, not loaded)\n"));
         assert!(out.contains("toolkits"));
@@ -486,8 +627,8 @@ mod tests {
     }
 
     #[test]
-    fn 소스_디렉터리_json은_상태와_선언_수를_담는다() {
-        let value = source_dirs_json(&예시_소스_디렉터리());
+    fn source_dirs_json_carries_state_and_declared_count() {
+        let value = source_dirs_json(&sample_source_dirs());
 
         let rows = value.as_array().expect("array");
         assert_eq!(rows.len(), 3);
@@ -503,7 +644,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_매니페스트_텍스트는_탐지된_경로와_override_상태를_보여준다() {
+    fn project_manifest_text_shows_detected_path_and_override_state() {
         let status = upeg_sources::project::ProjectManifestStatus {
             lookup: Some(upeg_sources::project::ProjectManifestLookup {
                 path: std::path::PathBuf::from("/home/user/project/upeg.toml"),
@@ -516,24 +657,24 @@ mod tests {
 
         assert!(
             text.starts_with(&format!("{CLIENT_PROJECT_MANIFEST_HEADING}\n")),
-            "이 프로세스의 탐지임을 제목이 밝혀야 한다: {text}"
+            "the heading must say this is this process's detection: {text}"
         );
         assert!(text.contains("/home/user/project/upeg.toml"));
         assert!(text.contains("override: detect"));
     }
 
-    /// host status는 호스트와 다른 프로세스에서 돈다 — 이 블록이
-    /// 호스트가 로드한 매니페스트로 읽히면 안 된다.
+    /// `host status` runs in a different process from the host — this
+    /// block must not read as the manifest the host loaded.
     #[test]
-    fn 프로젝트_매니페스트_제목은_호스트의_것이_아님을_밝힌다() {
+    fn project_manifest_heading_says_it_is_not_the_hosts() {
         assert!(
             CLIENT_PROJECT_MANIFEST_HEADING.contains("this process, not the host"),
-            "제목이 소유자를 밝혀야 한다: {CLIENT_PROJECT_MANIFEST_HEADING}"
+            "the heading must name its owner: {CLIENT_PROJECT_MANIFEST_HEADING}"
         );
     }
 
     #[test]
-    fn 프로젝트_매니페스트_텍스트는_없을_때_none과_off를_보여준다() {
+    fn project_manifest_text_shows_none_and_off_when_absent() {
         let status = upeg_sources::project::ProjectManifestStatus {
             lookup: None,
             override_state: upeg_sources::project::ProjectManifestOverride::Disabled,
@@ -546,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    fn 프로젝트_매니페스트_json은_경로와_override를_필드로_담는다() {
+    fn project_manifest_json_carries_path_and_override_as_fields() {
         let explicit_path = std::path::PathBuf::from("/explicit/upeg.toml");
         let status = upeg_sources::project::ProjectManifestStatus {
             lookup: Some(upeg_sources::project::ProjectManifestLookup {
@@ -565,12 +706,12 @@ mod tests {
         assert_eq!(client["override"], "explicit");
         assert!(
             json.get("path").is_none(),
-            "경로는 client 아래에만 있어야 한다: {json}"
+            "the path must live only under `client`: {json}"
         );
     }
 
     #[test]
-    fn 프로젝트_매니페스트_json은_없을_때_path가_null이다() {
+    fn project_manifest_json_has_null_path_when_absent() {
         let status = upeg_sources::project::ProjectManifestStatus {
             lookup: None,
             override_state: upeg_sources::project::ProjectManifestOverride::Detect,
@@ -589,7 +730,7 @@ mod tests {
     /// host on a fresh ephemeral port. Pre-fix the body discarded the
     /// stop result with a throwaway bind before returning Ok.
     #[test]
-    fn 재시작_준비는_소스_pin_중지_실패를_오류로_전파한다() {
+    fn prepare_restart_propagates_stop_failures_as_errors() {
         const SRC: &str = include_str!("lifecycle.rs"); // Use format!() so the assertion-message literal itself
         // can't satisfy contains() — same meta-bug guard pattern as
         // popup.rs.

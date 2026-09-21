@@ -14,7 +14,7 @@ members = [
     "upeg-tools",
     "upeg-wasm",
 ]
-exclude = ["upeg-wasm/tests/fixture-src", "vendor/pdf-inspector"]
+exclude = ["upeg-wasm/tests/fixture-src", "vendor/extism", "vendor/pdf-inspector"]
 resolver = "3"
 
 # Tighter release profile for shipped binaries. `strip = "symbols"` is
@@ -56,10 +56,16 @@ clap_complete = "4"
 futures-core = { version = "0.3", default-features = false, features = ["std"] }
 command-group = "5.0.1"
 crc32fast = "1"
-crossterm = "0.28"
+crossterm = "0.29"
 csv = "1"
 dirs = "6"
-extism = "1"
+# WASM plugin host (BSD-3-Clause). Vendored copy of the published 1.21.0 crate
+# with its wasmtime/wasi-common/wiggle pins moved from the 41 line to the
+# 36 LTS line, because every published extism release pins a wasmtime major
+# (37/41/43) that carries open RUSTSEC advisories and no patch release, while
+# the patched lines (>=46.0.3/47.0.4) need rustc >= 1.94. See
+# vendor/extism/UPEG.md. Source is otherwise unmodified.
+extism = { path = "vendor/extism", version = "=1.21.0" }
 flutter_rust_bridge = "2.12"
 getrandom = "0.3"
 http = "1"
@@ -71,7 +77,7 @@ notify-rust = "4"
 open = "5"
 phf = { version = "0.11", features = ["macros"] }
 qrcode = { version = "0.14", default-features = false }
-ratatui = "0.29"
+ratatui = "0.30"
 regex = "1"
 # `pty` + `termios` are what the External invoker's `pty = true` mode
 # needs (openpt/ptsname/unlockpt, and clearing OPOST so a captured line
@@ -90,7 +96,7 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 # qr.decode: QR detection/decoding, MIT/Apache-2.0/ISC. `img` feature (default)
 # pulls in `image` with its own `default-features = false` — unifies with the
 # `image` dependency below, no extra codec features.
-rqrr = { version = "0.10", default-features = false, features = ["img"] }
+rqrr = { version = "0.11", default-features = false, features = ["img"] }
 schemars = { version = "1.2", features = ["preserve_order"] }
 sha1 = "0.10"
 sha2 = "0.10"
@@ -131,7 +137,10 @@ zxcvbn = "3.1.1"
 # media: permissive pure-Rust dependencies; no GPL/LGPL, all wasm-capable.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi"] }
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
-krilla = "0.7"
+# `upeg-tools` only draws decoded raster pages (`Image::from_rgba8` +
+# `draw_image`); the default `simple-text` shaping feature is unused and is the
+# only path to the unmaintained `rustybuzz` (RUSTSEC-2026-0206).
+krilla = { version = "0.7", default-features = false, features = ["raster-images"] }
 # media: pure-Rust PDF page rasterizer (media.pdf_to_images), replacing PDFium.
 # Apache-2.0 OR MIT; same author as krilla (LaurenzV); pdf.js/PDFBox regression
 # corpus; compiles to wasm32. Re-exports `vello_cpu` (the CPU backend) for the
@@ -142,7 +151,7 @@ hayro = "0.7"
 # image samples and zune-jpeg validates DCTDecode (JPEG) passthrough streams —
 # no PDFium, no native dylib. All MIT-licensed and wasm-capable, but wired
 # native-only for stage 1 (contract unchanged; browser support lands later).
-lopdf = "0.36"
+lopdf = "0.44"
 # Pinned upstream with embedded native CMaps; see vendor/pdf-inspector/UPEG.md.
 pdf-inspector = { path = "vendor/pdf-inspector", version = "=1.17.0", default-features = false }
 flate2 = "1"

@@ -72,32 +72,37 @@ Widget _harness({
 
 void main() {
   group('ExpandedModalPage + pin (Batch O1, I12)', () {
-    testWidgets('ExpandedModalPage_footer는_pin_버튼을_노출한다', (tester) async {
+    testWidgets('ExpandedModalPage_footer_exposes_the_pin_button', (
+      tester,
+    ) async {
       await tester.pumpWidget(_harness(pinFn: (_, _) {}));
       expect(find.widgetWithText(TextButton, '+ pin'), findsOneWidget);
     });
 
-    testWidgets('ExpandedModalPage_pin_버튼_탭은_pinTool을_currentBoard에_호출한다', (
+    testWidgets(
+      'ExpandedModalPage_pin_button_tap_calls_pinTool_on_the_currentBoard',
+      (tester) async {
+        BoardKey? observedBoard;
+        ToolId? observedTool;
+        await tester.pumpWidget(
+          _harness(
+            boardKey: 'dev',
+            pinFn: (board, tool) {
+              observedBoard = board;
+              observedTool = tool;
+            },
+          ),
+        );
+        await tester.tap(find.widgetWithText(TextButton, '+ pin'));
+        await tester.pumpAndSettle();
+        expect(observedBoard, equals(BoardKey.parse('dev')));
+        expect(observedTool, equals(ToolId.parse('fixture.echo')));
+      },
+    );
+
+    testWidgets('ExpandedModalPage_pin_success_notifies_via_a_SnackBar', (
       tester,
     ) async {
-      BoardKey? observedBoard;
-      ToolId? observedTool;
-      await tester.pumpWidget(
-        _harness(
-          boardKey: 'dev',
-          pinFn: (board, tool) {
-            observedBoard = board;
-            observedTool = tool;
-          },
-        ),
-      );
-      await tester.tap(find.widgetWithText(TextButton, '+ pin'));
-      await tester.pumpAndSettle();
-      expect(observedBoard, equals(BoardKey.parse('dev')));
-      expect(observedTool, equals(ToolId.parse('fixture.echo')));
-    });
-
-    testWidgets('ExpandedModalPage_pin_성공_후_SnackBar로_알린다', (tester) async {
       await tester.pumpWidget(_harness(pinFn: (_, _) {}));
       await tester.tap(find.widgetWithText(TextButton, '+ pin'));
       await tester.pump();

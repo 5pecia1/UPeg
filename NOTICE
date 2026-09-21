@@ -94,23 +94,6 @@ copies linked below):
     option-ext 0.2.0            MPL-2.0
         https://crates.io/crates/option-ext
         Reached through dirs -> dirs-sys.
-    im-rc 15.1.0                MPL-2.0+
-        https://crates.io/crates/im-rc
-    bitmaps 2.1.0               MPL-2.0+
-        https://crates.io/crates/bitmaps
-    sized-chunks 0.6.5          MPL-2.0+
-        https://crates.io/crates/sized-chunks
-        The three above are reached through extism -> wasmtime -> wasm-compose.
-    cbindgen 0.29.2             MPL-2.0  (build-time only)
-        https://crates.io/crates/cbindgen
-
-Dual-licensed with a copyleft branch; UPeg elects the permissive branch:
-
-    ittapi 0.4.0, ittapi-sys 0.4.0
-        GPL-2.0-only OR BSD-3-Clause
-        UPeg elects BSD-3-Clause.
-        Intel VTune ITT instrumentation hooks, reached through wasmtime.
-        https://crates.io/crates/ittapi
 
 Mixed-license crates whose SPDX expression does not capture the full terms:
 

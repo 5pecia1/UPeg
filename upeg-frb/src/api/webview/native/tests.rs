@@ -9,7 +9,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_URL: &str = "https://example.com/shared-webview";
 
 #[test]
-fn 긴_바인딩_파이프라인은_모든_대기와_안정화_시간을_보장한다() {
+fn long_binding_pipeline_accounts_for_all_wait_and_settle_times() {
     const BINDING_COUNT: usize = 10;
     let binding = upeg_core::SelectorBinding {
         role: upeg_core::BindingRole::Output,
@@ -37,7 +37,7 @@ fn 긴_바인딩_파이프라인은_모든_대기와_안정화_시간을_보장�
 }
 
 #[test]
-fn 같은_도구의_대기_요청은_선행_실행의_시간을_추가로_확보한다() {
+fn queued_requests_for_same_tool_gain_prior_run_time() {
     let (bridge, id, events) = connected_bridge();
     let mut runs = Vec::new();
     for tool in ["test.queued", "test.queued", "test.independent"] {
@@ -61,7 +61,7 @@ fn 같은_도구의_대기_요청은_선행_실행의_시간을_추가로_확보
 }
 
 #[test]
-fn 표현할_수_없는_응답_기한은_패닉이나_실행_없이_거절한다() {
+fn unrepresentable_response_deadline_is_rejected_without_panic_or_execution() {
     let (bridge, _, events) = connected_bridge();
     assert!(matches!(
         bridge.run_with_timeout(request("test.overflow"), Duration::MAX),
@@ -83,11 +83,11 @@ fn request(tool_id: &str) -> ControlledEmbedRequest<'_> {
 
 fn connected_bridge() -> (Arc<WebViewBridge>, u64, Receiver<WebViewExecutionEventDto>) {
     let bridge = Arc::new(WebViewBridge::new());
-    let id = bridge.reserve().expect("프로바이더 예약");
+    let id = bridge.reserve().expect("reserve provider");
     let (sender, receiver) = mpsc::channel();
     bridge
         .attach(id, Arc::new(move |event| sender.send(event).is_ok()))
-        .expect("스트림 연결");
+        .expect("attach stream");
     assert!(matches!(
         receiver.recv_timeout(TEST_TIMEOUT).unwrap(),
         WebViewExecutionEventDto::Ready
@@ -96,9 +96,12 @@ fn connected_bridge() -> (Arc<WebViewBridge>, u64, Receiver<WebViewExecutionEven
 }
 
 fn next_request(receiver: &Receiver<WebViewExecutionEventDto>) -> WebViewExecutionRequestDto {
-    match receiver.recv_timeout(TEST_TIMEOUT).expect("실행 요청") {
+    match receiver
+        .recv_timeout(TEST_TIMEOUT)
+        .expect("execution request")
+    {
         WebViewExecutionEventDto::Execute { request } => request,
-        event => panic!("실행 요청이어야 한다: {event:?}"),
+        event => panic!("must be an execution request: {event:?}"),
     }
 }
 
@@ -109,7 +112,7 @@ fn success(value: &str) -> WebViewExecutionCompletionDto {
 }
 
 #[test]
-fn 동시에_실행한_요청은_역순으로_완료해도_자기_결과를_받는다() {
+fn concurrent_requests_receive_own_results_even_when_completed_in_reverse() {
     let (bridge, id, events) = connected_bridge();
     let handles: Vec<_> = ["test.first", "test.second"]
         .into_iter()
@@ -141,7 +144,7 @@ fn 동시에_실행한_요청은_역순으로_완료해도_자기_결과를_받�
 }
 
 #[test]
-fn 셀렉터_대기_시간초과는_역할과_조건과_오류코드를_보존한다() {
+fn selector_wait_timeout_preserves_role_condition_and_error_code() {
     let (bridge, id, events) = connected_bridge();
     let worker = Arc::clone(&bridge);
     let handle = thread::spawn(move || worker.run_with_timeout(request("test.wait"), TEST_TIMEOUT));
@@ -173,7 +176,7 @@ fn 셀렉터_대기_시간초과는_역할과_조건과_오류코드를_보존�
 }
 
 #[test]
-fn 웹뷰의_실행실패와_사용자_취소는_서로_다른_오류로_돌아온다() {
+fn webview_execution_failure_and_user_cancel_return_distinct_errors() {
     let (bridge, id, events) = connected_bridge();
     for (completion, expected) in [
         (
@@ -197,7 +200,7 @@ fn 웹뷰의_실행실패와_사용자_취소는_서로_다른_오류로_돌아�
 }
 
 #[test]
-fn 프로바이더_교체는_대기중인_실행을_깨우고_이전_세대의_응답과_해제를_거부한다() {
+fn provider_replacement_wakes_pending_run_and_rejects_stale_responses() {
     let (bridge, previous_id, events) = connected_bridge();
     let worker = Arc::clone(&bridge);
     let handle =
@@ -224,7 +227,7 @@ fn 프로바이더_교체는_대기중인_실행을_깨우고_이전_세대의_�
 }
 
 #[test]
-fn 프로바이더_해제는_아직_연결된_웹뷰의_진행중인_요청을_취소한다() {
+fn provider_unregister_cancels_inflight_requests_of_still_connected_webview() {
     let (bridge, provider_id, events) = connected_bridge();
     let worker = Arc::clone(&bridge);
     let handle =
@@ -245,7 +248,7 @@ fn 프로바이더_해제는_아직_연결된_웹뷰의_진행중인_요청을_�
 }
 
 #[test]
-fn 구독전에_폐기한_프로바이더는_늦게_연결돼도_복구되지_않는다() {
+fn provider_discarded_before_attach_does_not_recover_on_late_attach() {
     let bridge = WebViewBridge::new();
     let id = bridge.reserve().unwrap();
     assert_eq!(
@@ -260,7 +263,7 @@ fn 구독전에_폐기한_프로바이더는_늦게_연결돼도_복구되지_�
 }
 
 #[test]
-fn 취소는_웹뷰에도_전달하고_늦게_돌아온_출력을_버린다() {
+fn cancel_is_forwarded_to_webview_and_late_output_is_dropped() {
     let (bridge, id, events) = connected_bridge();
     let token = upeg_runtime::CancellationToken::new();
     let worker_token = token.clone();
@@ -280,7 +283,7 @@ fn 취소는_웹뷰에도_전달하고_늦게_돌아온_출력을_버린다() {
 }
 
 #[test]
-fn 응답이_없는_웹뷰는_제한시간에_취소하고_바인딩_시간초과와_구분한다() {
+fn unresponsive_webview_is_cancelled_at_deadline_and_distinguished_from_binding_timeout() {
     const SHORT_TIMEOUT: Duration = Duration::from_millis(10);
     let (bridge, id, events) = connected_bridge();
     let result = bridge.run_with_timeout(request("test.timeout"), SHORT_TIMEOUT);
@@ -296,7 +299,7 @@ fn 응답이_없는_웹뷰는_제한시간에_취소하고_바인딩_시간초�
 }
 
 #[test]
-fn 연결이_끊긴_스트림은_새_호출을_실행하지_않고_사용불가를_반환한다() {
+fn disconnected_stream_returns_unavailable_without_running_new_calls() {
     let (bridge, _, events) = connected_bridge();
     drop(events);
     assert_eq!(
@@ -333,7 +336,7 @@ impl Drop for RestoreBackend {
 }
 
 #[test]
-fn 데스크톱과_http는_같은_웹뷰_요청과_출력타입과_대표결과를_사용한다() {
+fn desktop_and_http_share_webview_request_output_types_and_primary_result() {
     use axum::body::Body;
     use axum::http::Request;
     use http_body_util::BodyExt;
@@ -445,7 +448,7 @@ controlled_embed = {{ bindings = [
 }
 
 #[test]
-fn 정규화는_도구를_실행하지_않고_출력_타입과_라벨과_대표값과_오류를_보존한다() {
+fn normalization_preserves_output_type_label_primary_and_error_without_running_tool() {
     use crate::api::webview::normalize_webview_result;
     const TOOL_ID: &str = "frb_webview_normalize.result";
     let (toolkit, mut tools) = upeg_loader::parse_toolkit_full(r##"
@@ -518,7 +521,7 @@ controlled_embed = { bindings = [
         let expected_message = error.to_string();
         let result = upeg_loader::normalize_controlled_embed_result(TOOL_ID, Err(error));
         let upeg_core::ToolResult::Failure(failure) = result else {
-            panic!("오류여야 한다")
+            panic!("must be an error")
         };
         assert_eq!(failure.error.code, expected_code);
         assert_eq!(failure.error.message, expected_message);
@@ -527,7 +530,7 @@ controlled_embed = { bindings = [
 }
 
 #[test]
-fn 등록되지_않은_도구의_정규화는_조회_오류를_반환한다() {
+fn normalizing_unregistered_tool_returns_lookup_error() {
     let result = crate::api::webview::normalize_webview_result(
         "frb_webview_normalize.missing".to_string(),
         success("42"),

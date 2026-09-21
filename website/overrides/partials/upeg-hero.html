@@ -1,0 +1,51 @@
+{#-
+  Product landing hero — rendered above the document body on the homepage
+  only (see main.html). All internal links go through the `url` filter so
+  they stay correct under the /UPeg/ project base path.
+-#}
+<section class="upeg-hero" aria-labelledby="upeg-hero-title">
+  <div class="upeg-hero__grid md-grid">
+    <div class="upeg-hero__copy">
+      <p class="upeg-eyebrow">Universal Pegboard</p>
+      <h1 class="upeg-hero__title" id="upeg-hero-title">
+        Pin a tool once.<br>Call it from anywhere.
+      </h1>
+      <p class="upeg-hero__lede">
+        UPeg is a local-first board for the commands, conversions, and checks
+        you reach for every day. Define a Tool once — then call the same Tool
+        from your terminal, desktop, browser, or AI agent.
+      </p>
+      <ul class="upeg-hero__actions" role="list">
+        <li>
+          <a class="upeg-button upeg-button--primary" href="{{ 'guides/installation/' | url }}">
+            Install upeg
+          </a>
+        </li>
+        <li>
+          <a class="upeg-button" href="{{ 'guides/quick-start/' | url }}">
+            Quick start
+          </a>
+        </li>
+        <li>
+          <a class="upeg-button upeg-button--ghost"
+             href="https://github.com/5pecia1/UPeg"
+             target="_blank" rel="noopener">
+            GitHub
+          </a>
+        </li>
+      </ul>
+      <p class="upeg-hero__note">
+        Pre-release: build from source. No packaged downloads yet —
+        <a href="{{ 'guides/installation/' | url }}">see why</a>.
+      </p>
+    </div>
+    <div class="upeg-hero__media">
+      <figure class="upeg-board">
+        {%- include "assets/upeg/board.svg" -%}
+        <figcaption class="upeg-board__caption">
+          Illustrative board layout — not a screenshot.
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>

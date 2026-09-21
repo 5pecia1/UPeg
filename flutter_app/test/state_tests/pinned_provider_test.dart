@@ -18,13 +18,13 @@ import 'package:upeg/src/state/pinned_provider.dart';
 
 void main() {
   group('PinnedNotifier', () {
-    test('PinnedNotifier_초기값은_false이다', () {
+    test('PinnedNotifier_initial_value_is_false', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       expect(container.read(pinnedProvider), isFalse);
     });
 
-    test('PinnedNotifier_toggle은_상태를_플립한다', () {
+    test('PinnedNotifier_toggle_flips_state', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -35,7 +35,7 @@ void main() {
       expect(container.read(pinnedProvider), isFalse);
     });
 
-    test('PinnedNotifier_set은_명시적_값을_적용한다', () {
+    test('PinnedNotifier_set_applies_explicit_value', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

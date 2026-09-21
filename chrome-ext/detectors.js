@@ -30,7 +30,7 @@ const UpegDetectors = (() => {
 
   // Tool ids and the input argument each match is passed as. Both are
   // pinned against the real toolbox by
-  // `upeg-cli/tests/chrome_ext.rs::콘텐츠_감지기_표의_도구_id는_toolbox에_존재한다`.
+  // `upeg-cli/tests/chrome_ext.rs::tool_ids_and_args_named_by_the_detector_table_exist_in_the_toolbox`.
   const DETECTOR_TOOL = Object.freeze({
     HEX_TO_DECIMAL: Object.freeze({ id: 'num.hex_to_decimal', arg: 'input' }),
     BASE64_DECODE: Object.freeze({ id: 'convert.base64_decode', arg: 'input' }),

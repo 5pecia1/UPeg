@@ -57,13 +57,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn paused_state는_불리언_플래그를_그대로_반영한다() {
+    fn paused_state_mirrors_the_boolean_flag() {
         assert_eq!(PausedStateDto::from_paused(true), PausedStateDto::Paused);
         assert_eq!(PausedStateDto::from_paused(false), PausedStateDto::Running);
     }
 
     #[test]
-    fn toggle_paused는_연속_호출시_상태를_플립한다() {
+    fn toggle_paused_flips_state_on_consecutive_calls() {
         let _guard = crate::api::test_support::host_lock().lock().unwrap();
         // Paused state is a process-local AtomicBool (see
         // upeg_cli::infrastructure::pause). Two consecutive flips

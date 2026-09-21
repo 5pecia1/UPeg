@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/widgets/iframe_load_observer.dart';
 
 void main() {
-  test('onload이_타임아웃_전에_도착하면_loaded로_전이한다', () {
+  test('an_onload_arriving_before_the_timeout_transitions_to_loaded', () {
     fakeAsync((async) {
       final observer = IframeLoadObserver(timeout: const Duration(seconds: 5));
       final states = <IframeLoadState>[];
@@ -18,7 +18,7 @@ void main() {
     });
   });
 
-  test('타임아웃까지_onload이_안오면_timeout으로_전이한다', () {
+  test('no_onload_by_the_timeout_transitions_to_timeout', () {
     fakeAsync((async) {
       final observer = IframeLoadObserver(timeout: const Duration(seconds: 5));
       final states = <IframeLoadState>[];
@@ -30,7 +30,7 @@ void main() {
     });
   });
 
-  test('이미_settle된_observer는_추가_notifyLoaded를_무시한다', () {
+  test('an_already_settled_observer_ignores_further_notifyloaded_calls', () {
     fakeAsync((async) {
       final observer = IframeLoadObserver(timeout: const Duration(seconds: 5));
       final states = <IframeLoadState>[];
@@ -46,7 +46,7 @@ void main() {
     });
   });
 
-  test('dispose_후_late_notifyLoaded는_no_op이다', () {
+  test('a_late_notifyloaded_after_dispose_is_a_no_op', () {
     fakeAsync((async) {
       final observer = IframeLoadObserver(timeout: const Duration(seconds: 5));
       final states = <IframeLoadState>[];

@@ -336,6 +336,7 @@ ToolDto fixtureTool({List<InputFieldDto> inputFields = const []}) => ToolDto(
   source: SourceDto.manual(),
   requiresApproval: false,
   approvalSurfaces: <String>[],
+  effect: ToolEffectDto.unknown,
 );
 
 EmbedResolutionDto fixtureResolution() =>

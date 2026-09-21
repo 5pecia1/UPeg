@@ -234,7 +234,7 @@ fn publish_phase(next: McpImportPhase) {
 static PHASE_SERIAL: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
-pub(crate) fn 페이즈_직렬화() -> std::sync::MutexGuard<'static, ()> {
+pub(crate) fn phase_serial() -> std::sync::MutexGuard<'static, ()> {
     PHASE_SERIAL.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
@@ -463,7 +463,7 @@ fn spawn_marked_loader(
 /// The thread is deliberately detached: it owns nothing that outlives
 /// the process, and the desktop must not block its boot path on an
 /// unreachable upstream's bounded retries
-/// (docs/architecture/mcp.md, "desktop 내장 host: 비동기 창"). The
+/// (docs/architecture/mcp.md, "desktop-embedded host: async window"). The
 /// phase this leaves behind ([`McpImportPhase::Loading`] until the
 /// load finishes) is what closes that window's blind spot for
 /// attached clients.
@@ -591,7 +591,7 @@ mod tests {
     }
 
     #[test]
-    fn broken_pipe_라이터에_써도_패닉하지_않는다() {
+    fn write_to_broken_pipe_writer_does_not_panic() {
         // `eprint!`/`eprintln!` panic on a write failure — this is
         // exactly the "71 broken pipe panics" symptom from E-6.
         // `write_best_effort` must swallow the error instead.
@@ -607,36 +607,36 @@ mod tests {
     }
 
     #[test]
-    fn 선언이_없으면_요약은_비어_있다() {
+    fn summary_is_empty_when_nothing_is_declared() {
         assert!(format_summary(&empty_load()).is_empty());
     }
 
     #[test]
-    fn 미설정_디렉터리는_로드해도_아무것도_등록하지_않는다() {
+    fn unconfigured_directory_registers_nothing_on_load() {
         let load = empty_load();
         assert_eq!(load.loaded_server_count(), 0);
         assert_eq!(load.tool_count(), 0);
     }
 
-    use super::페이즈_직렬화;
+    use super::phase_serial;
 
     #[test]
-    fn 초기_페이즈는_not_started이고_pending이_아니다() {
+    fn initial_phase_is_not_started_and_not_pending() {
         assert_eq!(McpImportPhase::default(), McpImportPhase::NotStarted);
         assert!(!McpImportPhase::NotStarted.is_pending());
     }
 
     #[test]
-    fn loading만_pending이다() {
-        // 로딩 중일 때만 클라이언트가 tools/list를 다시 읽어야 한다.
+    fn only_loading_is_pending() {
+        // Only while loading should a client re-read tools/list.
         assert!(McpImportPhase::Loading.is_pending());
         assert!(!McpImportPhase::Skipped.is_pending());
         assert!(!McpImportPhase::Done(McpImportTally::default()).is_pending());
     }
 
     #[test]
-    fn 페이즈는_설정한_값을_그대로_돌려준다() {
-        let _serial = 페이즈_직렬화();
+    fn phase_returns_the_value_it_was_set_to() {
+        let _serial = phase_serial();
         let tally = McpImportTally {
             servers_loaded: 2,
             servers_failed: 1,
@@ -649,23 +649,28 @@ mod tests {
     }
 
     #[test]
-    fn 로더_스레드_예약은_작업이_돌기_전에_loading으로_전이한다() {
-        // 스레드가 실제로 로드를 시작하기 전에 이미 pending 이어야
-        // 한다 — 그 사이에 /healthz 를 읽은 클라이언트가 "더 올
-        // 것이 없다"고 오해하면 안 된다. 실제 업스트림을 spawn하지
-        // 않도록 로더 본문 대신 게이트로 막힌 closure를 넘긴다.
-        let _serial = 페이즈_직렬화();
+    fn scheduling_the_loader_thread_transitions_to_loading_before_work_runs() {
+        // The phase must already be pending before the thread actually
+        // starts the load — a client that reads /healthz in that gap
+        // must not conclude "nothing more is coming". Instead of the
+        // real loader body we pass a gate-blocked closure so no real
+        // upstream is spawned.
+        let _serial = phase_serial();
         set_import_phase(McpImportPhase::NotStarted);
         let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
         let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
         let handle = spawn_marked_loader(move || {
-            // 예약 시점의 assert 가 끝날 때까지 작업은 시작조차 않는다.
+            // The work does not even start until the scheduling-time
+            // assert has finished.
             let _ = release_rx.recv();
             let _ = done_tx.send(());
         })
-        .expect("로더 스레드 spawn");
+        .expect("loader thread spawn");
 
-        assert!(import_phase().is_pending(), "예약 직후 pending 이어야 한다");
+        assert!(
+            import_phase().is_pending(),
+            "must be pending right after scheduling"
+        );
 
         let _ = release_tx.send(());
         let _ = done_rx.recv();
@@ -674,28 +679,31 @@ mod tests {
     }
 
     #[test]
-    fn pending_마크는_로더보다_먼저_찍히고_되돌릴_수_있다() {
-        // desktop lane 은 embed 스레드를 spawn 하기 전에 마크한다 —
-        // 그 스레드가 바인드하는 순간부터 /healthz 가 답하기 때문이다.
-        let _serial = 페이즈_직렬화();
+    fn pending_mark_is_stamped_before_the_loader_and_can_be_undone() {
+        // The desktop lane marks before spawning its embed thread —
+        // /healthz starts answering the moment that thread binds.
+        let _serial = phase_serial();
         set_import_phase(McpImportPhase::NotStarted);
 
         mark_pending();
-        assert!(import_phase().is_pending(), "마크 직후 pending 이어야 한다");
+        assert!(
+            import_phase().is_pending(),
+            "must be pending right after marking"
+        );
 
         clear_pending();
         assert_eq!(
             import_phase(),
             McpImportPhase::NotStarted,
-            "host 가 뜨지 않았으면 마크를 돌려줘야 한다"
+            "the mark must be rolled back when the host never came up"
         );
     }
 
     #[test]
-    fn pending_마크_반납은_이미_끝난_로드의_집계를_지우지_않는다() {
-        // clear 는 Loading 만 되돌린다. 끝난 로드를 NotStarted 로
-        // 덮으면 "아무것도 임포트하지 않았다"는 거짓말이 된다.
-        let _serial = 페이즈_직렬화();
+    fn pending_mark_rollback_does_not_erase_a_finished_loads_tally() {
+        // clear only rolls back `Loading`. Overwriting a finished load
+        // with `NotStarted` would be the lie "nothing was imported".
+        let _serial = phase_serial();
         let tally = McpImportTally {
             servers_loaded: 1,
             servers_failed: 0,
@@ -710,10 +718,10 @@ mod tests {
     }
 
     #[test]
-    fn 마크된_상태에서_로더를_예약해도_여전히_pending이다() {
-        // desktop lane 은 mark_pending 뒤에 spawn_marked_loader 를
-        // 부른다 — 두 번 찍어도 같은 phase 여야 한다(idempotent).
-        let _serial = 페이즈_직렬화();
+    fn scheduling_the_loader_while_marked_stays_pending() {
+        // The desktop lane calls spawn_marked_loader after mark_pending
+        // — stamping the same phase twice must be a no-op (idempotent).
+        let _serial = phase_serial();
         set_import_phase(McpImportPhase::NotStarted);
         mark_pending();
 
@@ -723,11 +731,11 @@ mod tests {
             let _ = release_rx.recv();
             let _ = done_tx.send(());
         })
-        .expect("로더 스레드 spawn");
+        .expect("loader thread spawn");
 
         assert!(
             import_phase().is_pending(),
-            "마크가 예약으로 깨지면 안 된다"
+            "the mark must not be broken by scheduling"
         );
 
         let _ = release_tx.send(());
@@ -737,7 +745,7 @@ mod tests {
     }
 
     #[test]
-    fn 완료_페이즈_json은_상태와_세_가지_카운트를_담는다() {
+    fn done_phase_json_carries_state_and_the_three_counts() {
         let value = phase_json(McpImportPhase::Done(McpImportTally {
             servers_loaded: 3,
             servers_failed: 1,
@@ -750,7 +758,7 @@ mod tests {
     }
 
     #[test]
-    fn 미완료_페이즈_json은_카운트를_지어내지_않는다() {
+    fn unfinished_phase_json_does_not_fabricate_counts() {
         for (phase, expected) in [
             (McpImportPhase::NotStarted, PHASE_NOT_STARTED),
             (McpImportPhase::Loading, PHASE_LOADING),
@@ -760,13 +768,13 @@ mod tests {
             assert_eq!(value[PHASE_FIELD], expected);
             assert!(
                 value.get(TOOLS_FIELD).is_none(),
-                "로드가 끝나지 않았는데 개수를 보고하면 안 된다: {value}"
+                "counts must not be reported before the load finished: {value}"
             );
         }
     }
 
     #[test]
-    fn healthz_필드는_pending_플래그와_상세_블록을_함께_낸다() {
+    fn healthz_fields_emit_pending_flag_and_detail_block_together() {
         let fields = healthz_fields(McpImportPhase::Loading);
         assert_eq!(fields[IMPORTS_PENDING_FIELD], json!(true));
         assert_eq!(fields[MCP_IMPORTS_FIELD][PHASE_FIELD], PHASE_LOADING);
@@ -776,11 +784,11 @@ mod tests {
     }
 
     #[test]
-    fn healthz_필드는_카운트_외의_것을_싣지_않는다() {
-        // 이 라우트는 인증이 없다. 개수는 괜찮지만 사용자가 어떤
-        // 서버를 선언했는지(이름, command, 경로)는 나가면 안 된다.
-        // 필드 집합을 통째로 고정해, 나중에 필드를 늘리려면 이
-        // 판단을 다시 하게 만든다.
+    fn healthz_fields_carry_nothing_beyond_counts() {
+        // This route is unauthenticated. Counts are fine, but which
+        // servers the user declared (names, commands, paths) must not
+        // leak. Pinning the whole field set forces this judgement to
+        // be revisited before a field is ever added.
         let fields = healthz_fields(McpImportPhase::Done(McpImportTally {
             servers_loaded: 1,
             servers_failed: 0,
@@ -788,7 +796,7 @@ mod tests {
         }));
         let detail = fields[MCP_IMPORTS_FIELD]
             .as_object()
-            .expect("상세 블록은 객체다");
+            .expect("detail block is an object");
 
         let mut keys: Vec<&str> = detail.keys().map(String::as_str).collect();
         keys.sort_unstable();
@@ -799,31 +807,34 @@ mod tests {
             TOOLS_FIELD,
         ];
         expected.sort_unstable();
-        assert_eq!(keys, expected, "인증 없는 라우트에 나갈 필드는 이 넷뿐이다");
+        assert_eq!(
+            keys, expected,
+            "only these four fields may leave the unauthenticated route"
+        );
         for (key, value) in detail {
             assert!(
                 value.is_number() || value.is_string(),
-                "{key} 는 스칼라여야 한다 (중첩 구조는 이름을 실어 나른다): {value}"
+                "{key} must be scalar (nested structure smuggles names out): {value}"
             );
         }
     }
 
     #[test]
-    fn 호스트_healthz를_읽지_못하면_unknown을_보고한다() {
+    fn unreadable_host_healthz_reports_unknown() {
         let value = host_imports_json_from_healthz(None);
         assert_eq!(value[PHASE_FIELD], PHASE_UNKNOWN);
     }
 
     #[test]
-    fn 임포트_필드가_없는_healthz도_unknown이다() {
-        // 없는 필드를 false 로 채우면 "다 로드됐다"로 읽힌다.
+    fn healthz_without_import_fields_is_also_unknown() {
+        // Filling a missing field with false would read as "all loaded".
         let body = json!({ "name": "upeg", "version": "0.0.0" });
         let value = host_imports_json_from_healthz(Some(&body));
         assert_eq!(value[PHASE_FIELD], PHASE_UNKNOWN);
     }
 
     #[test]
-    fn 호스트_healthz의_임포트_블록은_pending과_함께_전달된다() {
+    fn host_healthz_import_block_is_forwarded_with_pending() {
         let body = json!({
             "name": "upeg",
             IMPORTS_PENDING_FIELD: true,
@@ -835,7 +846,7 @@ mod tests {
     }
 
     #[test]
-    fn 실패한_서버는_요약에_이름과_사유가_남는다() {
+    fn failed_server_leaves_name_and_reason_in_summary() {
         let load = McpImportLoad {
             directory: DirectoryStatus::Loaded {
                 path: std::path::PathBuf::from("/tmp/mcp-imports"),
@@ -855,7 +866,7 @@ mod tests {
         assert!(summary.contains("handshake failed"), "got {summary}");
         assert!(
             summary.contains("(1 failed"),
-            "요약 줄이 실패 수를 보고해야 한다: {summary}"
+            "summary line must report the failure count: {summary}"
         );
     }
 }

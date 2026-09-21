@@ -207,7 +207,7 @@ mod tests {
 
     fn local_id_for(id: &'static str, toolkit: &'static str) -> &'static str {
         ToolId::parse_canonical_in_toolkit(id, toolkit)
-            .expect("테스트 ToolMeta id는 정규 형식이어야 한다")
+            .expect("test ToolMeta id must be in canonical form")
             .local()
     }
 
@@ -222,6 +222,8 @@ mod tests {
             input_spec: InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: PinKind::Inline,
             pegboard_units: PegboardUnits::U1,
@@ -232,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn 도구_교체는_이전_외부_실행_요건을_지운다() {
+    fn tool_replacement_clears_previous_external_execution_requirements() {
         use crate::execution_requirements::{
             ToolExecutionRequirements, set_tool_execution_requirements, tool_execution_requirements,
         };
@@ -252,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn 등록_해제는_실행_요건을_지우고_교체된_등록은_보존한다() {
+    fn unregistration_clears_execution_requirements_and_preserves_replaced_registration() {
         use crate::execution_requirements::{
             ToolExecutionRequirements, set_tool_execution_requirements, tool_execution_requirements,
         };
@@ -269,7 +271,7 @@ mod tests {
         drop(old);
         assert_eq!(
             tool_execution_requirements(ID)
-                .expect("현재 등록 유지")
+                .expect("current registration must remain")
                 .command
                 .as_deref(),
             Some("current-command")
@@ -281,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn 네트워크_상태_라벨은_명시적이며_자리표시자가_아니다() {
+    fn network_status_label_is_explicit_not_placeholder() {
         let status = NetworkStatus {
             mcp_active: false,
             http_active: true,
@@ -295,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn 현재_네트워크_상태는_runtime_인터페이스_플래그를_읽는다() {
+    fn current_network_status_reads_runtime_interface_flags() {
         set_mcp_active(false);
         set_http_active(false);
         let idle = NetworkStatus::current(2);
@@ -318,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn 트리거_소스는_모든_제품요구사항_어댑터의_runtime_진단을_가진다() {
+    fn trigger_sources_have_runtime_diagnostics_for_every_prd_adapter() {
         assert_eq!(
             TRIGGER_SOURCES,
             &[
@@ -331,29 +333,29 @@ mod tests {
             ]
         );
         for source in TRIGGER_SOURCES {
-            assert!(is_valid_trigger_source(source), "{source}는 유효해야 한다");
+            assert!(is_valid_trigger_source(source), "{source} must be valid");
             let diagnostic = trigger_source_diagnostic(source);
             assert!(
                 !diagnostic.trim().is_empty() && diagnostic != "unknown trigger source",
-                "{source}는 구체적인 진단을 가져야 한다"
+                "{source} must have a concrete diagnostic"
             );
         }
         for supported in ["webhook", "schedule", "file", "directory", "clipboard"] {
             assert!(
                 trigger_source_has_builtin_runtime(supported),
-                "{supported}는 내장 런타임 지원을 표시해야 한다"
+                "{supported} must report built-in runtime support"
             );
         }
         // `hotkey` is the only remaining host-bound source: it needs a platform
         // global-hotkey adapter, so the built-in runtime reports it unsupported.
         assert!(
             !trigger_source_has_builtin_runtime(TriggerSource::Hotkey.as_str()),
-            "hotkey는 호스트 어댑터 진단이 필요하다"
+            "hotkey requires a host adapter diagnostic"
         );
     }
 
     #[test]
-    fn runtime_도구_등록은_기존_메타데이터를_교체한다() {
+    fn runtime_tool_registration_replaces_existing_metadata() {
         let id = "test.runtime.dedupe";
         toolbox_add_tool(ToolMeta {
             description: "first",
@@ -366,11 +368,14 @@ mod tests {
 
         let count = toolbox_tools().filter(|t| t.id == id).count();
         assert_eq!(count, 1);
-        assert_eq!(toolbox_tool(id).expect("등록된 도구").description, "second");
+        assert_eq!(
+            toolbox_tool(id).expect("registered tool").description,
+            "second"
+        );
     }
 
     #[test]
-    fn 관리형_runtime_도구_등록은_드롭_시_제거된다() {
+    fn managed_runtime_tool_registration_is_removed_on_drop() {
         let id = "test.runtime.managed_drop";
         {
             let _guard = toolbox_add_tool_managed(meta(id));
@@ -380,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn 관리형_runtime_dispatcher는_드롭_시_제거된다() {
+    fn managed_runtime_dispatcher_is_removed_on_drop() {
         let id = "test.runtime.managed_dispatcher_drop";
         toolbox_add_tool(meta(id));
         {
@@ -395,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn 오래된_관리형_가드는_새_등록을_제거하지_않는다() {
+    fn stale_managed_guard_does_not_remove_new_registration() {
         let id = "test.runtime.managed_generation";
         let old = toolbox_add_tool_managed(ToolMeta {
             description: "old",
@@ -409,14 +414,14 @@ mod tests {
 
         assert_eq!(
             toolbox_tool(id)
-                .expect("새 등록이 남아 있어야 한다")
+                .expect("new registration must remain")
                 .description,
             "new"
         );
     }
 
     #[test]
-    fn runtime_실행은_dispatcher_호출_전에_필수_schema_인자를_검증한다() {
+    fn runtime_dispatch_validates_required_schema_args_before_calling_dispatcher() {
         use std::sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
@@ -430,7 +435,7 @@ mod tests {
                 "required": ["input"],
                 "additionalProperties": false,
             }))
-            .expect("테스트 입력 명세를 가져와야 한다"),
+            .expect("test input spec must parse"),
             invoker: Invoker::External,
             ..meta(id)
         });
@@ -450,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_실행은_필수_불리언_거짓값을_허용한다() {
+    fn runtime_dispatch_allows_required_boolean_false() {
         use std::sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
@@ -464,7 +469,7 @@ mod tests {
                 "required": ["enabled"],
                 "additionalProperties": false,
             }))
-            .expect("테스트 입력 명세를 가져와야 한다"),
+            .expect("test input spec must parse"),
             invoker: Invoker::External,
             ..meta(id)
         });
@@ -481,11 +486,13 @@ mod tests {
     }
 
     #[test]
-    fn json_객체_변환은_embed와_트리거_메타데이터를_왕복한다() {
+    fn json_object_conversion_round_trips_embed_and_trigger_metadata() {
         let id = "test.runtime.embed_round_trip";
         toolbox_add_tool(ToolMeta {
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: PinKind::ControlledEmbed,
             pegboard_units: upeg_core::PegboardUnits::U1,
@@ -514,7 +521,7 @@ mod tests {
         );
 
         let v = toolbox_tool(id)
-            .expect("도구가 등록되어야 한다")
+            .expect("tool must be registered")
             .to_json_object("id");
         assert_eq!(v["pegboardUnits"], "U1");
         assert_eq!(
@@ -527,14 +534,14 @@ mod tests {
     }
 
     #[test]
-    fn embed_url_for는_도구_메타데이터의_url을_우선한다() {
-        // PR #18→#19: ToolMeta.output_spec 에 OutputKind::EmbeddedView { url } 가
-        // 선언돼 있으면 그것이 canonical 임베드 URL 이다. 런타임 사이드
-        // 레지스트리 (register_embed_url) 는 TOML 로더 등 declarative
-        // outputs grammar 로 아직 마이그레이션되지 않은 도구만을 위한
-        // 폴백이어야 한다. 두 곳에 동시에 값이 있으면 메타데이터의 URL 이
-        // 이긴다 — 그래야 한 도구의 임베드 URL 이 GUI(메타) 와
-        // CLI(레지스트리) 사이에서 갈리는 일이 없다.
+    fn embed_url_for_prefers_url_from_tool_metadata() {
+        // PR #18→#19: when ToolMeta.output_spec declares
+        // OutputKind::EmbeddedView { url }, that is the canonical embed URL.
+        // The runtime-side registry (register_embed_url) must be a fallback
+        // only for tools not yet migrated to the declarative outputs grammar,
+        // such as the TOML loader. If both carry a value, the metadata URL
+        // wins — that way one tool's embed URL can never diverge between the
+        // GUI (metadata) and the CLI (registry).
         use upeg_core::{FieldConstraints, OutputFieldSpec, OutputKind, OutputSpec};
         let id = "test.runtime.embed_inventory_wins";
         let url_in_meta = "https://meta.example/declared";
@@ -551,6 +558,8 @@ mod tests {
                 }],
             },
             primary_output_id: Some("view"),
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             pin: PinKind::Embed,
             pegboard_units: PegboardUnits::U1,
             invoker: Invoker::Static,
@@ -560,16 +569,16 @@ mod tests {
         assert_eq!(
             embed_url_for(id),
             Some(url_in_meta),
-            "선언적 OutputKind::EmbeddedView 가 런타임 등록보다 우선해야 한다"
+            "declarative OutputKind::EmbeddedView must win over the runtime registration"
         );
         clear_embed_url(id);
     }
 
     #[test]
-    fn embed_url_for는_등록만_있을때_레지스트리_url을_돌려준다() {
-        // 도구 메타데이터에 EmbeddedView 가 선언되지 않은 경우 — 예: TOML
-        // 로더가 sidecar register_embed_url 만 호출한 케이스 — 레지스트리
-        // 값을 그대로 노출해 폴백 경로가 유효함을 보장한다.
+    fn embed_url_for_returns_registry_url_when_only_registered() {
+        // When the tool metadata does not declare an EmbeddedView — e.g. the
+        // TOML loader only called the sidecar register_embed_url — the
+        // registry value is exposed as-is so the fallback path stays valid.
         let id = "test.runtime.embed_registry_fallback";
         toolbox_add_tool(ToolMeta {
             pin: PinKind::Embed,
@@ -581,25 +590,25 @@ mod tests {
         assert_eq!(
             embed_url_for(id),
             Some("https://registry.example/only"),
-            "메타에 EmbeddedView 가 없으면 런타임 레지스트리 값으로 폴백한다"
+            "without EmbeddedView in the meta it must fall back to the runtime registry value"
         );
         clear_embed_url(id);
         assert_eq!(
             embed_url_for(id),
             None,
-            "레지스트리에서 지운 뒤에는 None 이 돌아와야 한다 (메타 폴백 없음 확인)"
+            "after clearing the registry, None must come back (confirming there is no meta fallback)"
         );
     }
 
     #[test]
-    fn embed_url_for는_등록되지_않은_도구에_none을_돌려준다() {
-        // 회귀 핀: 알 수 없는 id 는 None 을 돌려준다. 옛 버그였던
-        // "비등록 id 에 대해 hardcoded URL 폴백" 같은 동작이 다시
-        // 들어오면 즉시 깨지도록 한다.
+    fn embed_url_for_returns_none_for_unregistered_tool() {
+        // Regression pin: an unknown id returns None. If the old bug of a
+        // "hardcoded URL fallback for unregistered ids" ever comes back, this
+        // breaks immediately.
         assert_eq!(
             embed_url_for("test.runtime.unknown_embed"),
             None,
-            "등록도 메타도 없는 id 는 None 이어야 한다"
+            "an id with neither registry nor meta must be None"
         );
     }
 }

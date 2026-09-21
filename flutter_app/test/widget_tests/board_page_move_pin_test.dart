@@ -44,7 +44,7 @@ const _focusedPlacement = PlacementDto(
 
 void main() {
   group('Move pin slot dispatch (F12)', () {
-    test('movePinSlot은_focused_pin이_있으면_FRB_seam을_호출한다', () async {
+    test('movePinSlot_calls_the_FRB_seam_when_a_pin_is_focused', () async {
       ToolId? observedTool;
       int? observedDelta;
       Future<void> recorder(ToolId toolId, int delta) async {
@@ -69,7 +69,7 @@ void main() {
       expect(observedDelta, -1);
     });
 
-    test('movePinSlot은_focused_pin이_없으면_seam을_호출하지_않는다', () async {
+    test('movePinSlot_skips_the_seam_without_a_focused_pin', () async {
       var called = false;
       Future<void> recorder(ToolId toolId, int delta) async {
         called = true;
@@ -88,7 +88,7 @@ void main() {
       expect(called, isFalse);
     });
 
-    test('movePinSlot은_MovePinNext에서_delta가_plus_1이다', () async {
+    test('movePinSlot_passes_delta_plus_1_for_MovePinNext', () async {
       int? observedDelta;
       Future<void> recorder(ToolId toolId, int delta) async {
         observedDelta = delta;
@@ -110,44 +110,47 @@ void main() {
       expect(observedDelta, 1);
     });
 
-    test('movePinSlot_기본구현은_현재_placement의_다음_slot으로_commit한다', () async {
-      ToolId? observedTool;
-      int? observedX;
-      int? observedY;
-      Future<void> recorder(ToolId toolId, int anchorX, int anchorY) async {
-        observedTool = toolId;
-        observedX = anchorX;
-        observedY = anchorY;
-      }
+    test(
+      'the_default_movePinSlot_commits_to_the_slot_after_the_current_placement',
+      () async {
+        ToolId? observedTool;
+        int? observedX;
+        int? observedY;
+        Future<void> recorder(ToolId toolId, int anchorX, int anchorY) async {
+          observedTool = toolId;
+          observedX = anchorX;
+          observedY = anchorY;
+        }
 
-      final container = ProviderContainer(
-        overrides: [
-          currentBoardKeyProvider.overrideWith(
-            () => _SeededCurrentBoardNotifier('dev'),
-          ),
-          layoutLoaderProvider.overrideWithValue(
-            (boardKey) => const LayoutSnapshotDto(
-              boardKey: 'dev',
-              boardCols: 4,
-              placements: [_focusedPlacement],
+        final container = ProviderContainer(
+          overrides: [
+            currentBoardKeyProvider.overrideWith(
+              () => _SeededCurrentBoardNotifier('dev'),
             ),
-          ),
-          movePinCommitFnProvider.overrideWithValue(recorder),
-        ],
-      );
-      addTearDown(container.dispose);
+            layoutLoaderProvider.overrideWithValue(
+              (boardKey) => const LayoutSnapshotDto(
+                boardKey: 'dev',
+                boardCols: 4,
+                placements: [_focusedPlacement],
+              ),
+            ),
+            movePinCommitFnProvider.overrideWithValue(recorder),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      container
-          .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
-      await dispatchMovePinSlot(
-        container,
-        cmd: const KeyboardCommandDto.movePinNext(),
-      );
+        container
+            .read(focusedPinProvider.notifier)
+            .focus(ToolId.parse('num.hex_to_decimal'));
+        await dispatchMovePinSlot(
+          container,
+          cmd: const KeyboardCommandDto.movePinNext(),
+        );
 
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
-      expect(observedX, 2);
-      expect(observedY, 0);
-    });
+        expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+        expect(observedX, 2);
+        expect(observedY, 0);
+      },
+    );
   });
 }

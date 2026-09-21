@@ -18,7 +18,7 @@
 
 use upeg_core::{
     ALL_SURFACES, Invoker, PegboardUnits, PinKind, StaticInputSpec, StaticToolMeta, Surface,
-    ToolMeta, inventory, tool,
+    ToolEffect, ToolMeta, inventory, tool,
 };
 
 fn toolbox_tools() -> impl Iterator<Item = ToolMeta> {
@@ -44,6 +44,7 @@ inventory::submit! {
         input_spec: StaticInputSpec::empty(),
         output_spec: upeg_core::StaticOutputSpec::empty(),
         primary_output_id: None,
+        effect: ToolEffect::Unknown,
         source: upeg_core::StaticSource::UserInput,
         pin: PinKind::Inline,
         pegboard_units: PegboardUnits::U1,
@@ -80,7 +81,7 @@ const fn _macro_defaults_fn() -> &'static str {
 const fn _macro_full_fn() {}
 
 #[test]
-fn 수동_제출은_반복_가능하다() {
+fn manual_submission_appears_in_iteration() {
     let ids: Vec<_> = toolbox_tools().map(|t| t.id).collect();
     assert!(
         ids.contains(&"test.manual_submit"),
@@ -89,7 +90,7 @@ fn 수동_제출은_반복_가능하다() {
 }
 
 #[test]
-fn 매크로는_기본값이_있는_도구를_툴박스에_등록한다() {
+fn macro_registers_a_tool_with_defaults_in_the_toolbox() {
     let t = toolbox_tool("test.macro_defaults").expect("default-args macro tool not registered");
     assert_eq!(t.toolkit, "test");
     assert_eq!(t.pin, PinKind::Inline);
@@ -100,7 +101,7 @@ fn 매크로는_기본값이_있는_도구를_툴박스에_등록한다() {
 }
 
 #[test]
-fn 매크로는_모든_인자가_있는_도구를_툴박스에_등록한다() {
+fn macro_registers_a_fully_specified_tool_in_the_toolbox() {
     let t = toolbox_tool("test.macro_full").expect("full-args macro tool not registered");
     assert_eq!(t.pin, PinKind::Embed);
     assert_eq!(t.pegboard_units, PegboardUnits::U2);
@@ -120,18 +121,18 @@ fn 매크로는_모든_인자가_있는_도구를_툴박스에_등록한다() {
 }
 
 #[test]
-fn 매크로는_설명이_없으면_빈_문자열을_기본값으로_사용한다() {
+fn macro_defaults_description_to_an_empty_string() {
     let t = toolbox_tool("test.macro_defaults").expect("default-args tool");
     assert_eq!(t.description, "");
 }
 
 #[test]
-fn 등록된_도구는_알수없는_id에_없음을_반환한다() {
+fn registered_tools_return_none_for_an_unknown_id() {
     assert!(toolbox_tool("test.does_not_exist").is_none());
 }
 
 #[test]
-fn 툴박스는_세_테스트_도구를_모두_포함한다() {
+fn toolbox_contains_all_three_test_tools() {
     let ids: std::collections::HashSet<_> = toolbox_tools().map(|t| t.id).collect();
     for expected in [
         "test.manual_submit",
@@ -143,7 +144,7 @@ fn 툴박스는_세_테스트_도구를_모두_포함한다() {
 }
 
 #[test]
-fn 매크로는_원래_함수_본문을_보존한다() {
+fn macro_preserves_the_original_function_body() {
     // Confirms the attribute macro doesn't eat the function it annotates.
     assert_eq!(_macro_defaults_fn(), "ok");
 }

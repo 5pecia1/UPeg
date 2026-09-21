@@ -13,13 +13,13 @@ import 'package:upeg/src/state/window_mode_provider.dart';
 
 void main() {
   group('WindowModeNotifier', () {
-    test('WindowMode_초기값은_full이다', () {
+    test('WindowMode_defaults_to_full', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       expect(container.read(windowModeProvider), WindowMode.full);
     });
 
-    test('toggle는_full_상태에서_popup으로_바꾼다', () {
+    test('toggle_switches_from_full_to_popup', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       expect(container.read(windowModeProvider), WindowMode.full);
@@ -29,7 +29,7 @@ void main() {
       expect(container.read(windowModeProvider), WindowMode.popup);
     });
 
-    test('toggle는_popup_상태에서_full로_바꾼다', () {
+    test('toggle_switches_from_popup_to_full', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -40,7 +40,7 @@ void main() {
       expect(next, WindowMode.full);
     });
 
-    test('set은_지정된_모드로_상태를_갱신한다', () {
+    test('set_updates_the_state_to_the_given_mode', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -53,18 +53,18 @@ void main() {
   });
 
   group('initialWindowMode', () {
-    test('환경변수가_없으면_full을_반환한다', () {
+    test('returns_full_when_the_env_var_is_absent', () {
       expect(initialWindowMode(env: const {}), WindowMode.full);
     });
 
-    test('UPEG_DESKTOP_POPUP가_설정되면_popup을_반환한다', () {
+    test('returns_popup_when_UPEG_DESKTOP_POPUP_is_set', () {
       expect(
         initialWindowMode(env: const {'UPEG_DESKTOP_POPUP': '1'}),
         WindowMode.popup,
       );
     });
 
-    test('UPEG_DESKTOP_POPUP가_빈_문자열이면_full을_반환한다', () {
+    test('returns_full_when_UPEG_DESKTOP_POPUP_is_an_empty_string', () {
       expect(
         initialWindowMode(env: const {'UPEG_DESKTOP_POPUP': ''}),
         WindowMode.full,

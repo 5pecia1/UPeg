@@ -41,7 +41,7 @@ fn dogfood_project_manifest() -> PathBuf {
 }
 
 #[test]
-fn 커밋된_도구킷_schema는_생성된_것과_일치한다() {
+fn the_committed_toolkit_schema_matches_the_generated_one() {
     let path = workspace_root().join("fixtures/toolkit.schema.json");
     let committed = std::fs::read_to_string(&path).expect("read committed toolkit schema");
     let generated = upeg_loader::toolkit_schema_json().expect("schema generation serializes");
@@ -52,7 +52,7 @@ fn 커밋된_도구킷_schema는_생성된_것과_일치한다() {
 }
 
 #[test]
-fn 커밋된_도구킷_manifest_문서_일치_생성된() {
+fn the_committed_toolkit_manifest_docs_match_the_generated_ones() {
     let path = workspace_root().join("docs/TOOL_MANIFEST.md");
     let committed = std::fs::read_to_string(&path).expect("read committed toolkit manifest docs");
     let generated =
@@ -64,7 +64,7 @@ fn 커밋된_도구킷_manifest_문서_일치_생성된() {
 }
 
 #[test]
-fn 도구킷_schema는_도구_예제를_검증한다() {
+fn the_toolkit_schema_validates_the_tool_examples() {
     let schema_path = workspace_root().join("fixtures/toolkit.schema.json");
     let schema_raw = std::fs::read_to_string(&schema_path).expect("read committed toolkit schema");
     let schema: serde_json::Value =
@@ -101,7 +101,7 @@ fn 도구킷_schema는_도구_예제를_검증한다() {
 }
 
 #[test]
-fn manifest_문서_참조_기존_예제들() {
+fn the_manifest_docs_reference_the_existing_examples() {
     let root = workspace_root();
     let docs_path = root.join("docs/TOOL_MANIFEST.md");
     let docs = std::fs::read_to_string(&docs_path).expect("read committed toolkit manifest docs");
@@ -130,7 +130,7 @@ fn manifest_문서_참조_기존_예제들() {
 }
 
 #[test]
-fn 생성된_문서는_필수_manifest_필드를_포함한다() {
+fn the_generated_docs_include_the_required_manifest_fields() {
     let path = workspace_root().join("docs/TOOL_MANIFEST.md");
     let docs = std::fs::read_to_string(&path).expect("read committed toolkit manifest docs");
 
@@ -184,7 +184,7 @@ fn 생성된_문서는_필수_manifest_필드를_포함한다() {
 }
 
 #[test]
-fn 모든_예제_toml은_깔끔하게를_파싱한다() {
+fn every_example_toml_parses_cleanly() {
     let dir = examples_tools_dir();
     assert!(
         dir.is_dir(),
@@ -211,7 +211,7 @@ fn 모든_예제_toml은_깔끔하게를_파싱한다() {
 }
 
 #[test]
-fn 모든_예제_mcp_설정은_깔끔하게를_파싱한다() {
+fn every_example_mcp_config_parses_cleanly() {
     // examples/mcp-imports/*.toml must deserialize via the same schema the
     // MCP manager uses for `~/.upeg/mcp-imports/<name>.toml`. Catches
     // accidental field renames in `UpstreamMcpConfig`.
@@ -243,7 +243,7 @@ fn 모든_예제_mcp_설정은_깔끔하게를_파싱한다() {
 }
 
 #[test]
-fn mcp_예제_파일_이름은_사용자_네임스페이스를_그대로_쓴다() {
+fn mcp_example_file_names_become_the_user_namespace_verbatim() {
     let dir = examples_mcp_dir();
     for expected in ["github.toml", "local.toml"] {
         assert!(
@@ -260,7 +260,7 @@ fn mcp_예제_파일_이름은_사용자_네임스페이스를_그대로_쓴다(
 }
 
 #[test]
-fn 플러그인_예제는_선언된_구조를_그대로_유지한다() {
+fn the_plugin_example_keeps_the_declared_structure() {
     // Pin the file structure of `examples/plugins/greet/` so a future
     // change to the plugin contract (macro crate rename, attribute shape,
     // crate-type, etc.) fails loudly here instead of silently leaving
@@ -318,7 +318,7 @@ fn 플러그인_예제는_선언된_구조를_그대로_유지한다() {
 }
 
 #[test]
-fn 체인_예제는_대상으로_내장_단계들을_해결한다() {
+fn the_chain_example_resolves_its_steps_against_builtins() {
     // The `chain-md5-then-uppercase.toml` example references
     // `hash.md5` + `text.uppercase`. Both are built-ins, so the chain
     // should --resolve-chain cleanly.
@@ -350,7 +350,7 @@ fn 체인_예제는_대상으로_내장_단계들을_해결한다() {
 }
 
 #[test]
-fn embed_예제는_url_와_선택자_바인딩들_로_registries를_로드한다() {
+fn the_embed_example_loads_the_url_and_selector_binding_registries() {
     // Loading the Controlled Embed example populates both the
     // `embed_url_for(id)` registry (iter 87) and the
     // `selector_bindings_for(id)` registry (iter 92) end-to-end.
@@ -394,7 +394,7 @@ fn embed_예제는_url_와_선택자_바인딩들_로_registries를_로드한다
 }
 
 #[test]
-fn 생성된_문서는_x_문서_메타데이터를_포함한다() {
+fn the_generated_docs_carry_the_x_doc_metadata() {
     // Ensures that field reference tables in the generated docs are
     // derived from schema x-doc-* metadata. If regression introduces
     // hard-coded facts, these assertions will fail.
@@ -427,7 +427,7 @@ fn 생성된_문서는_x_문서_메타데이터를_포함한다() {
 }
 
 #[test]
-fn 생성된_문서는_호출자_테이블_값을_포함한다() {
+fn the_generated_docs_carry_the_invoker_table_values() {
     // Ensures the invoker table in generated docs carries values sourced
     // from RUNTIME_INVOKERS, not hard-coded strings that could drift.
     let path = workspace_root().join("docs/TOOL_MANIFEST.md");
@@ -455,9 +455,9 @@ fn 생성된_문서는_호출자_테이블_값을_포함한다() {
 }
 
 #[test]
-fn 저장소_dogfood_project_manifest는_로더_계약을_지킨다() {
+fn the_repo_dogfood_project_manifest_honours_the_loader_contract() {
     // The repo dogfoods itself: `/<repo>/upeg.toml` is a real Project
-    // Manifest the maintainers call every day (README "사용자 tool 추가").
+    // Manifest the maintainers call every day (README "add a user tool").
     // Pin it to the loader contract so a grammar change cannot rot the
     // one manifest we actually use.
     let path = dogfood_project_manifest();
@@ -466,10 +466,13 @@ fn 저장소_dogfood_project_manifest는_로더_계약을_지킨다() {
     let (toolkit, tools) =
         upeg_loader::parse_toolkit_full(&raw).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
 
-    assert_eq!(toolkit.id, "dev", "dogfood manifest의 toolkit id는 `dev`다");
+    assert_eq!(
+        toolkit.id, "dev",
+        "the dogfood manifest's toolkit id is `dev`"
+    );
     assert!(
         tools.len() >= 10,
-        "dogfood manifest는 실제로 쓰는 도구 모음이다: {} 개뿐",
+        "the dogfood manifest is a toolset actually in use: only {} tools",
         tools.len()
     );
 

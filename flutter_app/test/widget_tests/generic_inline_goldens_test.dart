@@ -337,7 +337,7 @@ final class _GenericInlineGoldenRobot {
 void main() {
   group('Generic inline pin goldens', () {
     testWidgets(
-      '다크 테마 U1에서 필수 입력이 비어 있으면 Run이 비활성화된다',
+      'an_empty_required_input_disables_run_on_u1_in_the_dark_theme',
       tags: <String>['golden'],
       (tester) async {
         _useViewport(tester);
@@ -360,7 +360,7 @@ void main() {
     );
 
     testWidgets(
-      '다크 테마 U1에서 Manual 실행 중에는 loading 상태가 보인다',
+      'a_u1_manual_run_shows_the_loading_state_in_the_dark_theme',
       tags: <String>['golden'],
       (tester) async {
         _useViewport(tester);
@@ -391,7 +391,7 @@ void main() {
     );
 
     testWidgets(
-      '다크 테마 U1에서 성공 결과를 label과 함께 자동으로 드러낸다',
+      'a_u1_success_result_is_revealed_with_its_label_in_the_dark_theme',
       tags: <String>['golden'],
       (tester) async {
         _useViewport(tester);
@@ -417,7 +417,7 @@ void main() {
     );
 
     testWidgets(
-      '라이트 테마 U2에서 성공 결과를 label과 함께 자동으로 드러낸다',
+      'a_u2_success_result_is_revealed_with_its_label_in_the_light_theme',
       tags: <String>['golden'],
       (tester) async {
         _useViewport(tester);
@@ -443,7 +443,7 @@ void main() {
     );
 
     testWidgets(
-      '라이트 테마 U2에서 비텍스트 compact 입력이 overflow 없이 렌더된다',
+      'non_text_compact_inputs_render_without_overflow_on_u2_in_the_light_theme',
       tags: <String>['golden'],
       (tester) async {
         _useViewport(tester);

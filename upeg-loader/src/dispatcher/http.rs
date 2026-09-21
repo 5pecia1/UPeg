@@ -303,7 +303,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn http_url_파싱은_쿼리만_있는_대상을_보존한다() {
+    fn http_url_parse_preserves_query_only_target() {
         let parsed = parse_http_url("http://example.test?x=1").expect("parse");
         assert_eq!(parsed.host, "example.test");
         assert_eq!(parsed.port, 80);
@@ -311,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn http_요청_실행은_호스트_헤더에_기본이_아닌_포트를_포함한다() {
+    fn http_request_includes_non_default_port_in_host_header() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("local addr");
         let handle = std::thread::spawn(move || {
@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn classify_scheme는_스킴별로_전송_클라이언트를_선택한다() {
+    fn classify_scheme_selects_transport_per_scheme() {
         // E8: https:// used to be pinned as "not supported" and rejected
         // before any transport ran. It is now accepted and routed to the
         // TLS client; plain http:// keeps the hand-rolled TCP client and
@@ -364,14 +364,14 @@ mod tests {
     }
 
     #[test]
-    fn http_url_파싱은_조각을_거부한다() {
+    fn http_url_parse_rejects_fragments() {
         let err = parse_http_url("http://example.test/path#frag").expect_err("fragment rejected");
         assert!(err.contains("fragments"), "{err}");
         assert!(err.contains("not sent in requests"), "{err}");
     }
 
     #[test]
-    fn http_요청_실행은_메서드의_개행_문자를_거부한다() {
+    fn http_request_rejects_newline_in_method() {
         let err = run_http_request("GET\r\nPOST", "mock://echo", vec![], None)
             .expect_err("method CRLF rejected");
         assert!(err.contains("HTTP method"), "{err}");
@@ -379,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn http_요청_실행은_url_대상의_개행_문자를_거부한다() {
+    fn http_request_rejects_newline_in_url() {
         let err = run_http_request(
             "GET",
             "http://example.test/path\r\nInjected: yes",
@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn http_요청_실행은_헤더_이름의_개행_문자를_거부한다() {
+    fn http_request_rejects_newline_in_header_name() {
         let err = run_http_request(
             "GET",
             "mock://echo",
@@ -405,7 +405,7 @@ mod tests {
     }
 
     #[test]
-    fn http_요청_실행은_헤더_값의_개행_문자를_거부한다() {
+    fn http_request_rejects_newline_in_header_value() {
         let err = run_http_request(
             "GET",
             "mock://echo",
@@ -418,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn 응답_조각은_긴_본문을_제한한다() {
+    fn response_snippet_truncates_long_body() {
         let long = "x".repeat(220);
         let snippet = response_snippet(&long);
         assert_eq!(snippet.chars().count(), 201);

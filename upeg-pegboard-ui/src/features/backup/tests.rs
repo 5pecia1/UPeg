@@ -50,16 +50,16 @@ fn fixture_backup() -> EnvironmentBackup {
 }
 
 #[test]
-fn 이전_백업은_보드_안내_유실을_막기_위해_거부한다() {
+fn previous_backup_is_rejected_to_prevent_board_guidance_loss() {
     let mut previous = fixture_backup();
     previous.version = BACKUP_BEFORE_GUIDANCE_VERSION;
     previous
         .validate_version()
-        .expect_err("이전 백업 형식 거부");
+        .expect_err("previous backup format rejected");
 }
 
 #[test]
-fn from_json은_올바른_json을_파싱한다() {
+fn from_json_parses_valid_json() {
     let json = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{},"boards":[]}"#;
     let parsed = EnvironmentBackup::from_json(json).expect("parse");
     assert_eq!(parsed.version, 4);
@@ -68,7 +68,7 @@ fn from_json은_올바른_json을_파싱한다() {
 }
 
 #[test]
-fn from_json은_unknown_field를_거부한다() {
+fn from_json_rejects_unknown_fields() {
     let bad = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Green","show_holes":true,"locale":"En"},"layouts":{},"memos":{},"boards":[],"future":1}"#;
     let err = EnvironmentBackup::from_json(bad).expect_err("unknown fields rejected");
     assert!(
@@ -78,7 +78,7 @@ fn from_json은_unknown_field를_거부한다() {
 }
 
 #[test]
-fn validate_version은_불일치시_에러를_반환한다() {
+fn validate_version_returns_error_on_mismatch() {
     let mut backup = fixture_backup();
     backup.version = 999;
     let err = backup.validate_version().expect_err("mismatch rejected");
@@ -89,7 +89,7 @@ fn validate_version은_불일치시_에러를_반환한다() {
 }
 
 #[test]
-fn json_왕복은_모든_필드를_보존한다() {
+fn json_round_trip_preserves_all_fields() {
     let original = fixture_backup();
     let json = original.to_json_pretty();
     let back = EnvironmentBackup::from_json(&json).expect("parse");
@@ -97,24 +97,24 @@ fn json_왕복은_모든_필드를_보존한다() {
 }
 
 #[test]
-fn validate_version은_현재_버전을_허용한다() {
+fn validate_version_accepts_current_version() {
     let backup = fixture_backup();
     assert!(backup.validate_version().is_ok());
 }
 
 #[test]
-fn span과_args_preset이_실린_placement도_backup_json으로_왕복한다() {
+fn placement_with_span_and_args_preset_round_trips_through_backup_json() {
     let mut backup = fixture_backup();
     backup.layouts.insert(
         "styled".into(),
         vec![
             Placement::new("num.hex_to_decimal", 0, 0)
                 .with_span(Some(PinSpan::new(
-                    ColSpan::new(3).expect("테스트 cols"),
-                    RowSpan::new(2).expect("테스트 rows"),
+                    ColSpan::new(3).expect("test cols"),
+                    RowSpan::new(2).expect("test rows"),
                 )))
                 .with_args_preset(Some(
-                    ArgsPreset::parse(r#"{"hex":"ff"}"#).expect("테스트 preset"),
+                    ArgsPreset::parse(r#"{"hex":"ff"}"#).expect("test preset"),
                 )),
         ],
     );
@@ -123,9 +123,9 @@ fn span과_args_preset이_실린_placement도_backup_json으로_왕복한다() {
     let back = EnvironmentBackup::from_json(&json).expect("parse");
     assert_eq!(
         back, backup,
-        "span/args_preset 필드가 손실 없이 왕복해야 한다"
+        "span/args_preset fields must round-trip without loss"
     );
-    // deny_unknown_fields 정책은 그대로: 낯선 필드는 여전히 거부된다.
+    // The deny_unknown_fields policy stands: unfamiliar fields are still rejected.
     let with_unknown = json.trim_end().trim_end_matches('}').to_string() + r#","future":1}"#;
     assert!(EnvironmentBackup::from_json(&with_unknown).is_err());
 }

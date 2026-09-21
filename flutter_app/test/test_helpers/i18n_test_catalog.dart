@@ -323,6 +323,10 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
     LocaleDto.en: 'This board is empty — pin a tool from the palette.',
     LocaleDto.ko: '이 보드는 비어 있습니다 — 팔레트에서 도구를 핀하세요.',
   },
+  'empty.pegboard.no_pins': {
+    LocaleDto.en: 'no pins on this board yet',
+    LocaleDto.ko: '이 보드에는 아직 핀이 없습니다',
+  },
   'empty.find_tool_button': {
     LocaleDto.en: 'pin a tool',
     LocaleDto.ko: '도구 핀하기',
@@ -457,6 +461,15 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
     LocaleDto.en: 'Cancel run',
     LocaleDto.ko: '실행 취소',
   },
+  'a11y.inline.running': {
+    LocaleDto.en: 'Running tool',
+    LocaleDto.ko: '도구 실행 중',
+  },
+  'inline.dispatch_failed': {
+    LocaleDto.en: 'Unable to run this tool.',
+    LocaleDto.ko: '이 도구를 실행할 수 없습니다.',
+  },
+  'inline.run': {LocaleDto.en: 'Run', LocaleDto.ko: '실행'},
   'modal.pill.live_output': {
     LocaleDto.en: 'Live output',
     LocaleDto.ko: '실시간 출력',
@@ -500,15 +513,110 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
     LocaleDto.en: 'clear selection',
     LocaleDto.ko: '선택 지우기',
   },
+  // File input field + typed selection failures — mirrors the
+  // `modal.file.*` block in upeg-pegboard-ui/src/i18n.rs.
+  'modal.file.empty_prompt': {
+    LocaleDto.en: 'Select files or\ndrag them here.',
+    LocaleDto.ko: '파일을 선택하거나\n여기로 끌어 놓으세요.',
+  },
+  'modal.file.selected_count': {
+    LocaleDto.en: '{count} file(s) selected',
+    LocaleDto.ko: '{count}개 파일 선택됨',
+  },
+  'modal.file.pick_failed': {
+    LocaleDto.en: 'Could not select files.',
+    LocaleDto.ko: '파일을 선택하지 못했습니다.',
+  },
+  'modal.file.error.invalid_policy': {
+    LocaleDto.en: 'The file selection policy is invalid.',
+    LocaleDto.ko: '파일 선택 정책이 올바르지 않습니다.',
+  },
+  'modal.file.error.empty_selection': {
+    LocaleDto.en: 'No files were selected.',
+    LocaleDto.ko: '선택된 파일이 없습니다.',
+  },
+  'modal.file.error.directory_selected': {
+    LocaleDto.en: 'Folders cannot be selected: {file}',
+    LocaleDto.ko: '폴더는 선택할 수 없습니다: {file}',
+  },
+  'modal.file.error.extension_not_allowed': {
+    LocaleDto.en: 'File type is not allowed: {file}',
+    LocaleDto.ko: '허용되지 않는 파일 형식입니다: {file}',
+  },
+  'modal.file.error.too_many_files': {
+    LocaleDto.en: 'You can select at most {max} files.',
+    LocaleDto.ko: '파일은 최대 {max}개까지 선택할 수 있습니다.',
+  },
+  'modal.file.error.too_many_nodes': {
+    LocaleDto.en: 'The file structure exceeds the {max}-node limit.',
+    LocaleDto.ko: '파일 구조가 최대 {max}개 노드를 초과했습니다.',
+  },
+  'modal.file.error.metadata_too_large': {
+    LocaleDto.en: 'File names and MIME info are too large.',
+    LocaleDto.ko: '파일 이름과 MIME 정보가 너무 큽니다.',
+  },
+  'modal.file.error.file_too_large': {
+    LocaleDto.en: 'File exceeds the size limit: {file}',
+    LocaleDto.ko: '파일 크기 제한을 초과했습니다: {file}',
+  },
+  'modal.file.error.total_too_large': {
+    LocaleDto.en: 'The total file size exceeds the limit.',
+    LocaleDto.ko: '전체 파일 크기 제한을 초과했습니다.',
+  },
+  'modal.file.error.read_failed': {
+    LocaleDto.en: 'Could not read the file: {file}',
+    LocaleDto.ko: '파일을 읽지 못했습니다: {file}',
+  },
   'modal.hex.hint': {
     LocaleDto.en: 'e.g. ff or 0xCAFE',
     LocaleDto.ko: '예: ff 또는 0xCAFE',
   },
   'modal.hex.empty': {LocaleDto.en: '(empty)', LocaleDto.ko: '(비어 있음)'},
+  'modal.hex.invalid': {
+    LocaleDto.en: 'not a valid hex value',
+    LocaleDto.ko: '올바른 hex 값이 아닙니다',
+  },
   'modal.hex.shortcut_hints': {
     LocaleDto.en: '[F1] run · [F2] copy',
     LocaleDto.ko: '[F1] 실행 · [F2] 복사',
   },
+
+  // Generic-form field validation errors — mirrors the
+  // `modal.validation.*` block in upeg-pegboard-ui/src/i18n.rs.
+  'modal.validation.required': {
+    LocaleDto.en: 'required',
+    LocaleDto.ko: '필수 입력입니다',
+  },
+  'modal.validation.invalid_value': {
+    LocaleDto.en: 'invalid value',
+    LocaleDto.ko: '올바르지 않은 값입니다',
+  },
+  'modal.validation.not_a_number': {
+    LocaleDto.en: 'not a number',
+    LocaleDto.ko: '숫자가 아닙니다',
+  },
+  'modal.validation.not_an_integer': {
+    LocaleDto.en: 'not an integer',
+    LocaleDto.ko: '정수가 아닙니다',
+  },
+  'modal.validation.invalid_format': {
+    LocaleDto.en: 'invalid format',
+    LocaleDto.ko: '형식이 올바르지 않습니다',
+  },
+  'modal.validation.not_a_url': {
+    LocaleDto.en: 'not a url',
+    LocaleDto.ko: 'URL이 아닙니다',
+  },
+  'modal.validation.min': {
+    LocaleDto.en: 'min {value}',
+    LocaleDto.ko: '최소 {value}',
+  },
+  'modal.validation.max': {
+    LocaleDto.en: 'max {value}',
+    LocaleDto.ko: '최대 {value}',
+  },
+  // Structured-output URL action (expanded_modal/structured_output.dart).
+  'modal.output.open_url': {LocaleDto.en: 'open', LocaleDto.ko: '열기'},
 
   // Pin color dialog.
   'pin_color.title': {LocaleDto.en: 'Pin Color', LocaleDto.ko: '핀 색상'},
@@ -566,6 +674,48 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
   'host_attach.notice.tool_error_label': {
     LocaleDto.en: 'run error',
     LocaleDto.ko: '실행 오류',
+  },
+  'host_attach.notice.response_too_large_hint': {
+    LocaleDto.en: "the host's answer was too large to read",
+    LocaleDto.ko: '호스트 응답이 너무 커서 읽을 수 없습니다',
+  },
+  'host_attach.notice.malformed_response_hint': {
+    LocaleDto.en: "the host's answer was malformed",
+    LocaleDto.ko: '호스트 응답 형식이 올바르지 않습니다',
+  },
+  'host_attach.notice.invalid_file_hint': {
+    LocaleDto.en: 'the host returned a file this app could not read',
+    LocaleDto.ko: '호스트가 읽을 수 없는 파일을 반환했습니다',
+  },
+
+  // Backup export / import section (backup_section.dart). The button and
+  // failure rows mirror the pre-existing Rust keys; dialog/result rows
+  // are new.
+  'settings.backup.export': {LocaleDto.en: 'export', LocaleDto.ko: '보내기'},
+  'settings.backup.import': {LocaleDto.en: 'import', LocaleDto.ko: '가져오기'},
+  'settings.backup.export_dialog_title': {
+    LocaleDto.en: 'Save backup',
+    LocaleDto.ko: '백업 저장',
+  },
+  'settings.backup.import_dialog_title': {
+    LocaleDto.en: 'Open backup',
+    LocaleDto.ko: '백업 열기',
+  },
+  'settings.backup.exported': {
+    LocaleDto.en: 'Saved backup to {path}',
+    LocaleDto.ko: '백업을 {path}에 저장했습니다',
+  },
+  'settings.backup.export_failed': {
+    LocaleDto.en: 'export failed: {msg}',
+    LocaleDto.ko: '보내기 실패: {msg}',
+  },
+  'settings.backup.imported': {
+    LocaleDto.en: 'Restored {boards} boards, {layouts} layouts, {memos} memos',
+    LocaleDto.ko: '보드 {boards}개, 레이아웃 {layouts}개, 메모 {memos}개를 복원했습니다',
+  },
+  'settings.backup.import_failed': {
+    LocaleDto.en: 'import failed: {msg}',
+    LocaleDto.ko: '가져오기 실패: {msg}',
   },
 
   // Surface-unsupported honest state.

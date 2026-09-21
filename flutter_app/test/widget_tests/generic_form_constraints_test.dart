@@ -75,22 +75,25 @@ Future<bool?> _pump(
 }
 
 void main() {
-  group('GenericFormWidget 선언 제약', () {
-    testWidgets('Integer 필드는 선언된 기본값을 정수로 미리 채운다', (tester) async {
-      final controller = GenericFormController();
+  group('GenericFormWidget declared constraints', () {
+    testWidgets(
+      'an_integer_field_prefills_the_declared_default_as_an_integer',
+      (tester) async {
+        final controller = GenericFormController();
 
-      await _pump(
-        tester,
-        tool: _toolWith(const [_passwordCountField]),
-        controller: controller,
-      );
+        await _pump(
+          tester,
+          tool: _toolWith(const [_passwordCountField]),
+          controller: controller,
+        );
 
-      expect(controller.value('count'), const NumberValue(20));
-      expect(controller.snapshot()['count'], 20);
-      expect(find.text('20'), findsOneWidget);
-    });
+        expect(controller.value('count'), const NumberValue(20));
+        expect(controller.snapshot()['count'], 20);
+        expect(find.text('20'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Integer 필드는 소수 입력을 거부한다', (tester) async {
+    testWidgets('an_integer_field_rejects_decimal_input', (tester) async {
       final controller = GenericFormController();
       await _pump(
         tester,
@@ -105,7 +108,9 @@ void main() {
       expect(find.text('not an integer'), findsOneWidget);
     });
 
-    testWidgets('Integer 필드는 선언된 최대값을 넘는 값을 거부한다', (tester) async {
+    testWidgets('an_integer_field_rejects_a_value_above_the_declared_max', (
+      tester,
+    ) async {
       final controller = GenericFormController();
       await _pump(
         tester,
@@ -119,21 +124,26 @@ void main() {
       expect(find.text('max 128'), findsOneWidget);
     });
 
-    testWidgets('선언된 범위를 벗어나면 form 유효성 게이트가 닫힌다', (tester) async {
-      final controller = GenericFormController();
-      await _pump(
-        tester,
-        tool: _toolWith(const [_passwordCountField]),
-        controller: controller,
-      );
+    testWidgets(
+      'a_value_outside_the_declared_range_closes_the_form_validity_gate',
+      (tester) async {
+        final controller = GenericFormController();
+        await _pump(
+          tester,
+          tool: _toolWith(const [_passwordCountField]),
+          controller: controller,
+        );
 
-      await tester.enterText(find.byKey(const Key('field-count')), '2');
-      await tester.pump();
+        await tester.enterText(find.byKey(const Key('field-count')), '2');
+        await tester.pump();
 
-      expect(find.text('min 8'), findsOneWidget);
-    });
+        expect(find.text('min 8'), findsOneWidget);
+      },
+    );
 
-    testWidgets('description과 범위는 helper text로 함께 렌더된다', (tester) async {
+    testWidgets('the_description_and_range_render_together_as_helper_text', (
+      tester,
+    ) async {
       await _pump(
         tester,
         tool: _toolWith(const [_passwordCountField]),
@@ -143,36 +153,47 @@ void main() {
       expect(find.text('Password length · min 8 · max 128'), findsOneWidget);
     });
 
-    testWidgets('placeholder는 빈 문자열 필드의 hint로 렌더된다', (tester) async {
-      await _pump(
-        tester,
-        tool: _toolWith(const [_slugField]),
-        controller: GenericFormController(),
-      );
+    testWidgets(
+      'the_placeholder_renders_as_the_hint_of_an_empty_string_field',
+      (tester) async {
+        await _pump(
+          tester,
+          tool: _toolWith(const [_slugField]),
+          controller: GenericFormController(),
+        );
 
-      expect(find.text('my-post-title'), findsOneWidget);
-    });
+        expect(find.text('my-post-title'), findsOneWidget);
+      },
+    );
 
-    testWidgets('String 필드는 선언된 regex에 맞지 않는 값을 거부한다', (tester) async {
-      final controller = GenericFormController();
-      await _pump(
-        tester,
-        tool: _toolWith(const [_slugField]),
-        controller: controller,
-      );
+    testWidgets(
+      'a_string_field_rejects_values_not_matching_the_declared_regex',
+      (tester) async {
+        final controller = GenericFormController();
+        await _pump(
+          tester,
+          tool: _toolWith(const [_slugField]),
+          controller: controller,
+        );
 
-      await tester.enterText(find.byKey(const Key('field-slug')), 'Not A Slug');
-      await tester.pump();
+        await tester.enterText(
+          find.byKey(const Key('field-slug')),
+          'Not A Slug',
+        );
+        await tester.pump();
 
-      expect(find.text('invalid format'), findsOneWidget);
+        expect(find.text('invalid format'), findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('field-slug')), 'a-slug');
-      await tester.pump();
+        await tester.enterText(find.byKey(const Key('field-slug')), 'a-slug');
+        await tester.pump();
 
-      expect(find.text('invalid format'), findsNothing);
-    });
+        expect(find.text('invalid format'), findsNothing);
+      },
+    );
 
-    testWidgets('String 필드는 선언된 기본값으로 시작한다', (tester) async {
+    testWidgets('a_string_field_starts_with_the_declared_default', (
+      tester,
+    ) async {
       final controller = GenericFormController();
 
       await _pump(
@@ -194,38 +215,43 @@ void main() {
       expect(controller.value('title'), const TextValue('hello-world'));
     });
 
-    testWidgets('Select는 값 대신 선택지 라벨과 설명을 보여준다', (tester) async {
-      await _pump(
-        tester,
-        tool: _toolWith(const [
-          InputFieldDto(
-            key: 'mode',
-            label: 'Mode',
-            fieldType: InputFieldType_Select(
-              options: <ChoiceOptionDto>[
-                ChoiceOptionDto(
-                  value: 'fast',
-                  label: 'Fast',
-                  description: 'lower quality',
-                ),
-                ChoiceOptionDto(value: 'safe', label: 'safe'),
-              ],
+    testWidgets(
+      'a_select_shows_choice_labels_and_descriptions_instead_of_values',
+      (tester) async {
+        await _pump(
+          tester,
+          tool: _toolWith(const [
+            InputFieldDto(
+              key: 'mode',
+              label: 'Mode',
+              fieldType: InputFieldType_Select(
+                options: <ChoiceOptionDto>[
+                  ChoiceOptionDto(
+                    value: 'fast',
+                    label: 'Fast',
+                    description: 'lower quality',
+                  ),
+                  ChoiceOptionDto(value: 'safe', label: 'safe'),
+                ],
+              ),
+              required_: true,
             ),
-            required_: true,
-          ),
-        ]),
-        controller: GenericFormController(),
-      );
+          ]),
+          controller: GenericFormController(),
+        );
 
-      await tester.tap(find.byKey(const Key('field-mode')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('field-mode')));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Fast'), findsWidgets);
-      expect(find.text('lower quality'), findsOneWidget);
-      expect(find.text('fast'), findsNothing);
-    });
+        expect(find.text('Fast'), findsWidgets);
+        expect(find.text('lower quality'), findsOneWidget);
+        expect(find.text('fast'), findsNothing);
+      },
+    );
 
-    testWidgets('MultiOptions chip은 값 대신 선택지 라벨을 보여준다', (tester) async {
+    testWidgets('multioptions_chips_show_choice_labels_instead_of_values', (
+      tester,
+    ) async {
       final controller = GenericFormController();
       await _pump(
         tester,
@@ -256,34 +282,37 @@ void main() {
       expect(controller.snapshot()['colors'], <String>['red']);
     });
 
-    testWidgets('InputDecoration이_없는_필드도_description을_보여준다', (tester) async {
-      await _pump(
-        tester,
-        tool: _toolWith(const [
-          InputFieldDto(
-            key: 'include_symbols',
-            label: 'include symbols',
-            description: 'Include punctuation symbols',
-            fieldType: InputFieldType_Boolean(),
-            required_: false,
-          ),
-          InputFieldDto(
-            key: 'colors',
-            label: 'Colors',
-            description: 'Pick any number of colors',
-            fieldType: InputFieldType_MultiOptions(
-              options: <ChoiceOptionDto>[
-                ChoiceOptionDto(value: 'red', label: 'red'),
-              ],
+    testWidgets(
+      'fields_without_an_inputdecoration_still_show_their_description',
+      (tester) async {
+        await _pump(
+          tester,
+          tool: _toolWith(const [
+            InputFieldDto(
+              key: 'include_symbols',
+              label: 'include symbols',
+              description: 'Include punctuation symbols',
+              fieldType: InputFieldType_Boolean(),
+              required_: false,
             ),
-            required_: false,
-          ),
-        ]),
-        controller: GenericFormController(),
-      );
+            InputFieldDto(
+              key: 'colors',
+              label: 'Colors',
+              description: 'Pick any number of colors',
+              fieldType: InputFieldType_MultiOptions(
+                options: <ChoiceOptionDto>[
+                  ChoiceOptionDto(value: 'red', label: 'red'),
+                ],
+              ),
+              required_: false,
+            ),
+          ]),
+          controller: GenericFormController(),
+        );
 
-      expect(find.text('Include punctuation symbols'), findsOneWidget);
-      expect(find.text('Pick any number of colors'), findsOneWidget);
-    });
+        expect(find.text('Include punctuation symbols'), findsOneWidget);
+        expect(find.text('Pick any number of colors'), findsOneWidget);
+      },
+    );
   });
 }

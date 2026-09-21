@@ -155,68 +155,76 @@ Future<void> _pumpPopup(WidgetTester tester, ProviderContainer container) {
 }
 
 void main() {
-  group('Popup 인라인 실행', () {
-    testWidgets('즉시_dispatch_도구는_popup_안에서_실행되고_인라인_결과를_렌더한다', (tester) async {
-      final container = _container(
-        catalogue: [_hit('id.uuid_v7', 'UUID v7')],
-        extraOverrides: [
-          _dispatchImmediateVerdict(),
-          _fakeDispatch((_) async => _okResult('0198-uuid')),
-        ],
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+  group('Popup inline execution', () {
+    testWidgets(
+      'an_immediate_dispatch_tool_runs_inside_the_popup_and_renders_an_inline_result',
+      (tester) async {
+        final container = _container(
+          catalogue: [_hit('id.uuid_v7', 'UUID v7')],
+          extraOverrides: [
+            _dispatchImmediateVerdict(),
+            _fakeDispatch((_) async => _okResult('0198-uuid')),
+          ],
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('popup-hit-id.uuid_v7')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('popup-hit-id.uuid_v7')));
+        await tester.pumpAndSettle();
 
-      // The popup stays open — no dashboard transition, no pending id.
-      expect(container.read(windowModeProvider), WindowMode.popup);
-      expect(container.read(pendingActivationProvider), isNull);
-      // Inline result rendered in place: OK badge + output preview.
-      expect(
-        find.byKey(const ValueKey('popup-inline-result-id.uuid_v7')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('popup-inline-ok-id.uuid_v7')),
-        findsOneWidget,
-      );
-      expect(find.text('0198-uuid'), findsOneWidget);
-      // Shared cache record — back on the board the pin shows the same
-      // result.
-      expect(
-        container.read(lastOutcomeProvider)[ToolId.parse('id.uuid_v7')],
-        isNotNull,
-      );
-    });
+        // The popup stays open — no dashboard transition, no pending id.
+        expect(container.read(windowModeProvider), WindowMode.popup);
+        expect(container.read(pendingActivationProvider), isNull);
+        // Inline result rendered in place: OK badge + output preview.
+        expect(
+          find.byKey(const ValueKey('popup-inline-result-id.uuid_v7')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('popup-inline-ok-id.uuid_v7')),
+          findsOneWidget,
+        );
+        expect(find.text('0198-uuid'), findsOneWidget);
+        // Shared cache record — back on the board the pin shows the same
+        // result.
+        expect(
+          container.read(lastOutcomeProvider)[ToolId.parse('id.uuid_v7')],
+          isNotNull,
+        );
+      },
+    );
 
-    testWidgets('인라인_실행_실패는_ERROR_배지와_에러_메시지를_렌더한다', (tester) async {
-      final container = _container(
-        catalogue: [_hit('id.uuid_v7')],
-        extraOverrides: [
-          _dispatchImmediateVerdict(),
-          _fakeDispatch((_) async => _errorResult),
-        ],
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a_failed_inline_run_renders_the_error_badge_and_error_message',
+      (tester) async {
+        final container = _container(
+          catalogue: [_hit('id.uuid_v7')],
+          extraOverrides: [
+            _dispatchImmediateVerdict(),
+            _fakeDispatch((_) async => _errorResult),
+          ],
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('popup-hit-id.uuid_v7')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('popup-hit-id.uuid_v7')));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('popup-inline-error-id.uuid_v7')),
-        findsOneWidget,
-      );
-      expect(find.text('it broke'), findsOneWidget);
-      // Errors stay popup-local: the board cache keeps its ok-only
-      // contract.
-      expect(container.read(lastOutcomeProvider), isEmpty);
-      expect(container.read(windowModeProvider), WindowMode.popup);
-    });
+        expect(
+          find.byKey(const ValueKey('popup-inline-error-id.uuid_v7')),
+          findsOneWidget,
+        );
+        expect(find.text('it broke'), findsOneWidget);
+        // Errors stay popup-local: the board cache keeps its ok-only
+        // contract.
+        expect(container.read(lastOutcomeProvider), isEmpty);
+        expect(container.read(windowModeProvider), WindowMode.popup);
+      },
+    );
 
-    testWidgets('폼_필요_도구는_기존대로_full_대시보드로_전환한다', (tester) async {
+    testWidgets('a_form_requiring_tool_still_switches_to_the_full_dashboard', (
+      tester,
+    ) async {
       final dispatched = <String>[];
       final container = _container(
         catalogue: [_hit('num.hex_to_decimal')],
@@ -250,31 +258,36 @@ void main() {
       );
     });
 
-    testWidgets('결과_표시_상태에서_같은_툴을_다시_실행하면_결과가_갱신된다', (tester) async {
-      var run = 0;
-      final container = _container(
-        catalogue: [_hit('id.uuid_v7')],
-        extraOverrides: [
-          _dispatchImmediateVerdict(),
-          _fakeDispatch((_) async => _okResult('run-${++run}')),
-        ],
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      're_running_the_same_tool_while_a_result_shows_refreshes_the_result',
+      (tester) async {
+        var run = 0;
+        final container = _container(
+          catalogue: [_hit('id.uuid_v7')],
+          extraOverrides: [
+            _dispatchImmediateVerdict(),
+            _fakeDispatch((_) async => _okResult('run-${++run}')),
+          ],
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      final cell = find.byKey(const ValueKey('popup-hit-id.uuid_v7'));
-      await tester.tap(cell);
-      await tester.pumpAndSettle();
-      expect(find.text('run-1'), findsOneWidget);
+        final cell = find.byKey(const ValueKey('popup-hit-id.uuid_v7'));
+        await tester.tap(cell);
+        await tester.pumpAndSettle();
+        expect(find.text('run-1'), findsOneWidget);
 
-      await tester.tap(cell);
-      await tester.pumpAndSettle();
+        await tester.tap(cell);
+        await tester.pumpAndSettle();
 
-      expect(find.text('run-2'), findsOneWidget);
-      expect(run, 2);
-    });
+        expect(find.text('run-2'), findsOneWidget);
+        expect(run, 2);
+      },
+    );
 
-    testWidgets('copy_버튼은_인라인_결과를_클립보드에_복사한다', (tester) async {
+    testWidgets('the_copy_button_copies_the_inline_result_to_the_clipboard', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       final container = _container(
         catalogue: [_hit('id.uuid_v7')],
@@ -297,7 +310,9 @@ void main() {
       expect(writer.written, ['copy-me']);
     });
 
-    testWidgets('F2는_최근_인라인_결과를_클립보드에_복사한다', (tester) async {
+    testWidgets('f2_copies_the_latest_inline_result_to_the_clipboard', (
+      tester,
+    ) async {
       final writer = _RecordingClipboardWriter();
       final container = _container(
         catalogue: [_hit('id.uuid_v7')],
@@ -328,26 +343,29 @@ void main() {
       );
     });
 
-    testWidgets('Enter_활성화도_즉시_dispatch_도구를_인라인으로_실행한다', (tester) async {
-      final container = _container(
-        catalogue: [_hit('id.uuid_v7')],
-        extraOverrides: [
-          _dispatchImmediateVerdict(),
-          _fakeDispatch((_) async => _okResult('enter-run')),
-        ],
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'enter_activation_also_runs_an_immediate_dispatch_tool_inline',
+      (tester) async {
+        final container = _container(
+          catalogue: [_hit('id.uuid_v7')],
+          extraOverrides: [
+            _dispatchImmediateVerdict(),
+            _fakeDispatch((_) async => _okResult('enter-run')),
+          ],
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
 
-      expect(container.read(windowModeProvider), WindowMode.popup);
-      expect(find.text('enter-run'), findsOneWidget);
-    });
+        expect(container.read(windowModeProvider), WindowMode.popup);
+        expect(find.text('enter-run'), findsOneWidget);
+      },
+    );
   });
 
-  group('Popup 보드 스코프', () {
+  group('Popup board scope', () {
     List<Override> scopedOverrides() => [
       _dispatchImmediateVerdict(),
       _fakeDispatch((_) async => _okResult('ok')),
@@ -372,74 +390,85 @@ void main() {
       BoardDto(key: 'media', title: 'Media'),
     ];
 
-    testWidgets('보드탭은_그리드를_선택된_보드의_핀으로_스코프하고_헤더를_노출한다', (tester) async {
-      final container = _container(
-        catalogue: [_hit('a.one'), _hit('b.two'), _hit('c.three')],
-        boards: boards,
-        extraOverrides: scopedOverrides(),
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'the_board_tab_scopes_the_grid_to_the_selected_boards_pins_and_shows_the_header',
+      (tester) async {
+        final container = _container(
+          catalogue: [_hit('a.one'), _hit('b.two'), _hit('c.three')],
+          boards: boards,
+          extraOverrides: scopedOverrides(),
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      // Board restore lands on 'dev' → only its pin renders, under the
-      // PINNED · Dev header.
-      expect(find.byKey(const Key('popup-pinned-header')), findsOneWidget);
-      expect(
-        find.text(i18nEn('popup.pinned_section', {'board': 'Dev'})),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('popup-hit-a.one')), findsOneWidget);
-      expect(find.byKey(const ValueKey('popup-hit-b.two')), findsNothing);
-      expect(find.byKey(const ValueKey('popup-hit-c.three')), findsNothing);
-    });
+        // Board restore lands on 'dev' → only its pin renders, under the
+        // PINNED · Dev header.
+        expect(find.byKey(const Key('popup-pinned-header')), findsOneWidget);
+        expect(
+          find.text(i18nEn('popup.pinned_section', {'board': 'Dev'})),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('popup-hit-a.one')), findsOneWidget);
+        expect(find.byKey(const ValueKey('popup-hit-b.two')), findsNothing);
+        expect(find.byKey(const ValueKey('popup-hit-c.three')), findsNothing);
+      },
+    );
 
-    testWidgets('다른_보드탭을_누르면_그리드가_그_보드의_핀으로_바뀐다', (tester) async {
-      final container = _container(
-        catalogue: [_hit('a.one'), _hit('b.two')],
-        boards: boards,
-        extraOverrides: scopedOverrides(),
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'tapping_another_board_tab_rescopes_the_grid_to_that_boards_pins',
+      (tester) async {
+        final container = _container(
+          catalogue: [_hit('a.one'), _hit('b.two')],
+          boards: boards,
+          extraOverrides: scopedOverrides(),
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Media'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Media'));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.text(i18nEn('popup.pinned_section', {'board': 'Media'})),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('popup-hit-b.two')), findsOneWidget);
-      expect(find.byKey(const ValueKey('popup-hit-a.one')), findsNothing);
-    });
+        expect(
+          find.text(i18nEn('popup.pinned_section', {'board': 'Media'})),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('popup-hit-b.two')), findsOneWidget);
+        expect(find.byKey(const ValueKey('popup-hit-a.one')), findsNothing);
+      },
+    );
 
-    testWidgets('검색어를_입력하면_보드_스코프_대신_전체_검색_결과를_보여준다', (tester) async {
-      final container = _container(
-        // Typed queries flow through paletteResultsProvider; use a
-        // query-aware searcher so a non-empty query returns a global
-        // (non-board) match.
-        searcher: (query) => query.trim().isEmpty
-            ? [_hit('a.one'), _hit('b.two')]
-            : [_hit('b.two')],
-        boards: boards,
-        extraOverrides: scopedOverrides(),
-      );
-      await _pumpPopup(tester, container);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'typing_a_query_shows_global_search_results_instead_of_the_board_scope',
+      (tester) async {
+        final container = _container(
+          // Typed queries flow through paletteResultsProvider; use a
+          // query-aware searcher so a non-empty query returns a global
+          // (non-board) match.
+          searcher: (query) => query.trim().isEmpty
+              ? [_hit('a.one'), _hit('b.two')]
+              : [_hit('b.two')],
+          boards: boards,
+          extraOverrides: scopedOverrides(),
+        );
+        await _pumpPopup(tester, container);
+        await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.byKey(const Key('popup-search-field')),
-        'two',
-      );
-      await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('popup-search-field')),
+          'two',
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('popup-pinned-header')), findsNothing);
-      expect(find.byKey(const ValueKey('popup-hit-b.two')), findsOneWidget);
-    });
+        expect(find.byKey(const Key('popup-pinned-header')), findsNothing);
+        expect(find.byKey(const ValueKey('popup-hit-b.two')), findsOneWidget);
+      },
+    );
   });
 
-  group('Popup 실행 후 흐름', () {
-    testWidgets('인라인_결과_표시_상태에서도_esc는_popup을_닫는다', (tester) async {
+  group('Popup post-run flow', () {
+    testWidgets('esc_still_closes_the_popup_while_an_inline_result_shows', (
+      tester,
+    ) async {
       final hider = _RecordingWindowHider();
       final container = _container(
         catalogue: [_hit('id.uuid_v7')],

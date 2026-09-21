@@ -18,16 +18,35 @@
 importScripts('wire.js', 'host_api.js', 'site_access.js');
 
 (() => {
-  const { DISPATCH_RESULT_KIND, RUNTIME_MESSAGE, TOKEN_STORAGE_KEY, callTool } = UpegHostApi;
+  const {
+    DEFAULT_ENDPOINT,
+    DISPATCH_RESULT_KIND,
+    ENDPOINT_STORAGE_KEY,
+    RUNTIME_MESSAGE,
+    TOKEN_STORAGE_KEY,
+    callTool,
+    endpointForStoredValue,
+  } = UpegHostApi;
   const { ensureSeededPatterns, syncContentScripts } = UpegSiteAccess;
 
-  async function readToken() {
+  // Token + endpoint are read together on every dispatch — the worker
+  // caches neither, so a pairing change in the popup takes effect on the
+  // next request without a restart. The endpoint is re-validated on read
+  // (endpointForStoredValue): a corrupt or hostile stored value falls
+  // back to the default rather than aiming the token elsewhere.
+  async function readPairing() {
     try {
-      const stored = await chrome.storage.local.get(TOKEN_STORAGE_KEY);
+      const stored = await chrome.storage.local.get([
+        TOKEN_STORAGE_KEY,
+        ENDPOINT_STORAGE_KEY,
+      ]);
       const value = stored[TOKEN_STORAGE_KEY];
-      return typeof value === 'string' && value.length > 0 ? value : null;
+      return {
+        token: typeof value === 'string' && value.length > 0 ? value : null,
+        endpoint: endpointForStoredValue(stored[ENDPOINT_STORAGE_KEY]),
+      };
     } catch {
-      return null;
+      return { token: null, endpoint: DEFAULT_ENDPOINT };
     }
   }
 
@@ -41,9 +60,11 @@ importScripts('wire.js', 'host_api.js', 'site_access.js');
     if (toolId === null) {
       return { kind: DISPATCH_RESULT_KIND.FAILURE, error: { message: 'missing toolId' } };
     }
+    const pairing = await readPairing();
     return callTool({
       fetchImpl: fetch,
-      token: await readToken(),
+      baseUrl: pairing.endpoint.baseUrl,
+      token: pairing.token,
       toolId,
       args: message.args && typeof message.args === 'object' ? message.args : {},
     });

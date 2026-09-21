@@ -7,7 +7,7 @@ import 'package:upeg/src/widgets/expanded_modal/file_selection_policy_adapter.da
 
 void main() {
   group('FileSelectionPolicy DTO adapter', () {
-    test('고정 상한과 같은 maxCount는 경계에서 허용한다', () {
+    test('a_maxCount_equal_to_the_fixed_cap_is_accepted_at_the_boundary', () {
       final dto = FileInputPolicyDto(
         extensions: const <String>[],
         maxCount: maxFileInputCount,
@@ -18,38 +18,44 @@ void main() {
       expect(fileSelectionPolicyFromDto(dto).maxCount, maxFileInputCount);
     });
 
-    test('생성 DTO의 모든 정책 필드를 hand-written 정책으로 변환한다', () {
-      final dto = FileInputPolicyDto(
-        extensions: const ['png', 'jpg'],
-        maxCount: 3,
-        maxFileBytes: BigInt.from(10),
-        maxTotalBytes: BigInt.from(20),
-      );
+    test(
+      'every_generated_DTO_policy_field_maps_to_the_hand_written_policy',
+      () {
+        final dto = FileInputPolicyDto(
+          extensions: const ['png', 'jpg'],
+          maxCount: 3,
+          maxFileBytes: BigInt.from(10),
+          maxTotalBytes: BigInt.from(20),
+        );
 
-      final policy = fileSelectionPolicyFromDto(dto);
+        final policy = fileSelectionPolicyFromDto(dto);
 
-      expect(policy.extensions, ['png', 'jpg']);
-      expect(policy.maxCount, 3);
-      expect(policy.maxFileBytes, 10);
-      expect(policy.maxTotalBytes, 20);
-    });
+        expect(policy.extensions, ['png', 'jpg']);
+        expect(policy.maxCount, 3);
+        expect(policy.maxFileBytes, 10);
+        expect(policy.maxTotalBytes, 20);
+      },
+    );
 
-    test('Dart 정확 정수 범위를 넘는 유효 u64 제한은 최대 정확 정수로 포화한다', () {
-      final coreU64Maximum = BigInt.parse('18446744073709551615');
-      final dto = FileInputPolicyDto(
-        extensions: const <String>[],
-        maxCount: 1,
-        maxFileBytes: coreU64Maximum,
-        maxTotalBytes: coreU64Maximum,
-      );
+    test(
+      'a_valid_u64_limit_beyond_the_Dart_exact_integer_range_saturates_to_the_max_exact_integer',
+      () {
+        final coreU64Maximum = BigInt.parse('18446744073709551615');
+        final dto = FileInputPolicyDto(
+          extensions: const <String>[],
+          maxCount: 1,
+          maxFileBytes: coreU64Maximum,
+          maxTotalBytes: coreU64Maximum,
+        );
 
-      final policy = fileSelectionPolicyFromDto(dto);
+        final policy = fileSelectionPolicyFromDto(dto);
 
-      expect(policy.maxFileBytes, maxExactFilePolicyInteger);
-      expect(policy.maxTotalBytes, maxExactFilePolicyInteger);
-    });
+        expect(policy.maxFileBytes, maxExactFilePolicyInteger);
+        expect(policy.maxTotalBytes, maxExactFilePolicyInteger);
+      },
+    );
 
-    test('음수 byte 제한은 경계에서 거부한다', () {
+    test('a_negative_byte_limit_is_rejected_at_the_boundary', () {
       final dto = FileInputPolicyDto(
         extensions: const <String>[],
         maxCount: 1,
@@ -60,7 +66,7 @@ void main() {
       expect(() => fileSelectionPolicyFromDto(dto), throwsA(isA<RangeError>()));
     });
 
-    test('0인 maxCount는 경계에서 거부한다', () {
+    test('a_zero_maxCount_is_rejected_at_the_boundary', () {
       final dto = FileInputPolicyDto(
         extensions: const <String>[],
         maxCount: 0,
@@ -71,7 +77,7 @@ void main() {
       expect(() => fileSelectionPolicyFromDto(dto), throwsA(isA<RangeError>()));
     });
 
-    test('고정 상한을 넘는 maxCount는 경계에서 거부한다', () {
+    test('a_maxCount_above_the_fixed_cap_is_rejected_at_the_boundary', () {
       final dto = FileInputPolicyDto(
         extensions: const <String>[],
         maxCount: maxFileInputCount + 1,
@@ -84,7 +90,7 @@ void main() {
         throwsA(
           isA<RangeError>().having(
             (error) => error.invalidValue,
-            '거부된 maxCount',
+            'rejected maxCount',
             maxFileInputCount + 1,
           ),
         ),

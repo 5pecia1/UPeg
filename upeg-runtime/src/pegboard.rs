@@ -517,7 +517,7 @@ mod tests {
 
     fn local_id_for(id: &'static str) -> &'static str {
         ToolId::parse_canonical_in_toolkit(id, "pegboard_test")
-            .expect("테스트 ToolMeta id는 정규 형식이어야 한다")
+            .expect("test ToolMeta id must be in canonical form")
             .local()
     }
 
@@ -532,6 +532,8 @@ mod tests {
             input_spec: InputSpec::empty(),
             output_spec: upeg_core::OutputSpec::empty(),
             primary_output_id: None,
+            effect: upeg_core::ToolEffect::Unknown,
+            presentation: None,
             source: upeg_core::Source::UserInput,
             pin: PinKind::Inline,
             pegboard_units,
@@ -581,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn 보드_너비는_항상_6열로_유지된다() {
+    fn board_width_always_stays_six_columns() {
         register_test_tools();
         let board = vec![Placement::new(U1_TOOL, BOARD_COLS + 4, 0)];
 
@@ -590,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn 겹친_pin은_같은_행_오른쪽으로_밀리고_끝에서_다음_행으로_넘어간다() {
+    fn overlapped_pin_shifts_right_in_same_row_and_wraps_to_next_row_at_end() {
         register_test_tools();
         let mut layout = placements_from_ordered_ids([U1_TOOL, U1_B, U1_C, U1_D, U1_E, U1_F, U1_G]);
 
@@ -610,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn 저장_배치가_6열_밖이면_아래쪽_행으로_정리된다() {
+    fn saved_placement_beyond_six_columns_is_reconciled_into_lower_row() {
         register_test_tools();
         let raw = vec![
             Placement::new(U1_TOOL, 0, 0),
@@ -629,7 +631,7 @@ mod tests {
     }
 
     #[test]
-    fn 도구가_6열보다_넓으면_배치하지_않는다() {
+    fn tool_wider_than_six_columns_is_not_placed() {
         let oversized_w = BOARD_COLS + 1;
 
         assert!(!can_place_at(&[], None, 0, 0, oversized_w, 1));
@@ -637,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    fn 사각형_겹침은_부분_겹침과_분리를_감지한다() {
+    fn rect_overlap_detects_partial_overlap_and_separation() {
         let a = PlacementRect {
             x: 0,
             y: 0,
@@ -661,21 +663,21 @@ mod tests {
     }
 
     #[test]
-    fn 첫_빈칸_찾기는_행_우선으로_채운다() {
+    fn find_first_empty_fills_row_major() {
         let board = vec![Placement::new("num.hex_to_decimal", 0, 0)];
         let (x, y) = find_first_empty(&board, None, 1, 1);
         assert_eq!((x, y), (1, 0));
     }
 
     #[test]
-    fn 배치_가능성은_넘침을_거부한다() {
+    fn can_place_at_rejects_overflow() {
         let board = Vec::new();
         assert!(!can_place_at(&board, None, BOARD_COLS, 0, 1, 1));
         assert!(can_place_at(&board, None, BOARD_COLS - 1, 0, 1, 1));
     }
 
     #[test]
-    fn 배치_정리는_충돌을_다시_흘려보낸다() {
+    fn reconcile_placements_reflows_collisions() {
         register_test_tools();
         let raw = vec![Placement::new(U2_TOOL, 0, 0), Placement::new(U1_TOOL, 0, 0)];
         let out = reconcile_placements(raw);
@@ -687,7 +689,7 @@ mod tests {
     }
 
     #[test]
-    fn 배치_쌍_교환은_섞인_크기를_다시_정리한다() {
+    fn swap_placement_pair_reconciles_mixed_sizes() {
         register_test_tools();
         let mut layout = vec![
             Placement::new(U1_TOOL, BOARD_COLS - 1, 0),
@@ -712,7 +714,7 @@ mod tests {
     }
 
     #[test]
-    fn 밀어내기_도구_배치는_다른_도구를_옮기지_않고_빈칸으로_이동한다() {
+    fn place_tool_with_push_moves_to_empty_cell_without_moving_other_tools() {
         register_test_tools();
         let mut layout = vec![
             Placement::new(U1_TOOL, 0, 0),
@@ -743,7 +745,7 @@ mod tests {
     }
 
     #[test]
-    fn 밀어내기_도구_배치는_충돌한_도구를_앞으로_민다() {
+    fn place_tool_with_push_pushes_colliding_tool_forward() {
         register_test_tools();
         let mut layout = vec![
             Placement::new(U1_TOOL, 0, 0),
@@ -782,7 +784,7 @@ mod tests {
     }
 
     #[test]
-    fn 밀어내기_도구_배치는_연쇄_이동을_다음_행으로_흘려보낸다() {
+    fn place_tool_with_push_spills_chained_moves_into_next_row() {
         register_test_tools();
         let mut layout = placements_from_ordered_ids([U1_TOOL, U1_B, U1_C, U1_D, U1_E, U1_F, U1_G]);
 
@@ -803,13 +805,13 @@ mod tests {
             layout
                 .iter()
                 .any(|p| p.tool_id == U1_F && p.x == 0 && p.y == 1),
-            "마지막으로 밀린 항목은 다음 행으로 흘러가야 한다"
+            "the last pushed item must spill into the next row"
         );
         assert!(has_no_overlap(&layout));
     }
 
     #[test]
-    fn 밀어내기_도구_배치는_넓은_도구를_보드_폭에_맞춘다() {
+    fn place_tool_with_push_fits_wide_tool_within_board_width() {
         register_test_tools();
         let mut layout = vec![Placement::new(U2_TOOL, 0, 0), Placement::new(U1_TOOL, 2, 0)];
 
@@ -829,7 +831,7 @@ mod tests {
     }
 
     #[test]
-    fn 배치_이동은_행_우선_이웃과_교환한다() {
+    fn move_placement_swaps_with_row_major_neighbor() {
         register_test_tools();
         let mut layout = vec![Placement::new(U1_TOOL, 0, 0), Placement::new(U2_TOOL, 1, 0)];
 
@@ -846,7 +848,7 @@ mod tests {
     }
 
     #[test]
-    fn slugify는_보드_제목을_정규화한다() {
+    fn slugify_normalizes_board_titles() {
         assert_eq!(slugify("Trading Desk"), "trading-desk");
         assert_eq!(slugify("  !!!  "), "board");
         assert_eq!(slugify("Dev / Ops"), "dev-ops");
@@ -854,13 +856,13 @@ mod tests {
 
     fn span_of(cols: u16, rows: u16) -> PinSpan {
         PinSpan::new(
-            ColSpan::new(cols).expect("테스트 span cols"),
-            RowSpan::new(rows).expect("테스트 span rows"),
+            ColSpan::new(cols).expect("test span cols"),
+            RowSpan::new(rows).expect("test span rows"),
         )
     }
 
     #[test]
-    fn effective_size는_span_override를_manifest_기본보다_우선한다() {
+    fn effective_size_prefers_span_override_over_manifest_default() {
         register_test_tools();
         let plain = Placement::new(U1_TOOL, 0, 0);
 
@@ -871,11 +873,11 @@ mod tests {
     }
 
     #[test]
-    fn span이_있는_pin은_충돌_판정에_확장_크기를_쓴다() {
+    fn pin_with_span_uses_expanded_size_for_collision_checks() {
         register_test_tools();
         let board = vec![Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 2)))];
 
-        // manifest는 U1(1×1)이지만 span 2×2가 (1,0)/(0,1)/(1,1)을 차지한다.
+        // The manifest says U1(1×1) but the 2×2 span occupies (1,0)/(0,1)/(1,1).
         assert!(!can_place_at(&board, None, 1, 0, 1, 1));
         assert!(!can_place_at(&board, None, 0, 1, 1, 1));
         assert!(!can_place_at(&board, None, 1, 1, 1, 1));
@@ -883,7 +885,7 @@ mod tests {
     }
 
     #[test]
-    fn span이_있는_pin_밀어내기는_확장_크기와_span을_유지한다() {
+    fn push_on_pin_with_span_keeps_expanded_size_and_span() {
         register_test_tools();
         let mut layout = vec![
             Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1))),
@@ -903,13 +905,13 @@ mod tests {
                 .find(|p| p.tool_id == U1_TOOL)
                 .and_then(|p| p.span),
             Some(span_of(2, 1)),
-            "밀린 뒤에도 span override는 보존되어야 한다"
+            "the span override must be preserved after being pushed"
         );
         assert!(has_no_overlap(&layout));
     }
 
     #[test]
-    fn span이_보드_폭을_넘는_드롭은_시작_열을_정규화한다() {
+    fn drop_with_span_wider_than_board_normalizes_start_column() {
         register_test_tools();
         let mut layout = vec![Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1)))];
 
@@ -923,14 +925,14 @@ mod tests {
     }
 
     #[test]
-    fn 좌표_지정_배치는_span_크기로_배치_가능성을_판정한다() {
+    fn coordinate_placement_judges_placeability_by_span_size() {
         register_test_tools();
         let mut layout = vec![
             Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1))),
             Placement::new(U1_B, 3, 0),
         ];
 
-        // 2칸짜리 span 도구를 (2,0)에 두면 (3,0)의 U1_B와 겹친다.
+        // Placing the 2-cell span tool at (2,0) collides with U1_B at (3,0).
         assert_eq!(
             place_tool_at(&mut layout, U1_TOOL, 2, 0),
             PlacementEdit::NoOp
@@ -944,9 +946,10 @@ mod tests {
     }
 
     #[test]
-    fn 배치_정리는_span과_args_preset을_보존하고_확장_크기로_충돌을_정리한다() {
+    fn reconcile_placements_preserves_span_and_args_preset_and_clears_collisions_by_expanded_size()
+    {
         register_test_tools();
-        let preset = upeg_core::ArgsPreset::parse(r#"{"unit":"c"}"#).expect("테스트 preset");
+        let preset = upeg_core::ArgsPreset::parse(r#"{"unit":"c"}"#).expect("test preset");
         let raw = vec![
             Placement::new(U1_TOOL, 0, 0)
                 .with_span(Some(span_of(2, 1)))
@@ -956,12 +959,12 @@ mod tests {
 
         let out = reconcile_placements(raw);
 
-        // U1_B의 (1,0)은 span이 차지하므로 다음 빈칸으로 밀린다.
+        // U1_B's (1,0) is occupied by the span, so it is pushed to the next empty cell.
         assert_eq!(position_of(&out, U1_B), Some((2, 0)));
         let kept = out
             .iter()
             .find(|p| p.tool_id == U1_TOOL)
-            .expect("span 도구 유지");
+            .expect("span tool must remain");
         assert_eq!(kept.span, Some(span_of(2, 1)));
         assert_eq!(kept.args_preset, Some(preset));
         assert!(has_no_overlap(&out));

@@ -49,7 +49,7 @@ function unreadableSizedFile(name, size) {
   };
 }
 
-test('File_wire_helper는_popup보다_먼저_load되고_build에_stage된다', () => {
+test('the_file_wire_helper_loads_before_popup_and_is_staged_into_build', () => {
   const html = fs.readFileSync(path.join(EXTENSION_ROOT, 'popup.html'), 'utf8');
   const build = fs.readFileSync(path.join(EXTENSION_ROOT, 'build.sh'), 'utf8');
   const wireIndex = html.indexOf('<script src="wire.js"></script>');
@@ -63,7 +63,7 @@ test('File_wire_helper는_popup보다_먼저_load되고_build에_stage된다', (
   assert.match(build, /FILES=\([^)]*wire\.js[^)]*file_input\.js[^)]*popup\.js/);
 });
 
-test('File_정책은_multiple과_accept_속성을_설정한다', () => {
+test('file_policy_sets_the_multiple_and_accept_attributes', () => {
   const control = { multiple: false, accept: '' };
   const schema = {
     'x-upeg-file-policy': {
@@ -87,7 +87,7 @@ test('File_정책은_multiple과_accept_속성을_설정한다', () => {
   });
 });
 
-test('복합_확장자와_dotfile은_정규화된_filename_suffix로_허용한다', async () => {
+test('compound_extensions_and_dotfiles_pass_via_normalized_filename_suffixes', async () => {
   const policy = configureFileInput({}, {
     'x-upeg-file-policy': {
       maxCount: 2,
@@ -111,7 +111,7 @@ test('복합_확장자와_dotfile은_정규화된_filename_suffix로_허용한�
   );
 });
 
-test('파일별_0_byte_제한은_빈_파일만_허용한다', async () => {
+test('a_per_file_0_byte_cap_admits_only_empty_files', async () => {
   const policy = configureFileInput({}, {
     'x-upeg-file-policy': { maxFileBytes: 0 },
   });
@@ -125,7 +125,7 @@ test('파일별_0_byte_제한은_빈_파일만_허용한다', async () => {
   );
 });
 
-test('전체_0_byte_제한은_0_byte_파일_선택만_허용한다', async () => {
+test('a_total_0_byte_cap_admits_only_0_byte_file_selections', async () => {
   const policy = configureFileInput({}, {
     'x-upeg-file-policy': { maxCount: 2, maxTotalBytes: 0 },
   });
@@ -143,7 +143,7 @@ test('전체_0_byte_제한은_0_byte_파일_선택만_허용한다', async () =>
   );
 });
 
-test('multi_정책은_한_파일도_선택_순서와_MIME을_보존한_Directory로_만든다', async () => {
+test('multi_policy_builds_a_directory_preserving_pick_order_and_mime', async () => {
   const first = fakeFile('첫째.PNG', [1, 2], 'image/png');
   const second = fakeFile('second.jpg', [3], 'image/jpeg');
   const policy = {
@@ -180,7 +180,7 @@ test('multi_정책은_한_파일도_선택_순서와_MIME을_보존한_Directory
   );
 });
 
-test('single_정책은_기존_Bytes_루트_shape를_유지한다', async () => {
+test('single_policy_keeps_the_existing_bytes_root_shape', async () => {
   const selected = fakeFile('report.bin', [7, 8], 'application/octet-stream');
 
   const value = await readFileSelection(
@@ -202,34 +202,34 @@ test('single_정책은_기존_Bytes_루트_shape를_유지한다', async () => {
   });
 });
 
-test('개수_확장자_파일크기_합계와_Ext_전송_cap은_read_전에_거부한다', async (t) => {
+test('count_extension_size_total_and_ext_transport_caps_reject_before_reading', async (t) => {
   const cases = [
     {
-      name: '개수',
+      name: 'count',
       files: [unreadableSizedFile('a.png', 1), unreadableSizedFile('b.png', 1)],
       policy: { maxCount: 1, extensions: ['png'], maxFileBytes: 10, maxTotalBytes: 10 },
       code: FILE_SELECTION_ERROR.TOO_MANY_FILES,
     },
     {
-      name: '확장자',
+      name: 'extension',
       files: [unreadableSizedFile('a.gif', 1)],
       policy: { maxCount: 2, extensions: ['png'], maxFileBytes: 10, maxTotalBytes: 10 },
       code: FILE_SELECTION_ERROR.EXTENSION_NOT_ALLOWED,
     },
     {
-      name: '파일 크기',
+      name: 'file size',
       files: [unreadableSizedFile('a.png', 11)],
       policy: { maxCount: 2, extensions: ['png'], maxFileBytes: 10, maxTotalBytes: 20 },
       code: FILE_SELECTION_ERROR.FILE_TOO_LARGE,
     },
     {
-      name: '정책 합계',
+      name: 'policy total',
       files: [unreadableSizedFile('a.png', 6), unreadableSizedFile('b.png', 5)],
       policy: { maxCount: 2, extensions: ['png'], maxFileBytes: 10, maxTotalBytes: 10 },
       code: FILE_SELECTION_ERROR.TOTAL_TOO_LARGE,
     },
     {
-      name: 'Ext 전송 cap',
+      name: 'Ext transport cap',
       files: [
         unreadableSizedFile('a.png', MAX_EXT_RAW_AGGREGATE_BYTES),
         unreadableSizedFile('b.png', 1),
@@ -249,7 +249,7 @@ test('개수_확장자_파일크기_합계와_Ext_전송_cap은_read_전에_거�
   }
 });
 
-test('각_File은_남은_cap보다_한_byte만_더_읽도록_slice한다', async () => {
+test('each_file_is_sliced_to_read_one_byte_past_the_remaining_cap', async () => {
   const selected = fakeFile('small.png', [1, 2, 3], 'image/png');
 
   await readFileSelection(
@@ -266,13 +266,13 @@ test('각_File은_남은_cap보다_한_byte만_더_읽도록_slice한다', async
   assert.deepEqual(selected.slices, [[0, 5]]);
 });
 
-test('Bytes_wire는_padded_RFC4648_base64를_정확히_사용한다', () => {
+test('the_bytes_wire_uses_exactly_padded_rfc4648_base64', () => {
   assert.equal(encodeBase64(Uint8Array.from([0, 1, 255])), 'AAH/');
   assert.equal(encodeBase64(new Uint8Array()), '');
   assert.deepEqual(decodeBase64('AAH/'), Uint8Array.from([0, 1, 255]));
   assert.deepEqual(decodeBase64(''), new Uint8Array());
 });
 
-test('요청_body_직렬화_helper가_존재한다', () => {
+test('the_request_body_serialization_helper_exists', () => {
   assert.equal(typeof serializeJsonRequestBody, 'function');
 });

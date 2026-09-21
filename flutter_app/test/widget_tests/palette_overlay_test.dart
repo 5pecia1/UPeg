@@ -173,31 +173,36 @@ class _PaletteDialogButton extends StatelessWidget {
 
 void main() {
   group('PaletteOverlay', () {
-    testWidgets('PaletteOverlay는_빈_쿼리에서도_핀할_도구_목록을_보여준다', (tester) async {
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(_harness(hits: hits, onPick: (_) {}));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'paletteoverlay_lists_pinnable_tools_even_with_an_empty_query',
+      (tester) async {
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(_harness(hits: hits, onPick: (_) {}));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('palette-board-chips-num.hex_to_decimal')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const Key('palette-empty-hint')), findsNothing);
-    });
+        expect(
+          find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('palette-board-chips-num.hex_to_decimal')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('palette-empty-hint')), findsNothing);
+      },
+    );
 
-    testWidgets('PaletteOverlay는_검색어_없이_board_chip_클릭으로_pin한다', (tester) async {
+    testWidgets('paletteoverlay_pins_via_a_board_chip_click_without_a_query', (
+      tester,
+    ) async {
       PaletteHit? picked;
       final pinCalls = <(BoardKey, ToolId)>[];
       const hits = [
@@ -232,22 +237,25 @@ void main() {
       ]);
     });
 
-    testWidgets('PaletteOverlay는_locale_Ko에서_검색_placeholder가_한국어로_바뀐다', (
+    testWidgets(
+      'paletteoverlay_shows_a_korean_search_placeholder_in_locale_ko',
+      (tester) async {
+        await tester.pumpWidget(
+          _harness(hits: const [], onPick: (_) {}, locale: LocaleDto.ko),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('search tools, paste, or type a command…'),
+          findsNothing,
+        );
+        expect(find.text('도구 검색, 붙여넣기 또는 명령 입력…'), findsWidgets);
+      },
+    );
+
+    testWidgets('paletteoverlay_renders_hits_matching_the_query', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _harness(hits: const [], onPick: (_) {}, locale: LocaleDto.ko),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('search tools, paste, or type a command…'),
-        findsNothing,
-      );
-      expect(find.text('도구 검색, 붙여넣기 또는 명령 입력…'), findsWidgets);
-    });
-
-    testWidgets('PaletteOverlay는_쿼리에_맞는_hit를_렌더한다', (tester) async {
       const hits = [
         PaletteHit(
           id: 'num.hex_to_decimal',
@@ -280,7 +288,7 @@ void main() {
       expect(find.text('hex → dec'), findsOneWidget);
     });
 
-    testWidgets('PaletteOverlay_row는_pinKind_badge를_표시한다', (tester) async {
+    testWidgets('a_paletteoverlay_row_shows_the_pinkind_badge', (tester) async {
       // H11 — each palette row mounts a `KindBadge(pinKind: ...)` so
       // the user can tell at a glance what kind of pin the result is.
       const hits = [
@@ -310,7 +318,9 @@ void main() {
       expect(find.byType(KindBadge), findsNWidgets(hits.length));
     });
 
-    testWidgets('PaletteOverlay는_매치가_없으면_no_results를_표시한다', (tester) async {
+    testWidgets('paletteoverlay_shows_no_results_when_nothing_matches', (
+      tester,
+    ) async {
       const hits = [
         PaletteHit(
           id: 'num.hex_to_decimal',
@@ -332,45 +342,46 @@ void main() {
       expect(find.text('no tools match "zzzzz"'), findsOneWidget);
     });
 
-    testWidgets('PaletteOverlay는_toolbox가_비어있을때_empty_toolbox_메시지를_표시한다', (
-      tester,
-    ) async {
-      // H07 — when no tools are registered at all, the palette must
-      // surface the localised `palette.empty_toolbox` copy instead of
-      // the generic "type to search" placeholder. The empty-toolbox
-      // copy shows only when the toolbox has no items AND the query
-      // is empty.
-      //
-      // Override `toolsLoaderProvider` with an empty list and pass an
-      // empty palette hits list so the searcher would never return a
-      // match. Empty query → must show the empty-toolbox copy, NOT
-      // the placeholder.
-      await tester.pumpWidget(
-        _harness(hits: const [], tools: const <ToolDto>[], onPick: (_) {}),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'paletteoverlay_shows_the_empty_toolbox_message_when_the_toolbox_is_empty',
+      (tester) async {
+        // H07 — when no tools are registered at all, the palette must
+        // surface the localised `palette.empty_toolbox` copy instead of
+        // the generic "type to search" placeholder. The empty-toolbox
+        // copy shows only when the toolbox has no items AND the query
+        // is empty.
+        //
+        // Override `toolsLoaderProvider` with an empty list and pass an
+        // empty palette hits list so the searcher would never return a
+        // match. Empty query → must show the empty-toolbox copy, NOT
+        // the placeholder.
+        await tester.pumpWidget(
+          _harness(hits: const [], tools: const <ToolDto>[], onPick: (_) {}),
+        );
+        await tester.pumpAndSettle();
 
-      // The empty-toolbox surface must mount with a stable key so the
-      // BoardPage / popup can hook telemetry on the same widget.
-      expect(
-        find.byKey(const Key('palette-empty-toolbox')),
-        findsOneWidget,
-        reason:
-            'Empty toolbox must use the dedicated `palette-empty-toolbox` key',
-      );
-      expect(find.text('toolbox empty.'), findsWidgets);
-      // And the bare placeholder hint MUST NOT appear — the palette
-      // distinguishes "type to search" (toolbox has tools) from
-      // "toolbox is empty" (no tools registered at all).
-      expect(
-        find.byKey(const Key('palette-empty-hint')),
-        findsNothing,
-        reason:
-            'Placeholder hint must NOT mount when the toolbox itself is empty',
-      );
-    });
+        // The empty-toolbox surface must mount with a stable key so the
+        // BoardPage / popup can hook telemetry on the same widget.
+        expect(
+          find.byKey(const Key('palette-empty-toolbox')),
+          findsOneWidget,
+          reason:
+              'Empty toolbox must use the dedicated `palette-empty-toolbox` key',
+        );
+        expect(find.text('toolbox empty.'), findsWidgets);
+        // And the bare placeholder hint MUST NOT appear — the palette
+        // distinguishes "type to search" (toolbox has tools) from
+        // "toolbox is empty" (no tools registered at all).
+        expect(
+          find.byKey(const Key('palette-empty-hint')),
+          findsNothing,
+          reason:
+              'Placeholder hint must NOT mount when the toolbox itself is empty',
+        );
+      },
+    );
 
-    testWidgets('PaletteOverlay_CmdEnter는_선택_hit를_open하고_pin한다', (
+    testWidgets('paletteoverlay_cmd_enter_opens_and_pins_the_selected_hit', (
       tester,
     ) async {
       // H06 — Cmd/Ctrl+Enter must both dispatch the hit (open the
@@ -414,70 +425,74 @@ void main() {
       ], reason: 'pin should fire with current board key + tool id');
     });
 
-    testWidgets('PaletteOverlay_ArrowDown_Enter는_highlight된_hit를_선택한다', (
+    testWidgets(
+      'paletteoverlay_arrowdown_then_enter_selects_the_highlighted_hit',
+      (tester) async {
+        PaletteHit? picked;
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex -> dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+          PaletteHit(
+            id: 'convert.base64_decode',
+            label: 'base64 decode',
+            description: '',
+            score: 0.9,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(hits: hits, onPick: (hit) => picked = hit),
+        );
+
+        await tester.enterText(find.byType(TextField), 'convert');
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(picked?.id, 'convert.base64_decode');
+      },
+    );
+
+    testWidgets(
+      'paletteoverlay_escape_closes_the_dialog_without_a_transition',
+      (tester) async {
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex -> dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (_) {},
+            childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
+          ),
+        );
+
+        await tester.tap(find.byKey(const Key('open-palette-dialog')));
+        await tester.pump();
+        expect(find.byType(PaletteOverlay), findsOneWidget);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pump();
+
+        expect(find.byType(PaletteOverlay), findsNothing);
+      },
+    );
+
+    testWidgets('the_paletteoverlay_footer_shows_a_match_count_summary', (
       tester,
     ) async {
-      PaletteHit? picked;
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex -> dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-        PaletteHit(
-          id: 'convert.base64_decode',
-          label: 'base64 decode',
-          description: '',
-          score: 0.9,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(hits: hits, onPick: (hit) => picked = hit),
-      );
-
-      await tester.enterText(find.byType(TextField), 'convert');
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
-
-      expect(picked?.id, 'convert.base64_decode');
-    });
-
-    testWidgets('PaletteOverlay_Escape는_transition없이_dialog를_닫는다', (
-      tester,
-    ) async {
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex -> dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (_) {},
-          childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
-        ),
-      );
-
-      await tester.tap(find.byKey(const Key('open-palette-dialog')));
-      await tester.pump();
-      expect(find.byType(PaletteOverlay), findsOneWidget);
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pump();
-
-      expect(find.byType(PaletteOverlay), findsNothing);
-    });
-
-    testWidgets('PaletteOverlay_footer는_매치_개수_summary를_표시한다', (tester) async {
       // H09 — footer shows a match-count summary.
       // Two hits → "2 tools" / "2 도구" — body uses the trimmed query
       // match count via the `palette.count` template.
@@ -514,7 +529,7 @@ void main() {
       expect(summaryText, contains('2'));
     });
 
-    testWidgets('PaletteOverlay는_9개_초과_결과도_모두_표시한다', (tester) async {
+    testWidgets('paletteoverlay_shows_all_results_beyond_nine', (tester) async {
       // The search surface must expose every returned tool. The dialog
       // height stays bounded; the ListView scrolls instead of hiding rows.
       final hits = List<PaletteHit>.generate(
@@ -543,38 +558,41 @@ void main() {
       expect(find.text('tool 11'), findsOneWidget);
     });
 
-    testWidgets('PaletteOverlay_ArrowDown은_결과가_많을때_스크롤하여_highlighted_행을_표시한다', (
+    testWidgets(
+      'paletteoverlay_arrowdown_scrolls_to_reveal_the_highlighted_row_when_results_overflow',
+      (tester) async {
+        // Generate enough hits to overflow the 480px palette height.
+        final hits = List<PaletteHit>.generate(
+          20,
+          (i) => PaletteHit(
+            id: 'test.tool_$i',
+            label: 'tool $i',
+            description: '',
+            score: 1.0 - (i * 0.01),
+            pinKind: PinKindDto.inline,
+          ),
+        );
+        await tester.pumpWidget(_harness(hits: hits, onPick: (_) {}));
+
+        await tester.enterText(find.byType(TextField), 'tool');
+        await tester.pumpAndSettle();
+
+        // Navigate to the 15th item (index 14) which should be off-screen.
+        for (var i = 0; i < 14; i++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+          await tester.pump();
+        }
+        // Wait for scroll animation to complete.
+        await tester.pumpAndSettle(const Duration(milliseconds: 200));
+
+        // Verify the highlighted item is visible by finding its text.
+        expect(find.text('tool 14'), findsOneWidget);
+      },
+    );
+
+    testWidgets('paletteoverlay_calls_onpick_when_a_hit_is_tapped', (
       tester,
     ) async {
-      // Generate enough hits to overflow the 480px palette height.
-      final hits = List<PaletteHit>.generate(
-        20,
-        (i) => PaletteHit(
-          id: 'test.tool_$i',
-          label: 'tool $i',
-          description: '',
-          score: 1.0 - (i * 0.01),
-          pinKind: PinKindDto.inline,
-        ),
-      );
-      await tester.pumpWidget(_harness(hits: hits, onPick: (_) {}));
-
-      await tester.enterText(find.byType(TextField), 'tool');
-      await tester.pumpAndSettle();
-
-      // Navigate to the 15th item (index 14) which should be off-screen.
-      for (var i = 0; i < 14; i++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-        await tester.pump();
-      }
-      // Wait for scroll animation to complete.
-      await tester.pumpAndSettle(const Duration(milliseconds: 200));
-
-      // Verify the highlighted item is visible by finding its text.
-      expect(find.text('tool 14'), findsOneWidget);
-    });
-
-    testWidgets('PaletteOverlay는_hit_탭_시_onPick을_호출한다', (tester) async {
       PaletteHit? picked;
       const hits = [
         PaletteHit(
@@ -599,105 +617,110 @@ void main() {
       expect(picked?.id, 'num.hex_to_decimal');
     });
 
-    testWidgets('PaletteOverlay_Enter_실행은_핀된_보드로_전환하고_핀에_포커스한다', (
+    testWidgets(
+      'paletteoverlay_enter_switches_to_the_pinned_board_and_focuses_the_pin',
+      (tester) async {
+        // Palette ↔ board integration: running a tool via Enter that is
+        // pinned only on another board (ops) must switch to that board
+        // before running and set focusedPinProvider so the BoardCanvas
+        // scroll-into-view reveals the pin.
+        PaletteHit? picked;
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (hit) => picked = hit,
+            currentBoardKey: 'dev',
+            boards: const [
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'ops', title: 'Ops'),
+            ],
+            pinnedBoards: {BoardKey.parse('ops')},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'hex');
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        expect(picked?.id, 'num.hex_to_decimal');
+        expect(
+          container.read(currentBoardKeyProvider),
+          BoardKey.parse('ops'),
+          reason: 'must switch to the board holding the pin',
+        );
+        expect(
+          container.read(focusedPinProvider),
+          ToolId.parse('num.hex_to_decimal'),
+          reason: 'must focus the pin of the tool just run',
+        );
+      },
+    );
+
+    testWidgets(
+      'paletteoverlay_enter_keeps_the_current_board_when_it_already_has_the_pin',
+      (tester) async {
+        PaletteHit? picked;
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (hit) => picked = hit,
+            currentBoardKey: 'dev',
+            boards: const [
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'ops', title: 'Ops'),
+            ],
+            pinnedBoards: {BoardKey.parse('dev'), BoardKey.parse('ops')},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'hex');
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        expect(picked?.id, 'num.hex_to_decimal');
+        expect(
+          container.read(currentBoardKeyProvider),
+          BoardKey.parse('dev'),
+          reason: 'when the current board already has the pin, the board stays',
+        );
+        expect(
+          container.read(focusedPinProvider),
+          ToolId.parse('num.hex_to_decimal'),
+        );
+      },
+    );
+
+    testWidgets('paletteoverlay_enter_does_not_jump_when_nothing_is_pinned', (
       tester,
     ) async {
-      // 팔레트 ↔ 보드 통합: 다른 보드(ops)에만 핀된 tool을 Enter로 실행하면
-      // 실행 전에 그 보드로 전환하고 focusedPinProvider를 설정해
-      // BoardCanvas의 scroll-into-view가 핀을 드러낸다.
-      PaletteHit? picked;
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (hit) => picked = hit,
-          currentBoardKey: 'dev',
-          boards: const [
-            BoardDto(key: 'dev', title: 'Dev'),
-            BoardDto(key: 'ops', title: 'Ops'),
-          ],
-          pinnedBoards: {BoardKey.parse('ops')},
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'hex');
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
-
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      expect(picked?.id, 'num.hex_to_decimal');
-      expect(
-        container.read(currentBoardKeyProvider),
-        BoardKey.parse('ops'),
-        reason: '핀이 있는 보드로 전환해야 한다',
-      );
-      expect(
-        container.read(focusedPinProvider),
-        ToolId.parse('num.hex_to_decimal'),
-        reason: '실행한 tool의 핀에 포커스해야 한다',
-      );
-    });
-
-    testWidgets('PaletteOverlay_Enter_실행은_현재_보드에_핀이_있으면_보드를_유지한다', (
-      tester,
-    ) async {
-      PaletteHit? picked;
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (hit) => picked = hit,
-          currentBoardKey: 'dev',
-          boards: const [
-            BoardDto(key: 'dev', title: 'Dev'),
-            BoardDto(key: 'ops', title: 'Ops'),
-          ],
-          pinnedBoards: {BoardKey.parse('dev'), BoardKey.parse('ops')},
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'hex');
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
-
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      expect(picked?.id, 'num.hex_to_decimal');
-      expect(
-        container.read(currentBoardKeyProvider),
-        BoardKey.parse('dev'),
-        reason: '현재 보드에 이미 핀이 있으면 보드를 유지한다',
-      );
-      expect(
-        container.read(focusedPinProvider),
-        ToolId.parse('num.hex_to_decimal'),
-      );
-    });
-
-    testWidgets('PaletteOverlay_Enter_실행은_핀이_없으면_점프하지_않는다', (tester) async {
       PaletteHit? picked;
       const hits = [
         PaletteHit(
@@ -729,137 +752,150 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(MaterialApp)),
       );
-      expect(picked?.id, 'num.hex_to_decimal', reason: '실행 자체는 기존대로 수행한다');
+      expect(
+        picked?.id,
+        'num.hex_to_decimal',
+        reason: 'the run itself proceeds as before',
+      );
       expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
       expect(
         container.read(focusedPinProvider),
         isNull,
-        reason: '핀이 없으면 포커스할 대상이 없다',
+        reason: 'with no pin there is nothing to focus',
       );
     });
 
-    testWidgets('PaletteOverlay_CmdEnter는_현재_보드에_핀하고_그_핀에_포커스한다', (
-      tester,
-    ) async {
-      // ⌘↵는 pin 쓰기가 아직 in-flight여도 방금 핀한 현재 보드를 점프
-      // 대상으로 취급해 focusedPinProvider를 설정해야 한다.
-      PaletteHit? picked;
-      final pinCalls = <(BoardKey, ToolId)>[];
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (hit) => picked = hit,
-          currentBoardKey: 'dev',
-          pinTool: (board, tool) => pinCalls.add((board, tool)),
-        ),
-      );
+    testWidgets(
+      'paletteoverlay_cmd_enter_pins_on_the_current_board_and_focuses_that_pin',
+      (tester) async {
+        // ⌘↵ must treat the just-pinned current board as the jump target —
+        // and set focusedPinProvider — even while the pin write is still
+        // in flight.
+        PaletteHit? picked;
+        final pinCalls = <(BoardKey, ToolId)>[];
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (hit) => picked = hit,
+            currentBoardKey: 'dev',
+            pinTool: (board, tool) => pinCalls.add((board, tool)),
+          ),
+        );
 
-      await tester.enterText(find.byType(TextField), 'hex');
-      await tester.pumpAndSettle();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'hex');
+        await tester.pumpAndSettle();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.pumpAndSettle();
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      expect(picked?.id, 'num.hex_to_decimal');
-      expect(pinCalls, [
-        (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
-      ]);
-      expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
-      expect(
-        container.read(focusedPinProvider),
-        ToolId.parse('num.hex_to_decimal'),
-        reason: '방금 핀한 보드의 핀에 포커스해야 한다',
-      );
-    });
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        expect(picked?.id, 'num.hex_to_decimal');
+        expect(pinCalls, [
+          (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
+        ]);
+        expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
+        expect(
+          container.read(focusedPinProvider),
+          ToolId.parse('num.hex_to_decimal'),
+          reason: 'must focus the pin on the board it was just pinned to',
+        );
+      },
+    );
 
-    testWidgets('PaletteOverlay는_핀된_board_chip_클릭으로_실행없이_그_보드로_점프한다', (
-      tester,
-    ) async {
-      // 요구 2 — 채워진(핀된) 보드 칩은 점프 버튼: 보드 전환 + 핀 포커스 +
-      // 팔레트 닫기. onPick(실행)은 호출되지 않는다.
-      PaletteHit? picked;
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (hit) => picked = hit,
-          currentBoardKey: 'dev',
-          boards: const [
-            BoardDto(key: 'dev', title: 'Dev'),
-            BoardDto(key: 'ops', title: 'Ops'),
-          ],
-          pinnedBoards: {BoardKey.parse('ops')},
-          childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
-        ),
-      );
-      await tester.tap(find.byKey(const Key('open-palette-dialog')));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'paletteoverlay_jumps_to_a_pinned_board_via_its_chip_without_running',
+      (tester) async {
+        // Requirement 2 — a filled (pinned) board chip is a jump button:
+        // switch board + focus the pin + close the palette. onPick (run)
+        // is never called.
+        PaletteHit? picked;
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (hit) => picked = hit,
+            currentBoardKey: 'dev',
+            boards: const [
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'ops', title: 'Ops'),
+            ],
+            pinnedBoards: {BoardKey.parse('ops')},
+            childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
+          ),
+        );
+        await tester.tap(find.byKey(const Key('open-palette-dialog')));
+        await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const Key('palette-board-chip-num.hex_to_decimal-ops')),
-      );
-      await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const Key('palette-board-chip-num.hex_to_decimal-ops')),
+        );
+        await tester.pumpAndSettle();
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
-      expect(picked, isNull, reason: '칩 점프는 실행 없이 이동만 한다');
-      expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
-      expect(
-        container.read(focusedPinProvider),
-        ToolId.parse('num.hex_to_decimal'),
-      );
-      expect(
-        find.byType(PaletteOverlay),
-        findsNothing,
-        reason: '점프 후 팔레트는 닫혀야 한다',
-      );
-    });
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        expect(picked, isNull, reason: 'a chip jump navigates without running');
+        expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
+        expect(
+          container.read(focusedPinProvider),
+          ToolId.parse('num.hex_to_decimal'),
+        );
+        expect(
+          find.byType(PaletteOverlay),
+          findsNothing,
+          reason: 'the palette must close after the jump',
+        );
+      },
+    );
 
-    testWidgets('PaletteOverlay_board_chip_라벨은_slug가_아니라_board_title이다', (
-      tester,
-    ) async {
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (_) {},
-          boards: const [BoardDto(key: 'dev', title: 'Dev Board')],
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a_paletteoverlay_board_chip_label_is_the_board_title_not_the_slug',
+      (tester) async {
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (_) {},
+            boards: const [BoardDto(key: 'dev', title: 'Dev Board')],
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Dev Board'), findsOneWidget);
-      expect(find.text('dev'), findsNothing, reason: 'slug는 노출하지 않는다');
-    });
+        expect(find.text('Dev Board'), findsOneWidget);
+        expect(
+          find.text('dev'),
+          findsNothing,
+          reason: 'the slug is never shown',
+        );
+      },
+    );
   });
 }
