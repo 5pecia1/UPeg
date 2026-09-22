@@ -189,6 +189,17 @@
           ],
           "default": null
         },
+        "setup": {
+          "description": "Optional display-only setup guidance. Honored only by `External`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolSetupToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "args_template": {
           "description": "Arg list template for the spawned command. `{key}` placeholders\nare substituted anywhere inside a token (`--manifest-path={path}`);\n`{{` / `}}` escape a literal brace. Every `key` must name a\ndeclared `inputs` field (or `input`, which the `Chain` invoker\nsupplies to every step) — a placeholder naming nothing else is a\nload error rather than a silently empty argument. A token that is\nnothing but `{key}` for an optional input with neither a value\nnor a `default` is dropped from the arg list; every other token\nkeeps its position and renders the absent placeholder as `\"\"`.",
           "type": [
@@ -770,6 +781,72 @@
       ],
       "x-doc-reference": true,
       "x-doc-order": 18
+    },
+    "ToolSetupToml": {
+      "description": "Optional, display-only setup guidance for an External tool.",
+      "type": "object",
+      "properties": {
+        "guide_url": {
+          "description": "HTTP(S) guide for obtaining or configuring the required command.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "instructions": {
+          "description": "Plain-language operator guidance. UPeg never executes this text.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "install": {
+          "description": "Display-only commands, selected by the host operating system.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolSetupInstallToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 2
+    },
+    "ToolSetupInstallToml": {
+      "description": "Per-operating-system display-only install commands.",
+      "type": "object",
+      "properties": {
+        "linux": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "macos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 2
     },
     "KeyValueToml": {
       "description": "TOML name/value template pair used for HTTP headers and similar maps.",

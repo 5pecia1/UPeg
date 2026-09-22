@@ -275,6 +275,133 @@ void main() {
     );
 
     testWidgets(
+      'required_errors_wait_for_a_form_edit_while_the_validity_gate_stays_closed',
+      (tester) async {
+        final tool = _toolWithFields(const [
+          InputFieldDto(
+            key: 'first',
+            label: 'First',
+            fieldType: InputFieldType_Text(),
+            required_: true,
+          ),
+          InputFieldDto(
+            key: 'second',
+            label: 'Second',
+            fieldType: InputFieldType_Text(),
+            required_: true,
+          ),
+        ]);
+        final controller = GenericFormController();
+        bool? isValid;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [...i18nTestOverrides, fakeKeyboardResolverOverride],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(
+                  tool: tool,
+                  controller: controller,
+                  onValidationChanged: (value) => isValid = value,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(isValid, isFalse);
+        expect(find.text('required'), findsNothing);
+
+        await tester.enterText(find.byKey(const Key('field-first')), 'value');
+        await tester.pump();
+
+        expect(isValid, isFalse);
+        expect(find.text('required'), findsOneWidget);
+
+        await tester.enterText(find.byKey(const Key('field-first')), '');
+        await tester.pump();
+
+        expect(find.text('required'), findsNWidgets(2));
+      },
+    );
+
+    testWidgets('editing_one_form_exposes_required_errors_only_in_that_form', (
+      tester,
+    ) async {
+      final firstController = GenericFormController();
+      final secondController = GenericFormController();
+      bool? firstValid;
+      bool? secondValid;
+      final firstTool = _toolWithFields(const [
+        InputFieldDto(
+          key: 'required',
+          label: 'Required',
+          fieldType: InputFieldType_Text(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'optional',
+          label: 'Optional',
+          fieldType: InputFieldType_Text(),
+          required_: false,
+          constraints: FieldConstraintsDto(
+            string: StringConstraintsDto(default_: 'seeded'),
+          ),
+        ),
+      ]);
+      final secondTool = fixtureToolDto(
+        id: 'fixture.second-tool',
+        inputFields: const [
+          InputFieldDto(
+            key: 'required',
+            label: 'Required',
+            fieldType: InputFieldType_Text(),
+            required_: true,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [...i18nTestOverrides, fakeKeyboardResolverOverride],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  GenericFormWidget(
+                    tool: firstTool,
+                    controller: firstController,
+                    onValidationChanged: (value) => firstValid = value,
+                  ),
+                  GenericFormWidget(
+                    tool: secondTool,
+                    controller: secondController,
+                    onValidationChanged: (value) => secondValid = value,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(firstController.value('optional'), const TextValue('seeded'));
+      expect(firstValid, isFalse);
+      expect(secondValid, isFalse);
+      expect(find.text('required'), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const Key('field-optional')),
+        'changed',
+      );
+      await tester.pump();
+
+      expect(find.text('required'), findsOneWidget);
+    });
+
+    testWidgets(
       'a_boolean_field_includes_its_default_false_in_the_typed_snapshot',
       (tester) async {
         final tool = _toolWithFields(const [
@@ -305,6 +432,12 @@ void main() {
             fieldType: InputFieldType_Number(),
             required_: true,
           ),
+          InputFieldDto(
+            key: 'other',
+            label: 'Other',
+            fieldType: InputFieldType_Text(),
+            required_: true,
+          ),
         ]);
         final controller = GenericFormController();
         bool? isValid;
@@ -330,6 +463,7 @@ void main() {
         expect(controller.value('number'), const TextValue('1e400'));
         expect(isValid, isFalse);
         expect(find.text('not a number'), findsOneWidget);
+        expect(find.text('required'), findsOneWidget);
       },
     );
   });

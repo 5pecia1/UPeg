@@ -1,21 +1,18 @@
 pub use boards::BoardEntryToml;
 pub use presentation::PresentationToml;
-
 use schemars::JsonSchema;
 use serde::Deserialize;
 use upeg_core::{
     ChoiceOption, ChoiceSpec, FieldConstraints, IO_TYPE_LIST, InputFieldSpec, InputName,
     OutputFieldSpec, OutputKind,
 };
-
 mod boards;
+mod chain;
 mod input;
 mod presentation;
-pub(crate) fn chain_step_key(position: usize, id: Option<&str>) -> String {
-    id.map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map_or_else(|| format!("step{}", position + 1), str::to_string)
-}
+mod setup;
+pub(crate) use chain::chain_step_key;
+pub use setup::{ToolSetupInstallToml, ToolSetupToml};
 /// Root of the Toolkit TOML manifest loaded from `~/.upeg/toolkits/*.toml`.
 ///
 /// This is the top-level shape that TOML authors write. The `id`, `tools`,
@@ -112,6 +109,9 @@ pub struct ToolEntryToml {
     /// Honored only when `invoker = "External"`.
     #[serde(default)]
     pub command: Option<String>,
+    /// Optional display-only setup guidance. Honored only by `External`.
+    #[serde(default)]
+    pub setup: Option<ToolSetupToml>,
     /// Arg list template for the spawned command. `{key}` placeholders
     /// are substituted anywhere inside a token (`--manifest-path={path}`);
     /// `{{` / `}}` escape a literal brace. Every `key` must name a
@@ -243,7 +243,6 @@ pub struct ToolEntryToml {
     #[serde(default)]
     pub controlled_embed: Option<ControlledEmbedToml>,
 }
-
 /// Fully-qualified tool TOML shape after toolkit-level defaults are applied.
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 pub struct ToolToml {
@@ -294,6 +293,8 @@ pub struct ToolToml {
     /// Honored only when `invoker = "External"`.
     #[serde(default)]
     pub command: Option<String>,
+    #[serde(default)]
+    pub setup: Option<ToolSetupToml>,
     /// Arg list template for the spawned command. `{key}` placeholders
     /// are substituted anywhere inside a token (`--manifest-path={path}`);
     /// `{{` / `}}` escape a literal brace. Every `key` must name a

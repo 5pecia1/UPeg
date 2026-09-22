@@ -9,11 +9,12 @@
 //! and both captured streams instead of one lossy string.
 
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use upeg_core::{
     EXECUTION_CONTEXT_ARG, EXECUTION_CONTEXT_CWD, FieldConstraints, InputFieldSpec, ToolResult,
 };
@@ -24,6 +25,7 @@ use upeg_runtime::{
 
 use super::capture::RunControls;
 use super::color::ColorPolicy;
+use super::error::ExternalProcessError;
 use super::outcome::{ExternalExit, ExternalTermination};
 use super::pty::TerminalMode;
 use super::template::{ArgTemplate, Substitution};
@@ -62,6 +64,7 @@ struct ExternalInvocation {
     credentials: Vec<CredentialRefToml>,
     working_directory: WorkingDirectoryPolicy,
     timeout: Option<Duration>,
+    setup: Option<upeg_runtime::execution_requirements::ToolSetupMetadata>,
 }
 
 /// What one declared `[[tools.inputs]]` entry contributes to argument
@@ -95,6 +98,10 @@ enum ExternalFailure {
     InvalidArgs(String),
     /// Setup or capture broke before the child could report anything.
     Setup(String),
+    MissingExecutable {
+        readiness: Box<upeg_runtime::readiness::ToolReadiness>,
+        spawn_error: String,
+    },
 }
 
 impl ExternalFailure {
@@ -113,7 +120,49 @@ impl ExternalFailure {
             }
             Self::InvalidArgs(message) => tool_failure(INVALID_ARGS_CODE, message),
             Self::Setup(message) => tool_failure(TOOL_ERROR_CODE, message),
+            Self::MissingExecutable {
+                readiness,
+                spawn_error,
+            } => tool_failure_with_details(
+                TOOL_ERROR_CODE,
+                missing_executable_message(&readiness, &spawn_error),
+                json!({
+                    "readiness": readiness,
+                    "spawn_error": spawn_error,
+                }),
+            ),
         }
+    }
+}
+
+fn missing_executable_message(
+    readiness: &upeg_runtime::readiness::ToolReadiness,
+    spawn_error: &str,
+) -> String {
+    let command = readiness.command.as_deref().unwrap_or("external command");
+    let guidance = readiness
+        .setup
+        .as_ref()
+        .and_then(|setup| setup.instructions.as_deref())
+        .or_else(|| {
+            readiness
+                .setup
+                .as_ref()
+                .and_then(|setup| setup.guide_url.as_deref())
+        });
+    match guidance {
+        Some(guidance) => {
+            format!("external command `{command}` could not be started: {spawn_error}. {guidance}")
+        }
+        None => format!("external command `{command}` could not be started: {spawn_error}"),
+    }
+}
+
+fn is_path_name(name: &OsStr) -> bool {
+    if cfg!(windows) {
+        name.to_string_lossy().eq_ignore_ascii_case("PATH")
+    } else {
+        name == OsStr::new("PATH")
     }
 }
 
@@ -147,6 +196,7 @@ pub(crate) fn external_dispatcher_for(
     // non-empty command — but we still trim it so a `command = "git "`
     // doesn't try to spawn an executable literally named `git `.
     let requirements = external_execution_requirements(parsed, origin)?;
+    let setup = requirements.setup;
     let command = requirements.command?;
 
     let invocation = ExternalInvocation {
@@ -168,6 +218,7 @@ pub(crate) fn external_dispatcher_for(
             project_root: requirements.project_root,
         },
         timeout: parsed.timeout_ms.map(Duration::from_millis),
+        setup,
     };
     let output_adapter = OutputAdapter::from_tool(parsed);
 
@@ -215,7 +266,7 @@ impl ExternalInvocation {
             self.terminal,
         );
         let output = run_command(&mut process, self.timeout, controls)
-            .map_err(|error| ExternalFailure::Setup(format!("`{}`: {error}", self.command)))?;
+            .map_err(|error| self.setup_failure(error, &process))?;
         let succeeded = matches!(
             output.completion,
             CaptureCompletion::Exited(status) if status.success()
@@ -230,6 +281,56 @@ impl ExternalInvocation {
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         })
+    }
+
+    fn setup_failure(&self, error: ExternalProcessError, process: &Command) -> ExternalFailure {
+        if error.is_spawn_not_found() && self.command_is_not_on_process_path(process) {
+            let working_directory = process
+                .get_current_dir()
+                .map(PathBuf::from)
+                .or_else(|| std::env::current_dir().ok());
+            let Some(working_directory) = working_directory.filter(|path| path.is_dir()) else {
+                return ExternalFailure::Setup(format!("`{}`: {error}", self.command));
+            };
+            return ExternalFailure::MissingExecutable {
+                readiness: Box::new(upeg_runtime::readiness::ToolReadiness {
+                    status: upeg_runtime::readiness::ToolReadinessStatus::MissingExecutable,
+                    platform: upeg_runtime::readiness::current_tool_platform(),
+                    command: Some(self.command.clone()),
+                    working_directory: Some(working_directory),
+                    executable: None,
+                    setup: self.setup.as_ref().map(|setup| {
+                        setup.selected(upeg_runtime::readiness::current_tool_platform())
+                    }),
+                }),
+                spawn_error: error.to_string(),
+            };
+        }
+        ExternalFailure::Setup(format!("`{}`: {error}", self.command))
+    }
+
+    fn command_is_not_on_process_path(&self, process: &Command) -> bool {
+        let directory = process
+            .get_current_dir()
+            .map(PathBuf::from)
+            .or_else(|| std::env::current_dir().ok());
+        let Some(directory) = directory else {
+            return false;
+        };
+        let inherited_path = std::env::var_os("PATH");
+        let mut child_path = None;
+        for (name, value) in process.get_envs() {
+            if is_path_name(name) {
+                child_path = Some(value);
+            }
+        }
+        upeg_runtime::readiness::find_executable(
+            &self.command,
+            &directory,
+            child_path.flatten(),
+            inherited_path.as_deref(),
+        )
+        .is_none()
     }
 
     fn rendered_args(&self, args: DispatchArgs<'_>) -> Vec<String> {

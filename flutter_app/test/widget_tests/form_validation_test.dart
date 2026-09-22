@@ -300,7 +300,7 @@ void main() {
     );
 
     testWidgets(
-      'required MultiOptions errors are visible and exposed to semantics in full and compact forms',
+      'required MultiOptions errors appear after an edit and are exposed to semantics in full and compact forms',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final tool = fixtureToolDto(
@@ -315,6 +315,12 @@ void main() {
                 ],
               ),
               required_: true,
+            ),
+            InputFieldDto(
+              key: 'enabled',
+              label: 'Enabled',
+              fieldType: InputFieldType_Boolean(),
+              required_: false,
             ),
           ],
         );
@@ -335,6 +341,12 @@ void main() {
                 ),
               ),
             );
+            await tester.pump();
+
+            expect(find.text('required'), findsNothing);
+            expect(find.bySemanticsLabel('required'), findsNothing);
+
+            await tester.tap(find.byType(Switch));
             await tester.pump();
 
             expect(find.text('required'), findsOneWidget);

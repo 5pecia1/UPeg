@@ -20,6 +20,7 @@ mod call_output;
 mod dynamic_route;
 mod file_output;
 mod plugin_command;
+pub(crate) mod tool_readiness;
 
 use crate::domain::execution::dispatch;
 use crate::domain::execution::dispatch::LiveOutput;
@@ -316,7 +317,7 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
     match cli.command {
         None => run_no_command(active_board, active_tui_tag),
         Some(Command::Interface { action }) => run_interface_command(action),
-        Some(Command::Tool { action }) => run_tool_action(action),
+        Some(Command::Tool { action }) => run_tool_action(action, active_board),
         Some(Command::Toolkit { action }) => run_toolkit_action(action),
         Some(Command::Tag { action }) => run_tag_action(action),
         Some(Command::Board { action }) => run_board_action(action),
@@ -428,7 +429,7 @@ pub(crate) fn run_no_command_with_terminal(
     })
 }
 
-fn run_tool_action(action: ToolAction) -> Result<String, CliError> {
+fn run_tool_action(action: ToolAction, active_board: Option<&str>) -> Result<String, CliError> {
     match action {
         ToolAction::List {
             tag,
@@ -450,11 +451,43 @@ fn run_tool_action(action: ToolAction) -> Result<String, CliError> {
                 format_tool_show(&id)
             }
         }
+        ToolAction::Check { id, json, local } => {
+            let board = tool_readiness::parse_board_key(active_board)?;
+            if should_attach_readiness(&id, local)
+                && let Some(host) = crate::infrastructure::attach::current_host()
+            {
+                let readiness = crate::infrastructure::attach::tool_readiness(
+                    &host,
+                    &id,
+                    board.as_ref(),
+                    Surface::Cli,
+                )
+                .map_err(|error| CliError::tool_failed(format!("attach: {error}")))?;
+                return crate::surfaces::cli::readiness::format_tool_readiness_json(
+                    &readiness, json,
+                );
+            }
+            tool_readiness::ensure_visible_on_surface(&id, Surface::Cli)?;
+            match tool_readiness::inspect_local_tool_readiness(&id, board.as_ref())? {
+                Some(readiness) => {
+                    crate::surfaces::cli::readiness::format_tool_readiness(&readiness, json)
+                }
+                None if json => Ok("null\n".to_string()),
+                None => Ok(
+                    "not applicable: process prerequisites are not declared for this tool\n"
+                        .to_string(),
+                ),
+            }
+        }
         ToolAction::Validate {
             path,
             resolve_chain,
         } => format_tool_validate(&path, resolve_chain),
     }
+}
+
+fn should_attach_readiness(tool_id: &str, local: bool) -> bool {
+    !local && !crate::domain::execution::context::requires_local_dispatch(tool_id)
 }
 
 fn run_toolkit_action(action: ToolkitAction) -> Result<String, CliError> {
@@ -915,4 +948,15 @@ pub(crate) fn v21_single_tool_toml(flat_tool: &str) -> String {
         writeln!(&mut out, "{key} = {value}").expect("write to string");
     }
     out
+}
+
+#[cfg(test)]
+mod readiness_target_tests {
+    use super::*;
+
+    #[test]
+    fn remote_only_tool_is_eligible_for_host_readiness_before_local_visibility_lookup() {
+        assert!(should_attach_readiness("setup_demo.echo", false));
+        assert!(!should_attach_readiness("setup_demo.echo", true));
+    }
 }

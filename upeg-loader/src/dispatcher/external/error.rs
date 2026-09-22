@@ -131,6 +131,18 @@ pub(crate) enum ExternalProcessError {
     ScopeTimeout { timeout_ms: u64 },
 }
 
+impl ExternalProcessError {
+    pub(crate) fn is_spawn_not_found(&self) -> bool {
+        match self {
+            #[cfg(not(any(unix, windows)))]
+            Self::Spawn { source } => source.kind() == io::ErrorKind::NotFound,
+            #[cfg(any(unix, windows))]
+            Self::ContainmentSpawn { source } => source.kind() == io::ErrorKind::NotFound,
+            _ => false,
+        }
+    }
+}
+
 /// How a captured External run ended.
 ///
 /// A timeout is not an [`ExternalProcessError`]: upeg still holds

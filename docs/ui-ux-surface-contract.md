@@ -65,7 +65,11 @@ Desktop embedded host.
 The WebView service needs the Flutter engine and a native platform host. It
 is not a feature that creates a native WebView inside a PWA or supports a
 display-less server. The existing headless path of a native CLI with no host
-is kept separately.
+is kept separately. In that headless path, a Trigger navigation is never
+replayed. If the first Output read lands in Chrome's brief destroyed-context
+window, only that idempotent read retries within the Trigger's existing settle
+budget; other CDP failures return immediately, and a context that stays stale
+past the bound fails the run.
 
 Linux real-environment regression runs via `just
 flutter-controlled-embed-linux-test`. It needs WebKitGTK and Xvfb, and checks

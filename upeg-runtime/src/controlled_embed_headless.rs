@@ -138,6 +138,13 @@ trait HeadlessWaitEvaluator {
     ) -> Pin<Box<dyn Future<Output = Result<bool, ControlledEmbedError>> + Send + 'a>>;
 }
 
+trait HeadlessReadEvaluator {
+    fn evaluate_read<'a>(
+        &'a mut self,
+        script: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<String, ControlledEmbedError>> + Send + 'a>>;
+}
+
 struct ChromiumPageWaitEvaluator<'a> {
     page: &'a Page,
 }
@@ -148,6 +155,19 @@ impl HeadlessWaitEvaluator for ChromiumPageWaitEvaluator<'_> {
         script: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<bool, ControlledEmbedError>> + Send + 'a>> {
         Box::pin(async move { evaluate_wait_script(self.page, script).await })
+    }
+}
+
+struct ChromiumPageReadEvaluator<'a> {
+    page: &'a Page,
+}
+
+impl HeadlessReadEvaluator for ChromiumPageReadEvaluator<'_> {
+    fn evaluate_read<'a>(
+        &'a mut self,
+        script: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<String, ControlledEmbedError>> + Send + 'a>> {
+        Box::pin(async move { evaluate_read_script(self.page, script).await })
     }
 }
 
@@ -447,6 +467,49 @@ async fn evaluate_wait_script(page: &Page, script: &str) -> Result<bool, Control
         .map_err(|e| ControlledEmbedError::BackendFailed(format!("wait-value: {e}")))
 }
 
+async fn evaluate_read_script(page: &Page, script: &str) -> Result<String, ControlledEmbedError> {
+    let raw = page
+        .evaluate(script)
+        .await
+        .map_err(|e| ControlledEmbedError::BackendFailed(format!("read: {e}")))?;
+    raw.into_value()
+        .map_err(|e| ControlledEmbedError::BackendFailed(format!("read-value: {e}")))
+}
+
+fn is_stale_execution_context(error: &ControlledEmbedError) -> bool {
+    matches!(
+        error,
+        ControlledEmbedError::BackendFailed(message)
+            if message.contains("Error -32000: Cannot find context with specified id")
+    )
+}
+
+/// Retry only the transient CDP context gap after a Trigger navigation.
+/// Trigger execution is never repeated; non-context failures return at once.
+async fn read_after_navigation<E: HeadlessReadEvaluator>(
+    script: &str,
+    retry_budget_ms: u64,
+    evaluator: &mut E,
+) -> Result<String, ControlledEmbedError> {
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(retry_budget_ms);
+    loop {
+        match evaluator.evaluate_read(script).await {
+            Ok(value) => return Ok(value),
+            Err(error)
+                if is_stale_execution_context(&error) && tokio::time::Instant::now() < deadline =>
+            {
+                tokio::time::sleep(
+                    deadline
+                        .saturating_duration_since(tokio::time::Instant::now())
+                        .min(Duration::from_millis(DEFAULT_CONTROLLED_EMBED_WAIT_POLL_MS)),
+                )
+                .await;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 async fn run_headless_pipeline(
     pipeline: HeadlessExecution,
 ) -> Result<ControlledEmbedResponse, ControlledEmbedError> {
@@ -506,6 +569,7 @@ async fn run_headless_work(
         .map_err(|e| ControlledEmbedError::BackendFailed(format!("nav: {e}")))?;
 
     let mut outputs = Vec::new();
+    let mut navigation_read_retry_ms = None;
     for operation in operations {
         if let Some(wait) = &operation.wait {
             wait_for_headless_binding(&page, wait).await?;
@@ -541,23 +605,21 @@ async fn run_headless_work(
                 let settle_ms = trigger_settle_ms(operation.wait.as_ref());
                 let mut evaluator = ChromiumPageWaitEvaluator { page: &page };
                 settle_after_trigger(navigated, settle_ms, &mut evaluator).await?;
+                navigation_read_retry_ms = Some(settle_ms);
             }
             HeadlessOperationKind::Read => {
-                let raw = page
-                    .evaluate(operation.script.as_str())
-                    .await
-                    .map_err(|e| {
-                        ControlledEmbedError::BackendFailed(format!(
-                            "{}: {e}",
-                            operation.kind.label()
-                        ))
-                    })?;
-                let json_str: String = raw.into_value().map_err(|e| {
-                    ControlledEmbedError::BackendFailed(format!(
-                        "{}-value: {e}",
-                        operation.kind.label()
-                    ))
-                })?;
+                let mut evaluator = ChromiumPageReadEvaluator { page: &page };
+                let json_str = match navigation_read_retry_ms {
+                    Some(retry_budget_ms) => {
+                        read_after_navigation(
+                            operation.script.as_str(),
+                            retry_budget_ms,
+                            &mut evaluator,
+                        )
+                        .await?
+                    }
+                    None => evaluator.evaluate_read(operation.script.as_str()).await?,
+                };
                 let read_outputs: std::collections::HashMap<String, String> =
                     serde_json::from_str(&json_str).map_err(|e| {
                         ControlledEmbedError::BackendFailed(format!(

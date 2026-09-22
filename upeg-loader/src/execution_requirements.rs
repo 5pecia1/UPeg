@@ -3,7 +3,9 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use upeg_runtime::execution_requirements::{CommandSearchPath, ToolExecutionRequirements};
+use upeg_runtime::execution_requirements::{
+    CommandSearchPath, ToolExecutionRequirements, ToolSetupInstall, ToolSetupMetadata,
+};
 
 use crate::ToolToml;
 use crate::manifest_origin::ManifestOrigin;
@@ -34,6 +36,36 @@ pub(crate) fn external_execution_requirements(
             .and_then(ManifestOrigin::implicit_working_directory)
             .map(Path::to_path_buf),
         search_path: declared_search_path(parsed),
+        setup: parsed.setup.as_ref().map(|setup| ToolSetupMetadata {
+            guide_url: setup
+                .guide_url
+                .as_ref()
+                .map(|value| value.trim().to_string()),
+            instructions: setup
+                .instructions
+                .as_ref()
+                .map(|value| value.trim().to_string()),
+            install: setup
+                .install
+                .as_ref()
+                .map_or_else(ToolSetupInstall::default, |install| ToolSetupInstall {
+                    linux: install
+                        .linux
+                        .iter()
+                        .map(|value| value.trim().to_string())
+                        .collect(),
+                    macos: install
+                        .macos
+                        .iter()
+                        .map(|value| value.trim().to_string())
+                        .collect(),
+                    windows: install
+                        .windows
+                        .iter()
+                        .map(|value| value.trim().to_string())
+                        .collect(),
+                }),
+        }),
     })
 }
 

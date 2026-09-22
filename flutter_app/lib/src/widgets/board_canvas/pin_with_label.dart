@@ -19,6 +19,7 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/embed_resolver_provider.dart';
+import 'package:upeg/src/state/external_readiness_provider.dart';
 import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart';
@@ -30,6 +31,7 @@ import 'package:upeg/src/widgets/board_canvas/drop_targets.dart';
 import 'package:upeg/src/widgets/board_canvas/pin_drag.dart';
 import 'package:upeg/src/widgets/board_canvas/resize_affordance.dart';
 import 'package:upeg/src/widgets/controlled_embed/tile.dart';
+import 'package:upeg/src/widgets/expanded_modal/external_readiness_panel.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart';
 import 'package:upeg/src/widgets/host_attach_notice_body.dart';
@@ -118,6 +120,12 @@ class PinWithLabel extends ConsumerWidget {
     final tokens = context.upeg;
     final toolId = ToolId.parse(placement.toolId);
     final ToolDto? tool = ref.watch(toolByIdProvider(toolId));
+    final readinessTarget = tool?.invoker == InvokerDto.external_
+        ? readinessTargetFor(tool!, boardKey: boardKey)
+        : null;
+    final readinessInspection = readinessTarget == null
+        ? null
+        : ref.watch(externalReadinessProvider(readinessTarget));
     final focused = ref.watch(focusedPinProvider) == toolId;
     // Zero-input Inline/Function tools are candidates too: `GenericInlinePinBody`
     // renders a bare Run affordance when a tool declares no input fields, so
@@ -185,7 +193,26 @@ class PinWithLabel extends ConsumerWidget {
     // for us — so this pin keeps a live tap handler that opens the modal.
     var inlineTapOpensModal = false;
     if (tool != null) {
-      if (isMemoNotepadTool(tool)) {
+      if (readinessInspection case AsyncLoading()) {
+        bodyOverride = const ExternalReadinessStatusBadge(
+          labelKey: 'readiness.checking',
+        );
+        bodyOwnsGesture = true;
+      } else if (readinessInspection case AsyncError(:final error)) {
+        bodyOverride = ExternalReadinessStatusBadge(
+          labelKey: externalReadinessErrorKey(error),
+          onRecheck: () => recheckExternalReadiness(ref, readinessTarget!),
+        );
+        bodyOwnsGesture = true;
+      } else if (readinessInspection case AsyncData(
+        value: ExternalReadinessInspected(blocksRun: true),
+      )) {
+        bodyOverride = ExternalReadinessBadge(
+          tool: tool,
+          target: readinessTarget!,
+        );
+        bodyOwnsGesture = true;
+      } else if (isMemoNotepadTool(tool)) {
         // memo.scratch: an always-live inline notepad backed by the
         // memos store. No activation step — the text field is the tool.
         bodyOverride = const MemoPinBody();

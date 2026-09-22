@@ -141,6 +141,49 @@ pub fn dispatch_tool(
     dispatch_via_url(server, &url, args, origin)
 }
 
+/// Read a host's non-executing External readiness result. An attach failure
+/// stays an attach failure: callers must not silently inspect another host.
+pub fn tool_readiness(
+    server: &ServerInfo,
+    tool_id: &str,
+    board: Option<&upeg_core::BoardKey>,
+    origin: Surface,
+) -> std::io::Result<Value> {
+    let mut url = format!(
+        "{}/v1/tools/{tool_id}/readiness",
+        server.endpoint.trim_end_matches('/')
+    );
+    if let Some(board) = board {
+        url.push_str("?board=");
+        url.push_str(board.as_str());
+    }
+    let cwd = std::env::current_dir()
+        .map_err(|error| std::io::Error::other(format!("readiness working directory: {error}")))?;
+    let cwd = cwd.to_string_lossy();
+    let (status, response) = http_request(
+        "GET",
+        &url,
+        Some(&server.token),
+        &[
+            (crate::surfaces::http::ORIGIN_SURFACE_HEADER, origin.label()),
+            (crate::surfaces::http::READINESS_CWD_HEADER, cwd.as_ref()),
+        ],
+        "",
+    )?;
+    if status != 200 {
+        return Err(std::io::Error::other(format!(
+            "host returned HTTP {status} for readiness: {}",
+            extract_error(&response)
+        )));
+    }
+    serde_json::from_str(&response).map_err(|error| {
+        std::io::Error::new(
+            ErrorKind::InvalidData,
+            format!("attach: readiness JSON: {error}"),
+        )
+    })
+}
+
 /// Board-scoped twin of [`dispatch_tool`]: `POST
 /// /v1/boards/{board}/tools/{tool_id}` so the host applies its own
 /// board gate (user PegboardState) and pin-preset merge.

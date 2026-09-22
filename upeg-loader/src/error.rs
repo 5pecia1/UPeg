@@ -190,6 +190,15 @@ pub enum LoadError {
     #[error("`pegboard_units` is required — set one of U1, U2, or U2T")]
     MissingPegboardUnits,
 
+    #[error("`setup.{field}` must not be blank")]
+    EmptyExternalSetupField { field: &'static str },
+
+    #[error("`setup.guide_url` must use http:// or https://, got `{url}`")]
+    InvalidExternalSetupGuideUrl { url: String },
+
+    #[error("`setup.install.{platform}` must not contain blank commands")]
+    EmptyExternalSetupCommand { platform: &'static str },
+
     #[error("`pegboard_units` is empty — set one of U1, U2, or U2T")]
     EmptyPegboardUnits,
 

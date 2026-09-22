@@ -118,7 +118,6 @@ fn insert_v21_resource_paths(paths: &mut serde_json::Map<String, Value>) {
         "404": error_response("Resource, board, or tool id is unknown."),
         "422": error_response("Tool returned an error."),
     });
-
     for (path, summary, params, has_storage_error) in [
         ("/v1/toolkits", "List Toolkits", &[][..], false),
         (
@@ -180,6 +179,32 @@ fn insert_v21_resource_paths(paths: &mut serde_json::Map<String, Value>) {
             }),
         );
     }
+
+    paths.insert(
+        "/v1/tools/{id}/readiness".to_string(),
+        json!({
+            "get": {
+                "operationId": "toolReadiness",
+                "summary": "Inspect External tool prerequisites without executing it.",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "board", "in": "query", "required": false, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "External readiness, or null when this Tool has no host-process prerequisites.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "type": "object", "nullable": true }
+                            }
+                        }
+                    },
+                    "401": error_response("Bearer authentication is required."),
+                    "404": error_response("Tool is unknown, unavailable on this surface, or not pinned on the Board.")
+                }
+            }
+        }),
+    );
 
     insert_streaming_call_paths(paths);
 

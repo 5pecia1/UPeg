@@ -31,6 +31,7 @@ NOTICE_SET=(
   "flutter_app/fonts/OFL-D2Coding.txt|OFL-D2Coding.txt|SIL Open Font License"
   "flutter_app/fonts/OFL-JetBrainsMono.txt|OFL-JetBrainsMono.txt|SIL Open Font License"
   "vendor/pdf-inspector/LICENSE|pdf-inspector-LICENSE|MIT License"
+  "vendor/zxcvbn/LICENSE|zxcvbn-LICENSE|MIT License"
   "flutter_app/rust_builder/cargokit/LICENSE|cargokit-LICENSE|MIT LICENSE"
 )
 

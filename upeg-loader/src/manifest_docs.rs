@@ -49,6 +49,8 @@ mod tests {
     const FIELD_REFERENCE_SCHEMAS: &[(&str, u64)] = &[
         ("ToolkitToml", 1),
         ("ToolEntryToml", 2),
+        ("ToolSetupToml", 2),
+        ("ToolSetupInstallToml", 2),
         ("InputFieldToml", 3),
         ("InputChoiceToml", 4),
         ("OutputFieldToml", 5),

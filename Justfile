@@ -466,7 +466,7 @@ flutter-controlled-embed-linux-test: flutter-pub-get
 	for test_file in \
 	  integration_test/controlled_embed_shared_session_integration_test.dart \
 	  integration_test/controlled_embed_cli_session_integration_test.dart; do
-	  test_config_dir="$(mktemp -d /tmp/upeg-webview-native.XXXXXXXX)"
+	  test_config_dir="$(mktemp -d "${TMPDIR:-/tmp}/upeg-webview-native.XXXXXXXX")"
 	  trap 'rm -rf -- "$test_config_dir"' EXIT
 	  env UPEG_HOME="$test_config_dir" UPEG_PROJECT_MANIFEST_PATH=off \
 	    UPEG_TEST_CLI_PATH="$cli_path" \
@@ -589,7 +589,7 @@ flutter-build-windows: flutter-pub-get
 # flutter_app/web/upeg_service_worker.js carries the same warning.
 #
 # Release web bundle. Leave the service-worker flags alone (see above).
-flutter-build-web: flutter-pub-get build-frb-wasm
+flutter-build-web: build-frb-wasm
 	@printf '\n\033[1;36m[flutter]\033[0m flutter build web --release --no-wasm-dry-run\n'
 	cd flutter_app && flutter build web --release --no-wasm-dry-run
 
@@ -604,22 +604,39 @@ flutter-web-smoke: flutter-build-web
 	@printf '\n\033[1;36m[flutter]\033[0m flutter web smoke + PWA service worker contract (headless Chromium)\n'
 	scripts/flutter_web_smoke.sh
 
-# wasm-pack helper. cargokit drives Linux/macOS/Windows cdylib builds
+# FRB web helper. cargokit drives Linux/macOS/Windows cdylib builds
 # from inside the Flutter native pipeline (see flutter_app/rust_builder/),
 # but it does NOT cover web — Flutter Web is JS+wasm, not CMake/Xcode.
-# So we keep wasm-pack as a separate recipe. `--target no-modules`
-# exposes `window.wasm_bindgen` as a global, matching FRB v2's
-# frb_generated.web.dart loader (`wasmBindgenName: 'wasm_bindgen'`).
-# `--release` to match what `flutter build web` does for its Dart compile.
-build-frb-wasm:
+# FRB's supported `build-web` command wraps wasm-pack with a nightly std build
+# and atomics/bulk-memory/mutable-globals. A plain stable wasm-pack build emits
+# non-shared WebAssembly.Memory, which cannot be transferred to FRB workers.
+build-frb-wasm: flutter-pub-get
 	#!/usr/bin/env bash
 	set -euo pipefail
-	printf '\n\033[1;36m[flutter]\033[0m wasm-pack build (upeg-frb → flutter_app/web/pkg)\n'
-	if ! command -v wasm-pack >/dev/null 2>&1; then
-	  echo "  installing wasm-pack via cargo install"
-	  cargo install wasm-pack --locked
+	toolchain="nightly-2025-12-08"
+	wasm_pack_version="0.13.1"
+	wasm_rustflags='--cfg getrandom_backend="wasm_js" -C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--import-memory -C link-arg=--max-memory=4294967296 -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base'
+	printf '\n\033[1;36m[flutter]\033[0m FRB shared-memory web build (upeg-frb → flutter_app/web/pkg)\n'
+	if ! rustup run "$toolchain" rustc --version >/dev/null 2>&1; then
+	  rustup toolchain install "$toolchain" --profile minimal --component rust-src --target wasm32-unknown-unknown
+	else
+	  rustup component add rust-src --toolchain "$toolchain"
+	  rustup target add wasm32-unknown-unknown --toolchain "$toolchain"
 	fi
-	cd upeg-frb && wasm-pack build --target no-modules --out-dir ../flutter_app/web/pkg --release
+	if ! wasm-pack --version 2>/dev/null | grep -Fx "wasm-pack $wasm_pack_version" >/dev/null; then
+	  cargo install wasm-pack --version "$wasm_pack_version" --locked
+	fi
+	cd flutter_app
+	rust_root="$(cd ../upeg-frb && pwd)"
+	web_root="$PWD/web"
+	dart run flutter_rust_bridge build-web \
+	  --rust-root "$rust_root" \
+	  --output "$web_root" \
+	  --release \
+	  --wasm-pack-rustup-toolchain "$toolchain" \
+	  --wasm-pack-rustflags "$wasm_rustflags"
+	test -s "$web_root/pkg/upeg_frb.js"
+	test -s "$web_root/pkg/upeg_frb_bg.wasm"
 
 # Flutter Web has no native pre-build hook for arbitrary commands, so
 # bundle the wasm-pack step into a single composite recipe. Web parallel
@@ -717,6 +734,7 @@ package-linux-appimage: flutter-build-linux
 	appstreamcli validate --no-net packaging/linux/io.github._5pecia1.upeg.metainfo.xml
 	out="${UPEG_PACKAGE_OUT:-target/packages}/linux"
 	mkdir -p "$out"
+	out="$(cd "$out" && pwd)"
 	work="$(mktemp -d)"
 	trap 'rm -rf "$work"' EXIT
 	tmp="$work/upeg.AppDir"
@@ -769,7 +787,7 @@ package-macos-dmg: flutter-build-macos
 	bash packaging/release-files.sh stage "$work/dmg/licenses"
 	version="$(bash packaging/release-files.sh version)"
 	create-dmg --overwrite \
-	    --dmg-title="upeg" \
+	    --volname "upeg" \
 	    "$out/upeg-${version}.dmg" \
 	    "$work/dmg"
 

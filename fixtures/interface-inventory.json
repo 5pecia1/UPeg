@@ -11924,6 +11924,54 @@
         "path": "upeg-cli/src/inventory/tests.rs",
         "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
+    },
+    {
+      "id": "http.v1.tools.readiness",
+      "surfaces": [
+        "http"
+      ],
+      "kind": "httpRoute",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": "GET",
+          "httpPath": "/v1/tools/{id}/readiness",
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "httpRequest",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP request contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP route responses use route-specific schemas; tool dispatch routes return canonical ToolResult envelopes",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/http/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
     }
   ]
 }

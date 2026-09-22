@@ -67,6 +67,14 @@ timeout_ms = 10000
 # captured child for color.
 color = "force"
 
+[tools.setup]
+guide_url = "https://git-scm.com/downloads"
+instructions = "Install Git, then recheck this tool."
+[tools.setup.install]
+linux = ["sudo apt install git"]
+macos = ["brew install git"]
+windows = ["winget install Git.Git"]
+
 [[tools.inputs]]
 name = "count"
 type = "integer"

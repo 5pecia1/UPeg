@@ -19,8 +19,11 @@ import 'package:upeg/src/features/host_attach/attach_client.dart';
 import 'package:upeg/src/features/host_attach/host_attach_config.dart';
 import 'package:upeg/src/features/host_attach/host_attach_config_provider.dart';
 import 'package:upeg/src/features/host_attach/host_attach_dispatch_provider.dart';
+import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/i18n/t.dart';
+import 'package:upeg/src/state/external_readiness_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/widgets/expanded_modal/external_readiness_panel.dart';
 
 const Key kHostAttachBaseUrlFieldKey = Key('host-attach-base-url-field');
 const Key kHostAttachTokenFieldKey = Key('host-attach-token-field');
@@ -35,6 +38,9 @@ const String kHostAttachCheckLabelKey = 'host_attach.check_button';
 const String kHostAttachCheckingKey = 'host_attach.checking';
 const String kHostAttachConnectedKey = 'host_attach.connected';
 const String kHostAttachUnreachableKey = 'host_attach.unreachable';
+const String kHostAttachUnauthorizedKey =
+    'host_attach.notice.unauthorized_hint';
+const String kHostAttachUnavailableKey = 'readiness.host_unavailable';
 
 class HostAttachSection extends ConsumerStatefulWidget {
   const HostAttachSection({super.key});
@@ -52,6 +58,9 @@ class _HostAttachSectionState extends ConsumerState<HostAttachSection> {
   /// across locale flips.
   String? _statusKey;
   bool _checking = false;
+  List<AttachToolSummary> _hostTools = const <AttachToolSummary>[];
+  HostAttachConfig? _catalogConfig;
+  int _configurationRevision = 0;
 
   @override
   void initState() {
@@ -69,30 +78,53 @@ class _HostAttachSectionState extends ConsumerState<HostAttachSection> {
   }
 
   void _persist() {
-    ref
-        .read(hostAttachConfigProvider.notifier)
-        .save(
-          HostAttachConfig(
-            baseUrl: _baseUrlController.text.trim(),
-            token: _tokenController.text.trim(),
-          ),
-        );
+    final next = HostAttachConfig(
+      baseUrl: _baseUrlController.text.trim(),
+      token: _tokenController.text.trim(),
+    );
+    if (next == ref.read(hostAttachConfigProvider)) return;
+    ref.read(hostAttachConfigProvider.notifier).save(next);
+    setState(() {
+      _configurationRevision += 1;
+      _checking = false;
+      _statusKey = null;
+      _hostTools = const <AttachToolSummary>[];
+      _catalogConfig = null;
+    });
   }
 
   Future<void> _check() async {
     _persist();
+    final revision = _configurationRevision;
     setState(() {
       _checking = true;
       _statusKey = kHostAttachCheckingKey;
     });
-    final result = await ref.read(attachClientProvider).checkHealth();
-    if (!mounted) return;
+    final client = ref.read(attachClientProvider);
+    final result = await client.checkHealth();
+    if (!mounted || revision != _configurationRevision) return;
+    final listed = result is HealthzOk ? await client.listTools() : null;
+    if (!mounted || revision != _configurationRevision) return;
     setState(() {
       _checking = false;
-      _statusKey = switch (result) {
-        HealthzOk() => kHostAttachConnectedKey,
-        HealthzUnreachable() => kHostAttachUnreachableKey,
+      _statusKey = switch ((result, listed)) {
+        (HealthzOk(), AttachListOk()) => kHostAttachConnectedKey,
+        (HealthzOk(), AttachListUnauthorized()) => kHostAttachUnauthorizedKey,
+        (HealthzOk(), _) => kHostAttachUnavailableKey,
+        (HealthzUnreachable(), _) => kHostAttachUnreachableKey,
       };
+      _hostTools = listed is AttachListOk
+          ? listed.tools
+                .where(
+                  (tool) =>
+                      tool.supportsReadinessInspection &&
+                      !tool.source.startsWith('mcp-import:'),
+                )
+                .toList(growable: false)
+          : const <AttachToolSummary>[];
+      _catalogConfig = listed is AttachListOk
+          ? ref.read(hostAttachConfigProvider)
+          : null;
     });
   }
 
@@ -153,7 +185,66 @@ class _HostAttachSectionState extends ConsumerState<HostAttachSection> {
               ),
           ],
         ),
+        if (_hostTools.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            t(ref, 'readiness.remote_catalog_limit'),
+            style: TextStyle(color: tokens.fg4, fontSize: 10.5),
+          ),
+          for (final tool in _hostTools)
+            _HostToolReadiness(tool: tool, config: _catalogConfig!),
+        ],
       ],
+    );
+  }
+}
+
+class _HostToolReadiness extends ConsumerWidget {
+  const _HostToolReadiness({required this.tool, required this.config});
+
+  final AttachToolSummary tool;
+  final HostAttachConfig config;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final toolId = ToolId.parse(tool.id);
+    final target = (toolId: toolId, config: config);
+    final inspection = ref.watch(hostExternalReadinessProvider(target));
+    if (inspection case AsyncData(value: ExternalReadinessNotApplicable())) {
+      return const SizedBox.shrink();
+    }
+    final tokens = context.upeg;
+    final platform = switch (inspection) {
+      AsyncData(value: ExternalReadinessInspected(:final readiness)) =>
+        readiness.platform,
+      _ => null,
+    };
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: tokens.lineSoft),
+        borderRadius: BorderRadius.circular(UpegSizing.radius1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            platform == null
+                ? '${tool.label} · ${tool.id}'
+                : '${tool.label} · ${tool.id} · $platform',
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: tokens.fg2, fontSize: 11),
+          ),
+          const SizedBox(height: 6),
+          ExternalReadinessInspectionView(
+            inspection: inspection,
+            onRecheck: () =>
+                ref.invalidate(hostExternalReadinessProvider(target)),
+            showReady: true,
+          ),
+        ],
+      ),
     );
   }
 }

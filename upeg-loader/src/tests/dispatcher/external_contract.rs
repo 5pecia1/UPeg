@@ -127,6 +127,95 @@ args_template = ["-c", "echo out; echo err >&2; exit 3"]"#,
 }
 
 #[test]
+fn missing_command_returns_readiness_and_display_only_install_guidance() {
+    let result = run(
+        r#"id = "y.missing_command"
+toolkit = "y"
+invoker = "External"
+command = "__upeg_external_command_not_installed__"
+[setup]
+guide_url = "https://example.test/install"
+instructions = "Install the command, then retry."
+[setup.install]
+linux = ["sudo apt install example"]"#,
+        json!({}),
+    );
+
+    let failure = failure(result);
+    assert_eq!(failure.error.code, TOOL_ERROR_CODE);
+    assert!(
+        failure
+            .error
+            .message
+            .contains("Install the command, then retry.")
+    );
+    let details = failure.error.details.expect("readiness details");
+    assert_eq!(details["readiness"]["status"], json!("missing_executable"));
+    assert_eq!(
+        details["readiness"]["command"],
+        json!("__upeg_external_command_not_installed__")
+    );
+    assert_eq!(
+        details["readiness"]["setup"]["guide_url"],
+        json!("https://example.test/install")
+    );
+    assert!(details.get("search_path").is_none());
+    assert!(details.get("credentials").is_none());
+}
+
+#[test]
+fn missing_declared_cwd_is_not_reported_as_an_installation_failure() {
+    let absent = std::env::temp_dir().join("upeg-external-absent-cwd");
+    let result = run(
+        &format!(
+            r#"id = "y.missing_cwd"
+toolkit = "y"
+invoker = "External"
+command = "__upeg_external_command_not_installed__"
+cwd = "{}""#,
+            absent.display()
+        ),
+        json!({}),
+    );
+
+    let failure = failure(result);
+    assert_eq!(failure.error.code, TOOL_ERROR_CODE);
+    assert!(failure.error.message.contains("declared cwd"));
+    assert!(failure.error.details.is_none());
+}
+
+#[test]
+#[cfg(unix)]
+fn executable_with_a_missing_interpreter_keeps_the_raw_spawn_failure() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = temp_dir("missing_interpreter");
+    let script = directory.join("broken-interpreter");
+    std::fs::write(&script, "#!/__upeg_missing_interpreter__\necho never\n").expect("write script");
+    let mut permissions = std::fs::metadata(&script)
+        .expect("script metadata")
+        .permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&script, permissions).expect("make script executable");
+    let result = run(
+        &format!(
+            r#"id = "y.missing_interpreter"
+toolkit = "y"
+invoker = "External"
+command = "{}""#,
+            script.display()
+        ),
+        json!({}),
+    );
+
+    let failure = failure(result);
+    assert_eq!(failure.error.code, TOOL_ERROR_CODE);
+    assert!(failure.error.message.contains("failed to spawn"));
+    assert!(failure.error.details.is_none());
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
 fn failure_message_without_stderr_does_not_end_in_colon() {
     let result = run(
         r#"id = "y.x"

@@ -24,6 +24,7 @@ GET  /v1/boards/{board}
 GET  /v1/credentials
 GET  /v1/logs
 GET  /v1/tools
+GET  /v1/tools/{toolkit}.{tool}/readiness
 GET  /v1/triggers
 GET  /v1/clients
 POST /v1/clients/heartbeat
@@ -50,6 +51,11 @@ GET  /mcp
   activation (see [Host topology](host-topology.md)).
 - `/v1/tools` returns the HTTP-visible Tool list in the same metadata shape as
   the `tools/list` that MCP-compatible clients use.
+- `GET /v1/tools/{id}/readiness` is bearer-, surface-, and optionally
+  Board-gated (`?board=<key>`), and returns the non-executing
+  [External readiness](external-readiness.md) contract. Attached CLI clients
+  provide their execution directory so this check follows the same cwd as a
+  dispatched External command. It never exposes PATH or credential values.
 - `/v1/credentials`, `/v1/logs`, and `/v1/triggers` expose reference-only
   credential metadata, metadata-only Execution Log rows, and registered Trigger
   bindings respectively. None of them returns secret values or argument values.

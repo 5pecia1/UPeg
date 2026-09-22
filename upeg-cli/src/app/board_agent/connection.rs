@@ -1,8 +1,7 @@
 //! Portable stdio launch configuration. The CLI itself binds its directory, so
 //! clients do not need a vendor-specific `cwd` setting.
 
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde_json::{Map, Value, json};
 use upeg_core::BoardKey;
@@ -15,9 +14,6 @@ use super::{
 const CLI_NAME: &str = "upeg";
 const PROJECT_MANIFEST_ENV: &str = "UPEG_PROJECT_MANIFEST_PATH";
 const PROJECT_MANIFEST_OFF: &str = "off";
-#[cfg(unix)]
-const EXECUTABLE_PERMISSION_BITS: u32 = 0o111;
-
 pub fn board_connection_preview(
     board: &BoardKey,
 ) -> Result<BoardConnectionPreview, BoardAgentError> {
@@ -91,76 +87,23 @@ fn cli_binary() -> Option<PathBuf> {
         }
         if let Some(parent) = current.parent() {
             let candidate = parent.join(executable);
-            if executable_file(&candidate) {
+            if upeg_runtime::readiness::find_executable(
+                &candidate.to_string_lossy(),
+                parent,
+                None,
+                None,
+            )
+            .is_some()
+            {
                 return Some(candidate);
             }
         }
     }
-    find_executable(executable, &std::env::current_dir().ok()?)
-}
-
-pub(super) fn find_executable(command: &str, directory: &Path) -> Option<PathBuf> {
-    find_executable_on_path(command, directory, std::env::var_os("PATH").as_deref())
-}
-
-pub(super) fn find_executable_on_path(
-    command: &str,
-    directory: &Path,
-    search_path: Option<&OsStr>,
-) -> Option<PathBuf> {
-    let path = Path::new(command);
-    if path.is_absolute() || path.components().count() > 1 {
-        let path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            directory.join(path)
-        };
-        return executable_file(&path).then_some(path);
-    }
-    search_path.and_then(|paths| {
-        std::env::split_paths(paths)
-            .map(|path| {
-                if path.is_absolute() {
-                    path
-                } else {
-                    directory.join(path)
-                }
-            })
-            .map(|path| path.join(command))
-            .find_map(executable_candidate)
-    })
-}
-
-fn executable_candidate(path: PathBuf) -> Option<PathBuf> {
-    if executable_file(&path) {
-        return Some(path);
-    }
-    #[cfg(windows)]
-    if path.extension().is_none() {
-        for extension in ["exe", "cmd", "bat", "com"] {
-            let candidate = path.with_extension(extension);
-            if executable_file(&candidate) {
-                return Some(candidate);
-            }
-        }
-    }
-    None
-}
-
-fn executable_file(path: &Path) -> bool {
-    let Ok(metadata) = path.metadata() else {
-        return false;
-    };
-    if !metadata.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        metadata.permissions().mode() & EXECUTABLE_PERMISSION_BITS != 0
-    }
-    #[cfg(not(unix))]
-    {
-        true
-    }
+    let directory = std::env::current_dir().ok()?;
+    upeg_runtime::readiness::find_executable(
+        executable,
+        &directory,
+        None,
+        std::env::var_os("PATH").as_deref(),
+    )
 }
