@@ -52,7 +52,7 @@ command = "hex-to-decimal"
 
 | Invoker | Required fields | Secret rules |
 |---|---|---|
-| `External` | `command`; optional `args_template`/`cwd`/`env`/`timeout_ms`/`color` | Credential values reach the process as environment only at spawn time. |
+| `External` | `command`; optional `args_template`/`cwd`/`env`/`timeout_ms`/`color`/`setup` | Credential values reach the process as environment only at spawn time. |
 | `Http` | `url`; optional `method`/`headers`/`body` | Header/body templates reference credential *names* only. The built-in lightweight adapter supports `http://` and `mock://echo` for tests; when TLS is needed, use an `External` wrapper. |
 | `Embed` | `embed_url`, `controlled_embed.bindings` | Selector mappings are user-verified values. |
 | `Chain` | `steps` | Step args may use `{{steps.<id>.output}}` expressions. |
@@ -89,6 +89,7 @@ default = "Cargo.toml"
 | `env` | Plaintext (non-secret) environment variables. `credentials` apply later, so a colliding name is won by the credential. |
 | `timeout_ms` | Wall-clock budget. On expiry the child's **entire process group** is terminated and the call fails with `details.timed_out = true`. **No default** — a 20-minute `just verify` must stay legal. |
 | `color` | `"inherit"` (default) or `"force"`. Tells the child whether color is supported — see below. |
+| `setup` | Optional display-only guide URL, instructions, and OS-specific install commands. It is never executed; [External readiness](external-readiness.md) selects it for the host. |
 
 The working directory is decided differently depending on where the manifest
 came from.
@@ -352,6 +353,8 @@ just toolkit-schema                             # regenerate schema + guide
 just toolkit-schema-check                       # check generated artifacts for drift
 ```
 
-The JSON Schema proves only the TOML→JSON shape. Chain acyclicity, credential
-existence, executable availability, and URL reachability are canonical in
-`upeg tool validate`.
+The JSON Schema proves only the TOML→JSON shape. `upeg tool validate` validates
+declarations such as invoker fields, typed inputs, chain structure, and HTTP(S)
+guide URLs; it does not prove runtime credentials, network reachability, or
+executable availability. Executable availability is a non-executing, host- and
+context-dependent readiness inspection, not a manifest validity condition.

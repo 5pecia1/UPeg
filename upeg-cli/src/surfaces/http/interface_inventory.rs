@@ -37,6 +37,11 @@ const HTTP_ROUTES: &[HttpRouteDeclaration] = &[
         path: "/v1/tools",
     },
     HttpRouteDeclaration {
+        id: "http.v1.tools.readiness",
+        method: "GET",
+        path: "/v1/tools/{id}/readiness",
+    },
+    HttpRouteDeclaration {
         id: "http.v1.tools.call",
         method: "POST",
         path: "/v1/tools/{id}",

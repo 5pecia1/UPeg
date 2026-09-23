@@ -46,6 +46,14 @@ pdf-inspector 1.17.0 — PDF inspection and text extraction
        These tables are derived data published by Adobe under permissive
        (BSD-style) terms. See the header comment of each file for its source.
 
+zxcvbn 3.1.1 — password-strength estimation
+    Copyright (c) 2016 Joshua Holmer
+    License: MIT
+    Full text: vendor/zxcvbn/LICENSE
+    Upstream: https://github.com/shssoichiro/zxcvbn-rs
+    Vendored from the published crates.io tarball; the pinned SHA-256 and the
+    single local compatibility patch are recorded in vendor/zxcvbn/UPEG.md.
+
 Cargokit — Flutter/Rust build integration
     Copyright 2022 Matej Knopp
     License: MIT and Apache-2.0 (dual)

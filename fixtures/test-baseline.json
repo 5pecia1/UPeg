@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-20T04:47:30Z",
+  "generatedAt": "2026-09-22T05:38:31Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3375,
+      "total": 3406,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -1154,6 +1154,27 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "app::plugin_command::tests::no_built_artifact_returns_a_guidance_message"
+        },
+        {
+          "className": "app::readiness_target_tests",
+          "methodName": "remote_only_tool_is_eligible_for_host_readiness_before_local_visibility_lookup",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "app::readiness_target_tests::remote_only_tool_is_eligible_for_host_readiness_before_local_visibility_lookup"
+        },
+        {
+          "className": "app::tool_readiness::tests",
+          "methodName": "inspection_reports_a_missing_command_without_executing_it",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "app::tool_readiness::tests::inspection_reports_a_missing_command_without_executing_it"
+        },
+        {
+          "className": "app::tool_readiness::tests",
+          "methodName": "unknown_tool_is_not_reported_as_external_readiness",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "app::tool_readiness::tests::unknown_tool_is_not_reported_as_external_readiness"
         },
         {
           "className": "domain::execution::context::tests",
@@ -2444,6 +2465,13 @@
           "fullName": "surfaces::cli::doctor_surfaces::tests::wasm_invoker_tools_count_as_stubbed_without_wasm_feature"
         },
         {
+          "className": "surfaces::cli::readiness::tests",
+          "methodName": "json_not_applicable_is_valid_null",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::cli::readiness::tests::json_not_applicable_is_valid_null"
+        },
+        {
           "className": "surfaces::cli::tui_command_tests",
           "methodName": "upeg_tui_accepts_global_board_and_tui_tag_flags",
           "status": "passed",
@@ -3243,6 +3271,13 @@
         },
         {
           "className": "surfaces::http::tests::openapi",
+          "methodName": "openapi_readiness_response_allows_not_applicable_null",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::openapi::openapi_readiness_response_allows_not_applicable_null"
+        },
+        {
+          "className": "surfaces::http::tests::openapi",
           "methodName": "openapi_x_embed_fields_round_trip_registered_embed_info",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -3282,6 +3317,41 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::http::tests::tools::each_tool_list_entry_has_embed_url_and_bindings"
+        },
+        {
+          "className": "surfaces::http::tests::tools",
+          "methodName": "readiness_cwd_override_requires_a_cli_absolute_path",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::tools::readiness_cwd_override_requires_a_cli_absolute_path"
+        },
+        {
+          "className": "surfaces::http::tests::tools",
+          "methodName": "readiness_hides_an_unknown_tool",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::tools::readiness_hides_an_unknown_tool"
+        },
+        {
+          "className": "surfaces::http::tests::tools",
+          "methodName": "readiness_reports_missing_external_and_recovers_when_executable_appears",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::tools::readiness_reports_missing_external_and_recovers_when_executable_appears"
+        },
+        {
+          "className": "surfaces::http::tests::tools",
+          "methodName": "readiness_requires_the_same_bearer_authentication_as_tool_calls",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::tools::readiness_requires_the_same_bearer_authentication_as_tool_calls"
+        },
+        {
+          "className": "surfaces::http::tests::tools",
+          "methodName": "readiness_returns_null_for_registered_external_without_requirements",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::tests::tools::readiness_returns_null_for_registered_external_without_requirements"
         },
         {
           "className": "surfaces::http::tests::tools",
@@ -3751,6 +3821,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::mcp::proxy::tests::routing_sends_project_manifest_provenance_tools_to_local_dispatch"
+        },
+        {
+          "className": "surfaces::mcp::readiness_tests",
+          "methodName": "tools_list_exposes_external_readiness_only_for_visible_external_tools",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::readiness_tests::tools_list_exposes_external_readiness_only_for_visible_external_tools"
         },
         {
           "className": "surfaces::mcp::runtime_tests",
@@ -13449,6 +13526,13 @@
         },
         {
           "className": "tests::dispatcher::external_contract",
+          "methodName": "executable_with_a_missing_interpreter_keeps_the_raw_spawn_failure",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher::external_contract::executable_with_a_missing_interpreter_keeps_the_raw_spawn_failure"
+        },
+        {
+          "className": "tests::dispatcher::external_contract",
           "methodName": "failing_command_carries_stdout_and_exit_code_in_details",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -13467,6 +13551,20 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "tests::dispatcher::external_contract::missing_caller_cwd_is_rejected_as_invalid_args"
+        },
+        {
+          "className": "tests::dispatcher::external_contract",
+          "methodName": "missing_command_returns_readiness_and_display_only_install_guidance",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher::external_contract::missing_command_returns_readiness_and_display_only_install_guidance"
+        },
+        {
+          "className": "tests::dispatcher::external_contract",
+          "methodName": "missing_declared_cwd_is_not_reported_as_an_installation_failure",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher::external_contract::missing_declared_cwd_is_not_reported_as_an_installation_failure"
         },
         {
           "className": "tests::dispatcher::external_contract",
@@ -14086,6 +14184,13 @@
         },
         {
           "className": "tests::execution_requirements",
+          "methodName": "external_setup_is_registered_as_non_secret_os_selected_guidance",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::execution_requirements::external_setup_is_registered_as_non_secret_os_selected_guidance"
+        },
+        {
+          "className": "tests::execution_requirements",
           "methodName": "project_execution_requirements_keep_root_caller_cannot_escape",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -14104,6 +14209,20 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "tests::execution_requirements::reregistering_with_different_invoker_drops_prior_requirements"
+        },
+        {
+          "className": "tests::execution_requirements",
+          "methodName": "setup_accepts_http_urls_with_ports_queries_fragments_and_ipv6_hosts",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::execution_requirements::setup_accepts_http_urls_with_ports_queries_fragments_and_ipv6_hosts"
+        },
+        {
+          "className": "tests::execution_requirements",
+          "methodName": "setup_rejects_non_external_and_unsafe_or_blank_guidance",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::execution_requirements::setup_rejects_non_external_and_unsafe_or_blank_guidance"
         },
         {
           "className": "tests::file_input_policy",
@@ -15730,6 +15849,13 @@
           "fullName": "i18n::media::tests::image_conversion_copy_has_the_same_keys_in_both_languages"
         },
         {
+          "className": "i18n::readiness::tests",
+          "methodName": "readiness_copy_has_the_same_keys_in_both_languages",
+          "status": "passed",
+          "target": "upeg_pegboard_ui::src/lib.rs",
+          "fullName": "i18n::readiness::tests::readiness_copy_has_the_same_keys_in_both_languages"
+        },
+        {
           "className": "i18n::surface_io::tests",
           "methodName": "catalogs_have_exact_key_parity",
           "status": "passed",
@@ -16372,6 +16498,27 @@
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "controlled_embed_headless::tests::nested_runtime_blocks_on_a_separate_thread"
+        },
+        {
+          "className": "controlled_embed_headless::tests",
+          "methodName": "output_read_does_not_retry_non_context_errors",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "controlled_embed_headless::tests::output_read_does_not_retry_non_context_errors"
+        },
+        {
+          "className": "controlled_embed_headless::tests",
+          "methodName": "output_read_retries_stale_navigation_context_then_returns_value",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "controlled_embed_headless::tests::output_read_retries_stale_navigation_context_then_returns_value"
+        },
+        {
+          "className": "controlled_embed_headless::tests",
+          "methodName": "output_read_returns_persistent_stale_context_after_retry_budget",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "controlled_embed_headless::tests::output_read_returns_persistent_stale_context_after_retry_budget"
         },
         {
           "className": "controlled_embed_headless::tests",
@@ -17149,6 +17296,76 @@
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "provenance::tests::unregistered_tool_provenance_is_local"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "caller_path_overrides_declared_path_for_a_bare_command_and_selects_setup_for_host",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::caller_path_overrides_declared_path_for_a_bare_command_and_selects_setup_for_host"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "credential_path_is_not_resolved_or_exposed",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::credential_path_is_not_resolved_or_exposed"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "declared_path_overrides_an_inherited_executable_when_the_caller_has_no_path_override",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::declared_path_overrides_an_inherited_executable_when_the_caller_has_no_path_override"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "missing_directory_wins_before_an_executable_lookup",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::missing_directory_wins_before_an_executable_lookup"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "the_same_requirements_recheck_from_missing_to_ready_without_running_a_command",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::the_same_requirements_recheck_from_missing_to_ready_without_running_a_command"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "windows_policy_bare_command_does_not_implicitly_match_a_batch_file",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::windows_policy_bare_command_does_not_implicitly_match_a_batch_file"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "windows_policy_bare_dot_filename_does_not_append_exe",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::windows_policy_bare_dot_filename_does_not_append_exe"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "windows_policy_checks_app_directory_after_child_path",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::windows_policy_checks_app_directory_after_child_path"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "windows_policy_explicit_extension_prefers_appended_exe",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::windows_policy_explicit_extension_prefers_appended_exe"
+        },
+        {
+          "className": "readiness::tests",
+          "methodName": "windows_policy_explicit_extensionless_path_falls_back_after_exe",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "readiness::tests::windows_policy_explicit_extensionless_path_falls_back_after_exe"
         },
         {
           "className": "search::tests",
@@ -23675,7 +23892,7 @@
         "test",
         "--reporter=json"
       ],
-      "total": 1230,
+      "total": 1256,
       "tests": [
         {
           "className": "flutter::flutter_app/test/platform_tests/file_picker_bridge_test.dart",
@@ -24028,6 +24245,34 @@
           "fullName": "showHolesProvider::showHolesProvider_falls_back_to_true_default_before_load"
         },
         {
+          "className": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "methodName": "inspect_readiness_decodes_setup_and_install_commands",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "fullName": "inspect_readiness_decodes_setup_and_install_commands"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "methodName": "inspect_readiness_maps_null_unauthorized_and_malformed",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "fullName": "inspect_readiness_maps_null_unauthorized_and_malformed"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "methodName": "inspect_readiness_rejects_malformed_nested_types",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "fullName": "inspect_readiness_rejects_malformed_nested_types"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "methodName": "inspect_readiness_sends_auth_and_board_query",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/attach_readiness_client_test.dart",
+          "fullName": "inspect_readiness_sends_auth_and_board_query"
+        },
+        {
           "className": "boardsProvider",
           "methodName": "boardsProvider_propagates_loader_exception_as_AsyncError",
           "status": "passed",
@@ -24082,6 +24327,62 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/current_board_provider_test.dart",
           "fullName": "currentBoardKeyProvider::currentBoardKeyProvider_updates_value_via_select"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "config_change_invalidates_cached_host_readiness",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "config_change_invalidates_cached_host_readiness"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "host_unauthorized_and_malformed_results_are_errors",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "host_unauthorized_and_malformed_results_are_errors"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "native_missing_then_invalidate_then_ready_rechecks_once_per_cache",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "native_missing_then_invalidate_then_ready_rechecks_once_per_cache"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "native_null_local_result_is_not_blocked",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "native_null_local_result_is_not_blocked"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "non_external_tools_never_call_local_or_network",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "non_external_tools_never_call_local_or_network"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "separate_board_keys_are_separate_cache_entries",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "separate_board_keys_are_separate_cache_entries"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "web_paired_uses_host_result_and_passes_board_key",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "web_paired_uses_host_result_and_passes_board_key"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "methodName": "web_unpaired_does_not_call_local_inspector",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
+          "fullName": "web_unpaired_does_not_call_local_inspector"
         },
         {
           "className": "flutter::flutter_app/test/state_tests/focused_pin_provider_test.dart",
@@ -29664,10 +29965,10 @@
         },
         {
           "className": "GenericFormWidget validation gating",
-          "methodName": "required MultiOptions errors are visible and exposed to semantics in full and compact forms",
+          "methodName": "required MultiOptions errors appear after an edit and are exposed to semantics in full and compact forms",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
-          "fullName": "GenericFormWidget validation gating::required MultiOptions errors are visible and exposed to semantics in full and compact forms"
+          "fullName": "GenericFormWidget validation gating::required MultiOptions errors appear after an edit and are exposed to semantics in full and compact forms"
         },
         {
           "className": "GenericFormWidget",
@@ -29689,6 +29990,20 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "GenericFormWidget::a_required_select_keeps_the_form_invalid_until_a_value_is_chosen"
+        },
+        {
+          "className": "GenericFormWidget",
+          "methodName": "editing_one_form_exposes_required_errors_only_in_that_form",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "GenericFormWidget::editing_one_form_exposes_required_errors_only_in_that_form"
+        },
+        {
+          "className": "GenericFormWidget",
+          "methodName": "required_errors_wait_for_a_form_edit_while_the_validity_gate_stays_closed",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "GenericFormWidget::required_errors_wait_for_a_form_edit_while_the_validity_gate_stays_closed"
         },
         {
           "className": "GenericFormWidget",
@@ -29997,6 +30312,48 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "HostAttachSection::editing_the_host_field_persists_to_settings"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should clear stale catalog then fetch once after changed host is checked",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should clear stale catalog then fetch once after changed host is checked"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should distinguish unauthorized inventory from connected",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should distinguish unauthorized inventory from connected"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should ignore an old host check after config changes",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should ignore an old host check after config changes"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should render guidance selected for the host platform",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should render guidance selected for the host platform"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should show malformed readiness with a nonexecuting retry",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should show malformed readiness with a nonexecuting retry"
+        },
+        {
+          "className": "HostAttachSection",
+          "methodName": "should show only local External host tools with platform and cache checks across rebuilds",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "HostAttachSection::should show only local External host tools with platform and cache checks across rebuilds"
         },
         {
           "className": "HostAttachSection",
@@ -31589,6 +31946,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "a_untouched_compact_form_hides_required_errors_while_its_gate_is_closed",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "a_untouched_compact_form_hides_required_errors_while_its_gate_is_closed"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "after_an_output_conversion_failure_reopening_debug_or_clearing_the_log_never_shows_the_raw_success_output",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32027,6 +32391,41 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "shortcutKeysMatchEvent::without_shift_the_event_does_not_match_cmd_shift_n"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should allow imported External with no requirements to run",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should allow imported External with no requirements to run"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should allow unchecked credential PATH readiness to run",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should allow unchecked credential PATH readiness to run"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should block missing setup then preserve entered args and dispatch once after recheck",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should block missing setup then preserve entered args and dispatch once after recheck"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should invalidate cached ready when dispatch reports missing readiness",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should invalidate cached ready when dispatch reports missing readiness"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should keep missing setup compact and open cached nonexecuting details",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should keep missing setup compact and open cached nonexecuting details"
         },
         {
           "className": "flutter::widget_tester.dart",

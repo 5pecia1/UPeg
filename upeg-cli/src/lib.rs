@@ -85,6 +85,18 @@ pub fn current_host() -> Option<ServerInfo> {
     infrastructure::discovery::read_reachable()
 }
 
+/// Inspect native External prerequisites without running a command.
+///
+/// Embedders supply the optional Board key so its declared PATH override is
+/// applied consistently with a Board-scoped connection.
+pub fn inspect_local_tool_readiness(
+    tool_id: &str,
+    board_key: Option<&str>,
+) -> Result<Option<upeg_runtime::readiness::ToolReadiness>, CliError> {
+    let board = app::tool_readiness::parse_board_key(board_key)?;
+    app::tool_readiness::inspect_local_tool_readiness(tool_id, board.as_ref())
+}
+
 /// PRD §5.9 — embed the HTTP host inside another binary (`upeg-desktop`
 /// being the first consumer). Blocks the current thread; the caller
 /// should spawn a worker thread and use `ready` to learn the bound

@@ -349,13 +349,38 @@ fn tools_list_result_in(
     board: Option<&BoardKey>,
     board_state: Option<&upeg_sources::pegboard::PegboardState>,
 ) -> Value {
-    match board {
+    let tools = match board {
         None => app::tools_list_json_for_surface(surface),
         Some(board) => board_state.map_or_else(
             || board_guidance::tools_list(surface, board),
             |state| board_guidance::tools_list_in(surface, board, state),
         ),
+    };
+    attach_readiness_metadata(tools, board)
+}
+
+/// Add readiness only after the normal surface/Board list has applied its
+/// visibility gate. `_meta` is MCP's extension namespace, so this does not
+/// alter a Tool's standard schema or imply that a check executed anything.
+fn attach_readiness_metadata(mut tools: Value, board: Option<&BoardKey>) -> Value {
+    let Some(entries) = tools.get_mut(FIELD_TOOLS).and_then(Value::as_array_mut) else {
+        return tools;
+    };
+    for entry in entries {
+        let Some(name) = entry.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Ok(Some(readiness)) =
+            crate::app::tool_readiness::inspect_local_tool_readiness(name, board)
+        else {
+            continue;
+        };
+        let Some(object) = entry.as_object_mut() else {
+            continue;
+        };
+        object.insert("_meta".to_string(), json!({ "upeg/readiness": readiness }));
     }
+    tools
 }
 
 /// One `tools/call`, dispatched as `caller`.
@@ -962,6 +987,8 @@ mod external_failure_tests;
 mod file_wire_test;
 #[cfg(test)]
 mod log_notification_tests;
+#[cfg(test)]
+mod readiness_tests;
 #[cfg(test)]
 mod runtime_tests;
 #[cfg(test)]

@@ -1,7 +1,147 @@
 use super::*;
+use http::HeaderValue;
 
 async fn tools_body() -> Value {
     get_ok_json(router(), "/v1/tools").await
+}
+
+async fn authenticated_readiness(id: &str) -> (StatusCode, Value) {
+    let response = router_with_token("readiness-test-token")
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/tools/{id}/readiness"))
+                .header("authorization", "Bearer readiness-test-token")
+                .body(Body::empty())
+                .expect("readiness request"),
+        )
+        .await
+        .expect("readiness response");
+    let status = response.status();
+    (status, body_to_value(response.into_body()).await)
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn readiness_reports_missing_external_and_recovers_when_executable_appears() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempfile::tempdir().expect("fixture directory");
+    let command = temp.path().join("late-command");
+    let toolkit = format!("readiness_http_{}", std::process::id());
+    let tool = "late_command";
+    let id = format!("{toolkit}.{tool}");
+    let manifest = format!(
+        r#"id = "{toolkit}"
+
+[[tools]]
+id = "{tool}"
+description = "HTTP readiness fixture"
+pegboard_units = "U1"
+invoker = "External"
+command = {:?}
+surfaces = ["http"]
+
+[tools.setup]
+instructions = "Install the fixture command."
+
+[tools.setup.install]
+linux = ["install-fixture-command"]
+"#,
+        command.to_string_lossy(),
+    );
+    std::fs::write(temp.path().join("readiness.toml"), manifest).expect("fixture manifest");
+    let outcome = upeg_loader::load_and_register_dir_verbose(temp.path());
+    assert!(
+        outcome.failed.is_empty(),
+        "fixture load: {:?}",
+        outcome.failed
+    );
+
+    let (status, body) = authenticated_readiness(&id).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "missing_executable");
+    assert_eq!(
+        body["setup"]["instructions"],
+        "Install the fixture command."
+    );
+    assert_eq!(
+        body["setup"]["install"]["commands"][0],
+        "install-fixture-command"
+    );
+
+    symlink(std::env::current_exe().expect("test executable"), &command).expect("late executable");
+    let (status, body) = authenticated_readiness(&id).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ready");
+    assert_eq!(body["executable"], command.to_string_lossy().as_ref());
+}
+
+#[tokio::test]
+async fn readiness_returns_null_for_registered_external_without_requirements() {
+    let id = format!("num.imported_readiness_{}", std::process::id());
+    let mut meta = upeg_runtime::toolbox_tool("num.hex_to_decimal")
+        .expect("baseline tool")
+        .clone();
+    meta.id = Box::leak(id.clone().into_boxed_str());
+    meta.local_id =
+        Box::leak(format!("imported_readiness_{}", std::process::id()).into_boxed_str());
+    meta.invoker = upeg_core::Invoker::External;
+    meta.surfaces = &[Surface::Http];
+    meta.boards = &[];
+    assert!(
+        !meta.surfaces.contains(&Surface::Desktop) && meta.boards.is_empty(),
+        "fixture must not affect default desktop Board layouts"
+    );
+    let _registration = upeg_runtime::toolbox_add_tool_managed(meta);
+
+    let (status, body) = authenticated_readiness(&id).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.is_null(),
+        "import-style External has no local requirements: {body}"
+    );
+}
+
+#[tokio::test]
+async fn readiness_hides_an_unknown_tool() {
+    let (status, body) = get_json(router(), "/v1/tools/test.readiness.unknown/readiness").await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn readiness_requires_the_same_bearer_authentication_as_tool_calls() {
+    let response = router_with_token("readiness-token")
+        .oneshot(
+            Request::builder()
+                .uri("/v1/tools/test.readiness.unknown/readiness")
+                .body(Body::empty())
+                .expect("readiness request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[test]
+fn readiness_cwd_override_requires_a_cli_absolute_path() {
+    let mut headers = HeaderMap::new();
+    headers.insert(READINESS_CWD_HEADER, HeaderValue::from_static("relative"));
+    assert_eq!(
+        readiness::working_directory(&headers, Surface::Cli),
+        Err("readiness working directory must be absolute")
+    );
+    headers.insert(
+        READINESS_CWD_HEADER,
+        HeaderValue::from_static("/tmp/upeg readiness"),
+    );
+    assert_eq!(
+        readiness::working_directory(&headers, Surface::Http),
+        Err("readiness working directory override is only accepted from cli")
+    );
 }
 
 async fn post_tool(id: &str, body: &'static str) -> http::Response<Body> {

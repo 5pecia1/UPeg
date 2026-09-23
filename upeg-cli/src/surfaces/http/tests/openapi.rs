@@ -69,6 +69,27 @@ async fn openapi_includes_the_v21_resource_routes() {
 }
 
 #[tokio::test]
+async fn openapi_readiness_response_allows_not_applicable_null() {
+    let spec = fetch_openapi().await;
+    let response = &spec["paths"]["/v1/tools/{id}/readiness"]["get"]["responses"]["200"];
+
+    assert_eq!(
+        response["content"]["application/json"]["schema"]["type"],
+        "object"
+    );
+    assert_eq!(
+        response["content"]["application/json"]["schema"]["nullable"],
+        true
+    );
+    assert!(
+        response["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("null")),
+        "readiness OpenAPI response must explain its not-applicable null: {response}"
+    );
+}
+
+#[tokio::test]
 async fn openapi_path_templates_declare_their_required_parameters() {
     let spec = fetch_openapi().await;
     for (path, item) in spec["paths"].as_object().unwrap() {
@@ -83,13 +104,17 @@ async fn openapi_path_templates_declare_their_required_parameters() {
             let params = operation["parameters"]
                 .as_array()
                 .unwrap_or_else(|| panic!("{method} `{path}` missing path parameters"));
+            let path_params = params
+                .iter()
+                .filter(|param| param["in"] == "path")
+                .collect::<Vec<_>>();
             assert_eq!(
-                params.len(),
+                path_params.len(),
                 names.len(),
                 "{method} `{path}` must declare exactly its template parameters"
             );
             for name in &names {
-                let param = params
+                let param = path_params
                     .iter()
                     .find(|param| param["name"] == *name)
                     .unwrap_or_else(|| panic!("{method} `{path}` missing parameter `{name}`"));

@@ -66,6 +66,55 @@ const SERVICE_WORKER_READY_PROBE_TIMEOUT_MS = 1000;
 const DOM_SNAPSHOT_FILE = 'dom.html';
 const CHROMIUM_LOG_FILE = 'chromium.log';
 const SERVER_LOG_FILE = 'server.log';
+const APP_READY_LOG_FRAGMENT =
+  'upeg: appInitProvider — desktop integrations done, painting BoardPage';
+const APP_FATAL_LOG_FRAGMENTS = [
+  'fail to create WorkerPool',
+  'RuntimeError: unreachable',
+  'boot failed:',
+];
+const CONSOLE_CAPTURE_SCRIPT = `(() => {
+  const messages = [];
+  const unhandledErrors = [];
+  const consoleErrors = [];
+  Object.defineProperty(window, '__upegBootMessages', { value: messages });
+  Object.defineProperty(window, '__upegUnhandledErrors', { value: unhandledErrors });
+  Object.defineProperty(window, '__upegConsoleErrors', { value: consoleErrors });
+  for (const level of ['debug', 'log', 'info', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => {
+      const message = args.map((value) => String(value)).join(' ');
+      messages.push(message);
+      if (level === 'error') consoleErrors.push(message);
+      original(...args);
+    };
+  }
+  addEventListener('error', (event) => unhandledErrors.push(String(event.error || event.message)));
+  addEventListener('unhandledrejection', (event) => unhandledErrors.push(String(event.reason)));
+})();`;
+
+// FRB's web worker pool transfers WebAssembly.Memory between workers. That is
+// legal only in a cross-origin-isolated page, so the smoke server must match
+// the production deployment header contract instead of merely serving files.
+const STATIC_SERVER_SCRIPT = String.raw`
+import http.server
+import sys
+
+port = int(sys.argv[1])
+root = sys.argv[2]
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=root, **kwargs)
+
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        self.send_header('Cross-Origin-Resource-Policy', 'same-origin')
+        super().end_headers()
+
+http.server.ThreadingHTTPServer(('127.0.0.1', port), Handler).serve_forever()
+`;
 
 /** The shell needed to boot offline — the fixed paths. */
 const REQUIRED_SHELL_PATHS = [
@@ -121,15 +170,7 @@ async function awaitContract(label, timeoutMs, probe) {
 function startStaticServer({ buildDir, port, logPath }) {
   const child = spawn(
     'python3',
-    [
-      '-m',
-      'http.server',
-      String(port),
-      '--bind',
-      LOOPBACK_HOST,
-      '--directory',
-      buildDir,
-    ],
+    ['-c', STATIC_SERVER_SCRIPT, String(port), buildDir],
     { stdio: ['ignore', 'pipe', 'pipe'] },
   );
   const chunks = [];
@@ -205,6 +246,42 @@ async function waitForAppShell(session, label, timeoutMs) {
     } catch (error) {
       return { ok: false, detail: error.message };
     }
+  });
+}
+
+async function waitForAppReady(session, label, timeoutMs) {
+  await awaitContract(label, timeoutMs, async () => {
+    const state = await session.evaluate(`(() => {
+      const messages = window.__upegBootMessages || [];
+      const unhandledErrors = window.__upegUnhandledErrors || [];
+      const consoleErrors = window.__upegConsoleErrors || [];
+      return {
+        isolated: crossOriginIsolated,
+        ready: messages.some((line) => line.includes(${JSON.stringify(
+          APP_READY_LOG_FRAGMENT,
+        )})),
+        fatal:
+          unhandledErrors[0] ||
+          messages.find((line) => ${JSON.stringify(
+            APP_FATAL_LOG_FRAGMENTS,
+          )}.some((fragment) => line.includes(fragment))) ||
+          null,
+        tail: messages.slice(-8),
+        consoleErrors: consoleErrors.slice(-8),
+      };
+    })()`);
+    if (!state.isolated) {
+      throw new ContractViolation(
+        `${label}: page is not cross-origin isolated; deploy COOP/COEP headers`,
+      );
+    }
+    if (state.fatal) {
+      throw new ContractViolation(`${label}: ${state.fatal}`);
+    }
+    return {
+      ok: state.ready,
+      detail: JSON.stringify({ tail: state.tail, consoleErrors: state.consoleErrors }),
+    };
   });
 }
 
@@ -342,6 +419,7 @@ async function assertRebuildActivatesOnThisLoad(session, version, timeoutMs) {
   await session.send('Page.reload');
   await waitForAppShell(session, 'app shell after new-build reload', timeoutMs);
   await assertBootedShell(session, 'new-build reload');
+  await waitForAppReady(session, 'FRB app initialization after new-build reload', timeoutMs);
 
   await awaitContract(
     `new build's service worker (?${CACHE_VERSION_PARAM}=${version}) takes the page on this load`,
@@ -446,13 +524,20 @@ async function main() {
       startupTimeoutMs: timeoutMs,
     });
     ({ connection, session } = await openPageSession(browser.port));
+    await session.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: CONSOLE_CAPTURE_SCRIPT,
+    });
     await waitForServer(url, timeoutMs);
 
     // 1) First load — does the app come up.
     await session.send('Page.navigate', { url });
     await waitForAppShell(session, 'first-load app shell', timeoutMs);
     await assertBootedShell(session, 'first load');
-    pass(`app shell boots on first load (${APP_ROOT_SELECTOR} x1, FRB script injected once)`);
+    await waitForAppReady(session, 'first-load FRB app initialization', timeoutMs);
+    pass(
+      `app initializes through a real FRB call on first load ` +
+        `(${APP_ROOT_SELECTOR} x1, FRB script injected once)`,
+    );
 
     // 2) service worker registration/activation/control.
     const registration = await assertServiceWorkerActivated(
@@ -490,6 +575,7 @@ async function main() {
     //    filled by a real revisit.
     await session.send('Page.reload');
     await waitForAppShell(session, 'app shell on new-build revisit', timeoutMs);
+    await waitForAppReady(session, 'FRB app initialization on new-build revisit', timeoutMs);
     const rebuiltCache = await assertAppShellCached(session, timeoutMs);
     pass(
       `on revisit, '${rebuiltCache.cacheName}' cache refilled with ${rebuiltCache.urls.length} app shell entries`,
@@ -505,6 +591,7 @@ async function main() {
       uploadThroughput: -1,
     });
     await assertOfflineReloadBoots(session, url, timeoutMs);
+    await waitForAppReady(session, 'offline FRB app initialization', timeoutMs);
     pass('app shell still boots from cache on an offline reload');
 
     console.log(`flutter web smoke passed at ${url}`);

@@ -11,13 +11,14 @@ PASS=0
 
 # Synthetic source root: same relative paths, marker-carrying fake content.
 SRC="$WORK/src"
-mkdir -p "$SRC/flutter_app/fonts" "$SRC/vendor/pdf-inspector" \
+mkdir -p "$SRC/flutter_app/fonts" "$SRC/vendor/pdf-inspector" "$SRC/vendor/zxcvbn" \
   "$SRC/flutter_app/rust_builder/cargokit" "$SRC/chrome-ext"
 printf 'Apache License\nVersion 2.0\n' > "$SRC/LICENSE"
 printf 'UPeg\nCopyright 2026 5pecia1\n' > "$SRC/NOTICE"
 printf 'SIL Open Font License\n' > "$SRC/flutter_app/fonts/OFL-D2Coding.txt"
 printf 'SIL Open Font License\n' > "$SRC/flutter_app/fonts/OFL-JetBrainsMono.txt"
 printf 'MIT License\nFirecrawl\n' > "$SRC/vendor/pdf-inspector/LICENSE"
+printf 'MIT License\nJoshua Holmer\n' > "$SRC/vendor/zxcvbn/LICENSE"
 printf 'MIT LICENSE\nApache LICENSE\n' > "$SRC/flutter_app/rust_builder/cargokit/LICENSE"
 printf '[workspace.package]\nversion = "9.9.9"\n' > "$SRC/Cargo.toml"
 printf 'version: 9.9.9+1\nmsix_config:\n  msix_version: 9.9.9.0\n' \
@@ -47,7 +48,7 @@ printf 'fake-binary' > "$DEST/upeg"
 UPEG_SOURCE_ROOT="$SRC" UPEG_VERSION=v9.9.9 UPEG_COMMIT=deadbeef \
   bash "$SCRIPT" stage "$DEST" >/dev/null
 for f in LICENSE NOTICE OFL-D2Coding.txt OFL-JetBrainsMono.txt \
-         pdf-inspector-LICENSE cargokit-LICENSE BUILD-INFO; do
+         pdf-inspector-LICENSE zxcvbn-LICENSE cargokit-LICENSE BUILD-INFO; do
   [ -s "$DEST/$f" ] || fail "staged file missing: $f"
 done
 cmp -s "$SRC/LICENSE" "$DEST/LICENSE" || fail "LICENSE content drifted"

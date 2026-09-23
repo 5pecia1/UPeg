@@ -17,6 +17,7 @@
 
 mod board_guidance;
 mod media;
+mod readiness;
 mod surface_io;
 
 use phf::{Map, phf_map};
@@ -49,12 +50,14 @@ pub fn catalog(locale: Locale, key: &str) -> Option<&'static str> {
             .or_else(|| surface_io::EN.get(key))
             .or_else(|| board_guidance::EN.get(key))
             .or_else(|| media::EN.get(key))
+            .or_else(|| readiness::EN.get(key))
             .copied(),
         Locale::Ko => KO
             .get(key)
             .or_else(|| surface_io::KO.get(key))
             .or_else(|| board_guidance::KO.get(key))
             .or_else(|| media::KO.get(key))
+            .or_else(|| readiness::KO.get(key))
             .copied(),
     }
 }

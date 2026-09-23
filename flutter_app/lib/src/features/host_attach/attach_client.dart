@@ -22,6 +22,7 @@ import 'package:upeg/src/features/host_attach/attach_canonical_result_decoder.da
 import 'package:upeg/src/features/host_attach/attach_response_body_reader.dart';
 import 'package:upeg/src/features/host_attach/host_attach_config.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/rust/api/readiness.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
@@ -66,11 +67,22 @@ final class HealthzUnreachable extends HealthzResult {
 
 /// One row of `GET /v1/tools`.
 final class AttachToolSummary {
-  const AttachToolSummary({required this.id, required this.label});
+  const AttachToolSummary({
+    required this.id,
+    required this.label,
+    required this.invoker,
+    required this.source,
+  });
 
   final String id;
   final String label;
+  final AttachToolInvoker invoker;
+  final String source;
+
+  bool get supportsReadinessInspection => invoker == AttachToolInvoker.external;
 }
+
+enum AttachToolInvoker { external, other }
 
 sealed class AttachListResult {
   const AttachListResult();
@@ -92,6 +104,34 @@ final class AttachListUnauthorized extends AttachListResult {
 final class AttachListUnavailable extends AttachListResult {
   const AttachListUnavailable(this.hint);
   final String hint;
+}
+
+sealed class AttachReadinessResult {
+  const AttachReadinessResult();
+}
+
+final class AttachReadinessOk extends AttachReadinessResult {
+  const AttachReadinessOk(this.readiness);
+  final ExternalReadinessDto readiness;
+}
+
+/// The tool is valid but has no host-process prerequisites to inspect.
+/// Imported MCP tools intentionally land here even though their runtime
+/// invoker is `External`.
+final class AttachReadinessNotApplicable extends AttachReadinessResult {
+  const AttachReadinessNotApplicable();
+}
+
+final class AttachReadinessUnreachable extends AttachReadinessResult {
+  const AttachReadinessUnreachable();
+}
+
+final class AttachReadinessUnauthorized extends AttachReadinessResult {
+  const AttachReadinessUnauthorized();
+}
+
+final class AttachReadinessMalformed extends AttachReadinessResult {
+  const AttachReadinessMalformed();
 }
 
 // ─── dispatch ─────────────────────────────────────────────────────────
@@ -133,6 +173,10 @@ final class AttachDispatchToolError extends AttachDispatchResult {
 abstract interface class AttachClient {
   Future<HealthzResult> checkHealth();
   Future<AttachListResult> listTools();
+  Future<AttachReadinessResult> inspectReadiness({
+    required ToolId toolId,
+    String? boardKey,
+  });
 
   /// Dispatch [toolId] with [args]. When [boardKey] is set the call
   /// routes through `POST /v1/boards/{board}/tools/{id}` so the host
@@ -206,20 +250,54 @@ final class HttpAttachClient implements AttachClient {
           return AttachListUnavailable(_unavailableHint(resp.body));
         case 200:
           final decoded = jsonDecode(resp.body);
-          final rows = decoded is List ? decoded : const <Object?>[];
-          return AttachListOk(<AttachToolSummary>[
-            for (final row in rows)
-              if (row is Map)
-                AttachToolSummary(
-                  id: '${row['id'] ?? ''}',
-                  label: '${row['label'] ?? row['id'] ?? ''}',
-                ),
-          ]);
+          final rows = switch (decoded) {
+            {'tools': final List<dynamic> tools} => tools,
+            List<dynamic> tools => tools,
+            _ => null,
+          };
+          if (rows == null) return const AttachListUnreachable();
+          final tools = <AttachToolSummary>[];
+          for (final row in rows) {
+            if (row is! Map) return const AttachListUnreachable();
+            final tool = _decodeAttachToolSummary(row);
+            if (tool == null) return const AttachListUnreachable();
+            tools.add(tool);
+          }
+          return AttachListOk(tools);
         default:
           return const AttachListUnreachable();
       }
     } on Object {
       return const AttachListUnreachable();
+    }
+  }
+
+  @override
+  Future<AttachReadinessResult> inspectReadiness({
+    required ToolId toolId,
+    String? boardKey,
+  }) async {
+    try {
+      final suffix = boardKey == null
+          ? ''
+          : '?board=${Uri.encodeQueryComponent(boardKey)}';
+      final uri = _uri('/v1/tools/${toolId.value}/readiness$suffix');
+      if (uri == null) return const AttachReadinessUnreachable();
+      final response = await _http
+          .get(uri, headers: _authHeaders())
+          .timeout(kAttachRequestTimeout);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        return const AttachReadinessUnauthorized();
+      }
+      if (response.statusCode != 200) return const AttachReadinessUnreachable();
+      final decoded = jsonDecode(response.body);
+      if (decoded == null) return const AttachReadinessNotApplicable();
+      if (decoded is! Map) return const AttachReadinessMalformed();
+      return AttachReadinessOk(_decodeReadiness(decoded));
+    } on FormatException {
+      return const AttachReadinessMalformed();
+    } on Object {
+      return const AttachReadinessUnreachable();
     }
   }
 
@@ -322,8 +400,81 @@ final class HttpAttachClient implements AttachClient {
   }
 }
 
+AttachToolSummary? _decodeAttachToolSummary(Map<dynamic, dynamic> row) {
+  final id = row['name'] ?? row['id'];
+  final label = row['displayLabel'] ?? row['label'] ?? id;
+  final invoker = row['invoker'];
+  final source = row['source'];
+  if (id is! String ||
+      ToolId.tryParse(id) == null ||
+      label is! String ||
+      invoker is! String ||
+      source is! String) {
+    return null;
+  }
+  return AttachToolSummary(
+    id: id,
+    label: label,
+    invoker: invoker == 'external'
+        ? AttachToolInvoker.external
+        : AttachToolInvoker.other,
+    source: source,
+  );
+}
+
 void _completeAbort(Completer<void> trigger) {
   if (!trigger.isCompleted) trigger.complete();
+}
+
+ExternalReadinessDto _decodeReadiness(Map<dynamic, dynamic> value) {
+  final status = switch (value['status']) {
+    'ready' => ExternalReadinessStatusDto.ready,
+    'missing_executable' => ExternalReadinessStatusDto.missingExecutable,
+    'missing_working_directory' =>
+      ExternalReadinessStatusDto.missingWorkingDirectory,
+    'unchecked_credential_path' =>
+      ExternalReadinessStatusDto.uncheckedCredentialPath,
+    _ => throw const FormatException('unknown readiness status'),
+  };
+  final platform = value['platform'];
+  if (platform is! String) {
+    throw const FormatException('readiness platform must be a string');
+  }
+  final setup = value['setup'];
+  if (setup != null && setup is! Map) {
+    throw const FormatException('readiness setup must be an object');
+  }
+  final setupMap = setup is Map ? setup : const <dynamic, dynamic>{};
+  final install = setupMap['install'];
+  if (install != null && install is! Map) {
+    throw const FormatException('readiness install must be an object');
+  }
+  final installMap = install is Map ? install : const <dynamic, dynamic>{};
+  _optionalString(installMap, 'platform');
+  final commands = installMap['commands'];
+  if (commands != null && commands is! List) {
+    throw const FormatException('readiness commands must be an array');
+  }
+  final commandList = commands is List ? commands : const <Object?>[];
+  if (commandList.any((command) => command is! String)) {
+    throw const FormatException('readiness commands must be strings');
+  }
+  return ExternalReadinessDto(
+    status: status,
+    platform: platform,
+    command: _optionalString(value, 'command'),
+    workingDirectory: _optionalString(value, 'working_directory'),
+    executable: _optionalString(value, 'executable'),
+    guideUrl: _optionalString(setupMap, 'guide_url'),
+    instructions: _optionalString(setupMap, 'instructions'),
+    installCommands: commandList.cast<String>(),
+  );
+}
+
+String? _optionalString(Map<dynamic, dynamic> value, String key) {
+  final field = value[key];
+  if (field == null || field is String) return field as String?;
+  throw FormatException('readiness $key must be a string');
 }
 
 /// Parse a canonical `POST /v1/tools/{id}` response body into an

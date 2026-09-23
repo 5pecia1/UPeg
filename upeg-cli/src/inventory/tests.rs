@@ -314,6 +314,7 @@ fn interface_inventory_covers_cli_http_and_mcp() {
         "cli.host.status",
         "cli.host.stop",
         "http.v1.tools.list",
+        "http.v1.tools.readiness",
         "http.v1.tools.call",
         "http.v1.tools.call.stream",
         "mcp.board.context",
@@ -380,6 +381,20 @@ fn interface_inventory_covers_cli_http_and_mcp() {
     assert_eq!(
         http_tools_list.contract.locator.http_path.as_deref(),
         Some("/v1/tools")
+    );
+
+    let http_tools_readiness = find_entry(
+        &entries,
+        "http.v1.tools.readiness",
+        InterfaceKind::HttpRoute,
+    );
+    assert_eq!(
+        http_tools_readiness.contract.locator.http_method.as_deref(),
+        Some("GET")
+    );
+    assert_eq!(
+        http_tools_readiness.contract.locator.http_path.as_deref(),
+        Some("/v1/tools/{id}/readiness")
     );
 
     let http_tools_call = find_entry(&entries, "http.v1.tools.call", InterfaceKind::HttpRoute);

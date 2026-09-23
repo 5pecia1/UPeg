@@ -5968,7 +5968,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "upeg-cli"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -6009,7 +6009,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-core"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "inventory",
@@ -6023,7 +6023,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-loader"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "command-group",
  "http",
@@ -6042,7 +6042,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-macros"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "humantime",
  "proc-macro2",
@@ -6054,7 +6054,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-pegboard-ui"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "phf 0.11.3",
  "serde",
@@ -6070,7 +6070,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-plugin-api"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -6078,7 +6078,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-plugin-macros"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6088,11 +6088,12 @@ dependencies = [
 
 [[package]]
 name = "upeg-runtime"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "chromiumoxide",
  "futures-util",
  "humantime",
+ "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
@@ -6101,7 +6102,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-sources"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -6119,7 +6120,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-tool-grammar"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6128,7 +6129,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-tools"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "base32",
  "base64 0.22.1",
@@ -6169,7 +6170,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-wasm"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "extism",
  "serde_json",
@@ -6181,7 +6182,7 @@ dependencies = [
 
 [[package]]
 name = "upeg_frb"
-version = "0.1.2"
+version = "0.4.0"
 dependencies = [
  "axum",
  "flutter_rust_bridge",
@@ -7979,8 +7980,6 @@ dependencies = [
 [[package]]
 name = "zxcvbn"
 version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9eaee90f4a795d1eb4ba6c51e1c1721d4784d550e8efa7b2600f29c867365e0"
 dependencies = [
  "chrono",
  "derive_builder",

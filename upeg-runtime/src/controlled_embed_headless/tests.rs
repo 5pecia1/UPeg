@@ -45,6 +45,36 @@ struct ResultSequenceWaitEvaluator {
     calls: usize,
 }
 
+struct ResultSequenceReadEvaluator {
+    results: VecDeque<Result<String, ControlledEmbedError>>,
+    calls: usize,
+}
+
+impl ResultSequenceReadEvaluator {
+    fn new(results: impl IntoIterator<Item = Result<String, ControlledEmbedError>>) -> Self {
+        Self {
+            results: results.into_iter().collect(),
+            calls: 0,
+        }
+    }
+}
+
+impl HeadlessReadEvaluator for ResultSequenceReadEvaluator {
+    fn evaluate_read<'a>(
+        &'a mut self,
+        _script: &'a str,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<String, ControlledEmbedError>> + Send + 'a>>
+    {
+        self.calls += 1;
+        let result = self.results.pop_front().unwrap_or_else(|| {
+            Err(ControlledEmbedError::BackendFailed(
+                "read: Error -32000: Cannot find context with specified id".into(),
+            ))
+        });
+        Box::pin(std::future::ready(result))
+    }
+}
+
 impl ResultSequenceWaitEvaluator {
     fn new(results: impl IntoIterator<Item = Result<bool, ControlledEmbedError>>) -> Self {
         Self {
@@ -709,5 +739,56 @@ async fn trigger_settle_without_navigation_sleeps_the_bound_without_polling_dom(
     assert_eq!(
         evaluator.calls, 0,
         "unsettled navigation uses the constant sleep, not a DOM poll"
+    );
+}
+
+#[tokio::test]
+async fn output_read_retries_stale_navigation_context_then_returns_value() {
+    const RETRY_BUDGET_MS: u64 = DEFAULT_CONTROLLED_EMBED_WAIT_POLL_MS * 10;
+    let stale = ControlledEmbedError::BackendFailed(
+        "read: Error -32000: Cannot find context with specified id".into(),
+    );
+    let mut evaluator =
+        ResultSequenceReadEvaluator::new([Err(stale), Ok(r#"{"result":"navigated"}"#.to_string())]);
+
+    let value = read_after_navigation("read-output", RETRY_BUDGET_MS, &mut evaluator)
+        .await
+        .expect("the new document context becomes readable within the settle budget");
+
+    assert_eq!(value, r#"{"result":"navigated"}"#);
+    assert_eq!(
+        evaluator.calls, 2,
+        "one stale read and one successful retry"
+    );
+}
+
+#[tokio::test]
+async fn output_read_does_not_retry_non_context_errors() {
+    const RETRY_BUDGET_MS: u64 = DEFAULT_CONTROLLED_EMBED_WAIT_POLL_MS * 10;
+    let error = ControlledEmbedError::BackendFailed("read: selector evaluation failed".into());
+    let mut evaluator = ResultSequenceReadEvaluator::new([Err(error.clone())]);
+
+    let actual = read_after_navigation("read-output", RETRY_BUDGET_MS, &mut evaluator).await;
+
+    assert_eq!(actual, Err(error));
+    assert_eq!(evaluator.calls, 1, "non-transient failures must fail fast");
+}
+
+#[tokio::test]
+async fn output_read_returns_persistent_stale_context_after_retry_budget() {
+    const RETRY_BUDGET_MS: u64 = 20;
+    let stale = ControlledEmbedError::BackendFailed(
+        "read: Error -32000: Cannot find context with specified id".into(),
+    );
+    let mut evaluator = ResultSequenceReadEvaluator::new([Err(stale.clone())]);
+    let start = std::time::Instant::now();
+
+    let actual = read_after_navigation("read-output", RETRY_BUDGET_MS, &mut evaluator).await;
+
+    assert_eq!(actual, Err(stale));
+    assert!(start.elapsed() >= Duration::from_millis(RETRY_BUDGET_MS));
+    assert!(
+        evaluator.calls >= 2,
+        "stale context should be retried within the bound"
     );
 }

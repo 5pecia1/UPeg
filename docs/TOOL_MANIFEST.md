@@ -136,6 +136,7 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `surfaces` | no | array<string> or null | Surface ids where this tool should appear, such as `cli`, `tui`, or `http`. |
 | `boards` | no | array<string> or null | Board ids where UI surfaces should group this tool. |
 | `command` | no | string or null | External-invoker support: program to spawn (e.g. `"git"`).<br>Honored only when `invoker = "External"`. |
+| `setup` | no | ToolSetupToml or null | Optional display-only setup guidance. Honored only by `External`. |
 | `args_template` | no | array<string> or null | Arg list template for the spawned command. `{key}` placeholders<br>are substituted anywhere inside a token (`--manifest-path={path}`);<br>`{{` / `}}` escape a literal brace. Every `key` must name a<br>declared `inputs` field (or `input`, which the `Chain` invoker<br>supplies to every step) — a placeholder naming nothing else is a<br>load error rather than a silently empty argument. A token that is<br>nothing but `{key}` for an optional input with neither a value<br>nor a `default` is dropped from the arg list; every other token<br>keeps its position and renders the absent placeholder as `""`. |
 | `cwd` | no | string or null | Working directory for the spawned command. A relative path<br>resolves against the directory holding this manifest file.<br>Honored only when `invoker = "External"`. When omitted, a<br>Project Manifest (`upeg.toml`) tool runs in the manifest's own<br>directory and a caller-supplied working directory is honored<br>only if it sits inside that directory. |
 | `env` | no | array<KeyValueToml> or null | Plain (non-secret) environment variables handed to the spawned<br>command. Secrets belong in `credentials`, which is applied after<br>this list and therefore wins on a name collision. |
@@ -160,6 +161,22 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `triggers` | no | array<TriggerToml> or null | Trigger declarations. Runtime adapters normalize all sources into the<br>same Tool-dispatch event contract. |
 | `embed_url` | no | string or null | GUI sidecar URL registered when present and non-empty. Recommended together with<br>`invoker = "Embed"` and `pin = "Embed"`, but it is not gated<br>only by `pin`. |
 | `controlled_embed` | no | ControlledEmbedToml or null | Controlled Embed browser settings for User-Agent and viewport overrides. |
+
+### ToolSetupToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `guide_url` | no | string or null | HTTP(S) guide for obtaining or configuring the required command. |
+| `instructions` | no | string or null | Plain-language operator guidance. UPeg never executes this text. |
+| `install` | no | ToolSetupInstallToml or null | Display-only commands, selected by the host operating system. |
+
+### ToolSetupInstallToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `linux` | no | array<string> | — |
+| `macos` | no | array<string> | — |
+| `windows` | no | array<string> | — |
 
 ### InputFieldToml
 
@@ -427,6 +444,14 @@ timeout_ms = 10000
 # chalk) reads instead. Both halves together are the honest way to ask a
 # captured child for color.
 color = "force"
+
+[tools.setup]
+guide_url = "https://git-scm.com/downloads"
+instructions = "Install Git, then recheck this tool."
+[tools.setup.install]
+linux = ["sudo apt install git"]
+macos = ["brew install git"]
+windows = ["winget install Git.Git"]
 
 [[tools.inputs]]
 name = "count"

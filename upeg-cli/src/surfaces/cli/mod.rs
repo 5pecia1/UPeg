@@ -3,6 +3,7 @@ pub(crate) mod completion;
 pub(crate) mod doctor;
 pub(crate) mod doctor_surfaces;
 pub(crate) mod formatters;
+pub(crate) mod readiness;
 #[cfg(feature = "wasm-plugin")]
 pub(crate) mod wasm_template;
 
@@ -550,6 +551,17 @@ pub enum ToolAction {
         /// Emit a JSON object instead of the key-value block.
         #[arg(long)]
         json: bool,
+    },
+    /// Inspect External command prerequisites without executing the tool.
+    Check {
+        /// Canonical Tool id (e.g. `dev.verify`).
+        id: String,
+        /// Emit the readiness contract as JSON.
+        #[arg(long)]
+        json: bool,
+        /// Inspect this process rather than an attachable host.
+        #[arg(long)]
+        local: bool,
     },
     /// Dry-run a Declarative TOML file: parse + validate without
     /// touching the registry. Exit 0 = ok, 1 = invalid.

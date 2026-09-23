@@ -149,6 +149,11 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
 
   bool _allOk = false;
 
+  /// Required-field errors are noisy on a newly opened form, but the Run
+  /// gate must still start closed. This flag belongs to the widget instance
+  /// so a user edit in one tool never exposes errors in another.
+  bool _showRequiredErrors = false;
+
   @override
   void initState() {
     super.initState();
@@ -282,6 +287,7 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
     final next = _validateField(field);
     final prevAllOk = _allOk;
     setState(() {
+      _showRequiredErrors = true;
       _validations[field.key] = next;
       _normalizeImageOptions();
       _allOk = _computeAllOk();
@@ -294,6 +300,9 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
   String? _errorTextFor(InputFieldDto field) {
     final v = _validations[field.key];
     if (v is FieldValidationError) {
+      if (!_showRequiredErrors && v.messageKey == 'modal.validation.required') {
+        return null;
+      }
       return t(ref, v.messageKey, v.messageArgs);
     }
     return null;

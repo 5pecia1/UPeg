@@ -33,6 +33,7 @@ pub mod palette;
 pub mod pause;
 pub mod pegboard;
 pub mod pin_activation;
+pub mod readiness;
 pub mod shared_state;
 pub mod status;
 pub mod tools;

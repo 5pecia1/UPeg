@@ -687,6 +687,78 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
     LocaleDto.en: 'the host returned a file this app could not read',
     LocaleDto.ko: '호스트가 읽을 수 없는 파일을 반환했습니다',
   },
+  'readiness.ready_on_platform': {
+    LocaleDto.en: 'ready on {platform}',
+    LocaleDto.ko: '{platform}에서 준비됨',
+  },
+  'readiness.setup_required': {
+    LocaleDto.en: 'setup required',
+    LocaleDto.ko: '설정 필요',
+  },
+  'readiness.setup_title': {
+    LocaleDto.en: 'Set up {tool}',
+    LocaleDto.ko: '{tool} 설정',
+  },
+  'readiness.host_malformed': {
+    LocaleDto.en: 'the paired host returned malformed readiness data',
+    LocaleDto.ko: '연결된 호스트의 준비 상태 응답 형식이 올바르지 않습니다',
+  },
+  'readiness.missing_executable.label': {
+    LocaleDto.en: 'command not installed',
+    LocaleDto.ko: '명령이 설치되지 않음',
+  },
+  'readiness.missing_executable.hint': {
+    LocaleDto.en: 'Install the required command, then check again.',
+    LocaleDto.ko: '필요한 명령을 설치한 뒤 다시 확인하세요.',
+  },
+  'readiness.missing_working_directory.label': {
+    LocaleDto.en: 'working directory unavailable',
+    LocaleDto.ko: '작업 디렉터리를 사용할 수 없음',
+  },
+  'readiness.missing_working_directory.hint': {
+    LocaleDto.en: 'Fix the configured working directory, then check again.',
+    LocaleDto.ko: '설정된 작업 디렉터리를 수정한 뒤 다시 확인하세요.',
+  },
+  'readiness.unchecked_credential_path.label': {
+    LocaleDto.en: 'command path checked at run time',
+    LocaleDto.ko: '실행 시 명령 경로 확인',
+  },
+  'readiness.unchecked_credential_path.hint': {
+    LocaleDto.en:
+        'A credential supplies PATH, so availability is checked when the tool runs.',
+    LocaleDto.ko: 'credential이 PATH를 제공하므로 도구 실행 시 가용성을 확인합니다.',
+  },
+  'readiness.checking': {
+    LocaleDto.en: 'checking requirements…',
+    LocaleDto.ko: '요구 사항 확인 중…',
+  },
+  'readiness.recheck': {LocaleDto.en: 'Check again', LocaleDto.ko: '다시 확인'},
+  'readiness.copy_command': {
+    LocaleDto.en: 'copy command',
+    LocaleDto.ko: '명령 복사',
+  },
+  'readiness.open_guide': {
+    LocaleDto.en: 'open installation guide',
+    LocaleDto.ko: '설치 안내 열기',
+  },
+  'readiness.guide_unavailable': {
+    LocaleDto.en: 'could not open the installation guide',
+    LocaleDto.ko: '설치 안내를 열 수 없습니다',
+  },
+  'readiness.host_unavailable': {
+    LocaleDto.en: 'could not check the paired host',
+    LocaleDto.ko: '연결된 호스트를 확인할 수 없습니다',
+  },
+  'readiness.host_unpaired': {
+    LocaleDto.en: 'pair a host in Settings to check this command',
+    LocaleDto.ko: '이 명령을 확인하려면 설정에서 호스트를 연결하세요',
+  },
+  'readiness.remote_catalog_limit': {
+    LocaleDto.en:
+        "Remote host tools are available for readiness checks here; adding them to this browser's board is not yet supported.",
+    LocaleDto.ko:
+        '원격 호스트 도구는 여기서 준비 상태를 확인할 수 있습니다. 이 브라우저의 보드에 추가하는 기능은 아직 지원하지 않습니다.',
+  },
 
   // Backup export / import section (backup_section.dart). The button and
   // failure rows mirror the pre-existing Rust keys; dialog/result rows

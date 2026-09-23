@@ -19,6 +19,7 @@ import 'api/palette.dart';
 import 'api/pause.dart';
 import 'api/pegboard.dart';
 import 'api/pin_activation.dart';
+import 'api/readiness.dart';
 import 'api/shared_state.dart';
 import 'api/status.dart';
 import 'api/tools.dart';
@@ -149,6 +150,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbedResolutionDto dco_decode_box_autoadd_embed_resolution_dto(dynamic raw);
+
+  @protected
+  ExternalReadinessDto dco_decode_box_autoadd_external_readiness_dto(
+    dynamic raw,
+  );
 
   @protected
   double dco_decode_box_autoadd_f_64(dynamic raw);
@@ -282,6 +288,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ExecutionScriptsDto dco_decode_execution_scripts_dto(dynamic raw);
+
+  @protected
+  ExternalReadinessDto dco_decode_external_readiness_dto(dynamic raw);
+
+  @protected
+  ExternalReadinessStatusDto dco_decode_external_readiness_status_dto(
+    dynamic raw,
+  );
 
   @protected
   double dco_decode_f_64(dynamic raw);
@@ -455,6 +469,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbedResolutionDto? dco_decode_opt_box_autoadd_embed_resolution_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ExternalReadinessDto? dco_decode_opt_box_autoadd_external_readiness_dto(
     dynamic raw,
   );
 
@@ -763,6 +782,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ExternalReadinessDto sse_decode_box_autoadd_external_readiness_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
@@ -934,6 +958,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ExecutionScriptsDto sse_decode_execution_scripts_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ExternalReadinessDto sse_decode_external_readiness_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ExternalReadinessStatusDto sse_decode_external_readiness_status_dto(
     SseDeserializer deserializer,
   );
 
@@ -1155,6 +1189,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbedResolutionDto? sse_decode_opt_box_autoadd_embed_resolution_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ExternalReadinessDto? sse_decode_opt_box_autoadd_external_readiness_dto(
     SseDeserializer deserializer,
   );
 
@@ -1539,6 +1578,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_external_readiness_dto(
+    ExternalReadinessDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
@@ -1754,6 +1799,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_execution_scripts_dto(
     ExecutionScriptsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_external_readiness_dto(
+    ExternalReadinessDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_external_readiness_status_dto(
+    ExternalReadinessStatusDto self,
     SseSerializer serializer,
   );
 
@@ -2033,6 +2090,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_embed_resolution_dto(
     EmbedResolutionDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_external_readiness_dto(
+    ExternalReadinessDto? self,
     SseSerializer serializer,
   );
 

@@ -78,6 +78,12 @@ class _FakeAttachClient implements AttachClient {
   Future<AttachListResult> listTools() async => const AttachListOk([]);
 
   @override
+  Future<AttachReadinessResult> inspectReadiness({
+    required ToolId toolId,
+    String? boardKey,
+  }) async => const AttachReadinessUnreachable();
+
+  @override
   Future<AttachDispatchResult> dispatch({
     required ToolId toolId,
     required ToolArgs args,

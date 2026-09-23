@@ -325,6 +325,7 @@ fn resolve_tool(
         surfaces: entry.surfaces.clone(),
         boards: entry.boards.clone(),
         command: entry.command.clone(),
+        setup: entry.setup.clone(),
         args_template: entry.args_template.clone(),
         cwd: entry.cwd.clone(),
         env: entry.env.clone(),
@@ -383,7 +384,7 @@ fn validate_toml(parsed: &ToolToml) -> Result<(), LoadError> {
     Ok(())
 }
 
-/// `cwd`, `env`, `timeout_ms`, `color`, and `pty` describe a spawned
+/// `cwd`, `env`, `timeout_ms`, `color`, `pty`, and `setup` describe an External
 /// child process, so they only mean something for
 /// `invoker = "External"`. Declaring them on an Http or Chain tool is a
 /// manifest bug that would otherwise be silently ignored at dispatch
@@ -397,6 +398,7 @@ fn validate_external_process_fields(parsed: &ToolToml) -> Result<(), LoadError> 
         (parsed.timeout_ms.is_some(), "timeout_ms"),
         (parsed.color.is_some(), "color"),
         (parsed.pty.is_some(), "pty"),
+        (parsed.setup.is_some(), "setup"),
     ];
     if let Some(invoker) = parsed.invoker.as_deref().map(str::trim)
         && invoker != EXTERNAL_INVOKER
@@ -411,6 +413,7 @@ fn validate_external_process_fields(parsed: &ToolToml) -> Result<(), LoadError> 
     if parsed.timeout_ms == Some(0) {
         return Err(LoadError::ZeroExternalTimeout);
     }
+    validate_external_setup(parsed)?;
     for (position, entry) in parsed.env.as_deref().unwrap_or_default().iter().enumerate() {
         if entry.name.trim().is_empty() {
             return Err(LoadError::EmptyEnvName { position });
@@ -431,6 +434,58 @@ fn validate_external_process_fields(parsed: &ToolToml) -> Result<(), LoadError> 
     // ([`HostCapabilities::skip_reason`]) instead of failing the file,
     // because the manifest's other tools have nothing to do with it.
     Ok(())
+}
+
+fn validate_external_setup(parsed: &ToolToml) -> Result<(), LoadError> {
+    let Some(setup) = parsed.setup.as_ref() else {
+        return Ok(());
+    };
+    for (field, value) in [
+        ("guide_url", setup.guide_url.as_deref()),
+        ("instructions", setup.instructions.as_deref()),
+    ] {
+        if value.is_some_and(|value| value.trim().is_empty()) {
+            return Err(LoadError::EmptyExternalSetupField { field });
+        }
+    }
+    if let Some(url) = setup.guide_url.as_deref()
+        && !valid_guide_url(url)
+    {
+        return Err(LoadError::InvalidExternalSetupGuideUrl {
+            url: url.to_string(),
+        });
+    }
+    if let Some(install) = setup.install.as_ref() {
+        for (platform, commands) in [
+            ("linux", &install.linux),
+            ("macos", &install.macos),
+            ("windows", &install.windows),
+        ] {
+            if commands.iter().any(|command| command.trim().is_empty()) {
+                return Err(LoadError::EmptyExternalSetupCommand { platform });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn valid_guide_url(url: &str) -> bool {
+    if url
+        .chars()
+        .any(|character| character.is_whitespace() || character.is_control())
+    {
+        return false;
+    }
+    let Ok(uri) = url.parse::<ureq::http::Uri>() else {
+        return false;
+    };
+    if !matches!(uri.scheme_str(), Some("http" | "https")) {
+        return false;
+    }
+    let Some(authority) = uri.authority() else {
+        return false;
+    };
+    !authority.host().is_empty() && !authority.as_str().contains('@')
 }
 
 fn validate_identity(parsed: &ToolToml) -> Result<(), LoadError> {

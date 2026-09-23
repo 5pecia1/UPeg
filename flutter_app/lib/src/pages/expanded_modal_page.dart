@@ -29,7 +29,7 @@ import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
-import 'package:upeg/src/state/pegboard_mutations_provider.dart';
+import 'package:upeg/src/state/external_readiness_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
 import 'package:upeg/src/state/presentation_call_origin.dart';
@@ -40,8 +40,10 @@ import 'package:upeg/src/widgets/controlled_embed/surface.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/registry.dart';
 import 'package:upeg/src/widgets/expanded_modal/generic_form.dart';
-import 'package:upeg/src/widgets/expanded_modal/kind_badge.dart';
+import 'package:upeg/src/widgets/expanded_modal/external_readiness_panel.dart';
+import 'package:upeg/src/widgets/expanded_modal/external_run_controller.dart';
 import 'package:upeg/src/widgets/expanded_modal/live_output_tail.dart';
+import 'package:upeg/src/widgets/expanded_modal/modal_chrome.dart';
 import 'package:upeg/src/widgets/expanded_modal/outcome_block.dart';
 import 'package:upeg/src/widgets/expanded_modal/primary_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -66,10 +68,6 @@ final settingsOverlayLauncherProvider = Provider<SettingsOverlayLauncher>(
 /// tool that ran and returned a failure. Distinct so the two are
 /// distinguishable in a copied result.
 const String _dispatchStreamFailedCode = 'dispatch_stream_failed';
-
-const String _footerSourcePrefixKey = 'modal.footer.source_prefix';
-const String _footerToolkitPrefixKey = 'modal.footer.toolkit_prefix';
-const String _footerInvokerPrefixKey = 'modal.footer.invoker_prefix';
 
 /// Batch O2 (I13 F3): modal-wide shortcut intent for "+ pin". Routed
 /// through `Shortcuts`/`Actions` so bespoke forms (which bind F1+F2
@@ -210,6 +208,21 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     // tool — nor stack two approval dialogs on one barrier.
     if (_phase.blocksRun) return;
     setState(() => _phase = _RunPhase.awaitingApproval);
+    final external = ExternalRunController(ref);
+    if (widget.tool.invoker == InvokerDto.external_) {
+      try {
+        final inspection = await external.inspect(widget.tool);
+        if (!mounted) return;
+        if (inspection is ExternalReadinessHostUnpaired ||
+            inspection is ExternalReadinessInspected && inspection.blocksRun) {
+          setState(() => _phase = _RunPhase.idle);
+          return;
+        }
+      } on Object {
+        if (mounted) setState(() => _phase = _RunPhase.idle);
+        return;
+      }
+    }
     final verdict = await _askApproval();
     if (!mounted) return;
     if (verdict is! ApprovalGranted) {
@@ -219,6 +232,10 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           refreshRun,
         );
       }
+      return;
+    }
+    if (external.usesRemoteHost(widget.tool)) {
+      await _attachDispatch(external, args);
       return;
     }
     await _streamDispatch(
@@ -234,6 +251,20 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     ref: ref,
     tool: widget.tool,
   );
+
+  Future<void> _attachDispatch(
+    ExternalRunController external,
+    ToolArgs args,
+  ) async {
+    setState(() => _phase = _RunPhase.dispatching);
+    final result = await external.dispatchRemote(widget.tool, args);
+    if (mounted) {
+      setState(() {
+        _phase = _RunPhase.idle;
+        _outcome = result;
+      });
+    }
+  }
 
   Future<void> _streamDispatch(
     ToolArgs args, {
@@ -287,6 +318,9 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
             setState(() => _tail = _tail.append(chunk));
           case DispatchStreamEventDto_Done(:final result):
             completed = result;
+            ExternalRunController(
+              ref,
+            ).invalidateReadinessOnMissing(widget.tool, result);
             final accepted = refreshRun == null
                 ? calls.acceptResult(call)
                 : calls.acceptRefresh(refreshRun);
@@ -590,10 +624,23 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   }
 
   bool _runCommand() {
-    if (widget.tool.inputFields.isEmpty || _formAllOk) {
+    if ((widget.tool.inputFields.isEmpty || _formAllOk) &&
+        _readinessAllowsRun()) {
       _handleRun();
     }
     return true;
+  }
+
+  bool _readinessAllowsRun() {
+    final tool = widget.tool;
+    if (tool.invoker != InvokerDto.external_) return true;
+    final target = readinessTargetFor(
+      tool,
+      boardKey: ref.read(currentBoardKeyProvider),
+    );
+    return externalReadinessAllowsRun(
+      ref.read(externalReadinessProvider(target)),
+    );
   }
 
   bool _closeCommand() {
@@ -617,6 +664,18 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     final tool = widget.tool;
     final toolId = ToolId.parse(tool.id);
     final bespoke = bespokeFor(toolId);
+    final readinessAllowsRun = tool.invoker != InvokerDto.external_
+        ? true
+        : externalReadinessAllowsRun(
+            ref.watch(
+              externalReadinessProvider(
+                readinessTargetFor(
+                  tool,
+                  boardKey: ref.watch(currentBoardKeyProvider),
+                ),
+              ),
+            ),
+          );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Shortcuts(
@@ -637,7 +696,8 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
             ),
             _RunIntent: CallbackAction<_RunIntent>(
               onInvoke: (_) {
-                if (tool.inputFields.isEmpty || _formAllOk) {
+                if ((tool.inputFields.isEmpty || _formAllOk) &&
+                    readinessAllowsRun) {
                   _handleRun();
                 }
                 return null;
@@ -651,11 +711,11 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
             ),
             _PinIntent: CallbackAction<_PinIntent>(
               onInvoke: (_) {
-                // Fire-and-forget: `_handlePin` awaits internally for
+                // Fire-and-forget: `pinToolFromModal` awaits internally for
                 // the SnackBar gating, but the CallbackAction surface
                 // must return synchronously.
                 // ignore: discarded_futures — by design.
-                _handlePin(context: context, ref: ref, tool: tool);
+                pinToolFromModal(context: context, ref: ref, tool: tool);
                 return null;
               },
             ),
@@ -690,7 +750,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _ModalHeader(tokens: tokens, tool: tool),
+                        ExpandedModalHeader(tokens: tokens, tool: tool),
                         Flexible(
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -709,6 +769,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                                       ),
                                     ),
                                   ),
+                                ExternalReadinessPanel(tool: tool),
                                 if (bespoke != null)
                                   bespoke(
                                     context,
@@ -739,6 +800,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                                       enabled:
                                           (tool.inputFields.isEmpty ||
                                               _formAllOk) &&
+                                          readinessAllowsRun &&
                                           !_phase.blocksRun,
                                       loading: _phase.showsSpinner,
                                       onPressed: _handleRun,
@@ -769,7 +831,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                             ),
                           ),
                         ),
-                        _ModalFooter(tokens: tokens, tool: tool),
+                        ExpandedModalFooter(tokens: tokens, tool: tool),
                       ],
                     ),
                   ),
@@ -799,182 +861,4 @@ String? _copyTextForOutcome(CanonicalToolResult? outcome) {
     if (candidate != null && candidate.isNotEmpty) return candidate;
   }
   return null;
-}
-
-class _ModalHeader extends ConsumerWidget {
-  const _ModalHeader({required this.tokens, required this.tool});
-  final UpegTokens tokens;
-  final ToolDto tool;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: tokens.lineSoft)),
-      ),
-      child: Row(
-        children: [
-          Icon(iconForTool(tool), color: tokens.accent, size: 14),
-          const SizedBox(width: 10),
-          Text(
-            tool.label,
-            style: TextStyle(
-              fontFamily: upegMonoFontFamily,
-              fontFamilyFallback: upegMonoFontFamilyFallback,
-              fontSize: 13,
-              color: tokens.fg,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (tool.label != tool.id) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                tool.id,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: upegMonoFontFamily,
-                  fontFamilyFallback: upegMonoFontFamilyFallback,
-                  fontSize: 10,
-                  color: tokens.fg4,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          KindBadge(pinKind: tool.pinKind),
-          Expanded(child: Container()),
-          OutlinedButton(
-            key: const Key('expanded-modal-close-btn'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: tokens.fg2,
-              side: BorderSide(color: tokens.line),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(UpegSizing.radius1),
-              ),
-              minimumSize: const Size(0, 28),
-              textStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t(ref, 'modal.header.close')),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Pin the active tool onto the active board.
-///
-/// Reads [`currentBoardKeyProvider`] for the destination, dispatches through
-/// the central pegboard mutation path, and shows a `SnackBar` reporting
-/// success/failure. When no board is active (cold boot before `restore()`),
-/// surfaces the "no active board" message instead of silently dropping the
-/// click.
-Future<void> _handlePin({
-  required BuildContext context,
-  required WidgetRef ref,
-  required ToolDto tool,
-}) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final boardKey = ref.read(currentBoardKeyProvider);
-  if (boardKey == null) {
-    messenger.showSnackBar(
-      SnackBar(content: Text(tRead(ref, 'modal.pin.no_active_board'))),
-    );
-    return;
-  }
-  final mutations = ref.read(pegboardMutationsProvider);
-  try {
-    await mutations.pin(boardKey, ToolId.parse(tool.id));
-  } on Object catch (err) {
-    messenger.showSnackBar(
-      SnackBar(content: Text(tRead(ref, 'modal.pin.failed', {'msg': '$err'}))),
-    );
-    return;
-  }
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(
-        tRead(ref, 'modal.pin.success', {
-          'tool_id': tool.id,
-          'board': '$boardKey',
-        }),
-      ),
-    ),
-  );
-}
-
-class _ModalFooter extends ConsumerWidget {
-  const _ModalFooter({required this.tokens, required this.tool});
-  final UpegTokens tokens;
-  final ToolDto tool;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: tokens.lineSoft)),
-      ),
-      child: Wrap(
-        spacing: 14,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Source is derived from the tool's real `Source` metadata
-          // (`sourceDtoLabel`) — the previous hardcoded
-          // `static · #[upeg::tool]` claimed a macro registration that
-          // is false for MCP / TOML / WASM tools.
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: t(ref, _footerSourcePrefixKey),
-                  style: TextStyle(color: tokens.fg4, fontSize: 10),
-                ),
-                TextSpan(
-                  text: sourceDtoLabel(tool.source),
-                  style: TextStyle(color: tokens.fg3, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${t(ref, _footerToolkitPrefixKey)}${tool.toolkit}',
-            style: TextStyle(color: tokens.fg4, fontSize: 10),
-          ),
-          // Batch N7 (I16): invoker label round-trips so the user can
-          // tell at a glance which back-end runs the tool.
-          Text(
-            '${t(ref, _footerInvokerPrefixKey)}${invokerDtoLabel(tool.invoker)}',
-            style: TextStyle(color: tokens.fg4, fontSize: 10),
-          ),
-          // Batch O1 (I12): "+ pin" pushes the active tool onto the
-          // currently-selected board, then reports success via a SnackBar
-          // so the user gets immediate feedback.
-          TextButton(
-            key: const Key('expanded-modal-pin-btn'),
-            style: TextButton.styleFrom(
-              foregroundColor: tokens.accent,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: const Size(0, 24),
-              textStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            onPressed: () => _handlePin(context: context, ref: ref, tool: tool),
-            child: Text(t(ref, 'desktop.tab.add_tool')),
-          ),
-        ],
-      ),
-    );
-  }
 }

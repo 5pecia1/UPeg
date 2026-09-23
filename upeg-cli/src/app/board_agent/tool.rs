@@ -1,13 +1,15 @@
 //! Effective inputs and prerequisite inspection, without executing any tool.
 
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 use upeg_core::{ArgsPreset, Invoker, ToolMeta};
 
 use super::{BoardAgentTool, BoardToolReadiness, BoardToolReadinessStatus};
-use upeg_runtime::execution_requirements::{CommandSearchPath, tool_execution_requirements};
+use upeg_runtime::{
+    execution_requirements::tool_execution_requirements,
+    readiness::{ToolReadinessContext, ToolReadinessStatus, inspect_tool_readiness},
+};
 
 pub(super) fn effective_tool_schema(meta: &ToolMeta, preset: Option<&ArgsPreset>) -> Value {
     let mut schema = meta.input_spec.to_json_schema_value();
@@ -116,56 +118,47 @@ fn prerequisites(
     directory: &Path,
     board_path: Option<&str>,
 ) -> (Option<PathBuf>, BoardToolReadiness) {
-    if let Some(requirements) = tool_execution_requirements(meta.id) {
-        let directory = requirements.declared_working_directory.unwrap_or_else(|| {
-            requirements
-                .project_root
-                .filter(|root| !within_project(directory, root))
-                .unwrap_or_else(|| directory.to_path_buf())
-        });
-        let mut readiness = BoardToolReadiness {
-            status: BoardToolReadinessStatus::Ready,
-            reasons: Vec::new(),
-        };
-        if !directory.is_dir() {
-            readiness.status = BoardToolReadinessStatus::Unavailable;
-            readiness.reasons.push(format!(
-                "Working directory does not exist: {}",
-                directory.display()
-            ));
-        }
-        if let Some(command) = requirements.command {
-            if requirements.search_path == CommandSearchPath::Credential {
-                if readiness.status != BoardToolReadinessStatus::Unavailable {
-                    readiness.status = BoardToolReadinessStatus::Unchecked;
-                }
-                readiness.reasons.push(
-                    "Command lookup uses a credential-provided PATH, checked only at execution."
-                        .into(),
-                );
-            } else {
-                let inherited = std::env::var_os("PATH");
-                let search_path = board_path
-                    .map(OsStr::new)
-                    .or(match &requirements.search_path {
-                        CommandSearchPath::Declared(path) => Some(path.as_os_str()),
-                        _ => inherited.as_deref(),
-                    });
-                if super::connection::find_executable_on_path(&command, &directory, search_path)
-                    .is_none()
-                {
-                    readiness.status = BoardToolReadinessStatus::Unavailable;
-                    readiness
-                        .reasons
-                        .push(format!("Executable not found: {command}"));
-                } else {
-                    readiness.reasons.push(format!(
-                        "Executable checked: {command}. The command has not been run."
-                    ));
-                }
+    if tool_execution_requirements(meta.id).is_some()
+        && let Some(readiness) = inspect_tool_readiness(
+            meta.id,
+            &ToolReadinessContext {
+                working_directory: directory.to_path_buf(),
+                search_path: board_path.map(Into::into),
+            },
+        )
+    {
+        let reason = match readiness.status {
+            ToolReadinessStatus::Ready => readiness.command.map_or_else(
+                || "External prerequisites checked; no command is declared.".into(),
+                |command| format!("Executable checked: {command}. The command has not been run."),
+            ),
+            ToolReadinessStatus::MissingExecutable => readiness.command.map_or_else(
+                || "Executable not found.".into(),
+                |command| format!("Executable not found: {command}"),
+            ),
+            ToolReadinessStatus::MissingWorkingDirectory => {
+                readiness.working_directory.as_ref().map_or_else(
+                    || "Working directory does not exist.".into(),
+                    |path| format!("Working directory does not exist: {}", path.display()),
+                )
             }
-        }
-        return (Some(directory), readiness);
+            ToolReadinessStatus::UncheckedCredentialPath => {
+                "Command lookup uses a credential-provided PATH, checked only at execution.".into()
+            }
+        };
+        let status = match readiness.status {
+            ToolReadinessStatus::Ready => BoardToolReadinessStatus::Ready,
+            ToolReadinessStatus::MissingExecutable
+            | ToolReadinessStatus::MissingWorkingDirectory => BoardToolReadinessStatus::Unavailable,
+            ToolReadinessStatus::UncheckedCredentialPath => BoardToolReadinessStatus::Unchecked,
+        };
+        return (
+            readiness.working_directory,
+            BoardToolReadiness {
+                status,
+                reasons: vec![reason],
+            },
+        );
     }
     let readiness = match meta.invoker {
         Invoker::Function | Invoker::Static => BoardToolReadiness {
@@ -182,13 +175,6 @@ fn prerequisites(
         },
     };
     (None, readiness)
-}
-
-fn within_project(directory: &Path, root: &Path) -> bool {
-    match (directory.canonicalize(), root.canonicalize()) {
-        (Ok(directory), Ok(root)) => directory.starts_with(root),
-        _ => false,
-    }
 }
 
 #[cfg(test)]

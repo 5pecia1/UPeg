@@ -51,7 +51,7 @@ class HostAttachDispatchNotifier
   /// `lastOutcomeProvider` for inline rendering. The currently-selected
   /// board rides along so the daemon applies the same board gate +
   /// pin-preset merge an in-process dispatch would.
-  Future<void> run(ToolId toolId, ToolArgs args) async {
+  Future<AttachDispatchResult> run(ToolId toolId, ToolArgs args) async {
     final client = ref.read(attachClientProvider);
     final result = await client.dispatch(
       toolId: toolId,
@@ -62,5 +62,6 @@ class HostAttachDispatchNotifier
     if (result is AttachDispatchOk) {
       ref.read(lastOutcomeProvider.notifier).record(toolId, result.result);
     }
+    return result;
   }
 }

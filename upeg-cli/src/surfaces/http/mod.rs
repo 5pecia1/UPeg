@@ -146,6 +146,9 @@ const BEARER_PREFIX: &str = "Bearer ";
 /// dispatch keeps the same pin gate + preset merge the stdio server
 /// applies in-process.
 pub(crate) const BOARD_SCOPE_HEADER: &str = "x-upeg-board";
+/// Caller working directory used by an attached CLI readiness probe. This is
+/// the same execution context key that attached dispatch supplies in its body.
+pub(crate) const READINESS_CWD_HEADER: &str = "x-upeg-readiness-cwd";
 
 mod bind_policy;
 mod cancel_on_drop;
@@ -153,6 +156,7 @@ mod cors;
 mod interface_inventory;
 mod origin_surface;
 mod pairing;
+mod readiness;
 pub(crate) use interface_inventory::interface_inventory_entries;
 pub(crate) use origin_surface::ORIGIN_SURFACE_HEADER;
 use origin_surface::{origin_surface_from_headers, principal_from_headers, principal_on_surface};
@@ -236,6 +240,7 @@ fn rest_routes() -> Router<HttpState> {
         .route("/v1/credentials", get(credentials_list))
         .route("/v1/logs", get(logs_list))
         .route("/v1/tools", get(tools_list))
+        .route("/v1/tools/{id}/readiness", get(readiness::tool_readiness))
         .route("/v1/tools/{id}", post(tools_call))
         // Sibling path rather than a `?stream=1` flag on the route
         // above: the two answer with different media types and different

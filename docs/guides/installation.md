@@ -75,6 +75,21 @@ just flutter-run-web            # FRB wasm + flutter run -d chrome
 just package-web                # static PWA bundle → target/packages/web/
 ```
 
+The web recipes automatically prepare the supported Rust bridge toolchain:
+`nightly-2025-12-08` with `rust-src`, plus `wasm-pack 0.13.1`. The bridge
+uses shared WebAssembly memory in a Worker, so serve the resulting PWA over
+HTTPS (or `localhost`) with all of these response headers:
+
+```text
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Resource-Policy: same-origin
+```
+
+The PWA smoke harness's Python server adds those headers; a bare
+`python -m http.server` does not. GitHub Pages documentation publishing is
+not application hosting and does not provide this PWA deployment contract.
+
 ## Chrome extension
 
 No toolchain at all — the extension is dependency-free MV3 JavaScript:

@@ -61,8 +61,8 @@ pub(crate) use loader::{load_and_register_dir, load_dir};
 pub use manifest_docs::toolkit_manifest_docs_markdown;
 pub use model::{
     ChainConnectionToml, ChainStepToml, CredentialRefToml, InputChoiceToml, InputDefaultToml,
-    InputFieldToml, KeyValueToml, OutputFieldToml, SelectorBindingToml, ToolEntryToml, ToolToml,
-    ToolkitToml, TriggerToml,
+    InputFieldToml, KeyValueToml, OutputFieldToml, SelectorBindingToml, ToolEntryToml,
+    ToolSetupInstallToml, ToolSetupToml, ToolToml, ToolkitToml, TriggerToml,
 };
 pub use parse::{SkippedTool, ToolkitParse, parse_toolkit_full, parse_toolkit_with_skips};
 pub use schema::{toolkit_schema_json, toolkit_schema_value};

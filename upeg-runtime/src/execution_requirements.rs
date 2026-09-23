@@ -5,6 +5,43 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
+use crate::readiness::{ToolInstallInstructions, ToolPlatform, ToolSetup};
+
+/// Per-platform display-only commands supplied by an External manifest.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ToolSetupInstall {
+    pub linux: Vec<String>,
+    pub macos: Vec<String>,
+    pub windows: Vec<String>,
+}
+
+/// Non-secret operator guidance supplied by an External manifest.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ToolSetupMetadata {
+    pub guide_url: Option<String>,
+    pub instructions: Option<String>,
+    pub install: ToolSetupInstall,
+}
+
+impl ToolSetupMetadata {
+    #[must_use]
+    pub fn selected(&self, platform: ToolPlatform) -> ToolSetup {
+        let commands = match platform {
+            ToolPlatform::Linux => &self.install.linux,
+            ToolPlatform::Macos => &self.install.macos,
+            ToolPlatform::Windows => &self.install.windows,
+        };
+        ToolSetup {
+            guide_url: self.guide_url.clone(),
+            instructions: self.instructions.clone(),
+            install: (!commands.is_empty()).then(|| ToolInstallInstructions {
+                platform,
+                commands: commands.clone(),
+            }),
+        }
+    }
+}
+
 /// The manifest's command lookup policy, before execution-context overrides.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum CommandSearchPath {
@@ -25,6 +62,7 @@ pub struct ToolExecutionRequirements {
     pub declared_working_directory: Option<PathBuf>,
     pub project_root: Option<PathBuf>,
     pub search_path: CommandSearchPath,
+    pub setup: Option<ToolSetupMetadata>,
 }
 
 fn requirements_lock() -> &'static Mutex<HashMap<String, ToolExecutionRequirements>> {

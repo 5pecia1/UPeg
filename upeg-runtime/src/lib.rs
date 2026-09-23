@@ -39,6 +39,7 @@ pub mod pegboard_project;
 pub mod persistence;
 pub mod progress;
 mod provenance;
+pub mod readiness;
 pub mod search;
 pub mod selector_pipeline;
 mod toolbox;

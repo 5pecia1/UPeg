@@ -183,6 +183,45 @@ void main() {
   );
 
   testWidgets(
+    'a_untouched_compact_form_hides_required_errors_while_its_gate_is_closed',
+    (tester) async {
+      bool? isValid;
+      final tool = fixtureToolDto(
+        id: 'fixture.compact-required',
+        inputFields: const [
+          InputFieldDto(
+            key: 'value',
+            label: 'Value',
+            fieldType: InputFieldType_Text(),
+            required_: true,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [fakeKeyboardResolverOverride, ...i18nTestOverrides],
+          child: MaterialApp(
+            theme: UpegTheme.darkTheme(),
+            home: Scaffold(
+              body: GenericFormWidget(
+                tool: tool,
+                controller: GenericFormController(),
+                compact: true,
+                onValidationChanged: (value) => isValid = value,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(isValid, isFalse);
+      expect(find.text('required'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'tapping_a_compact_boolean_label_padding_and_switch_toggles_once_each',
     (tester) async {
       var changeCount = 0;
