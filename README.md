@@ -30,7 +30,7 @@ paired local host.
   board, with that board's instructions, if you want.
 - **Wrap your own commands** in TOML (`invoker = "External"`), compose
   Tools into Chains with approval steps, write WASM plugins, or import
-  upstream MCP servers — all land in the same registry. External, HTTP, and
+  upstream MCP servers — all land in the same Toolbox. External, HTTP, and
   imported-MCP tools do whatever the wrapped command or server does —
   including any network access it needs.
 - **Keep secrets out of config.** Manifests reference credentials by name;
