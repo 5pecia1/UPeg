@@ -27,7 +27,7 @@ Chrome extension, MCP, HTTP**에서 호출할 수 있다. surface별 코드는 �
   보드의 지침으로 범위를 한정한다.
 - **직접 만든 명령을 TOML로 감싼다**(`invoker = "External"`). Tool을 승인
   step이 있는 Chain으로 묶고, WASM 플러그인을 쓰거나, 상위 MCP 서버를
-  임포트한다 — 모두 같은 레지스트리에 들어온다. External·HTTP·임포트한
+  임포트한다 — 모두 같은 Toolbox에 들어온다. External·HTTP·임포트한
   MCP 도구는 감싼 명령이나 서버가 하는 일을 그대로 한다 — 필요한 네트워크
   접근을 포함한다.
 - **비밀을 설정 밖에 둔다.** 매니페스트는 credential을 이름으로만 참조하고,

@@ -21,7 +21,7 @@ is itself one Tool** — however complex, a chain is consumed as a single pin.
 
 - Pins frequently used Tools onto Boards.
 - Lets people, AI, and apps call the same Tool from the surfaces it
-  supports (CLI/TUI/Desktop/PWA/Ext/MCP/HTTP).
+  supports (CLI/TUI/Desktop/PWA/Chrome extension/MCP/HTTP).
 - Exposes a Tool on its declared surfaces from one Toolkit + Tool manifest.
 - Wraps external tools (TOML / WASM / upstream MCP servers). Zero-line
   migration.

@@ -63,6 +63,7 @@ nav = [
   ] },
   { "Reference" = [
     { "External Tool Manifest" = "TOOL_MANIFEST.md" },
+    { "Image tools" = "image-tools.md" },
     { "Lexicon" = "LEXICON.md" },
     { "PDF tools" = "pdf-tools.md" },
     { "UI/UX surface contract" = "ui-ux-surface-contract.md" },

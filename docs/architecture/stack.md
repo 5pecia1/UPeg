@@ -48,9 +48,9 @@ status: stable
 
 # License gate
 
-Dependencies follow this license policy: MIT, Apache-2.0, BSD-2/3-Clause, ISC,
-MPL-2.0, Zlib, Unicode-3.0, CC0-1.0. Copyleft (GPL/AGPL/CC-BY-SA/SSPL) is
-rejected.
+Dependency licenses are gated by `cargo deny`; the allow-list lives in
+`deny.toml` at the repository root and is the only place it is maintained.
+Copyleft (GPL/AGPL/CC-BY-SA/SSPL) is rejected.
 
 When vendoring a third-party crate, record the source, archive SHA, local
 patches, and license notice in `vendor/<crate>/UPEG.md`, and exclude it from

@@ -18,7 +18,7 @@ loaded — most "my tool is missing" problems end there.
 ## A Tool is missing or a manifest is ignored
 
 - Run `upeg tool validate <path>` on the manifest — parse and schema errors
-  are reported without touching the registry.
+  are reported without touching the Toolbox.
 - The auto-loader prints a summary (`upeg: loaded N tool(s)...`) to stderr at
   startup; a rejected file is named there. `-q`/`--quiet` suppresses it.
 - Check which directories are actually read: `~/.upeg/toolkits/`,

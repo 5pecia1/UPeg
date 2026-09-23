@@ -44,15 +44,17 @@ envelope.
   generated-artifact drift checks.
 - [Troubleshooting](guides/troubleshooting.md) — `upeg doctor`, hosts,
   tokens, manifest detection, headless browsers.
-- [PDF tools](pdf-tools.md) — `media.pdf_inspect` / `media.pdf_to_markdown`
-  status, limits, and extraction contract.
 
 ## Reference
 
 - [External Tool Manifest Guide](TOOL_MANIFEST.md) — every Toolkit TOML
   field, generated from `upeg-loader` (do not hand-edit).
+- [Image tools](image-tools.md) — `media.image_convert` /
+  `media.images_convert` formats, metadata handling, and limits.
 - [Lexicon](LEXICON.md) — the single vocabulary shared by product, UI, CLI,
   manifests, and code. Read it before renaming anything.
+- [PDF tools](pdf-tools.md) — `media.pdf_inspect` / `media.pdf_to_markdown`
+  status, limits, and extraction contract.
 - [UI/UX surface contract](ui-ux-surface-contract.md) — the Tool lifecycle,
   key bindings, and capability rendering shared by TUI, Desktop/PWA, and the
   Chrome extension.
@@ -76,6 +78,8 @@ envelope.
   hierarchy, Invokers, Tag inheritance, the single dispatch boundary.
 - [Manifest contract](architecture/manifest.md) — Toolkit TOML structure,
   per-invoker required fields, credential reference rules.
+- [External tool readiness](architecture/external-readiness.md) —
+  non-executing process checks and display-only setup guidance.
 - [I/O type system](architecture/io-types.md) — the closed input/output type
   set and its inline constraints.
 - [Result presentation](architecture/result-presentation.md) — JSON collection views and typed follow-up Tool forms.
