@@ -562,7 +562,7 @@ class ToolDto {
   /// in front of the run. Dispatching without it is not unsafe — the
   /// gated step refuses with `approval_required` and nothing runs — but
   /// it is a dead end for the person, who has no way to answer from a
-  /// failed result. See `docs/architecture/chain.md`.
+  /// failed result. See `upeg_runtime::approval`'s module docs.
   final bool requiresApproval;
 
   /// Surface labels (`cli`, `tui`, `desktop`, …) whose approval this

@@ -13,6 +13,46 @@
 //! `render_template` stays here because it is the chain's own
 //! expression language, and the other invokers reuse it through the
 //! parent module's re-export.
+//!
+//! # Contract
+//!
+//! A Chain is a Tool with `invoker = "Chain"` — pinned, listed,
+//! filtered, logged, triggered, and dispatched like every other Tool;
+//! the engine's complexity stays sealed inside.
+//!
+//! # Runtime model
+//!
+//! `steps` declares the node instances and `connections =
+//! [{ from, to }]` the directed edges — linear chains, fan-out, and
+//! joins all use the same list. A node with no incoming connection
+//! receives the chain input. Each step references a Tool id and may
+//! declare `args` (a JSON object holding `{{ }}` expressions), `when`
+//! (a boolean expression — false skips the step), and
+//! `requires_approval` (a barrier judged by [`approval`]).
+//!
+//! # Expression grammar (deliberately small)
+//!
+//! * `{{input.key}}` — a top-level call argument.
+//! * `{{steps.<id>.output}}` — an earlier step's text output.
+//! * `{{steps.<id>.ok}}` — whether an earlier step succeeded.
+//! * `{{context.board}}` — the reserved `_upeg` context.
+//!
+//! A bad reference is a deterministic Tool error, logged without the
+//! value. Nothing beyond `{{ }}` substitution is supported.
+//!
+//! # Execution rules
+//!
+//! 1. Duplicate node ids, unknown connection endpoints, and cycles are
+//!    rejected at load time.
+//! 2. Run each ready step whose upstream connections are satisfied.
+//! 3. Stop at a failed required step.
+//! 4. Each step's outcome rides out in the result envelope — see
+//!    [`summary`].
+//! 5. An approval step is honored only when the caller's principal and
+//!    surface both pass the two authorization gates — see [`approval`]
+//!    and `upeg_runtime::approval`.
+//! 6. The final output is the last completed step's output unless an
+//!    `output` expression is set.
 use super::{OUTPUT_CONVERSION_ERROR_CODE, TOOL_ERROR_CODE, credentials};
 use crate::ToolToml;
 use crate::model::{ChainStepToml, CredentialRefToml, chain_step_key};

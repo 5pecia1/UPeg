@@ -287,7 +287,7 @@ fn load_mcp_import_dir(dir: Option<&Path>) -> (DirectoryStatus, McpImportRegistr
 /// TUI deliberately skip it so they never spawn upstream subprocesses;
 /// they reach imported tools through an attached host instead. There is
 /// no reload — restarting the host process re-imports
-/// (docs/architecture/mcp.md).
+/// (`upeg_sources::mcp_import` module docs).
 pub fn load_mcp_imports_for_host(config: &RuntimeSourceConfig) -> McpImportLoad {
     let (directory, servers) = load_mcp_import_dir(config.mcp_import_dir.as_deref());
     McpImportLoad { directory, servers }

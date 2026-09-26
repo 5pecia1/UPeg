@@ -10234,7 +10234,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#display-anatomy",
+          "schemaRef": "upeg-core/src/ux.rs#display_label",
           "description": "TUI interaction contract",
           "declared": true
         },
@@ -10250,11 +10250,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10282,7 +10282,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#canonical-lifecycle-verbs",
+          "schemaRef": "upeg-core/src/keyboard_catalog.rs#binding_catalog",
           "description": "TUI interaction contract",
           "declared": true
         },
@@ -10298,11 +10298,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10330,7 +10330,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#approval-and-live-output",
+          "schemaRef": "upeg-runtime/src/approval.rs#ToolApprovalPolicy",
           "description": "TUI interaction contract",
           "declared": true
         },
@@ -10346,11 +10346,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10378,7 +10378,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#canonical-lifecycle-verbs",
+          "schemaRef": "upeg-core/src/keyboard_catalog.rs#binding_catalog",
           "description": "TUI interaction contract",
           "declared": true
         },
@@ -10394,11 +10394,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10442,11 +10442,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10490,11 +10490,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -10522,7 +10522,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#approval-and-live-output",
+          "schemaRef": "upeg-runtime/src/approval.rs#ToolApprovalPolicy",
           "description": "TUI interaction contract",
           "declared": true
         },
@@ -10538,11 +10538,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11173,7 +11173,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#display-anatomy",
+          "schemaRef": "upeg-core/src/ux.rs#display_label",
           "description": "UI interaction contract",
           "declared": true
         },
@@ -11189,11 +11189,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11237,11 +11237,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11269,7 +11269,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#display-anatomy",
+          "schemaRef": "upeg-core/src/ux.rs#display_label",
           "description": "UI interaction contract",
           "declared": true
         },
@@ -11285,11 +11285,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11333,11 +11333,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11347,6 +11347,150 @@
       "tests": {
         "path": "scripts/flutter_web_smoke_check.mjs",
         "testName": null
+      }
+    },
+    {
+      "id": "http.v1.ext.boards.list",
+      "surfaces": [
+        "ext"
+      ],
+      "kind": "httpRoute",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": "GET",
+          "httpPath": "/v1/ext/boards",
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "httpRequest",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP request contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP route responses use route-specific schemas; tool dispatch routes return canonical ToolResult envelopes",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/http/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "http.v1.ext.boards.show",
+      "surfaces": [
+        "ext"
+      ],
+      "kind": "httpRoute",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": "GET",
+          "httpPath": "/v1/ext/boards/{board}",
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "httpRequest",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP request contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP route responses use route-specific schemas; tool dispatch routes return canonical ToolResult envelopes",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/http/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "http.v1.ext.boards.tools.call",
+      "surfaces": [
+        "ext"
+      ],
+      "kind": "httpRoute",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": "POST",
+          "httpPath": "/v1/ext/boards/{board}/tools/{id}",
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "httpRequest",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP request contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "HTTP route responses use route-specific schemas; tool dispatch routes return canonical ToolResult envelopes",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/http/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
       }
     },
     {
@@ -11365,7 +11509,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#chrome-extension-contract",
+          "schemaRef": "chrome-ext/detectors.js#DETECTORS",
           "description": "UI interaction contract",
           "declared": true
         },
@@ -11381,11 +11525,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11429,11 +11573,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11477,11 +11621,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11509,7 +11653,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#chrome-extension-contract",
+          "schemaRef": "chrome-ext/tool_routing.js#activationRouteFor",
           "description": "UI interaction contract",
           "declared": true
         },
@@ -11525,11 +11669,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {
@@ -11557,7 +11701,7 @@
         "input": {
           "kind": "uiInteraction",
           "schema": null,
-          "schemaRef": "docs/ui-ux-surface-contract.md#chrome-extension-contract",
+          "schemaRef": "chrome-ext/site_access.js#syncContentScripts",
           "description": "UI interaction contract",
           "declared": true
         },
@@ -11573,11 +11717,11 @@
       "version": "v1",
       "compatibility": "stable",
       "owner": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "docs": {
-        "path": "docs/ui-ux-surface-contract.md",
+        "path": "docs/architecture.md",
         "url": null
       },
       "source": {

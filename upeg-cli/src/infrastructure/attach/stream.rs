@@ -35,8 +35,8 @@ use upeg_runtime::{
     ProgressStream, active_cancellation,
 };
 
-use super::discovery::ServerInfo;
-use super::http_transport::{OpenStream, RequestBudget, open_stream};
+use super::discovery::DiscoveredHost;
+use super::http_transport::{OpenStream, RequestBudget, open_stream_discovered};
 use crate::domain::execution::dispatch::{Outcome, dispatch_failure};
 
 /// NDJSON line fields, mirrored from `surfaces::http::stream`. Spelled
@@ -142,7 +142,7 @@ impl LiveCall {
 
 /// Streaming twin of [`super::dispatch_tool`].
 pub(crate) fn dispatch_tool_streamed(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     tool_id: &str,
     args: &Value,
     origin: Surface,
@@ -158,7 +158,7 @@ pub(crate) fn dispatch_tool_streamed(
 
 /// Streaming twin of [`super::dispatch_tool_on_board`].
 pub(crate) fn dispatch_tool_on_board_streamed(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     board: &str,
     tool_id: &str,
     args: &Value,
@@ -175,7 +175,7 @@ pub(crate) fn dispatch_tool_on_board_streamed(
 }
 
 fn dispatch_streamed_via_url(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     url: &str,
     args: &Value,
     origin: Surface,
@@ -186,10 +186,10 @@ fn dispatch_streamed_via_url(
     } else {
         args.to_string()
     };
-    let open = open_stream(
+    let open = open_stream_discovered(
         "POST",
         url,
-        Some(&server.token),
+        server,
         &[(crate::surfaces::http::ORIGIN_SURFACE_HEADER, origin.label())],
         &body,
         RequestBudget::DISPATCH,

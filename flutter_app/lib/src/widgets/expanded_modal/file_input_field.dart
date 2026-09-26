@@ -1,3 +1,29 @@
+// File input field — pick and drop converge on one assembly step.
+//
+//   * The `Choose file` button opens the platform dialog; the whole
+//     field is the drop zone — a drag highlights border and background,
+//     leaving restores them. Both paths feed
+//     `file_selection_assembler.dart`, where policy (allowed extensions,
+//     count, per-file and total size) is enforced, so a drop can never
+//     be looser than the picker. Reads stream through a bounded window
+//     and size is checked before opening.
+//   * The empty state explains both paths together ("choose a file or
+//     drop it here"). A `File` value travels as bytes, not a filesystem
+//     path — the canonical `FileValue` JSON (`upeg_core`'s
+//     `input::file_value`) — so this works unchanged in the browser
+//     build too.
+//   * `max_count > 1` sends the picked files as `directory` entries
+//     under a single name; the shape is decided by policy, not the
+//     picked count — with `max_count == 1` a single file becomes `bytes`
+//     directly, with `max_count > 1` even one file is wrapped in a
+//     directory.
+//   * Honest gaps: real directory selection is refused — the
+//     `directory` above is a synthetic multi-file container and dropping
+//     a folder is rejected. `FilePath` is a different kind (a path
+//     string plus a folder button, no drop zone). The Chrome extension
+//     has no drop path — only the native `<input type="file">` (policy
+//     checks still apply there). The field does not pre-explain policy;
+//     a violation surfaces as an error after selection.
 library;
 
 import 'dart:async';

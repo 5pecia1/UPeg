@@ -11,6 +11,27 @@
 /// 1..9 / B …) is resolved through the Rust-side
 /// `keyboardCommandFor` FRB so the binding policy stays canonical with
 /// the TUI surface. See `upeg-frb/src/api/keyboard.rs`.
+///
+/// Embed focus contract — enforced once primary focus is inside an
+/// editable text field, a View Embed webview body, or a ControlledEmbed
+/// cockpit form:
+///   * ALL keys route to the focused field/body — characters and arrows,
+///     but also Home/End, PageUp/PageDown, Backspace, and Delete, so the
+///     caret/scroll moves instead of the board paging. Only Cmd/Ctrl
+///     chords, the scoped F1–F4 commands, and Esc stay global
+///     ([_shouldYieldToEmbedBody]).
+///   * `Tab` performs ordinary focus traversal within the focused
+///     subtree ([_handleFlutterFocusTraversal]), never a board command.
+///   * `Esc` is two-stage inside an embed body: the first returns focus
+///     to the board root and dispatches nothing; the second — now with
+///     board focus — is the normal Back/Close ([_handleEmbedBodyKey]).
+///   * The passive-embed gate keys off pin metadata, not DOM focus:
+///     platform webviews frequently do not propagate DOM focus into the
+///     Flutter focus tree, so an `Embed`/`ControlledEmbed` pin kind
+///     forces the yield regardless of what the focus tree reports.
+///   * The hidden ControlledEmbed engine (the off-canvas webview that
+///     executes selector bindings) must never receive pointer,
+///     semantics, or keyboard focus.
 library;
 
 export 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
@@ -558,7 +579,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       case KeyboardCommandDto_EditPinColor():
         return _openPinColorDialog();
       case KeyboardCommandDto_Quit():
-        // Contract (docs/ui-ux-surface-contract.md): `q` opens the
+        // Contract (upeg_core::keyboard_catalog): `q` opens the
         // quit-confirm dialog — never an immediate exit. Mirrors the
         // TUI ConfirmQuit view.
         unawaited(_requestQuit());

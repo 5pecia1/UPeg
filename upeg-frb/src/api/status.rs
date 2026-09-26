@@ -41,9 +41,10 @@ pub struct NetworkStatusDto {
 ///
 /// The desktop-embedded host registers imports on a background thread
 /// AFTER it starts serving, so `Loading` is a real, seconds-long state
-/// a user can watch go by (docs/architecture/mcp.md, "desktop embedded
-/// host: async window"). A desktop that only attaches to a separate host
-/// imports nothing itself and honestly reports `NotStarted`.
+/// a user can watch go by (`upeg_cli::infrastructure::mcp_imports` module
+/// docs — the embedded host's async window). A desktop that only
+/// attaches to a separate host imports nothing itself and honestly
+/// reports `NotStarted`.
 ///
 /// `Done` deliberately carries no counts: the chip renders
 /// [`StatusSnapshotDto::mcp_import_count`], which is the live
@@ -164,8 +165,8 @@ pub struct StatusSnapshotDto {
     pub network: NetworkStatusDto,
     pub paused: super::pause::PausedStateDto,
     /// Tools this process imported from upstream MCP servers. Only a
-    /// long-lived server process imports (see `docs/architecture/mcp.md`),
-    /// so an attach-only desktop reports 0.
+    /// long-lived server process imports (see `upeg_sources::mcp_import`'s
+    /// module docs), so an attach-only desktop reports 0.
     pub mcp_import_count: u32,
     /// Whether that count is final. A count of 0 means "none imported"
     /// only when the phase is not

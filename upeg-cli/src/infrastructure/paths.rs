@@ -71,7 +71,7 @@ pub mod env {
     /// with one of these may call tools, but it is stamped
     /// `_upeg.principal.role = agent`: its origin-surface header is not
     /// trusted and it cannot approve a gated Chain step. See
-    /// `docs/architecture/host-topology.md`.
+    /// `upeg_cli::infrastructure::auth` module docs.
     pub const HTTP_AGENT_TOKENS: &str = "UPEG_HTTP_AGENT_TOKENS";
 
     /// CLI notification opt-in. `1` / `true` enables OS notifications.

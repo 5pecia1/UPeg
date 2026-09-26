@@ -42,7 +42,7 @@ const NAMESPACE_HEX_WIDTH: usize = 16;
 ///
 /// Derived from the manifest's path, so moving a project directory
 /// starts a fresh set of project-board placements — an accepted
-/// trade-off, documented in `docs/architecture/project-manifest.md`:
+/// trade-off, documented in `upeg_sources::project`'s module docs:
 /// path is the only identity upeg can read before parsing the manifest,
 /// and a manifest-declared id would collide between unrelated
 /// checkouts.

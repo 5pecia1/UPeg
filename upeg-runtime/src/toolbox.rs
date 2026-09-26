@@ -1,3 +1,72 @@
+//! The Toolbox — one call hierarchy, four Tool sources, one dispatch
+//! boundary.
+//!
+//! # Hierarchy
+//!
+//! ```text
+//! Toolkit (grouping/distribution unit — never callable)
+//! └── Tool (call unit; full id `{toolkit}.{tool}`)
+//! ```
+//!
+//! Ids are canonical — manifests reject surrounding whitespace rather
+//! than normalize it. Personal tools live under a personal-namespace
+//! Toolkit (`my.<name>`).
+//!
+//! # Sources
+//!
+//! | Source | Method | Unit |
+//! |---|---|---|
+//! | Static | Rust `#[upeg::toolkit]` / `#[upeg::tool]` | built-in Toolkit compiled into core |
+//! | Declarative | TOML (`~/.upeg/toolkits/*.toml`, project `upeg.toml`) | one file = one Toolkit |
+//! | Wasm | `~/.upeg/wasm/*.wasm` | one binary = one Toolkit |
+//! | MCP Import | upstream servers declared in `~/.upeg/mcp-imports/*.toml` | one file = one namespace |
+//!
+//! # Invoker — the call mechanism (closed enum)
+//!
+//! `Function` (direct Rust call, static source only) · `External`
+//! (subprocess — hosts that can spawn only) · `Http` (credential
+//! reference + declared URL) · `Static` (dispatch is a no-op;
+//! `PinKind::Embed` only) · `Embed` (WebView selector adapter;
+//! `PinKind::ControlledEmbed` only, bindings required) · `Chain`
+//! (declarative composition — itself a single Tool) · `Llm` (provider
+//! is adapter config, not domain) · `Wasm` (extism host,
+//! feature-gated). `Invoker::Embed` and `PinKind::Embed` are *not* a
+//! pair — each pairs with the other side's counterpart.
+//!
+//! # Tags
+//!
+//! Toolkit tags are inherited by every child Tool; Tool tags are
+//! additive. Effective tags = `toolkit.tags ∪ tool.tags ∪ toolkit id ∪
+//! capability tags`. `category` is retired — never reintroduce it.
+//!
+//! # Dispatch boundary
+//!
+//! Every surface calls Tools through this one toolbox + dispatcher
+//! boundary — no per-surface ad-hoc code. `ToolMeta` is pure metadata
+//! (id, toolkit, tags, description, schema, pin kind, pegboard units,
+//! invoker, surfaces, boards); `ToolkitMeta` is grouping metadata. A
+//! runtime dispatcher is registered by id and receives JSON args; a
+//! surface gates on `Surface` before running; the result is the
+//! canonical `ToolResult` — CLI stdout picks a representation
+//! (primary/`--json`/`--field`/`--pretty`), transports and UI surfaces
+//! consume the same output rows.
+//!
+//! Dispatch order: built-in dispatchers are guaranteed → the toolbox
+//! must hold the metadata → a runtime dispatcher runs → metadata with
+//! no dispatcher is a clear not-implemented Tool error. Before metadata
+//! becomes visible, every accepted invoker registers either an
+//! executable dispatcher or a capability-explicit error. The single CLI
+//! path is the dynamic route `upeg {toolkit} {tool} <pos…>` — hardcoded
+//! per-Toolkit subcommands are never reintroduced, and adding a Toolkit
+//! must not require a CLI change.
+//!
+//! # Boards
+//!
+//! A Tool's `boards = [...]` only chooses which tab it sits on — it does
+//! not create a board. Boards come from `upeg_core::BUILTIN_BOARDS` or
+//! the project manifest's top-level `[[boards]]` (declaration and
+//! persistence rules: `upeg_sources::project` module docs).
+
 #![allow(
     clippy::expect_used,
     clippy::panic,

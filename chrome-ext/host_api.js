@@ -38,9 +38,14 @@ const UpegHostApi = (() => {
   const RUN_HINT_COMMAND = 'upeg http';
   const PAIRING_COMMAND = 'upeg http status --pairing';
 
-  const BOARDS_LIST_PATH = '/v1/boards';
-  const boardShowPath = (board) => `/v1/boards/${encodeURIComponent(board)}`;
-  const toolCallPath = (toolId) => `/v1/tools/${encodeURIComponent(toolId)}`;
+  // The extension deliberately uses its own adapter routes. The generic
+  // HTTP routes remain available to scripts and detector lookups, but do
+  // not carry a Board pin's saved defaults or the extension execution mode.
+  const BOARDS_LIST_PATH = '/v1/ext/boards';
+  const boardShowPath = (board) => `/v1/ext/boards/${encodeURIComponent(board)}`;
+  const toolCallPath = (board, toolId) =>
+    `/v1/ext/boards/${encodeURIComponent(board)}/tools/${encodeURIComponent(toolId)}`;
+  const globalToolCallPath = (toolId) => `/v1/tools/${encodeURIComponent(toolId)}`;
 
   // Non-/healthz routes require `Authorization: Bearer <token>`. The token is
   // user-supplied (pasted from the host's config / start-up log) and lives
@@ -299,6 +304,7 @@ const UpegHostApi = (() => {
     fetchImpl,
     baseUrl = DEFAULT_HTTP_BASE_URL,
     token = null,
+    board = null,
     toolId,
     args = {},
   }) {
@@ -318,7 +324,10 @@ const UpegHostApi = (() => {
 
     let response;
     try {
-      response = await fetchImpl(`${baseUrl}${toolCallPath(toolId)}`, {
+      const path = typeof board === 'string' && board.length > 0
+        ? toolCallPath(board, toolId)
+        : globalToolCallPath(toolId);
+      response = await fetchImpl(`${baseUrl}${path}`, {
         method: 'POST',
         headers: authHeaders(token, { 'Content-Type': 'application/json' }),
         body: requestBody,

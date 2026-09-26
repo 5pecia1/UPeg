@@ -8,7 +8,7 @@
 //! here made the PWA dispatch as `desktop`, which is one of the three
 //! default Chain approval surfaces, so a browser tab could lift a barrier
 //! meant for the machine the person is sitting at
-//! (`docs/architecture/chain.md`).
+//! (`upeg_loader::dispatcher::chain::approval` module docs).
 //!
 //! The module was `desktop_context` while `desktop` was the only answer.
 

@@ -14,6 +14,9 @@
 //      *page's* CORS, not the extension's host permissions, so the page
 //      side asks for a tool run by message and this worker performs it.
 //      The bearer token therefore never enters a web page's world.
+//
+// Extension JavaScript stays dependency-free; rich execution remains in
+// the Desktop/PWA/host surfaces.
 
 importScripts('wire.js', 'host_api.js', 'site_access.js');
 

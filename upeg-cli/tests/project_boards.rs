@@ -12,7 +12,7 @@
 //! either one silently breaks the other:
 //!
 //!   * the *grammar* — what a manifest may declare and what the loader
-//!     refuses (`docs/architecture/project-manifest.md`); and
+//!     refuses (`upeg_sources::project` module docs); and
 //!   * the *repo's own dogfood manifest*, which declares `upeg-dev` and
 //!     pins all 15 maintenance tools there. If the grammar drifts, the
 //!     manifest the maintainers actually run every day is the first

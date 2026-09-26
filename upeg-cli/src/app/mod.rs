@@ -292,7 +292,7 @@ fn dispatch_local_or_attached(
     // Live child output belongs to the in-process lane only. The attach
     // lane above returns the host's final envelope over HTTP and has no
     // channel to stream through — see the attach note in
-    // docs/architecture/http-api.md.
+    // `upeg_cli::surfaces::http`'s module docs.
     Ok(dispatch::with_live_output(live, || {
         dispatch_tool_on_surface(tool_id, &args, Surface::Cli)
     }))
@@ -595,7 +595,7 @@ fn run_trigger_action(
                 call_args_for_context(args, arg, input_spec, reserved_inputs_for(&id), &context)?;
             ensure_cli_surface(&id)?;
             // `_upeg.trigger` carries the *fired trigger*, never the Tool id
-            // (see docs/architecture/call-envelope.md). `fire` names a Tool, so
+            // (see `upeg_runtime::execution` module docs). `fire` names a Tool, so
             // it stamps that Tool's first declared binding; a Tool with no
             // binding is stamped with nothing.
             let fired = upeg_runtime::manual_fire_trigger_label(&id);
@@ -802,7 +802,7 @@ fn run_http_start(
     // Long-lived server process: register MCP imports eagerly, before
     // the listener starts answering `tools/list`. Failures are reported
     // and non-fatal — a broken upstream must not stop the host from
-    // serving its local Toolbox (docs/architecture/mcp.md).
+    // serving its local Toolbox (`upeg_sources::mcp_import` module docs).
     crate::infrastructure::mcp_imports::load_and_report_for_host();
     http::serve_with_options(opts).map_err(|e| CliError::tool_failed(format!("http: {e}")))?;
     Ok(String::new())

@@ -13,7 +13,7 @@
 #
 # Auto-detection (cwd → ancestors up to $HOME → $HOME) can be disabled
 # (`off`) or pinned to an absolute path via `UPEG_PROJECT_MANIFEST_PATH`.
-# See docs/architecture/project-manifest.md for the rules. All of the repo's
+# See `upeg_sources::project`'s module docs for the rules. All of the repo's
 # generated-artifact drift gates (interface-inventory / toolkit-schema) run
 # with `off` enabled — see `hermetic_sources` in the Justfile.
 #
@@ -37,7 +37,7 @@ tags = ["dev", "upeg", "repo"]
 # board and exists only while this manifest is detected — `upeg board list`
 # outside the repo won't show it. Pins are stored on rows namespaced by the
 # manifest path, so a same-named board in another project can't collide.
-# Rules: "Project board" in docs/architecture/project-manifest.md.
+# Rules: "Project boards" in `upeg_sources::project`'s module docs.
 [[boards]]
 id = "upeg-dev"
 label = "upeg dev"

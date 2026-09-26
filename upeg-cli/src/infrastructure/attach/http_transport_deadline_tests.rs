@@ -47,6 +47,7 @@ fn test_request(endpoint: &str) -> Request<'_> {
         token: None,
         extra_headers: &[],
         body: "{}",
+        discovered: None,
     }
 }
 

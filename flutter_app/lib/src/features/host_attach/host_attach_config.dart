@@ -8,6 +8,26 @@
 ///
 /// Native surfaces never consult this — they link the full runtime and
 /// support every declared tool in-process (see `capability_provider.dart`).
+///
+/// Contract (this directory owns it):
+///   * All four `UnsupportedReason`s are host-attach-solvable: a paired
+///     native daemon links the full loader AND every native-gated
+///     `Function` dispatcher — see `hostAttachCanSolve` in
+///     `widgets/surface_unsupported_body.dart`.
+///   * There is no discovery handshake: the host generates the bearer
+///     token and the user pastes it (same as the chrome-ext popup's
+///     token field). `upeg http status --pairing` is the CLI aid so this
+///     does not require hand-copying an ephemeral port and token.
+///   * Unsupported + paired: the board routes the tap through
+///     `POST /v1/tools/{id}` on the paired host (`HttpAttachClient`,
+///     8s timeout) and renders the remote result exactly like an
+///     in-process one. A failed remote attempt keeps the pin
+///     tappable-to-retry rather than erroring silently.
+///   * Unsupported + unpaired: the board falls back to
+///     `SurfaceUnsupportedBody` with a "pair a host" hint.
+///   * Host-reports-not-runnable: the pin shows `HostAttachNoticeBody`
+///     carrying the host's own error message — a paired-but-failing
+///     attempt is never hidden behind a generic "unsupported" badge.
 library;
 
 import 'package:flutter/foundation.dart';

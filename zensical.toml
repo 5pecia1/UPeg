@@ -33,40 +33,16 @@ extra_css = ["assets/upeg/upeg.css"]
 nav = [
   { "Home" = "index.md" },
   { "Guides" = [
-    "guides/index.md",
     { "Installation" = "guides/installation.md" },
     { "Quick start" = "guides/quick-start.md" },
     { "Troubleshooting" = "guides/troubleshooting.md" },
     { "Development" = "guides/development.md" },
     { "Tool author guide" = "guides/tool-author.md" },
   ] },
-  { "Product" = [
-    "product/index.md",
-    { "Identity and boundaries" = "product/identity-and-boundaries.md" },
-    { "Board and agent workflow" = "product/board-agent-workflow.md" },
-    { "Security absolutes" = "product/security-absolutes.md" },
-  ] },
-  { "Architecture" = [
-    "architecture/index.md",
-    { "Crate boundaries" = "architecture/crate-boundaries.md" },
-    { "Toolkit and Tool" = "architecture/toolkit-and-tool.md" },
-    { "Manifest contract" = "architecture/manifest.md" },
-    { "I/O type system" = "architecture/io-types.md" },
-    { "File wire" = "architecture/file-wire.md" },
-    { "Chain Tool" = "architecture/chain.md" },
-    { "Call envelope" = "architecture/call-envelope.md" },
-    { "Project manifest" = "architecture/project-manifest.md" },
-    { "HTTP API" = "architecture/http-api.md" },
-    { "Host topology" = "architecture/host-topology.md" },
-    { "MCP" = "architecture/mcp.md" },
-    { "Technology stack" = "architecture/stack.md" },
-  ] },
+  { "Architecture" = "architecture.md" },
   { "Reference" = [
     { "External Tool Manifest" = "TOOL_MANIFEST.md" },
-    { "Image tools" = "image-tools.md" },
     { "Lexicon" = "LEXICON.md" },
-    { "PDF tools" = "pdf-tools.md" },
-    { "UI/UX surface contract" = "ui-ux-surface-contract.md" },
   ] },
 ]
 

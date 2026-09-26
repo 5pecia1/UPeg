@@ -2,6 +2,9 @@
 # Tests for packaging/release-files.sh against synthetic temp bundles.
 # No real package tools or OS installs — copies text files only.
 set -euo pipefail
+# Build metadata in the runner must not alter synthetic source expectations.
+unset UPEG_VERSION UPEG_COMMIT UPEG_REPO UPEG_RUN_URL GITHUB_SHA \
+  GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_SERVER_URL
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$HERE/release-files.sh"
@@ -40,6 +43,46 @@ got="$(UPEG_SOURCE_ROOT="$SRC" bash -c 'cd / && PATH=/usr/bin:/bin bash "$0" ver
 # $SRC has no .git, so git describe fails inside; expect workspace fallback.
 [ "$got" = "9.9.9" ] || fail "workspace version fallback: got '$got'"
 ok "version falls back to Cargo.toml workspace version"
+
+# A copied source archive can live below an unrelated tagged repository.
+git -C "$WORK" init -q
+git -C "$WORK" -c user.name=Test -c user.email=test@example.invalid \
+  commit -q --allow-empty -m unrelated
+git -C "$WORK" tag unrelated-v7
+got="$(UPEG_SOURCE_ROOT="$SRC" bash "$SCRIPT" version)"
+[ "$got" = "9.9.9" ] || fail "nested archive inherited unrelated git tag: $got"
+UPEG_SOURCE_ROOT="$SRC" bash "$SCRIPT" stage "$WORK/nested-bundle" >/dev/null
+grep -q '^commit=unknown$' "$WORK/nested-bundle/BUILD-INFO" || fail "nested archive inherited unrelated git commit"
+ok "nested archive ignores unrelated parent git metadata"
+
+git -C "$SRC" init -q
+git -C "$SRC" -c user.name=Test -c user.email=test@example.invalid \
+  commit -q --allow-empty -m source
+git -C "$SRC" tag v9.9.9
+got="$(UPEG_SOURCE_ROOT="$SRC" bash "$SCRIPT" version)"
+[ "$got" = "v9.9.9" ] || fail "source root git version: $got"
+ln -s "$SRC" "$WORK/src-link"
+got="$(UPEG_SOURCE_ROOT="$WORK/src-link" bash "$SCRIPT" version)"
+[ "$got" = "v9.9.9" ] || fail "symlinked source root git version: $got"
+UPEG_SOURCE_ROOT="$WORK/src-link" bash "$SCRIPT" stage "$WORK/git-bundle" >/dev/null
+expected_commit="$(git -C "$SRC" rev-parse HEAD)"
+grep -q "^commit=$expected_commit$" "$WORK/git-bundle/BUILD-INFO" || fail "symlinked root commit"
+ok "git metadata is accepted for source roots and symlinked roots"
+
+git -C "$SRC" worktree add -q --detach "$WORK/source-worktree" HEAD
+got="$(UPEG_SOURCE_ROOT="$WORK/source-worktree" bash "$SCRIPT" version)"
+[ "$got" = "v9.9.9" ] || fail "worktree git version: $got"
+ok "git metadata is accepted for an independent worktree"
+
+UPEG_SOURCE_ROOT="$SRC" UPEG_VERSION=override UPEG_COMMIT=chosen \
+  bash "$SCRIPT" stage "$WORK/override-bundle" >/dev/null
+grep -q '^version=override$' "$WORK/override-bundle/BUILD-INFO" || fail "version override precedence"
+grep -q '^commit=chosen$' "$WORK/override-bundle/BUILD-INFO" || fail "commit override precedence"
+ok "explicit metadata overrides git"
+
+GITHUB_SHA=ci-commit UPEG_SOURCE_ROOT="$SRC" bash "$SCRIPT" stage "$WORK/ci-bundle" >/dev/null
+grep -q '^commit=ci-commit$' "$WORK/ci-bundle/BUILD-INFO" || fail "CI commit override precedence"
+ok "CI commit override wins over local git"
 
 # 3. stage: a synthetic bundle dir gains every required notice + BUILD-INFO.
 DEST="$WORK/bundle/opt/upeg"

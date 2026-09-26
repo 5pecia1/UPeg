@@ -1,21 +1,24 @@
 # upeg — Flutter UI
 
-`flutter_app/` is the Desktop/PWA/Chrome-ext UI surface for upeg
-(Universal Pegboard). It renders the Pegboard/Board/Pin UI and talks to
+`flutter_app/` is the Desktop/PWA UI surface for upeg (Universal Pegboard).
+It renders the Pegboard/Board/Pin UI and talks to
 the Rust workspace through `flutter_rust_bridge` (`upeg-frb`) — tool
 registry, execution, and platform IPC stay on the Rust side; this
-package owns rendering only.
+package owns rendering only. The Chrome extension is a separate
+dependency-free JavaScript surface in `chrome-ext/`.
 
 ## Running
 
 ```bash
 cd flutter_app
-flutter run -d linux     # or -d chrome / -d web-server / -d macos
+flutter run -d linux
 ```
 
 CMake/cargokit builds the `upeg-frb` cdylib and installs it into the
 Flutter bundle automatically — no separate manual `cargo build` step is
-needed for the Linux desktop target. See the top-level
+needed for the Linux desktop target. For web, run `just flutter-run-web` or
+`just flutter-run-web-server` from the repository root; both build the FRB
+WASM bridge first. See the top-level
 [`README.md`](../README.md) for platform-specific instructions (macOS,
 Web, packaging).
 

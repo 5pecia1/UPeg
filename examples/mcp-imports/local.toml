@@ -13,7 +13,7 @@
 #
 # Imports load only inside long-lived server processes — `upeg host
 # start`, the desktop-embedded host, and in-process `upeg mcp`
-# (docs/architecture/mcp.md). A one-shot `upeg call` never spawns
+# (`upeg_sources::mcp_import` module docs). A one-shot `upeg call` never spawns
 # subprocesses and never loads this file by itself; start the host
 # first, then call through it (the CLI attaches and dispatches via the
 # running host):

@@ -11,7 +11,7 @@ EXT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST_DIR="$EXT_DIR/dist"
 FILES=(
   manifest.json popup.html
-  wire.js host_api.js file_input.js site_access.js tool_routing.js
+  wire.js host_api.js file_input.js site_access.js tool_routing.js form_values.js popup_state.js
   detectors.js selector_adapter.js
   background.js popup.js content.js
 )

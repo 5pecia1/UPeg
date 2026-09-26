@@ -3,7 +3,9 @@
 //!
 //! These types are deliberately small and dependency-free — UI surfaces
 //! and runtime toolbox code imports them without dragging in toolbox
-//! state, schema, or inventory metadata.
+//! state, schema, or inventory metadata. The closed I/O type set
+//! ([`IoType`] / input/output kinds) is documented in [`crate::input`]
+//! module docs.
 
 use crate::args_preset::ArgsPreset;
 use crate::pin_span::PinSpan;

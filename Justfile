@@ -315,25 +315,25 @@ test-baseline-check:
 # `cargo run` from the repo root, so without `UPEG_PROJECT_MANIFEST_PATH=off`
 # those 15 tools would land in the generated inventory/schema output and
 # blow up the drift gates. `off` disables Project Manifest detection
-# entirely (docs/architecture/project-manifest.md).
+# entirely (`upeg_sources::project` module docs).
 hermetic_project_manifest := "UPEG_PROJECT_MANIFEST_PATH=off"
 hermetic_sources := "UPEG_TOOLKITS_DIR=target/hermetic-sources/toolkits UPEG_WASM_DIR=target/hermetic-sources/wasm UPEG_MCP_IMPORTS_DIR=target/hermetic-sources/mcp-imports " + hermetic_project_manifest
 
 interface-inventory:
-	@printf '\n\033[1;36m[interface-inventory]\033[0m cargo run -p upeg-cli -- interface inventory generate --json fixtures/interface-inventory.json --markdown target/interface-inventory/interfaces.md\n'
-	{{hermetic_sources}} cargo run -p upeg-cli -- interface inventory generate --json fixtures/interface-inventory.json --markdown target/interface-inventory/interfaces.md
+	@printf '\n\033[1;36m[interface-inventory]\033[0m cargo run --locked -p upeg-cli -- interface inventory generate --json fixtures/interface-inventory.json --markdown target/interface-inventory/interfaces.md\n'
+	{{hermetic_sources}} cargo run --locked -p upeg-cli -- interface inventory generate --json fixtures/interface-inventory.json --markdown target/interface-inventory/interfaces.md
 
 interface-inventory-check:
-	@printf '\n\033[1;36m[verify]\033[0m cargo run -p upeg-cli -- interface inventory check --baseline fixtures/interface-inventory.json --docs target/interface-inventory/interfaces.md --current-output target/interface-inventory/current.json --diff-output target/interface-inventory/diff.json --comment-output target/interface-inventory/pr-comment.md\n'
-	{{hermetic_sources}} cargo run -p upeg-cli -- interface inventory check --baseline fixtures/interface-inventory.json --docs target/interface-inventory/interfaces.md --current-output target/interface-inventory/current.json --diff-output target/interface-inventory/diff.json --comment-output target/interface-inventory/pr-comment.md
+	@printf '\n\033[1;36m[verify]\033[0m cargo run --locked -p upeg-cli -- interface inventory check --baseline fixtures/interface-inventory.json --docs target/interface-inventory/interfaces.md --current-output target/interface-inventory/current.json --diff-output target/interface-inventory/diff.json --comment-output target/interface-inventory/pr-comment.md\n'
+	{{hermetic_sources}} cargo run --locked -p upeg-cli -- interface inventory check --baseline fixtures/interface-inventory.json --docs target/interface-inventory/interfaces.md --current-output target/interface-inventory/current.json --diff-output target/interface-inventory/diff.json --comment-output target/interface-inventory/pr-comment.md
 
 toolkit-schema:
-	@printf '\n\033[1;36m[toolkit-schema]\033[0m cargo run -p upeg-cli -- interface toolkit-schema generate --json fixtures/toolkit.schema.json --markdown docs/TOOL_MANIFEST.md\n'
-	{{hermetic_sources}} cargo run -p upeg-cli -- interface toolkit-schema generate --json fixtures/toolkit.schema.json --markdown docs/TOOL_MANIFEST.md
+	@printf '\n\033[1;36m[toolkit-schema]\033[0m cargo run --locked -p upeg-cli -- interface toolkit-schema generate --json fixtures/toolkit.schema.json --markdown docs/TOOL_MANIFEST.md\n'
+	{{hermetic_sources}} cargo run --locked -p upeg-cli -- interface toolkit-schema generate --json fixtures/toolkit.schema.json --markdown docs/TOOL_MANIFEST.md
 
 toolkit-schema-check:
-	@printf '\n\033[1;36m[verify]\033[0m cargo run -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff\n'
-	{{hermetic_sources}} cargo run -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff
+	@printf '\n\033[1;36m[verify]\033[0m cargo run --locked -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff\n'
+	{{hermetic_sources}} cargo run --locked -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff
 
 clippy-native:
 	@printf '\n\033[1;36m[verify]\033[0m cargo clippy (workspace, --all-targets) -D warnings\n'
@@ -796,18 +796,7 @@ package-windows-msix: flutter-build-windows
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[package]\033[0m windows .msix\n'
-	# `msix` package provides `flutter pub run msix:create`.
-	cd flutter_app
-	if ! grep -q '^  msix:' pubspec.yaml; then
-	  echo "error: msix package not in pubspec.yaml" >&2
-	  exit 1
-	fi
-	# Everything under Release/ is packed into the MSIX install dir.
-	bash ../packaging/release-files.sh stage "build/windows/x64/runner/Release/licenses"
-	flutter pub run msix:create
-	out="${UPEG_PACKAGE_OUT:-../target/packages}/windows"
-	mkdir -p "$out"
-	cp build/windows/x64/runner/Release/*.msix "$out/" 2>/dev/null || true
+	bash packaging/package-windows-msix.sh
 
 # Web PWA bundle. Just renames the directory + gzip-prepares static assets.
 package-web: flutter-build-web

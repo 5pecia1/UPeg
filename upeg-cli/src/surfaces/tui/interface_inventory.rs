@@ -43,11 +43,14 @@ struct TuiInterfaceDeclaration {
     source_path: &'static str,
 }
 
-const UI_SURFACE_DOC: &str = "docs/ui-ux-surface-contract.md";
-/// Section of [`UI_SURFACE_DOC`] that specifies the approval gesture and
-/// the live-output pane the two entries below declare.
-const APPROVAL_AND_LIVE_OUTPUT_DOC: &str =
-    "docs/ui-ux-surface-contract.md#approval-and-live-output";
+/// The one-way doc pointer carried on `owner`/`docs` — the public
+/// big-picture map these contracts summarize. Per-contract detail lives
+/// in the code the `schema_ref` locators point at.
+const SURFACE_OVERVIEW_DOC: &str = "docs/architecture.md";
+/// The approval policy + live-output contract the two entries below
+/// declare — owned by `upeg_runtime::approval`/`upeg_runtime::progress`
+/// module docs.
+const APPROVAL_POLICY_REF: &str = "upeg-runtime/src/approval.rs#ToolApprovalPolicy";
 const TUI_INTERFACE_TEST: &str = "upeg-cli/src/surfaces/tui/interface_tests.rs";
 /// The test inside [`TUI_INTERFACE_TEST`] that actually asserts these
 /// entries — pinned by the inventory honesty check.
@@ -57,7 +60,7 @@ const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {
         id: "tui.board.list",
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#display-anatomy"),
+            input_schema_ref: Some("upeg-core/src/ux.rs#display_label"),
             command_path: Some("upeg_cli::surfaces::tui::view::render_board_bar"),
         },
         source_path: "upeg-cli/src/surfaces/tui/view.rs",
@@ -65,7 +68,7 @@ const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {
         id: "tui.tag.filter",
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#canonical-lifecycle-verbs"),
+            input_schema_ref: Some("upeg-core/src/keyboard_catalog.rs#binding_catalog"),
             command_path: Some("upeg_cli::surfaces::tui::update::apply_filter_key"),
         },
         source_path: "upeg-cli/src/surfaces/tui/update.rs",
@@ -73,7 +76,7 @@ const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {
         id: "tui.tool.detail",
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#canonical-lifecycle-verbs"),
+            input_schema_ref: Some("upeg-core/src/keyboard_catalog.rs#binding_catalog"),
             command_path: Some("upeg_cli::surfaces::tui::update::handle_key"),
         },
         source_path: "upeg-cli/src/surfaces/tui/update.rs",
@@ -97,7 +100,7 @@ const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {
         id: "tui.tool.approval",
         contract: ContractDeclaration {
-            input_schema_ref: Some(APPROVAL_AND_LIVE_OUTPUT_DOC),
+            input_schema_ref: Some(APPROVAL_POLICY_REF),
             command_path: Some("upeg_cli::surfaces::tui::update::dispatch_or_confirm"),
         },
         source_path: "upeg-cli/src/surfaces/tui/update.rs",
@@ -105,7 +108,7 @@ const TUI_INTERFACE_DECLARATIONS: &[TuiInterfaceDeclaration] = &[
     TuiInterfaceDeclaration {
         id: "tui.tool.live_output",
         contract: ContractDeclaration {
-            input_schema_ref: Some(APPROVAL_AND_LIVE_OUTPUT_DOC),
+            input_schema_ref: Some(APPROVAL_POLICY_REF),
             command_path: Some("upeg_cli::surfaces::tui::update::apply_progress"),
         },
         source_path: "upeg-cli/src/surfaces/tui/update.rs",
@@ -122,11 +125,11 @@ impl TuiInterfaceDeclaration {
             version: "v1".to_string(),
             compatibility: Compatibility::Stable,
             owner: OwnerRef {
-                path: Some(UI_SURFACE_DOC.to_string()),
+                path: Some(SURFACE_OVERVIEW_DOC.to_string()),
                 url: None,
             },
             docs: DocRef {
-                path: Some(UI_SURFACE_DOC.to_string()),
+                path: Some(SURFACE_OVERVIEW_DOC.to_string()),
                 url: None,
             },
             source: SourceRef {

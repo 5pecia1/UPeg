@@ -146,8 +146,8 @@ fn local_http_host_enabled() -> bool {
 /// pending before it returns, and the host publishes that as
 /// `importsPending` on `/healthz`, which `upeg host status --json` and
 /// the desktop status bar both read. Clients recover by re-reading
-/// `tools/list`. Documented in docs/architecture/mcp.md
-/// ("desktop embedded host: async window").
+/// `tools/list`. Documented in `upeg_cli::infrastructure::mcp_imports`'s
+/// module docs (the desktop-embedded host's async window).
 fn spawn_mcp_import_load() {
     // The worker thread, its name, and the "imports pending" phase the
     // window is now observable through all live in `upeg-cli`

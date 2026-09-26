@@ -13,10 +13,12 @@
 //! only when [`reexport_policy_from_env`] says some declaration opts
 //! into `reexport = true` — otherwise the imported tools would land on
 //! `ALL_SURFACES_EXCEPT_MCP` and that lane would have spawned every
-//! upstream to list none of them (docs/architecture/mcp.md).
+//! upstream to list none of them (`upeg_sources::mcp_import` module
+//! docs).
 //!
 //! There is no unload and no reload: restarting the host process
-//! re-imports (docs/architecture/mcp.md). Failures are reported, never
+//! re-imports (`upeg_sources::mcp_import` module docs). Failures are
+//! reported, never
 //! fatal — a broken upstream declaration must not stop the host from
 //! serving its local Toolbox.
 //!
@@ -64,7 +66,7 @@ pub enum McpImportPhase {
     /// No lane in this process ever scheduled a load. The honest
     /// answer for one-shot CLI commands, the TUI, a proxying `upeg
     /// mcp`, and an attach-only desktop — none of them import
-    /// (docs/architecture/mcp.md).
+    /// (`upeg_sources::mcp_import` module docs).
     #[default]
     NotStarted,
     /// A load is scheduled or running. The only pending phase.
@@ -343,7 +345,7 @@ pub(crate) fn healthz_fields(phase: McpImportPhase) -> Map<String, Value> {
 /// asks the host instead, over the same unauthenticated `/healthz` the
 /// status command already probes for liveness. This is the one place
 /// where that command reports the host's LIVE registration progress
-/// rather than mere declarations (docs/architecture/mcp.md).
+/// rather than mere declarations (this module's docs).
 pub(crate) fn host_imports_json(server: &ServerInfo) -> Value {
     host_imports_json_from_healthz(super::attach::healthz_json(server).as_ref())
 }
@@ -352,7 +354,7 @@ pub(crate) fn host_imports_json(server: &ServerInfo) -> Value {
 /// stale one whose `/healthz` no longer answers. Same `unknown` a
 /// running-but-silent host produces, because it is the same fact — we
 /// do not know — and `upeg host status --json` promises the block
-/// either way (docs/architecture/mcp.md).
+/// either way (this module's docs).
 pub(crate) fn unknown_imports_json() -> Value {
     host_imports_json_from_healthz(None)
 }
@@ -463,7 +465,7 @@ fn spawn_marked_loader(
 /// The thread is deliberately detached: it owns nothing that outlives
 /// the process, and the desktop must not block its boot path on an
 /// unreachable upstream's bounded retries
-/// (docs/architecture/mcp.md, "desktop-embedded host: async window"). The
+/// (this module's docs — the desktop-embedded host's async window). The
 /// phase this leaves behind ([`McpImportPhase::Loading`] until the
 /// load finishes) is what closes that window's blind spot for
 /// attached clients.
@@ -541,8 +543,8 @@ pub(crate) fn load_and_report_for_host() {
 /// tool(s)" and then had zero of them a microsecond later, and the
 /// child MCP server it had just spawned was already dead.
 ///
-/// There is no unload and no reload path (docs/architecture/mcp.md):
-/// restarting the host process re-imports. "Live until the process
+/// There is no unload and no reload path (`upeg_sources::mcp_import`
+/// module docs): restarting the host process re-imports. "Live until the process
 /// ends" is therefore the exact lifetime wanted, and a deliberate,
 /// once-per-process leak expresses it without a global mutex whose
 /// only job would be to never be unlocked.

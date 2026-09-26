@@ -42,11 +42,17 @@ workspace_version() {
     "$SOURCE_ROOT/Cargo.toml" | head -n 1
 }
 
+source_has_own_git() {
+  local top
+  command -v git >/dev/null 2>&1 || return 1
+  top="$(git -C "$SOURCE_ROOT" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ "$(cd "$top" && pwd -P)" = "$(cd "$SOURCE_ROOT" && pwd -P)" ]
+}
+
 resolve_version() {
   if [ -n "${UPEG_VERSION:-}" ]; then
     printf '%s\n' "$UPEG_VERSION"
-  elif command -v git >/dev/null 2>&1 && \
-       git -C "$SOURCE_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  elif source_has_own_git; then
     git -C "$SOURCE_ROOT" describe --tags --always --abbrev=8
   else
     ws="$(workspace_version)"
@@ -58,8 +64,7 @@ write_build_info() {
   local dest="$1" version commit repo run_url
   version="$(resolve_version)"
   commit="${UPEG_COMMIT:-${GITHUB_SHA:-}}"
-  if [ -z "$commit" ] && command -v git >/dev/null 2>&1 \
-      && git -C "$SOURCE_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  if [ -z "$commit" ] && source_has_own_git; then
     commit="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
   fi
   repo="${UPEG_REPO:-${GITHUB_REPOSITORY:-unknown}}"

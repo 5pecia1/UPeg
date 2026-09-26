@@ -24,16 +24,25 @@ loaded — most "my tool is missing" problems end there.
 - Check which directories are actually read: `~/.upeg/toolkits/`,
   `~/.upeg/wasm/`, `~/.upeg/mcp-imports/` — or the `$UPEG_TOOLKITS_DIR` /
   `$UPEG_WASM_DIR` / `$UPEG_MCP_IMPORTS_DIR` overrides if set.
-- **Project manifests** (`upeg.toml`) are detected from cwd upward, but only
-  through ancestors inside `$HOME` — a checkout under `/tmp` or another
-  world-writable root is deliberately not followed (see
-  [security absolutes](../product/security-absolutes.md)). Pin a path with
-  `$UPEG_PROJECT_MANIFEST_PATH`, or disable detection with `off`.
-- A tool id like `dev.git_log` in a project manifest only exists while you
-  run upeg inside that project. From another directory it's `unknown tool`.
+- **Project manifests** (`upeg.toml`) are checked in cwd even outside
+  `$HOME`. The upward walk checks ancestors only inside `$HOME`; from a
+  checkout under `/tmp`, it does not find the checkout root's manifest when
+  run in a subdirectory. `$HOME/upeg.toml` is also checked as a fallback
+  (see [security absolutes](../architecture.md#security-absolutes)). Set
+  `$UPEG_PROJECT_MANIFEST_PATH` to the manifest's absolute path to select it
+  explicitly, or use `off` to disable detection.
+- A project tool such as `dev.git_log` exists only while its manifest is
+  loaded. From another directory it is `unknown tool` unless that manifest
+  is still selected by detection or the explicit path override.
 - WASM plugin commands (`upeg plugin install`, `upeg wasm`) are absent only
   from `--no-default-features` builds — `wasm-plugin` is a default feature.
   `upeg doctor` lists enabled features.
+- MCP-imported tools can be missing for a few seconds right after a
+  desktop-embedded host starts — it serves before imports finish loading.
+  Poll `importsPending` on `/healthz` (`upeg host status --json` shows it as
+  `mcpImports`), watch for `notifications/tools/list_changed` on an SSE
+  stream, or just re-read `tools/list` a little later. Reloading an import
+  always means restarting the host.
 
 ## Host, token, and HTTP problems
 
@@ -76,7 +85,7 @@ loaded — most "my tool is missing" problems end there.
 
 - `FileValue` `bytes` must be standard padded RFC 4648 Base64 — URL-safe
   `-`/`_`, whitespace, missing padding, and the legacy numeric array are all
-  rejected. See the [File wire contract](../architecture/file-wire.md).
+  rejected. See the [File wire contract](../architecture.md#file-wire).
 - Size budgets differ per direction and surface (100 files / 50 MiB in,
   64 MiB out, 1,000,000-byte HTTP/MCP envelopes, 640 KiB extension input) —
   the same document lists them.

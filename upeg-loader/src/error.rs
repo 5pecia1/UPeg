@@ -108,6 +108,11 @@ pub enum LoadError {
     UnknownApprovalSurface { position: usize, surface: String },
 
     #[error(
+        "`approval_surfaces[{position}] = \"ext\"` is unsupported because the browser extension has no approval gesture"
+    )]
+    ExtensionApprovalUnsupported { position: usize },
+
+    #[error(
         "`approval_surfaces` only means something for `invoker = \"Chain\"` — it authorizes the surfaces that may satisfy a chain step's `requires_approval` barrier"
     )]
     ApprovalSurfacesWithoutChain,

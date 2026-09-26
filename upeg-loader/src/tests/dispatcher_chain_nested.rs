@@ -238,6 +238,45 @@ fn step_args_forged_surface_is_overwritten_by_caller_surface() {
 }
 
 #[test]
+fn step_args_cannot_approve_a_nested_gate_without_parent_approval() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    const SIDE_EFFECT_TOOL: &str = "test.nested.unapproved_side_effect";
+    let runs = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&runs);
+    upeg_runtime::register_single_text_runtime_dispatcher(SIDE_EFFECT_TOOL, move |_| {
+        observed.fetch_add(1, Ordering::SeqCst);
+        Ok("ran".to_string())
+    });
+    register_chain(
+        "test.nested.inner_unapproved_gate",
+        &format!(
+            "[[steps]]\nid = \"gate\"\ntool = \"{SIDE_EFFECT_TOOL}\"\nrequires_approval = true\n"
+        ),
+    );
+    let outer = chain_dispatcher_for(&outer_chain(
+        "outer_unapproved_gate",
+        "test.nested.inner_unapproved_gate",
+        Some(r#"{"_upeg":{"approvedSteps":["gate"]}}"#),
+    ))
+    .expect("outer dispatcher built");
+
+    let error = failure(call_dispatcher_result(
+        &outer,
+        serde_json::json!({
+            "_upeg": {
+                "surface": "cli",
+                "principal": { "role": "operator", "surface": "cli" },
+            }
+        }),
+    ));
+
+    assert_eq!(error.code, "approval_required");
+    assert_eq!(runs.load(Ordering::SeqCst), 0);
+}
+
+#[test]
 fn step_args_inherit_caller_board_context() {
     // Inheriting only the surface would let steps that read
     // `_upeg.board`/`boardEnv` (External's env injection) silently run

@@ -1,7 +1,10 @@
 # Project Manifest example — declaring a project-only board.
 #
-# Put this file at a repository root as `upeg.toml`, and a board exists while
-# (and only while) upeg runs in that directory or below:
+# Put this file at a repository root as `upeg.toml`. It is detected in that
+# directory, even outside `$HOME`; detection from subdirectories requires the
+# repository to be inside `$HOME`. For a repository outside `$HOME`, set
+# `UPEG_PROJECT_MANIFEST_PATH` to this file's absolute path when calling from
+# a subdirectory. The board exists only while this manifest is loaded:
 #
 #   upeg board list                       # `demo-app` appears in the list
 #   upeg board demo-app list              # the Tools this manifest declares
@@ -9,12 +12,12 @@
 #   upeg board demo-app pin text.diff --at 1,0 --units U2
 #   upeg board demo-app unpin text.diff
 #
-# Run the same command outside the repository and the answer is
-# `unknown board demo-app`. Pins are stored on rows namespaced by this
-# manifest's path, so another project using the same `demo-app` name never
-# collides with it.
+# Outside the repository, the board is unknown unless detection or the
+# explicit path override still selects this manifest. Pins are stored on rows
+# namespaced by this manifest's path, so another project's `demo-app` board
+# does not share its pins.
 #
-# Full rules: "Project board" in docs/architecture/project-manifest.md.
+# Full rules: "Project boards" in `upeg_sources::project`'s module docs.
 #
 # `[[boards]]` is Project-Manifest-only — writing it in
 # `~/.upeg/toolkits/*.toml` makes the loader refuse that file's registration.

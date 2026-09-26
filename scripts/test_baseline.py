@@ -51,7 +51,7 @@ FLUTTER_SUITE_CWD = "flutter_app"
 # declaring the `dev.*` toolkit. Every cargo suite runs with the repo as
 # cwd, so without this the test processes would auto-detect it and load
 # 15 external tools into the toolbox they are asserting against. `off`
-# disables Project Manifest detection (docs/architecture/project-manifest.md);
+# disables Project Manifest detection (`upeg_sources::project` module docs);
 # the same pair is set by the Justfile's `hermetic_sources`.
 PROJECT_MANIFEST_PATH_ENV = "UPEG_PROJECT_MANIFEST_PATH"
 PROJECT_MANIFEST_OVERRIDE_OFF = "off"
@@ -65,7 +65,10 @@ def hermetic_env():
 REQUIRED_TEST_FIELDS = ("className", "methodName", "status", "target", "fullName")
 VALID_STATUSES = {"passed", "failed", "ignored"}
 
-TEST_STATUS_RE = re.compile(r"^test (?P<name>.+?)\s+\.\.\.\s+(?P<status>ok|FAILED|ignored)\b")
+TEST_STATUS_RE = re.compile(
+    r"^test (?P<name>.+?)\s+\.\.\.\s+(?P<status>ok|FAILED|ignored)(?P<reason>, .+)?$"
+)
+TEST_STARTED_RE = re.compile(r"^test (?P<name>.+?)\s+\.\.\.(?:\s+|$)")
 # libtest appends this marker to the NAME column when it runs a
 # `#[should_panic]` test (`test some::case - should panic ... ok`), but
 # `--list` reports the bare name. Stripping it keeps the discovered set and
@@ -74,6 +77,10 @@ TEST_STATUS_RE = re.compile(r"^test (?P<name>.+?)\s+\.\.\.\s+(?P<status>ok|FAILE
 SHOULD_PANIC_SUFFIX = " - should panic"
 LIST_RE = re.compile(r"^(?P<name>.+):\s+(?P<kind>test|bench)$")
 RESULT_FAILED_RE = re.compile(r"^test result:\s+FAILED\.", re.MULTILINE)
+RESULT_SUMMARY_RE = re.compile(
+    r"^test result:\s+(?:ok|FAILED)\.\s+(?P<passed>\d+) passed;\s+"
+    r"(?P<failed>\d+) failed;\s+(?P<ignored>\d+) ignored\b"
+)
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 FAILURE_BLOCK_RE = re.compile(r"^----\s+(?P<name>.+?)\s+(?:stdout|stderr)\s+----$")
 FAILURE_LIST_RE = re.compile(r"^failures:$")
@@ -169,17 +176,12 @@ def parse_test_list(output):
 def parse_libtest_output(output):
     tests = []
     current_target = "unknown"
-    for line in output.splitlines():
-        target = parse_running_target(line)
-        if target:
-            current_target = target
-            continue
+    pending_name = None
+    continued_status = False
+    split_status_seen = False
+    target_start_index = 0
 
-        match = TEST_STATUS_RE.match(strip_ansi(line).strip())
-        if not match:
-            continue
-
-        full_name = match.group("name")
+    def add_status(full_name, raw_status):
         if full_name.endswith(SHOULD_PANIC_SUFFIX):
             full_name = full_name[: -len(SHOULD_PANIC_SUFFIX)]
         class_name, method_name = split_class_method(full_name, current_target)
@@ -187,11 +189,59 @@ def parse_libtest_output(output):
             {
                 "className": class_name,
                 "methodName": method_name,
-                "status": status_name(match.group("status")),
+                "status": status_name(raw_status),
                 "target": current_target,
                 "fullName": full_name,
             }
         )
+
+    for line in output.splitlines():
+        target = parse_running_target(line)
+        if target:
+            if split_status_seen:
+                raise BaselineError("split libtest status has no summary")
+            current_target = target
+            pending_name = None
+            continued_status = False
+            target_start_index = len(tests)
+            continue
+
+        clean_line = strip_ansi(line).strip()
+        match = TEST_STATUS_RE.match(clean_line)
+        if match and (not match.group("reason") or match.group("status") == "ignored"):
+            add_status(match.group("name"), match.group("status"))
+            pending_name = None
+            continued_status = False
+            continue
+
+        started = TEST_STARTED_RE.match(clean_line)
+        if started:
+            pending_name = started.group("name")
+            continued_status = False
+        elif clean_line in ("ok", "FAILED", "ignored"):
+            if pending_name is not None:
+                add_status(pending_name, clean_line)
+                pending_name = None
+                continued_status = True
+                split_status_seen = True
+            elif continued_status:
+                raise BaselineError("ambiguous libtest status after a split status line")
+        elif clean_line.startswith("test result:"):
+            if split_status_seen:
+                summary = RESULT_SUMMARY_RE.match(clean_line)
+                if not summary:
+                    raise BaselineError("split libtest status has no parseable summary")
+                target_tests = tests[target_start_index:]
+                for status in ("passed", "failed", "ignored"):
+                    actual = sum(test["status"] == status for test in target_tests)
+                    if actual != int(summary.group(status)):
+                        raise BaselineError("split libtest status counts disagree with summary")
+                split_status_seen = False
+            pending_name = None
+            continued_status = False
+
+    if split_status_seen:
+        raise BaselineError("split libtest status has no summary")
 
     tests.sort(key=lambda item: (item["target"], item["fullName"]))
     return tests
@@ -311,6 +361,15 @@ def merge_discovered_tests(suite_name, discovered_names, status_tests):
     )
 
 
+def save_cargo_failure(root, suite_name, phase, completed):
+    base = root / "target/test-baseline" / (suite_name + "-" + phase)
+    log_path = Path(str(base) + ".log")
+    exit_path = Path(str(base) + ".exit-code")
+    write_text_atomic(log_path, completed.stdout)
+    write_text_atomic(exit_path, str(completed.returncode) + "\n")
+    return "\nraw output: " + str(log_path) + "; exit code: " + str(exit_path)
+
+
 def run_suite(root, suite_name, argv, tolerate_failures=False):
     """Run one suite and return `(suite, failure_outputs)`.
 
@@ -343,6 +402,7 @@ def run_suite(root, suite_name, argv, tolerate_failures=False):
                 suite_name
                 + " cargo test discovery failed; existing baseline was not changed\n"
                 + last_lines(list_completed.stdout, ERROR_OUTPUT_LINE_LIMIT)
+                + save_cargo_failure(root, suite_name, "discovery", list_completed)
             )
 
     print("running " + suite_name + ": " + command_text(argv), file=sys.stderr)
@@ -355,22 +415,27 @@ def run_suite(root, suite_name, argv, tolerate_failures=False):
         text=True,
         check=False,
     )
-    tests = parse_libtest_output(completed.stdout)
-    if not output_is_parseable(completed.returncode, completed.stdout, tests):
+    try:
+        tests = parse_libtest_output(completed.stdout)
+        if not output_is_parseable(completed.returncode, completed.stdout, tests):
+            raise BaselineError(
+                suite_name
+                + " cargo output was not parseable as libtest results; existing baseline was not changed\n"
+                + last_lines(completed.stdout, ERROR_OUTPUT_LINE_LIMIT)
+            )
+        if completed.returncode != 0 and not tolerate_failures:
+            raise BaselineError(
+                suite_name
+                + " cargo test failed with exit code "
+                + str(completed.returncode)
+                + "; existing baseline was not changed\n"
+                + last_lines(completed.stdout, ERROR_OUTPUT_LINE_LIMIT)
+            )
+        tests = merge_discovered_tests(suite_name, discovered_names, tests)
+    except BaselineError as error:
         raise BaselineError(
-            suite_name
-            + " cargo output was not parseable as libtest results; existing baseline was not changed\n"
-            + last_lines(completed.stdout, ERROR_OUTPUT_LINE_LIMIT)
-        )
-    if completed.returncode != 0 and not tolerate_failures:
-        raise BaselineError(
-            suite_name
-            + " cargo test failed with exit code "
-            + str(completed.returncode)
-            + "; existing baseline was not changed\n"
-            + last_lines(completed.stdout, ERROR_OUTPUT_LINE_LIMIT)
-        )
-    tests = merge_discovered_tests(suite_name, discovered_names, tests)
+            str(error) + save_cargo_failure(root, suite_name, "run", completed)
+        ) from error
     failure_outputs = {
         (suite_name,) + key: text
         for key, text in parse_failure_outputs(completed.stdout).items()
@@ -1441,6 +1506,8 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
     ansi_tests = parse_libtest_output(ansi_output)
     assert_equal("ansi target", ansi_tests[0]["target"], "upeg_core::src/lib.rs")
     assert_equal("ansi status", ansi_tests[0]["status"], "passed")
+    ignored_reason = parse_libtest_output("test fixture::paused ... ignored, requires network\n")
+    assert_equal("ignored reason remains supported", ignored_reason[0]["status"], "ignored")
 
     # libtest tags a `#[should_panic]` test's name in the run output but not
     # in `--list`; both sides must reduce to the same name or discovery
@@ -1451,6 +1518,71 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
     assert_equal("should panic name", should_panic_tests[0]["fullName"], "fixture::boom")
     assert_equal("should panic status", should_panic_tests[0]["status"], "passed")
     merge_discovered_tests("workspace", ["fixture::boom"], should_panic_tests)
+
+    interleaved_output = """     Running unittests src/lib.rs (target/debug/deps/upeg_core-1111111111111111)
+running 2 tests
+test fixture::child_stderr ... upeg: loaded one tool
+ok
+test fixture::next ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+"""
+    interleaved_tests = parse_libtest_output(interleaved_output)
+    assert_equal(
+        "child stderr between test name and status",
+        [(test["fullName"], test["status"]) for test in interleaved_tests],
+        [("fixture::child_stderr", "passed"), ("fixture::next", "passed")],
+    )
+    merge_discovered_tests("workspace", ["fixture::child_stderr", "fixture::next"], interleaved_tests)
+    partial_output = "test fixture::partial ... child output\ntest fixture::next ... ok\n"
+    assert_raises(
+        "another test cannot supply a missing status",
+        "missing from actual libtest output",
+        lambda: merge_discovered_tests(
+            "workspace", ["fixture::partial", "fixture::next"], parse_libtest_output(partial_output)
+        ),
+    )
+    assert_raises(
+        "a summary cannot supply a missing status",
+        "missing from actual libtest output",
+        lambda: merge_discovered_tests(
+            "workspace", ["fixture::missing"],
+            parse_libtest_output("test fixture::missing ... child output\ntest result: ok. 0 passed; 0 failed\n"),
+        ),
+    )
+    assert_equal(
+        "a crashed harness leaves the test unparsed",
+        output_is_parseable(1, "test fixture::crashed ... child output\n", parse_libtest_output("test fixture::crashed ... child output\n")),
+        False,
+    )
+    assert_raises(
+        "two standalone statuses are ambiguous",
+        "ambiguous libtest status",
+        lambda: parse_libtest_output("test fixture::ambiguous ... child output\nok\nFAILED\n"),
+    )
+    assert_raises(
+        "child output cannot impersonate a libtest status",
+        "split libtest status counts disagree",
+        lambda: parse_libtest_output(
+            "test fixture::missing ... child output\nok\n"
+            "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured\n"
+        ),
+    )
+    assert_raises(
+        "inline child output cannot impersonate a libtest status",
+        "missing from actual libtest output",
+        lambda: merge_discovered_tests(
+            "workspace", ["fixture::missing"],
+            parse_libtest_output(
+                "test fixture::missing ... ok: child output\n"
+                "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured\n"
+            ),
+        ),
+    )
+    assert_raises(
+        "a split status without a summary is incomplete",
+        "split libtest status has no summary",
+        lambda: parse_libtest_output("test fixture::incomplete ... child output\nok\n"),
+    )
 
     status_tests = [
         dict(schema_test, methodName="later", fullName="fixture::later", status="passed"),
@@ -1466,10 +1598,14 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
     )
     assert_equal("doc empty discovery", merge_discovered_tests("docs", [], status_tests), status_tests)
     with tempfile.TemporaryDirectory() as temp_dir:
+        temp_root = Path(temp_dir)
         cargo_fixture = Path(temp_dir) / "cargo_test_fixture.py"
         cargo_fixture.write_text(
             "import sys\n"
             "if '--list' in sys.argv:\n"
+            "    if '--discovery-error' in sys.argv:\n"
+            "        print('discovery failed')\n"
+            "        raise SystemExit(3)\n"
             "    print('fixture::failed: test')\n"
             "    print('fixture::not_run: test')\n"
             "elif '--success' in sys.argv:\n"
@@ -1486,16 +1622,56 @@ test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; 
             "cargo test failed with exit code 1; existing baseline was not changed\n"
             "     Running unittests src/lib.rs (target/debug/deps/fixture-1111111111111111)\n"
             "test fixture::failed ... FAILED",
-            lambda: run_suite(repo_root(), "workspace", [sys.executable, str(cargo_fixture)]),
+            lambda: run_suite(temp_root, "workspace", [sys.executable, str(cargo_fixture)]),
+        )
+        diagnostics = temp_root / "target/test-baseline"
+        assert_equal(
+            "failed cargo output is preserved exactly",
+            (diagnostics / "workspace-run.log").read_text(encoding="utf-8"),
+            "     Running unittests src/lib.rs (target/debug/deps/fixture-1111111111111111)\n"
+            "test fixture::failed ... FAILED\n"
+            "test result: FAILED. 0 passed; 1 failed; 0 ignored\n",
+        )
+        assert_equal(
+            "failed cargo exit code is preserved",
+            (diagnostics / "workspace-run.exit-code").read_text(encoding="utf-8"),
+            "1\n",
         )
         assert_raises(
             "a successful cargo run still checks for missing discovered tests",
             "missing from actual libtest output",
             lambda: run_suite(
-                repo_root(),
+                temp_root,
                 "workspace",
                 [sys.executable, str(cargo_fixture), "--success"],
             ),
+        )
+        assert_equal(
+            "missing status keeps the raw successful output",
+            (diagnostics / "workspace-run.log").read_text(encoding="utf-8"),
+            "test fixture::failed ... ok\n",
+        )
+        assert_equal(
+            "missing status keeps cargo exit zero",
+            (diagnostics / "workspace-run.exit-code").read_text(encoding="utf-8"),
+            "0\n",
+        )
+        assert_raises(
+            "discovery errors preserve output before collection",
+            "cargo test discovery failed",
+            lambda: run_suite(
+                temp_root, "workspace", [sys.executable, str(cargo_fixture), "--discovery-error"]
+            ),
+        )
+        assert_equal(
+            "discovery output is preserved exactly",
+            (diagnostics / "workspace-discovery.log").read_text(encoding="utf-8"),
+            "discovery failed\n",
+        )
+        assert_equal(
+            "discovery exit code is preserved",
+            (diagnostics / "workspace-discovery.exit-code").read_text(encoding="utf-8"),
+            "3\n",
         )
     with tempfile.TemporaryDirectory() as temp_dir:
         flutter_fixture = Path(temp_dir) / "flutter_test_fixture.py"

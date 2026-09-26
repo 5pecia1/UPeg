@@ -13,16 +13,17 @@
   </p>
   <p>
     <strong>The product.</strong> UPeg is local-first: boards, presets, and
-    execution history live on your machine. Credentials are stored by name
-    in TOML and resolved through the OS keychain — plaintext values are
-    never written to manifests, state, logs, or network responses. The
-    execution log records metadata only (time, tool id, surface, status,
-    duration). Network listeners are explicit-start and loopback-first, and
-    every HTTP route except <code>/healthz</code> requires a bearer token.
+    execution history live on your machine. Credential references are stored
+    by name in TOML; values resolve from environment variables or the OS
+    keychain at execution time. Plaintext values are never written to
+    manifests, state, logs, or network responses. The execution log records
+    metadata only (time, tool id, surface, status, duration). Network
+    listeners are explicit-start and loopback-first, and every HTTP route
+    except <code>/healthz</code> requires a bearer token.
   </p>
   <p>
     Details:
-    <a href="{{ 'product/security-absolutes/' | url }}">security absolutes</a>.
+    <a href="{{ 'architecture/' | url }}#security-absolutes">security absolutes</a>.
   </p>
 </section>
 
@@ -40,19 +41,22 @@
   <details class="upeg-faq">
     <summary>Does UPeg send my data anywhere?</summary>
     <p>
-      No. Everything runs locally by default; there is no telemetry.
-      Optional cloud sync is designed to be end-to-end encrypted, and
-      credential values never leave the OS keychain.
+      By default, UPeg processes and stores data locally. Tools you choose to
+      run can send inputs and required credentials to external services,
+      including HTTP, LLM, and remote MCP tools. Credential values resolve
+      from environment variables or the OS keychain at execution time. Cloud
+      sync is not available yet.
     </p>
   </details>
   <details class="upeg-faq">
     <summary>How do AI agents use my tools?</summary>
     <p>
-      <code>upeg mcp</code> exposes a prepared board over MCP (stdio or
-      HTTP). The agent sees only the tools and guidance you pinned —
-      connecting a board does not execute anything by itself.
+      <code>upeg mcp</code> exposes all tools available on its MCP surface to
+      an agent over stdio; <code>upeg mcp --board dev</code> limits it to that
+      board's pins and guidance. The HTTP host separately serves MCP at
+      <code>/mcp</code>. Connecting does not run the board's tools.
       See
-      <a href="{{ 'product/board-agent-workflow/' | url }}">board and agent workflow</a>.
+      <a href="{{ 'guides/quick-start/' | url }}#7-boards-for-agents">board and agent workflow</a>.
     </p>
   </details>
   <details class="upeg-faq">
@@ -62,14 +66,16 @@
       either pair with a local host or show an honest unsupported state.
       See <a href="#upeg-boundaries-title">honest boundaries</a> above and
       the
-      <a href="{{ 'ui-ux-surface-contract/' | url }}">surface contract</a>.
+      <a href="{{ 'architecture/' | url }}#surfaces">surface contract</a>.
     </p>
   </details>
   <details class="upeg-faq">
     <summary>Is UPeg free and open source?</summary>
     <p>
-      Yes — Apache-2.0, developed in the open at
+      Yes — UPeg's own code is Apache-2.0 at
       <a href="https://github.com/5pecia1/UPeg" target="_blank" rel="noopener">github.com/5pecia1/UPeg</a>.
+      Development happens in a private source repository; verified exports
+      are published here, and maintainers import accepted public contributions.
       A Korean version of the README is
       <a href="https://github.com/5pecia1/UPeg/blob/main/README.ko.md" target="_blank" rel="noopener">linked from the repository</a>;
       the docs themselves are English-only.

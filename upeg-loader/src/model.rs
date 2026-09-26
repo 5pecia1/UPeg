@@ -170,16 +170,10 @@ pub struct ToolEntryToml {
     /// receive the chain input; connected steps receive upstream outputs.
     #[serde(default)]
     pub connections: Option<Vec<ChainConnectionToml>>,
-    /// Surface labels allowed to satisfy this chain's `requires_approval`
-    /// steps. An approval (`approve = true` / `_upeg.approvedSteps`) is
-    /// honored only when the call's `_upeg.surface` is in this list;
-    /// every other surface is refused with `approval_denied_for_surface`.
-    /// Defaults to the three surfaces a person is sitting at — `cli`,
-    /// `tui`, `desktop` — each of which ships a real approval gesture
-    /// (`upeg call <chain> -a approve=true`, the TUI's confirm dialog,
-    /// the desktop's confirm dialog). Every other surface must be named
-    /// explicitly. Must overlap this tool's `surfaces`, or the gated
-    /// step could never be approved by anyone who can reach it.
+    /// Surfaces permitted to satisfy this chain's `requires_approval` steps.
+    /// Defaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an
+    /// explicit entry. `ext` is unsupported because the browser extension has
+    /// no approval gesture. The list must overlap this tool's `surfaces`.
     #[serde(default)]
     pub approval_surfaces: Option<Vec<String>>,
     /// Optional final output expression for Chain tools.
@@ -353,16 +347,10 @@ pub struct ToolToml {
     /// receive the chain input; connected steps receive upstream outputs.
     #[serde(default)]
     pub connections: Option<Vec<ChainConnectionToml>>,
-    /// Surface labels allowed to satisfy this chain's `requires_approval`
-    /// steps. An approval (`approve = true` / `_upeg.approvedSteps`) is
-    /// honored only when the call's `_upeg.surface` is in this list;
-    /// every other surface is refused with `approval_denied_for_surface`.
-    /// Defaults to the three surfaces a person is sitting at — `cli`,
-    /// `tui`, `desktop` — each of which ships a real approval gesture
-    /// (`upeg call <chain> -a approve=true`, the TUI's confirm dialog,
-    /// the desktop's confirm dialog). Every other surface must be named
-    /// explicitly. Must overlap this tool's `surfaces`, or the gated
-    /// step could never be approved by anyone who can reach it.
+    /// Surfaces permitted to satisfy this chain's `requires_approval` steps.
+    /// Defaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an
+    /// explicit entry. `ext` is unsupported because the browser extension has
+    /// no approval gesture. The list must overlap this tool's `surfaces`.
     #[serde(default)]
     pub approval_surfaces: Option<Vec<String>>,
     /// Optional final output expression for Chain tools.

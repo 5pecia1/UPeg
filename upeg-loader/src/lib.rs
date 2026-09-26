@@ -23,6 +23,42 @@
 //! Execution semantics for declarative `External`, `Http`, `Chain`, `Llm`,
 //! and `Wasm` invokers are registered by the loader. GUI `Embed` metadata is
 //! registered as a sidecar for surfaces that render WebView/iframe surfaces.
+//!
+//! # Manifest contract (`model`)
+//!
+//! One manifest defines one non-callable Toolkit and one or more
+//! callable Tools. `[[tools]].id` is a local id — repeating the
+//! `{toolkit}.` prefix is rejected. `pegboard_units` (`U1`/`U2`/`U2T`)
+//! is required and shared by every pegboard surface. Inputs/outputs use
+//! only the closed `upeg_core` I/O type set. `category` is rejected —
+//! use tags.
+//!
+//! | Invoker | Required fields | Rules |
+//! |---|---|---|
+//! | `External` | `command` | optional `args_template`/`cwd`/`env`/`timeout_ms`/`color`/`pty`/`setup`; credential values reach the child as env at spawn only |
+//! | `Http` | `url` | header/body templates reference credential *names* only; the built-in adapter covers `http://` and `mock://echo` — for TLS wrap in `External` |
+//! | `Embed` | `embed_url`, `controlled_embed.bindings` | selector mappings are user-verified values |
+//! | `Chain` | `steps` | step args may use `{{steps.<id>.output}}` expressions |
+//! | `Llm` | `prompt` | `provider = "echo"` is the offline default, `provider = "tool:<id>"` delegates to a provider Tool; an unknown provider fails explicitly |
+//! | `Wasm` | `wasm_path` or a loaded WASM Toolkit declaration | the host validates the exported manifest before registering |
+//!
+//! Credentials are references, never values: a `credentials[]` entry
+//! says only *where* a secret resolves at run time — `value`,
+//! `secret_value`, and inline literal secrets are all invalid, and
+//! secret bytes appear in no manifest, log, or HTTP/MCP listing.
+//!
+//! The generated field reference is `docs/TOOL_MANIFEST.md` (canonical,
+//! derived from these Rust types; the JSON Schema for editors/CI is
+//! `fixtures/toolkit.schema.json` via `just toolkit-schema`). The schema
+//! proves only the TOML→JSON shape; `upeg tool validate` validates
+//! declarations (invoker fields, typed inputs, chain structure, HTTP(S)
+//! guide URLs) — not runtime credentials, reachability, or executable
+//! availability, which is a separate non-executing check
+//! (`upeg_runtime::readiness`). The `External` child-process contract
+//! (cwd resolution against the manifest's directory, `/dev/null` stdin,
+//! `color`/`pty`, timeout process-group kill, cancellation,
+//! `args_template` tokens, failure envelope, in-progress streaming) is
+//! enforced by `dispatcher`'s External invoker.
 
 #![cfg_attr(
     test,

@@ -1,4 +1,37 @@
 //! Optional presentation metadata and pure JSON binding resolution.
+//!
+//! Contract: a Tool still accepts one input object and returns one
+//! canonical `ToolResult`; presentation metadata only describes how a
+//! surface displays a JSON output and offers a follow-up Tool form. It
+//! introduces no new invoker, I/O kind, workflow engine, or
+//! domain-specific widget, and Tools without it behave as before. v1
+//! supports a collection of JSON objects with a stable string/integer
+//! row key and scalar columns, addressed by an output id plus JSON
+//! Pointers for rows/key/columns. Missing or duplicate row keys disable
+//! row actions and retain the raw JSON with a diagnostic; partial or
+//! restored results are never presented as fresh complete data.
+//!
+//! Actions have row or result scope and a statically declared target
+//! Tool id. Input bindings copy native JSON values from the invocation
+//! input, the selected row, the output-id-to-value map, or a literal —
+//! a binding can never populate reserved `_upeg` context. Missing
+//! declared sources and invalid bound values are diagnosed; required
+//! fields left unbound are filled in the target's existing form, and
+//! opening a form never executes it. Capability, surface, approval, and
+//! input validation stay with the dispatcher; text stays data.
+//!
+//! Invocation context: the surface retains a transient identity —
+//! input, host identity, result generation, selected row key. A
+//! persisted result may display but cannot seed actions until the Tool
+//! is run again; follow-up forms keep the original context, not global
+//! state. The `effect` hint (`read`/`write`/`unknown`, default unknown)
+//! is author metadata, not authorization; only a declared `read` origin
+//! may auto re-run via `refresh_origin` after a successful action. The
+//! origin is valid only while its frame, input, host, and generation
+//! are unchanged, and the refresh response re-checks that. A failed
+//! refresh does not turn a successful write into a failure; transport
+//! loss leaves a write outcome unknown — the surface marks the original
+//! result stale and lets the user re-read.
 
 use std::collections::{BTreeMap, HashSet};
 

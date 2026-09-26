@@ -35,6 +35,18 @@ Nothing else qualifies. In particular these are *not* reasons:
 `registry.dart` therefore registers exactly one entry:
 `num.hex_to_decimal` (live decode-as-you-type).
 
+## What the generic form already renders
+
+The generic form carries the whole declared input contract: field
+`description` renders as helper text, `String(placeholder=…)` as the
+hint, `Number`/`Integer`/`String` defaults seed the field,
+`Integer(min=…, max=…)` bounds and `String(regex=…)` patterns validate
+client-side (Rust stays the enforcer), and choice options render their
+`label` (falling back to the value) plus `description`. `Integer` is a
+distinct field type from `Number`: integer keyboard, integer parsing,
+`1.5` rejected. `File` is the one kind with two ways to obtain a value,
+so its contract lives in `../file_input_field.dart`'s header.
+
 ## Adding a bespoke form
 
 1. Drop the new widget into this directory:

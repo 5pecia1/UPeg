@@ -16,6 +16,19 @@
 //   * the desired `chrome.scripting.registerContentScripts` state and the
 //     diff against what is registered right now.
 //
+// Rules:
+//   * Only granted patterns are ever registered — the user can revoke a
+//     host permission in `chrome://extensions` behind the extension's
+//     back, so every sync filters the allow-list through
+//     `chrome.permissions.contains` first.
+//   * Disabling a URL drops every pattern that covers it, not just the
+//     exact one the toggle added — otherwise a seeded
+//     `https://*.etherscan.io/*` would keep a subdomain enabled and the
+//     toggle would look inert.
+//   * Enabling injects into the current tab immediately
+//     (`chrome.scripting.executeScript`) — a dynamic registration only
+//     affects future loads.
+//
 // Everything above `// === chrome adapters ===` is pure. The adapters below
 // it take the chrome API object as a parameter instead of reaching for the
 // global, so chrome-ext/tests/site_access.test.js drives them with plain

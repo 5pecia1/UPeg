@@ -555,7 +555,7 @@ fn unconfigured_board_context_detects_the_nearest_project_manifest() {
     // this fixture tree must itself live under the real `$HOME` — a
     // bare `std::env::temp_dir()` ancestor is exactly the "world-writable
     // /tmp/x/upeg.toml auto-loaded from /tmp/x/anything" case the fix
-    // closes (docs/product/security-absolutes.md).
+    // closes (docs/architecture.md#security-absolutes).
     let home = std::env::var_os("HOME")
         .map(std::path::PathBuf::from)
         .expect("$HOME must be set for this test");

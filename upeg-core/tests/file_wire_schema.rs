@@ -4,6 +4,14 @@
     reason = "integration tests use expect idiomatically"
 )]
 
+//! Gate for the `x-upeg-file-wire` schema extension: when the extension
+//! is present on a File property's schema, every key and value must
+//! match the current contract exactly (version 1,
+//! `base64-rfc4648-padded`, no numeric arrays, recursive Directory); an
+//! external legacy schema may omit it. The canonical `FileValue` JSON
+//! shape and the size budgets live in `upeg_core::input::file_value`'s
+//! module docs.
+
 use serde_json::{Value, json};
 use upeg_core::{InputAdapterError, InputSpec};
 

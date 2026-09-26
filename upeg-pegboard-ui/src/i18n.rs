@@ -403,7 +403,7 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     // Keyboard cheatsheet (widgets/cheatsheet_overlay.dart). Structure
     // comes from `upeg_core::binding_catalog()`; these keys are its
     // `keys.scope.*` / `keys.cmd.*` labels. Wording follows
-    // docs/ui-ux-surface-contract.md. The coverage test
+    // `upeg_core::keyboard_catalog` module docs. The coverage test
     // `all_cheatsheet_label_keys_exist_in_both_locales` pins
     // completeness against the catalog.
     "keys.title"                   => "Keyboard shortcuts",

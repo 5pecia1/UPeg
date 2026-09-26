@@ -51,6 +51,9 @@ fn validate_approval_surfaces(parsed: &ToolToml) -> Result<ApprovalSurfaces, Loa
             ApprovalSurfacesError::Unknown { position, surface } => {
                 LoadError::UnknownApprovalSurface { position, surface }
             }
+            ApprovalSurfacesError::ExtensionUnsupported { position } => {
+                LoadError::ExtensionApprovalUnsupported { position }
+            }
         }
     })
 }
@@ -166,6 +169,18 @@ mod tests {
                 .contains("cli/tui/desktop/pwa/ext/mcp/http"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn extension_approval_surface_fails_load_because_it_has_no_gesture() {
+        let err = load_error(&format!(
+            "invoker = \"Chain\"\napproval_surfaces = [\"ext\"]\n{APPROVAL_STEP}"
+        ));
+
+        assert!(matches!(
+            err,
+            LoadError::ExtensionApprovalUnsupported { position: 0 }
+        ));
     }
 
     #[test]

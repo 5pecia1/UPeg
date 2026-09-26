@@ -168,7 +168,7 @@ pub const EXECUTION_CONTEXT_CWD: &str = "cwd";
 /// name is always discarded by the runtime's reserved-block wipe. That
 /// makes it the one piece of caller identity a dispatcher may trust,
 /// which is why Chain-step approval authorization is keyed on it
-/// (`docs/architecture/chain.md`).
+/// (`upeg_loader::dispatcher::chain::approval` module docs).
 pub const EXECUTION_CONTEXT_SURFACE: &str = "surface";
 
 /// Key inside the [`EXECUTION_CONTEXT_ARG`] envelope carrying the
@@ -187,7 +187,7 @@ pub const EXECUTION_CONTEXT_APPROVED_STEPS: &str = "approvedSteps";
 /// the runtime writes it and the reserved-block wipe discards whatever a
 /// caller put under this name. It is what lets an authorization decision
 /// say "this *caller*" instead of only "this door"
-/// (`docs/architecture/call-envelope.md`).
+/// (`upeg_runtime::execution` module docs).
 pub const EXECUTION_CONTEXT_PRINCIPAL: &str = "principal";
 
 /// Every surface except MCP — the default for tools imported *from* an

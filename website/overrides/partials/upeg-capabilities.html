@@ -2,7 +2,7 @@
   Landing page capability overview — rendered before the Markdown body of
   docs/index.md on the homepage only (see main.html). Describes the seven
   surfaces and the honest capability boundaries; keep claims aligned with
-  docs/product/identity-and-boundaries.md.
+  docs/index.md.
 -#}
 <section class="upeg-section" aria-labelledby="upeg-surfaces-title">
   <h2 id="upeg-surfaces-title">One Tool, seven surfaces</h2>
@@ -71,8 +71,9 @@
     </li>
     <li>
       <strong>Local-first means the cloud is optional.</strong>
-      Credentials live in the OS keychain, execution logs record metadata
-      only, and the network interface starts on loopback with bearer auth.
+      Credentials live in environment variables or the OS keychain, execution
+      logs record metadata only, and the network interface starts on loopback
+      with bearer auth.
     </li>
     <li>
       <strong>Not a replacement for specialized apps.</strong>
@@ -82,8 +83,8 @@
   </ul>
   <p>
     Full scope rules:
-    <a href="{{ 'product/identity-and-boundaries/' | url }}">product identity and boundaries</a>
+    <a href="{{ '' | url }}">the documentation home</a>
     and
-    <a href="{{ 'product/security-absolutes/' | url }}">security absolutes</a>.
+    <a href="{{ 'architecture/' | url }}#security-absolutes">security absolutes</a>.
   </p>
 </section>

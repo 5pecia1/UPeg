@@ -85,9 +85,13 @@ pub(super) async fn board_tools_call(
 /// cannot disagree about *which ids* a board lists (only the JSON
 /// shape each surface wraps them in differs).
 fn board_json(state: &PegboardState, board: &str) -> Value {
+    board_json_on_surface(state, board, Surface::Http)
+}
+
+pub(super) fn board_json_on_surface(state: &PegboardState, board: &str, surface: Surface) -> Value {
     json!({
         "board": board,
-        "tools": pegboard::board_entries_on_surface_in(state, board, None, Surface::Http)
+        "tools": pegboard::board_entries_on_surface_in(state, board, None, surface)
             .into_iter()
             .map(|(_, tool)| tool.to_json_object("name"))
             .collect::<Vec<_>>(),

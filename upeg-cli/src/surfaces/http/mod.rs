@@ -1,32 +1,52 @@
 //! HTTP surface (PRD §6.8, §5.6, §5.7).
 //!
-//! Axum router shared by every cross-process consumer:
-//!   - REST shape (`/v1/...`) for scripts / browsers / SDK consumers
-//!   - JSON-RPC shape (`/mcp`) for MCP-over-HTTP attachers (incl. the
-//!     `upeg mcp` proxy fallback in §5.7)
-//!   - `/healthz` for liveness probes (unauthenticated by design — used
-//!     by `discovery::read_reachable`)
+//! One axum listener, three shapes: `/v1/*` REST resources for
+//! scripts/browsers/SDKs, `/mcp` JSON-RPC 2.0 (Streamable HTTP — see
+//! [`rpc`], [`mcp_sse`]), and `/healthz` liveness. `/v1/*` is always
+//! served while a host runs — starting the host is the explicit
+//! activation. The route inventory is `GET /v1/openapi.json`, not docs.
 //!
-//! Authentication: every route except `/healthz` requires
-//! `Authorization: Bearer <token>`. Tokens are auto-generated per run
-//! and published to `~/.upeg/server.json` (`discovery::publish`) so
-//! same-OS-user clients auto-attach without UX. Override with
-//! `UPEG_HTTP_TOKEN` or `--token-file <path>` (PRD §5.4).
+//! Response rules: browse routes answer JSON; a Tool call answers
+//! `{ "result": … }`, errors `{ "error": … }` with 400/404/422; a
+//! Board call rejects unpinned Tools and injects `_upeg` plus the
+//! project-manifest path. `/v1/credentials`·`/v1/logs`·`/v1/triggers`
+//! are metadata-only — never secret or argument values. `/healthz`
+//! answers without auth and exposes only name, version, and the
+//! `importsPending`/`mcpImports` counts — never token, ports, upstreams.
 //!
-//! Origin/Host guard: every non-`/healthz` request must come from
-//! loopback (`127.0.0.1`, `::1`, `localhost`), a `chrome-extension://`
-//! popup, or an operator-configured `--cors-origin` web origin (Task
-//! B1) — protects browsers from DNS-rebinding attacks. Non-loopback
-//! binds require explicit `UPEG_HTTP_ALLOW_NON_LOOPBACK=1` consent plus
-//! an injected bearer token (never a generated one), and skip the Origin
-//! check (operator opted in deliberately) — see [`bind_policy`]. The
-//! `cors` submodule's `OriginPolicy` is the single source of truth this
-//! guard and the `tower_http` CORS layer both read.
+//! Streaming: `POST …/stream` answers `application/x-ndjson` — `chunk` /
+//! `dropped` / `result` lines, `seq` gapless per call across both
+//! streams and all chain steps, the last line always `result`, a fixed
+//! per-call byte budget for slow consumers, and body drop =
+//! cancellation. Only `External` produces chunks; other invokers emit
+//! the single `result` line. See [`stream`], [`cancel_on_drop`].
+//!
+//! Authentication: `Authorization: Bearer <token>` on every route but
+//! `/healthz`, compared in constant time. Two token kinds — operator
+//! (from `server.json`, or injected via `UPEG_HTTP_TOKEN`/`--token-file`)
+//! and agent (`UPEG_HTTP_AGENT_TOKENS`) — stamp `_upeg.principal.role`
+//! `operator`/`agent` respectively; an unauthenticated caller is
+//! `agent`. Both pass the bearer gate; only operator may set
+//! `X-Upeg-Origin-Surface` (`cli`/`tui`; anything else behaves as
+//! absent and stamps `http`) or cross a Chain approval barrier. `/mcp`
+//! stamps surface `mcp` always — no header moves it. See
+//! [`origin_surface`], [`crate::infrastructure::auth`].
+//!
+//! Origin/Host + CORS ([`cors`], [`bind_policy`]): allowed by default =
+//! every `chrome-extension://` origin and loopback origins; arbitrary
+//! web origins need an exact-match `--cors-origin` (no wildcards).
+//! `OPTIONS` preflight short-circuits before auth — the data plane
+//! always requires the token. Allowed request headers: `Authorization`,
+//! `Content-Type`, `Mcp-Session-Id`, `X-Upeg-Board`; exposed response
+//! header: `Mcp-Session-Id`; `X-Upeg-Origin-Surface` is never opened to
+//! browsers. Anti-rebinding holds independently of CORS — a disallowed
+//! `Origin` or a non-loopback `Host` is rejected server-side.
+//! Non-loopback binds need `UPEG_HTTP_ALLOW_NON_LOOPBACK=1` plus an
+//! injected (never generated) token.
 //!
 //! Lifecycle: [`serve_with_options`] is the canonical entrypoint;
-//! [`serve`] preserves the iter-pre-tray signature by wrapping it with
-//! defaults. Ephemeral bind (`127.0.0.1:0`) is the default — explicit
-//! `--addr` only matters for non-loopback / fixed-port deployments.
+//! ephemeral bind `127.0.0.1:0` is the default — `--addr` matters only
+//! for non-loopback deployments.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -38,7 +58,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::get,
 };
 use serde_json::{Value, json};
 use upeg_core::Surface;
@@ -223,40 +243,6 @@ pub(crate) fn router_with_tokens(tokens: auth::HostTokens) -> Router {
     })
 }
 
-fn rest_routes() -> Router<HttpState> {
-    Router::new()
-        .route("/v1/toolkits", get(toolkits_list))
-        .route("/v1/toolkits/{toolkit}", get(toolkit_show))
-        .route("/v1/toolkits/{toolkit}/{tool}", get(toolkit_tool_show))
-        .route("/v1/tags", get(tags_list))
-        .route("/v1/tags/{tag}", get(tag_show))
-        .route("/v1/boards", get(boards_list))
-        .route("/v1/boards/{board}", get(board_show))
-        .route("/v1/boards/{board}/tools/{id}", post(board_tools_call))
-        .route(
-            "/v1/boards/{board}/tools/{id}/stream",
-            post(stream::board_tools_call_stream),
-        )
-        .route("/v1/credentials", get(credentials_list))
-        .route("/v1/logs", get(logs_list))
-        .route("/v1/tools", get(tools_list))
-        .route("/v1/tools/{id}/readiness", get(readiness::tool_readiness))
-        .route("/v1/tools/{id}", post(tools_call))
-        // Sibling path rather than a `?stream=1` flag on the route
-        // above: the two answer with different media types and different
-        // status-code semantics, so they are different contracts and the
-        // OpenAPI document says so.
-        .route("/v1/tools/{id}/stream", post(stream::tools_call_stream))
-        .route("/v1/triggers", get(triggers_list))
-        .route("/v1/trigger/{id}", post(trigger_call))
-        .route("/v1/clients", get(clients_list))
-        .route("/v1/clients/heartbeat", post(clients_heartbeat))
-        .route(
-            "/v1/openapi.json",
-            get(crate::surfaces::http::openapi::openapi_spec),
-        )
-}
-
 #[derive(serde::Deserialize)]
 struct HeartbeatBody {
     client_id: String,
@@ -423,8 +409,8 @@ const PRODUCT_NAME: &str = "upeg";
 /// `/mcp`'s `tools/list` are short of the imported tools. This is the
 /// channel for clients that poll; one that holds a `GET /mcp` stream is
 /// *told* when the window closes instead
-/// (docs/architecture/mcp.md). Counts only, never upstream names: the
-/// route is unauthenticated.
+/// (`upeg_cli::surfaces` module docs). Counts only, never upstream
+/// names: the route is unauthenticated.
 async fn healthz() -> Json<Value> {
     Json(healthz_body(mcp_imports::import_phase()))
 }
@@ -694,11 +680,11 @@ fn dispatch_http_tool_with_context(
     context: ExecutionContext,
     trigger: Option<String>,
 ) -> (StatusCode, Json<Value>) {
-    let surface = context.surface();
     let args = match parse_tool_call_body(&body) {
         Ok(args) => args,
         Err(response) => return response,
     };
+    let surface = context.surface();
     match app::dispatch_tool_call(&id, args, &context, trigger.as_deref()) {
         Outcome::Success(success) => {
             let text = crate::domain::execution::dispatch::success_primary_text(&success);
@@ -963,9 +949,12 @@ fn publish_discovery_allowed(non_loopback: bool) -> bool {
 }
 
 mod boards;
+mod ext_boards;
 pub(crate) mod openapi;
+mod routes;
 mod rpc;
 mod stream;
+use routes::rest_routes;
 
 #[cfg(test)]
 mod identity_parity_tests;

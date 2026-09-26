@@ -35,6 +35,7 @@ but the three areas above are the priority.
 
 ## Supported versions
 
-Security fixes are provided for the **latest published release** only.
-Backports to older versions are not guaranteed — please run the latest
-release or snapshot.
+Before the first versioned release, security fixes are provided for the
+latest `main` snapshot. Once versioned releases begin, fixes are provided
+for the **latest published release** only. Backports to older versions are
+not guaranteed.

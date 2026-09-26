@@ -5,7 +5,7 @@
 /// surfaces' "yes" the Chain honors ([ToolDto.approvalSurfaces]). Both
 /// facts are on the DTO *before* dispatch precisely so the question can
 /// be asked in front of the run instead of arriving as a failed result
-/// the person cannot answer. See `docs/architecture/chain.md`.
+/// the person cannot answer. See `upeg_runtime::approval` module docs.
 ///
 /// Two outcomes, and the difference matters:
 ///

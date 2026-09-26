@@ -28,16 +28,17 @@ In detail, for a contribution:
    Actions tab they run **Publish UPeg**. That input-free manual workflow
    verifies the export, pushes an export branch to this repository, and
    opens an ordinary pull request, which merges into `main` normally.
-4. Your change arrives with that export PR, and the maintainer closes your
-   PR with a link to it. Your PR shows as **Closed**, not Merged — that is
-   the expected outcome for contributor PRs, not a rejection.
+4. After the export PR containing your change merges, the maintainer closes
+   your original PR with a link to that export PR. Your PR shows as
+   **Closed**, not Merged — that is the expected outcome for contributor PRs,
+   not a rejection.
 
 The development history itself is not mirrored — each export carries one
 squashed, verified commit.
 
-Credit is preserved: the exported commit keeps the change itself, your PR
-retains your authorship record, and a `GitOrigin-RevId`-style link ties
-the published commit back to the review. Sign your commits with
+The exported commit is authored and committed by the publication bot and
+records its private source revision in its message. Your public contributor
+PR retains its authorship record. Sign your commits with
 `git commit -s` — the
 [Developer Certificate of Origin](https://developercertificate.org/) —
 and keep any copyright notices your change requires.
@@ -51,8 +52,9 @@ Small tips that make review/import smoother:
 ## Verifying locally
 
 Local verification and public CI share `scripts/verify_public.sh`
-(Rust 1.92.0, Flutter 3.44.0, cargo-deny 0.18.9, just 1.51.0, plus the
-WASM toolchain). Native package dependencies and install steps are in
+(Rust 1.92.0, Flutter 3.44.0, Node.js 24, FRB codegen 2.12.0,
+cargo-expand 1.0.126, cargo-deny 0.18.9, just 1.51.0, plus the WASM
+toolchain). Native package dependencies and install steps are in
 `.github/actions/verify/action.yml`.
 
 ```bash
@@ -64,10 +66,11 @@ bash scripts/verify_public.sh flutter
 bash scripts/verify_public.sh licenses
 ```
 
-The `rust` lane covers the workspace build, fmt, clippy, and tests;
-`wasm` runs per-target clippy; `flutter` checks the lockfile, analyze,
-tests, and Linux/web builds; `licenses` runs cargo-deny. `just check` is
-the cheaper pre-commit gate. See the
+The `rust` lane covers packaging shell tests, workspace build, fmt, clippy,
+tests, interface inventory, toolkit schema, and Chrome extension Node tests;
+`wasm` runs per-target clippy; `flutter` checks the lockfile, FRB binding
+drift, analyze, tests, and Linux/web builds; `licenses` runs cargo-deny.
+`just check` is the cheaper pre-commit gate. See the
 [development guide](https://github.com/5pecia1/UPeg/blob/main/docs/guides/development.md).
 
 ## Conventions

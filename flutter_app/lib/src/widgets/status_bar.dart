@@ -112,7 +112,7 @@ class StatusBar extends ConsumerWidget {
   ///
   /// `loading` wins over the count because during the embedded host's
   /// async import window the count is not "0 imports" — it is "not in
-  /// yet" (docs/architecture/mcp.md).
+  /// yet" (`upeg_cli::infrastructure::mcp_imports` module docs).
   String? _importsLabel(WidgetRef ref, StatusSnapshotDto status) {
     switch (status.mcpImportPhase) {
       case McpImportPhaseDto.loading:

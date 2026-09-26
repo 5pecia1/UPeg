@@ -366,7 +366,7 @@ void main() {
     ) async {
       // The embedded host starts serving before it loads imports. During
       // that window a count of 0 means "not in yet", not "no imports",
-      // so the chip must say so (docs/architecture/mcp.md).
+      // so the chip must say so (`upeg_cli::infrastructure::mcp_imports` module docs).
       final container = _scope(
         boards: const <BoardDto>[_dev],
         layouts: const <String, List<PlacementDto>>{},

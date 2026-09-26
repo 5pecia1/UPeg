@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-22T05:38:31Z",
+  "generatedAt": "2026-09-24T16:31:07Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3406,
+      "total": 3427,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -1409,6 +1409,13 @@
         },
         {
           "className": "infrastructure::attach::http_transport::tests",
+          "methodName": "changed_discovery_record_sends_no_bearer_request",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::http_transport::tests::changed_discovery_record_sends_no_bearer_request"
+        },
+        {
+          "className": "infrastructure::attach::http_transport::tests",
           "methodName": "http_response_allows_the_exact_body_limit",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1521,6 +1528,13 @@
         },
         {
           "className": "infrastructure::attach::http_transport::tests",
+          "methodName": "ipv6_attach_uses_a_bracketed_socket_and_host_authority",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::http_transport::tests::ipv6_attach_uses_a_bracketed_socket_and_host_authority"
+        },
+        {
+          "className": "infrastructure::attach::http_transport::tests",
           "methodName": "real_tcp_attach_returns_a_well_formed_json_response",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1567,6 +1581,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::attach::stream::tests::host_unaware_of_the_streaming_route_falls_back_to_buffered_path"
+        },
+        {
+          "className": "infrastructure::attach::stream::tests",
+          "methodName": "ipv6_plain_board_and_stream_attach_use_bracketed_authority",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::stream::tests::ipv6_plain_board_and_stream_attach_use_bracketed_authority"
         },
         {
           "className": "infrastructure::attach::stream::tests",
@@ -1759,6 +1780,13 @@
         },
         {
           "className": "infrastructure::discovery::tests",
+          "methodName": "dead_record_cannot_attach_to_an_unrelated_http_listener",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::dead_record_cannot_attach_to_an_unrelated_http_listener"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
           "methodName": "discovery_file_is_owner_only_from_the_instant_it_is_created",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1791,6 +1819,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::discovery::tests::http_response_prefix_read_survives_interrupted_and_partial_reads"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "live_process_timeout_preserves_the_discovery_file",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::live_process_timeout_preserves_the_discovery_file"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "live_process_with_unresponsive_endpoint_keeps_its_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::live_process_with_unresponsive_endpoint_keeps_its_record"
         },
         {
           "className": "infrastructure::discovery::tests",
@@ -1833,6 +1875,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::discovery::tests::socket_addr_str_brackets_ipv6_literals"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "stale_cleanup_and_attach_recheck_preserve_a_replacement_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::stale_cleanup_and_attach_recheck_preserve_a_replacement_record"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "unknown_process_does_not_probe_or_reap_the_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::unknown_process_does_not_probe_or_reap_the_record"
         },
         {
           "className": "infrastructure::lifecycle::tests",
@@ -1882,6 +1938,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::lifecycle::tests::format_status_text_stale_mentions_staleness_and_pid"
+        },
+        {
+          "className": "infrastructure::lifecycle::tests",
+          "methodName": "format_status_text_unreachable_says_record_is_retained",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::lifecycle::tests::format_status_text_unreachable_says_record_is_retained"
         },
         {
           "className": "infrastructure::lifecycle::tests",
@@ -2218,6 +2281,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::process::tests::pid_alive_returns_true_for_own_pid"
+        },
+        {
+          "className": "infrastructure::process::tests",
+          "methodName": "process_probe_distinguishes_live_dead_and_unknown",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::process::tests::process_probe_distinguishes_live_dead_and_unknown"
         },
         {
           "className": "infrastructure::process::tests",
@@ -2582,6 +2652,27 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::http::cors::tests::wildcard_origins_are_rejected_in_configuration"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "extension_adapter_lists_and_calls_only_extension_visible_pins",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::extension_adapter_lists_and_calls_only_extension_visible_pins"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "extension_scrub_removes_both_approval_levers_without_losing_cwd",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::extension_scrub_removes_both_approval_levers_without_losing_cwd"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "metadata_exposes_declared_literal_presets_but_not_files_or_backend_values",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::metadata_exposes_declared_literal_presets_but_not_files_or_backend_values"
         },
         {
           "className": "surfaces::http::identity_parity_tests",
@@ -3740,6 +3831,20 @@
         },
         {
           "className": "surfaces::mcp::proxy::tests",
+          "methodName": "changed_discovery_notification_sends_no_reply",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::changed_discovery_notification_sends_no_reply"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "changed_discovery_returns_mcp_error_without_local_fallback",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::changed_discovery_returns_mcp_error_without_local_fallback"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
           "methodName": "cwd_stamp_leaves_non_object_arguments_untouched",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -3758,6 +3863,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::mcp::proxy::tests::cwd_stamp_promotes_missing_arguments_to_object"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "lost_host_response_never_replays_a_tool_call_locally",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::lost_host_response_never_replays_a_tool_call_locally"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "lost_host_response_tool_notification_sends_no_reply",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::lost_host_response_tool_notification_sends_no_reply"
         },
         {
           "className": "surfaces::mcp::proxy::tests",
@@ -12238,6 +12357,13 @@
         },
         {
           "className": "dispatcher::chain::approval::tests",
+          "methodName": "extension_surface_never_approves_even_when_a_hand_built_policy_names_it",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "dispatcher::chain::approval::tests::extension_surface_never_approves_even_when_a_hand_built_policy_names_it"
+        },
+        {
+          "className": "dispatcher::chain::approval::tests",
           "methodName": "local_principal_may_approve_when_chain_authorizes_surface",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -13246,6 +13372,13 @@
         },
         {
           "className": "parse::chain::tests",
+          "methodName": "extension_approval_surface_fails_load_because_it_has_no_gesture",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "parse::chain::tests::extension_approval_surface_fails_load_because_it_has_no_gesture"
+        },
+        {
+          "className": "parse::chain::tests",
           "methodName": "unknown_approval_surfaces_entry_fails_load",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -14125,6 +14258,13 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "tests::dispatcher_chain_nested::outputless_inner_chain_makes_outer_summary_primary"
+        },
+        {
+          "className": "tests::dispatcher_chain_nested",
+          "methodName": "step_args_cannot_approve_a_nested_gate_without_parent_approval",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher_chain_nested::step_args_cannot_approve_a_nested_gate_without_parent_approval"
         },
         {
           "className": "tests::dispatcher_chain_nested",
@@ -16778,6 +16918,13 @@
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "execution::tests::principal_reported_by_authenticating_surface_overrides_surface_default"
+        },
+        {
+          "className": "execution::tests",
+          "methodName": "sub_call_drops_child_approval_and_cwd_when_parent_did_not_supply_them",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "execution::tests::sub_call_drops_child_approval_and_cwd_when_parent_did_not_supply_them"
         },
         {
           "className": "execution::tests",

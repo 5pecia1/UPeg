@@ -9,7 +9,10 @@ use std::io::{ErrorKind, Read, Write as _};
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
-use super::super::discovery::{HEALTH_CONNECT_TIMEOUT_MS, HEALTH_READ_TIMEOUT_MS, parse_endpoint};
+use super::super::discovery::{
+    DiscoveredHost, HEALTH_CONNECT_TIMEOUT_MS, HEALTH_READ_TIMEOUT_MS, parse_endpoint,
+    socket_addr_str,
+};
 
 mod http_response;
 
@@ -62,8 +65,10 @@ struct Request<'a> {
     token: Option<&'a str>,
     extra_headers: &'a [(&'a str, &'a str)],
     body: &'a str,
+    discovered: Option<&'a DiscoveredHost>,
 }
 
+#[cfg(test)]
 pub(super) fn request_json(
     method: &str,
     full_endpoint: &str,
@@ -73,6 +78,7 @@ pub(super) fn request_json(
     request(method, full_endpoint, token, &[], body)
 }
 
+#[cfg(test)]
 pub(super) fn post_json(
     full_endpoint: &str,
     token: Option<&str>,
@@ -81,6 +87,7 @@ pub(super) fn post_json(
     request_json("POST", full_endpoint, token, body)
 }
 
+#[cfg(test)]
 pub(super) fn request(
     method: &str,
     full_endpoint: &str,
@@ -115,9 +122,31 @@ pub(super) fn request_within(
             token,
             extra_headers,
             body,
+            discovered: None,
         },
         ResponseLimits::for_untrusted_output()?,
         budget,
+    )
+}
+
+pub(super) fn request_discovered(
+    method: &str,
+    full_endpoint: &str,
+    host: &DiscoveredHost,
+    extra_headers: &[(&str, &str)],
+    body: &str,
+) -> std::io::Result<(u16, String)> {
+    execute(
+        Request {
+            method,
+            full_endpoint,
+            token: Some(&host.token),
+            extra_headers,
+            body,
+            discovered: Some(host),
+        },
+        ResponseLimits::for_untrusted_output()?,
+        RequestBudget::DISPATCH,
     )
 }
 
@@ -144,16 +173,20 @@ fn connect_and_send(request: &Request<'_>, budget: RequestBudget) -> std::io::Re
         )
     })?;
     let request_path = if path.is_empty() { "/".into() } else { path };
-    let addr = format!("{host}:{port}")
+    let authority = socket_addr_str(&host, port);
+    let addr = authority
         .parse()
         .map_err(|error| std::io::Error::new(ErrorKind::InvalidInput, format!("addr: {error}")))?;
     let mut stream = TcpStream::connect_timeout(&addr, budget.connect)?;
     stream.set_write_timeout(Some(budget.response))?;
+    if let Some(discovered) = request.discovered {
+        discovered.verify()?;
+    }
 
     let mut wire =
         String::with_capacity(INITIAL_REQUEST_CAPACITY_BYTES.saturating_add(request.body.len()));
     let _ = write!(wire, "{} {request_path} HTTP/1.0\r\n", request.method);
-    let _ = write!(wire, "Host: {host}:{port}\r\n");
+    let _ = write!(wire, "Host: {authority}\r\n");
     let _ = write!(wire, "Content-Type: application/json\r\n");
     let _ = write!(wire, "Content-Length: {}\r\n", request.body.len());
     if let Some(token) = request.token {
@@ -208,14 +241,12 @@ impl OpenStream {
     }
 }
 
-/// [`connect_and_send`] plus reading exactly the response head.
-///
-/// Answers as soon as the head is complete, so the caller owns every
-/// body byte from there on.
-pub(super) fn open_stream(
+/// Open the streaming response after the same discovery recheck used by
+/// buffered requests. The caller owns each body byte from this point on.
+pub(super) fn open_stream_discovered(
     method: &str,
     full_endpoint: &str,
-    token: Option<&str>,
+    host: &DiscoveredHost,
     extra_headers: &[(&str, &str)],
     body: &str,
     budget: RequestBudget,
@@ -223,9 +254,10 @@ pub(super) fn open_stream(
     let request = Request {
         method,
         full_endpoint,
-        token,
+        token: Some(&host.token),
         extra_headers,
         body,
+        discovered: Some(host),
     };
     let mut stream = connect_and_send(&request, budget)?;
     let (status, prefix) = read_response_head(&mut stream, budget.response)?;

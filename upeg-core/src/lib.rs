@@ -5,6 +5,7 @@
 //! whose manifest (`ToolMeta`) any surface (CLI/TUI/Desktop/PWA/Ext/MCP/HTTP)
 //! consumes uniformly. This crate holds only the pure-data layer — UI
 //! rendering, IPC, and runtime registries live in surface-specific crates.
+//! The closed I/O type set lives in [`input`] module docs.
 
 #![cfg_attr(
     test,

@@ -22,6 +22,24 @@
 //! anymore — its pin tile is rendered inline (`bodyOverride` slot) and
 //! never requires a click/page navigation. The Rust dispatcher handles
 //! headless invocations through `ControlledEmbedBackend`.
+//!
+//! Result presentation follows the same inline-first rule: a successful
+//! run of a pin already on the visible board renders its canonical result
+//! in the pin body — no toast. Snackbars are reserved for run failures
+//! and for activated tools with no on-board placement to render into
+//! (palette hits, deep links, off-board tools). A passive `Embed` already
+//! pinned on the visible board focuses its inline body on activation
+//! instead of navigating to `EmbedPage`.
+//!
+//! Honest provider state: a `Live` pin whose `Http` invoker has a
+//! `Static` source and no configured provider shows a "setup required"
+//! badge instead of a runnable affordance, and activating it explains the
+//! missing provider rather than failing generically. The rule keys off
+//! invoker/source metadata, so any future same-shaped tool is honest by
+//! construction. (`memo.create` is a metadata-declared `Shortcut` action
+//! — chord `Cmd+Shift+N` — that creates a memo and focuses the on-board
+//! notepad; `memo.scratch` is a `Live` pin whose inline notepad is backed
+//! by the same store.)
 
 use upeg_core::PinKind;
 use upeg_runtime::{embed_url_for, toolbox_tool};

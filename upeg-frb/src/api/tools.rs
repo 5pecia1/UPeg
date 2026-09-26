@@ -104,7 +104,7 @@ pub struct ToolDto {
     /// in front of the run. Dispatching without it is not unsafe — the
     /// gated step refuses with `approval_required` and nothing runs — but
     /// it is a dead end for the person, who has no way to answer from a
-    /// failed result. See `docs/architecture/chain.md`.
+    /// failed result. See `upeg_runtime::approval`'s module docs.
     pub requires_approval: bool,
     /// Surface labels (`cli`, `tui`, `desktop`, …) whose approval this
     /// tool honors — the manifest's `approval_surfaces` or the default.
@@ -872,7 +872,7 @@ pub async fn dispatch_tool_async(
 }
 
 /// Reserved call argument that approves every gated step of a Chain in
-/// one call (`docs/architecture/chain.md`).
+/// one call (`upeg_runtime::execution` module docs).
 ///
 /// A GUI surface never lets it arrive as data. Dart passes a typed
 /// `approve` flag and Rust is the only writer of the key — see

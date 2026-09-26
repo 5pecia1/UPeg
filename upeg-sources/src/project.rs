@@ -12,11 +12,91 @@
 //! # Security: the upward walk is bounded by `$HOME`
 //!
 //! A project manifest can declare `invoker = "External"` tools that run
-//! arbitrary commands with no consent prompt (docs/product/security-absolutes.md).
+//! arbitrary commands with no consent prompt (docs/architecture.md#security-absolutes).
 //! Detection therefore never walks above `$HOME`: an ancestor `upeg.toml`
 //! outside the user's home directory (e.g. a world-writable `/tmp/x/upeg.toml`
 //! picked up just because the user `cd`ed into `/tmp/x/anything`) must never
-//! be auto-loaded. See [`SearchScope`] and [`detect_project_manifest_from`].
+//! be auto-loaded. See `SearchScope` and [`detect_project_manifest_from`].
+//! Concretely: cwd itself is always checked; inside `$HOME` the walk climbs
+//! only through ancestors inside `$HOME` (`$HOME` included); outside `$HOME`
+//! no ancestors are walked and `$HOME` itself is the single fallback check;
+//! with no `$HOME` only cwd is checked.
+//!
+//! # `UPEG_PROJECT_MANIFEST_PATH` — detection override
+//!
+//! | Value | Behavior |
+//! |---|---|
+//! | unset / empty | `Detect` — the walk above |
+//! | `off` (case-insensitive) | `Disabled` — never loads |
+//! | absolute path | `Explicit` — that path only; a missing file means "no manifest", no fallback to detection |
+//! | relative path | invalid — a one-line stderr warning, falls back to `Detect` |
+//!
+//! (`UPEG_PROJECT_MANIFEST`, no `_PATH`, is a different variable — an
+//! *output* injected into `External` children; never interchangeable.)
+//!
+//! # Consent notice
+//!
+//! "Which file is trusted" and the load tally are about the same file,
+//! so they merge into one stderr line per process (upeg-cli's
+//! `project_manifest_summary_line`): detected + tools → `upeg: loaded
+//! project manifest <path> (N tool(s), M failed)`; detected + none →
+//! without the tally; env-override + tools → `upeg: loaded N project
+//! tool(s) from <path> (M failed)`; env-override + none → silence (the
+//! path was already named knowingly). `--quiet` suppresses it.
+//!
+//! # Precedence
+//!
+//! Built-in static Tools are immutable; `~/.upeg/toolkits` runtime
+//! Toolkits load first; the project `upeg.toml` loads next and may
+//! *replace* earlier runtime metadata/dispatchers under the same id;
+//! shadowing a built-in id is rejected.
+//!
+//! # Project boards — `[[boards]]`
+//!
+//! A project manifest may declare boards; a Tool's `boards = [...]`
+//! refers to them, and a board exists only while the manifest is
+//! detected. `[[boards]]` in `~/.upeg/toolkits/*.toml` fails that whole
+//! file's registration (`BoardsOutsideProjectManifest`) — a global
+//! Toolkit has no project to scope to. Declaration rules: `id` is
+//! canonical and non-empty, cannot contain `:` (the store-key namespace
+//! separator), cannot shadow a built-in board
+//! (`upeg_core::BUILTIN_BOARDS`), and cannot repeat inside one manifest.
+//!
+//! A project board is enumerated on every surface only while detected —
+//! outside the repository it is "unknown board" (HTTP 404). Its rows
+//! persist under `project:<manifest-path-digest>:<board-id>` — a stable
+//! 64-bit digest of the manifest's absolute path
+//! (`upeg_core::ProjectBoardNamespace`) — so same-id boards in different
+//! projects or checkouts never share pins, and moving the directory
+//! loses them (the path is the only identity readable before parsing).
+//! Store sweeps touch only rows the manifest could write; another
+//! project's namespace is neither read nor erased. Inside the project a
+//! project board shadows a same-id global board (the global's rows are
+//! untouched — leaving the project restores them), and a
+//! manifest-declared board cannot be deleted.
+//!
+//! # Injected context, provenance, dispatch location
+//!
+//! Board-scoped calls inject `_upeg.{board, boardEnv, projectManifest}`
+//! (see `upeg_runtime::execution`). Project-manifest Tools carry
+//! `source = "project-manifest:<path>"` provenance (`upeg tool list
+//! --json`, `/v1/tools`, MCP `tools/list`), which drives the attach
+//! decision on CLI/TUI/MCP-proxy: a `project-manifest:*` Tool always
+//! runs **in-process** even while a host is up — the host resolved its
+//! own `upeg.toml`, or none, and does not know these Tools. The same
+//! applies one level up: `upeg board <b> call` on a project-declared
+//! board does not auto-attach (the host lacks that board — local is the
+//! only path that can succeed). Other Tools attach with the caller's
+//! absolute cwd stamped into `_upeg.cwd` so the run happens where the
+//! call was made. The `upeg mcp` proxy applies the same split and
+//! merges project Tools into the host's `tools/list`, deduped by name.
+//!
+//! # Diagnostics
+//!
+//! `upeg doctor` and `upeg host status` report the detected manifest
+//! path (`none` when absent) and the override state
+//! (`detect`/`off`/`explicit`) in text and JSON, reusing this module's
+//! verdict logic so reports cannot diverge from detection.
 
 use std::path::{Path, PathBuf};
 
