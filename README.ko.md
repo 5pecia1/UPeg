@@ -36,7 +36,7 @@ upeg은 아직 초기 단계다.
 - **다운로드 구성은 릴리스마다 다르다.** 게시된 패키지는
   [GitHub Releases](https://github.com/5pecia1/UPeg/releases)에서 확인할 수
   있다. 패키지는 서명되지 않았으며, 아래의 소스 빌드도 사용할 수 있다.
-  v0.5.0 Linux 릴리스 산출물은 x86_64·ARM64 CLI 아카이브, x86_64 AppImage와
+  v0.5.1 Linux 릴리스 산출물은 x86_64·ARM64 CLI 아카이브, x86_64 AppImage와
   Debian 패키지, web 아카이브를 제공한다. macOS와 Windows 바이너리는 포함하지
   않는다.
 - **이 저장소는 공개 미러다.** 개발은 비공개 소스 저장소에서 이뤄지고,

@@ -37,7 +37,7 @@ upeg is early-stage:
 
 - **Downloads vary by release.** See [GitHub Releases](https://github.com/5pecia1/UPeg/releases)
   for published packages. They are unsigned; building from source (below)
-  remains an alternative. The v0.5.0 Linux release artifacts contain x86_64
+  remains an alternative. The v0.5.1 Linux release artifacts contain x86_64
   and ARM64 CLI archives, an x86_64 AppImage and Debian package, and a web
   archive. It does not include macOS or Windows binaries.
 - **This repository is a public mirror.** Development happens in a private

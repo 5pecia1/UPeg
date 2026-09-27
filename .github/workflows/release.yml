@@ -1,4 +1,4 @@
-# Public release build — manual dispatch on main only.
+# Public release build — native runs manually; trusted main controls automatic mirrors.
 #
 # `native` builds public source. `mirror` verifies and publishes the exact
 # payload already staged in this repository as a draft release by the bridge.
@@ -10,6 +10,8 @@
 # `continuous` downloads. Action pins match .github/workflows/ci.yml.
 name: release
 on:
+  repository_dispatch:
+    types: [upeg_release_mirror]
   workflow_dispatch:
     inputs:
       mode:
@@ -37,7 +39,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag }}
+  group: ${{ github.workflow }}-${{ inputs.tag || github.event.client_payload.tag }}
   cancel-in-progress: false
 env:
   RUST_VERSION: '1.92.0'
@@ -50,7 +52,7 @@ env:
   # AppImage type2 runtime, release tag 20251108.
   APPIMAGE_RUNTIME_TAG: '20251108'
   APPIMAGE_RUNTIME_SHA256: '2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d'
-  RELEASE_TAG: ${{ inputs.tag }}
+  RELEASE_TAG: ${{ inputs.tag || github.event.client_payload.tag }}
 jobs:
   preflight:
     name: preflight
@@ -62,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.mode == 'mirror' && inputs.public_sha || github.sha }}
+          ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.public_sha || inputs.mode == 'mirror' && inputs.public_sha || github.sha }}
           persist-credentials: false
       - name: Check native release App configuration
         if: inputs.mode == 'native'
@@ -76,10 +78,10 @@ jobs:
         id: resolve
         env:
           REF: ${{ github.ref }}
-          MODE: ${{ inputs.mode }}
-          PUBLIC_SHA: ${{ inputs.public_sha }}
-          DRAFT_ID: ${{ inputs.draft_id }}
-          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          MODE: ${{ github.event_name == 'repository_dispatch' && 'mirror' || inputs.mode }}
+          PUBLIC_SHA: ${{ inputs.public_sha || github.event.client_payload.public_sha }}
+          DRAFT_ID: ${{ inputs.draft_id || github.event.client_payload.draft_id }}
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 || github.event.client_payload.manifest_sha256 }}
         run: |
           set -euo pipefail
           [ "$REF" = "refs/heads/main" ] \
@@ -400,7 +402,7 @@ jobs:
           retention-days: 7
 
   release-ci:
-    name: release-${{ inputs.mode }}-${{ matrix.lane }}
+    name: release-${{ github.event_name == 'repository_dispatch' && 'mirror' || inputs.mode }}-${{ matrix.lane }}
     needs: preflight
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 120
@@ -420,16 +422,16 @@ jobs:
   mirror-publish:
     name: verify and finalize mirror release
     needs: [preflight, release-ci]
-    if: inputs.mode == 'mirror'
+    if: inputs.mode == 'mirror' || github.event_name == 'repository_dispatch'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 20
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_TAG: ${{ inputs.tag || github.event.client_payload.tag }}
       PUBLIC_SHA: ${{ needs.preflight.outputs.public_sha }}
-      DRAFT_ID: ${{ inputs.draft_id }}
-      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+      DRAFT_ID: ${{ inputs.draft_id || github.event.client_payload.draft_id }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 || github.event.client_payload.manifest_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
