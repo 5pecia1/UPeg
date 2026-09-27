@@ -8,6 +8,9 @@ section.
 
 - Adds project context from `.upeg` and shared diagnostics.
 - Supports independent tool instances on boards.
+
+## v0.5.1
+
 - Mirrors verified release assets and their v2 manifest to the public
   repository.
 
