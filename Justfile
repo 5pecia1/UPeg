@@ -887,9 +887,14 @@ package-macos-dmg: flutter-build-macos
 	cp -a "flutter_app/build/macos/Build/Products/Release/." "$work/dmg/"
 	bash packaging/release-files.sh stage "$work/dmg/licenses"
 	version="$(bash packaging/release-files.sh version)"
-	create-dmg --overwrite \
+	dmg="$out/upeg-${version}.dmg"
+	if [[ -e "$dmg" || -L "$dmg" ]]; then
+	  echo "error: DMG output already exists: $dmg" >&2
+	  exit 1
+	fi
+	create-dmg \
 	    --volname "upeg" \
-	    "$out/upeg-${version}.dmg" \
+	    "$dmg" \
 	    "$work/dmg"
 
 # Windows MSIX via msix Dart pub global. Requires: just flutter-build-windows on Windows host.

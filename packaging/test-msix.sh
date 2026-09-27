@@ -24,6 +24,10 @@ set -euo pipefail
 out="$5"
 [ -d "$out" ] || exit 92
 case "$out" in "$UPEG_SOURCE_ROOT/flutter_app/build/windows/x64/runner/Release"/*) exit 93 ;; esac
+[ "$6" = --sign-msix ] && [ "$7" = false ] || exit 94
+[ "$8" = --install-certificate ] && [ "$9" = false ] || exit 95
+[ "${10}" = --build-windows ] && [ "${11}" = false ] || exit 96
+[ "$#" -eq 11 ] || exit 97
 case "$MSIX_TEST_MODE" in
   zero) ;;
   one) printf 'new package' > "$out/current.msix" ;;

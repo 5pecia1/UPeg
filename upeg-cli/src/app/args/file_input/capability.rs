@@ -18,8 +18,8 @@ pub(super) enum OpenedInput {
 }
 
 pub(super) struct OpenedFile {
-    pub(super) file: std::fs::File,
-    pub(super) metadata: std::fs::Metadata,
+    pub(super) file: cap_std::fs::File,
+    pub(super) metadata: Metadata,
 }
 
 pub(super) fn open_input_nofollow(path: &Path) -> io::Result<OpenedInput> {
@@ -81,9 +81,10 @@ fn open_file_nofollow(
     validate_identity(inspected, &opened, &current)?;
     #[cfg(unix)]
     clear_nonblocking(&file)?;
-    let file = file.into_std();
-    let metadata = file.metadata()?;
-    Ok(OpenedFile { file, metadata })
+    Ok(OpenedFile {
+        file,
+        metadata: opened,
+    })
 }
 
 #[cfg(unix)]

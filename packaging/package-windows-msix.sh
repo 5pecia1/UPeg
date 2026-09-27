@@ -20,7 +20,8 @@ msix_output="$run_dir"
 if command -v cygpath >/dev/null 2>&1; then
   msix_output="$(cygpath -w "$run_dir")"
 fi
-(cd "$APP" && flutter pub run msix:create --output-path "$msix_output")
+(cd "$APP" && flutter pub run msix:create --output-path "$msix_output" \
+  --sign-msix false --install-certificate false --build-windows false)
 
 mapfile -d '' packages < <(find "$run_dir" -maxdepth 1 -type f -name '*.msix' -print0)
 if [ "${#packages[@]}" -ne 1 ] || [ ! -s "${packages[0]:-}" ]; then

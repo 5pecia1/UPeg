@@ -242,6 +242,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --release -p upeg-cli --bin upeg --target "$TARGET"
+          cargo test --release -p upeg-cli --lib app::args::file_input --target "$TARGET"
           just smoke-bin "./target/$TARGET/release/upeg.exe"
           just native-toolkit-smoke "./target/$TARGET/release/upeg.exe" "$TARGET"
       - name: Stage archive
@@ -379,7 +380,6 @@ jobs:
       UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
       UPEG_REPO: ${{ github.repository }}
       UPEG_PUBLIC_RELEASE: 1
-      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-aarch64-apple-darwin-catalog.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -482,6 +482,7 @@ jobs:
           - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
           - { os: macos-14, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
