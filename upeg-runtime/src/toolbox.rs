@@ -89,6 +89,8 @@ struct RuntimeToolEntry {
 static TOOLBOX_TOOLS: std::sync::OnceLock<std::sync::Mutex<Vec<RuntimeToolEntry>>> =
     std::sync::OnceLock::new();
 static INVENTORY_TOOLS: std::sync::OnceLock<Vec<ToolMeta>> = std::sync::OnceLock::new();
+static CATALOG_BUILTIN_TOOLS: std::sync::OnceLock<std::sync::Mutex<Vec<&'static ToolMeta>>> =
+    std::sync::OnceLock::new();
 static TOOLBOX_TOOLKITS: std::sync::OnceLock<std::sync::Mutex<Vec<&'static ToolkitMeta>>> =
     std::sync::OnceLock::new();
 static BOARD_CONTEXTS: std::sync::OnceLock<
@@ -99,6 +101,26 @@ static NEXT_RUNTIME_TOOL_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 fn runtime_tools_lock() -> &'static std::sync::Mutex<Vec<RuntimeToolEntry>> {
     TOOLBOX_TOOLS.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+fn catalog_builtin_tools_lock() -> &'static std::sync::Mutex<Vec<&'static ToolMeta>> {
+    CATALOG_BUILTIN_TOOLS.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// Register trusted generated built-in metadata without treating it as a
+/// user runtime source. Plugin collision and project shadow checks use this
+/// same built-in tier as link-time inventory entries.
+pub fn toolbox_add_builtin_catalog_tool(meta: ToolMeta) {
+    meta.assert_valid();
+    if inventory_tools().iter().any(|entry| entry.id == meta.id) {
+        return;
+    }
+    let mut guard = catalog_builtin_tools_lock()
+        .lock()
+        .expect("catalog builtin toolbox poisoned");
+    if !guard.iter().any(|entry| entry.id == meta.id) {
+        guard.push(Box::leak(Box::new(meta)));
+    }
 }
 
 fn inventory_tools() -> &'static [ToolMeta] {
@@ -520,8 +542,13 @@ pub fn toolbox_tools() -> impl Iterator<Item = &'static ToolMeta> {
         .lock()
         .map(|guard| guard.iter().map(|entry| entry.meta).collect())
         .unwrap_or_default();
+    let builtin_snapshot: Vec<&'static ToolMeta> = catalog_builtin_tools_lock()
+        .lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_default();
     inventory_tools()
         .iter()
+        .chain(builtin_snapshot)
         .chain(runtime_snapshot)
         .filter(|meta| !crate::project_scope::is_project_tool_blocked(meta.id))
         .inspect(move |meta| {
@@ -539,6 +566,14 @@ pub fn toolbox_registered_tool(id: &str) -> Option<&'static ToolMeta> {
         .iter()
         .find(|tool| tool.id == id)
         .or_else(|| {
+            catalog_builtin_tools_lock()
+                .lock()
+                .ok()?
+                .iter()
+                .find(|tool| tool.id == id)
+                .copied()
+        })
+        .or_else(|| {
             runtime_tools_lock()
                 .lock()
                 .ok()?
@@ -550,6 +585,9 @@ pub fn toolbox_registered_tool(id: &str) -> Option<&'static ToolMeta> {
 
 pub fn toolbox_is_builtin(id: &str) -> bool {
     inventory_tools().iter().any(|tool| tool.id == id)
+        || catalog_builtin_tools_lock()
+            .lock()
+            .is_ok_and(|guard| guard.iter().any(|tool| tool.id == id))
 }
 
 pub fn toolbox_tool_in_toolkit(toolkit: &str, local: &str) -> Option<&'static ToolMeta> {
@@ -623,15 +661,19 @@ pub fn tools_on_board_for_surface(board: &str, surface: Surface) -> Vec<&'static
 }
 
 pub fn toolbox_has_id(id: &str) -> bool {
-    upeg_core::inventory::iter::<StaticToolMeta>().any(|t| {
-        t.assert_valid();
-        t.id == id
-    })
+    toolbox_is_builtin(id)
+        || upeg_core::inventory::iter::<StaticToolMeta>().any(|t| {
+            t.assert_valid();
+            t.id == id
+        })
 }
 
 pub fn toolbox_has_tool_key(key: ToolKey<'_>) -> bool {
-    upeg_core::inventory::iter::<StaticToolMeta>().any(|t| {
-        t.assert_valid();
-        t.key() == key
-    })
+    catalog_builtin_tools_lock()
+        .lock()
+        .is_ok_and(|guard| guard.iter().any(|tool| tool.key() == key))
+        || upeg_core::inventory::iter::<StaticToolMeta>().any(|t| {
+            t.assert_valid();
+            t.key() == key
+        })
 }

@@ -29,7 +29,7 @@ static FIXTURE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 /// run in parallel — a shared directory would race another test's
 /// `remove_dir_all`.
 fn load_gated_chain() -> String {
-    upeg_tools::register_all();
+    super::register_toolkit_runtime().expect("register toolkits");
     let n = FIXTURE_COUNTER.fetch_add(1, Ordering::SeqCst);
     let toolkit = format!("frbchain{}_{n}", std::process::id());
     let tool_id = format!("{toolkit}.gate");

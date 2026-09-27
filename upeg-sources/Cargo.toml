@@ -19,7 +19,7 @@ uuid = { workspace = true }
 upeg-core = { workspace = true, features = ["serde"] }
 upeg-loader = { workspace = true }
 upeg-runtime = { workspace = true }
-upeg-tools = { workspace = true }
+upeg-toolkit-native.workspace = true
 upeg-wasm = { workspace = true, optional = true }
 
 [features]

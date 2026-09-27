@@ -8,11 +8,13 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/widgets/expanded_modal/rich_presentation.dart';
 
 @immutable
 final class PresentationTableColumn {
-  const PresentationTableColumn({required this.label});
+  const PresentationTableColumn({required this.label, this.filterable = false});
   final String label;
+  final bool filterable;
 }
 
 @immutable
@@ -21,11 +23,13 @@ final class PresentationTableRow {
     required this.key,
     required this.cells,
     required this.rawJson,
+    this.cellTones = const [],
   });
 
   final String key;
   final List<Object?> cells;
   final String rawJson;
+  final List<String?> cellTones;
 }
 
 @immutable
@@ -34,11 +38,15 @@ final class PresentationTableAction {
     required this.id,
     required this.label,
     required this.onPressed,
+    this.enabled = true,
+    this.disabledReason,
   });
 
   final String id;
   final String label;
   final ValueChanged<PresentationTableRow> onPressed;
+  final bool enabled;
+  final String? disabledReason;
 }
 
 class PresentationTable extends StatefulWidget {
@@ -52,6 +60,8 @@ class PresentationTable extends StatefulWidget {
     required this.tokens,
     required this.searchHint,
     required this.emptyLabel,
+    this.noMatchesLabel = 'No matching rows',
+    this.rowDetails = const {},
     super.key,
   });
 
@@ -67,6 +77,8 @@ class PresentationTable extends StatefulWidget {
   final UpegTokens tokens;
   final String searchHint;
   final String emptyLabel;
+  final String noMatchesLabel;
+  final Map<String, PresentationDetail> rowDetails;
 
   @override
   State<PresentationTable> createState() => _PresentationTableState();
@@ -75,6 +87,10 @@ class PresentationTable extends StatefulWidget {
 class _PresentationTableState extends State<PresentationTable> {
   String _query = '';
   String? _selectedKey;
+  int? _filterColumn;
+  String? _filterValue;
+  int? _sortColumn;
+  bool _sortAscending = true;
 
   @override
   void didUpdateWidget(PresentationTable oldWidget) {
@@ -87,8 +103,21 @@ class _PresentationTableState extends State<PresentationTable> {
 
   @override
   Widget build(BuildContext context) {
+    final filterColumn = _filterColumn;
+    final filterOptions = filterColumn == null
+        ? <String>[]
+        : widget.rows
+              .map((row) => _scalarText(row.cells[filterColumn]))
+              .toSet()
+              .toList();
+    filterOptions.sort();
     final visibleRows = widget.rows
         .where((row) {
+          if (filterColumn != null &&
+              _filterValue != null &&
+              _scalarText(row.cells[filterColumn]) != _filterValue) {
+            return false;
+          }
           if (_query.isEmpty) return true;
           final needle = _query.toLowerCase();
           return row.key.toLowerCase().contains(needle) ||
@@ -97,6 +126,14 @@ class _PresentationTableState extends State<PresentationTable> {
               );
         })
         .toList(growable: false);
+    if (_sortColumn case final index?) {
+      visibleRows.sort((a, b) {
+        final compared = _scalarText(
+          a.cells[index],
+        ).compareTo(_scalarText(b.cells[index]));
+        return _sortAscending ? compared : -compared;
+      });
+    }
     final selected = _selectedKey == null
         ? null
         : widget.rows.cast<PresentationTableRow?>().firstWhere(
@@ -114,15 +151,65 @@ class _PresentationTableState extends State<PresentationTable> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            key: const Key('presentation-table-search'),
-            onChanged: (value) => setState(() => _query = value),
-            decoration: InputDecoration(
-              isDense: true,
-              prefixIcon: Icon(Icons.search, size: 16),
-              hintText: widget.searchHint,
+          if (widget.rows.isNotEmpty)
+            TextField(
+              key: const Key('presentation-table-search'),
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: Icon(Icons.search, size: 16),
+                hintText: widget.searchHint,
+              ),
             ),
-          ),
+          if (widget.rows.isNotEmpty &&
+              widget.columns.any((column) => column.filterable)) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                DropdownButton<int?>(
+                  key: const Key('presentation-table-filter-column'),
+                  value: _filterColumn,
+                  hint: const Text('Filter'),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('All'),
+                    ),
+                    for (var index = 0; index < widget.columns.length; index++)
+                      if (widget.columns[index].filterable)
+                        DropdownMenuItem<int?>(
+                          value: index,
+                          child: Text(widget.columns[index].label),
+                        ),
+                  ],
+                  onChanged: (index) => setState(() {
+                    _filterColumn = index;
+                    _filterValue = null;
+                  }),
+                ),
+                if (filterColumn != null) ...[
+                  const SizedBox(width: 8),
+                  DropdownButton<String?>(
+                    key: const Key('presentation-table-filter-value'),
+                    value: _filterValue,
+                    hint: const Text('Value'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All'),
+                      ),
+                      for (final option in filterOptions)
+                        DropdownMenuItem<String?>(
+                          value: option,
+                          child: Text(option),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _filterValue = value),
+                  ),
+                ],
+              ],
+            ),
+          ],
           if (widget.diagnostics.isNotEmpty) ...[
             const SizedBox(height: 8),
             for (final diagnostic in widget.diagnostics)
@@ -133,26 +220,76 @@ class _PresentationTableState extends State<PresentationTable> {
               ),
           ],
           const SizedBox(height: 8),
-          _Header(columns: widget.columns, tokens: widget.tokens),
-          for (final row in visibleRows)
-            _Row(
-              row: row,
-              selected: row.key == _selectedKey,
-              tokens: widget.tokens,
-              onTap: () {
-                setState(() => _selectedKey = row.key);
-                widget.onReadRowNavigate?.call(row);
-              },
-            ),
-          if (visibleRows.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                widget.emptyLabel,
-                key: const Key('presentation-table-empty'),
-                style: TextStyle(color: widget.tokens.fg4, fontSize: 11),
-              ),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final list = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.rows.isNotEmpty)
+                    _Header(
+                      columns: widget.columns,
+                      tokens: widget.tokens,
+                      sortColumn: _sortColumn,
+                      sortAscending: _sortAscending,
+                      onSort: (index) => setState(() {
+                        if (_sortColumn == index) {
+                          _sortAscending = !_sortAscending;
+                        } else {
+                          _sortColumn = index;
+                          _sortAscending = true;
+                        }
+                      }),
+                    ),
+                  for (final row in visibleRows)
+                    _Row(
+                      row: row,
+                      selected: row.key == _selectedKey,
+                      tokens: widget.tokens,
+                      onTap: () {
+                        setState(() => _selectedKey = row.key);
+                        widget.onReadRowNavigate?.call(row);
+                      },
+                    ),
+                  if (visibleRows.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        widget.rows.isEmpty
+                            ? widget.emptyLabel
+                            : widget.noMatchesLabel,
+                        key: const Key('presentation-table-empty'),
+                        style: TextStyle(
+                          color: widget.tokens.fg4,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+              final detail = selected == null
+                  ? null
+                  : widget.rowDetails[selected.key];
+              if (detail == null) return list;
+              final detailPanel = RichPresentationPanel(
+                view: RichPresentationView(detail: detail),
+                tokens: widget.tokens,
+              );
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [list, const SizedBox(height: 10), detailPanel],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: list),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 2, child: detailPanel),
+                ],
+              );
+            },
+          ),
           if (selected != null && widget.actions.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -161,11 +298,17 @@ class _PresentationTableState extends State<PresentationTable> {
                 for (final action in widget.actions)
                   OutlinedButton(
                     key: Key('presentation-table-action-${action.id}'),
-                    onPressed: widget.rowActionsEnabled
+                    onPressed: widget.rowActionsEnabled && action.enabled
                         ? () => action.onPressed(selected)
                         : null,
                     child: Text(action.label),
                   ),
+                for (final action in widget.actions)
+                  if (!action.enabled && action.disabledReason != null)
+                    Text(
+                      action.disabledReason!,
+                      style: TextStyle(color: widget.tokens.fg2, fontSize: 10),
+                    ),
               ],
             ),
           ],
@@ -176,21 +319,34 @@ class _PresentationTableState extends State<PresentationTable> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.columns, required this.tokens});
+  const _Header({
+    required this.columns,
+    required this.tokens,
+    required this.sortColumn,
+    required this.sortAscending,
+    required this.onSort,
+  });
   final List<PresentationTableColumn> columns;
   final UpegTokens tokens;
+  final int? sortColumn;
+  final bool sortAscending;
+  final ValueChanged<int> onSort;
 
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      for (final column in columns)
+      for (var index = 0; index < columns.length; index++)
         Expanded(
-          child: Text(
-            column.label,
-            style: TextStyle(
-              color: tokens.fg4,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+          child: InkWell(
+            key: Key('presentation-table-sort-$index'),
+            onTap: () => onSort(index),
+            child: Text(
+              '${columns[index].label}${sortColumn == index ? (sortAscending ? ' ↑' : ' ↓') : ''}',
+              style: TextStyle(
+                color: tokens.fg4,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -220,12 +376,14 @@ class _Row extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           children: [
-            for (final cell in row.cells)
+            for (var index = 0; index < row.cells.length; index++)
               Expanded(
-                child: Text(
-                  _scalarText(cell),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.fg, fontSize: 11),
+                child: _Cell(
+                  value: row.cells[index],
+                  tone: index < row.cellTones.length
+                      ? row.cellTones[index]
+                      : null,
+                  tokens: tokens,
                 ),
               ),
           ],
@@ -233,6 +391,40 @@ class _Row extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _Cell extends StatelessWidget {
+  const _Cell({required this.value, required this.tone, required this.tokens});
+  final Object? value;
+  final String? tone;
+  final UpegTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      _scalarText(value),
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(color: tokens.fg, fontSize: 11),
+    );
+    if (tone == null) return text;
+    final color = switch (tone) {
+      'success' => tokens.accent,
+      'warning' || 'error' => tokens.warn,
+      _ => tokens.surface2,
+    };
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        key: Key('presentation-table-badge-$tone'),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(UpegSizing.radius1),
+        ),
+        child: text,
+      ),
+    );
+  }
 }
 
 String _scalarText(Object? value) => switch (value) {

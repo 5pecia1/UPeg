@@ -4860,6 +4860,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "ryu-js"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6518fc26bced4d53678a22d6e423e9d8716377def84545fe328236e3af070e7f"
+
+[[package]]
 name = "schemars"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4939,6 +4945,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "serde_jcs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3a60f3fda61525e439ef6d67422118f11e986566997d9021c56867ad814a0aa"
+dependencies = [
+ "ryu-js",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5968,7 +5985,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "upeg-cli"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -6003,14 +6020,14 @@ dependencies = [
  "upeg-loader",
  "upeg-runtime",
  "upeg-sources",
- "upeg-tools",
+ "upeg-toolkit-native",
  "upeg-wasm",
  "zip",
 ]
 
 [[package]]
 name = "upeg-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "base64 0.22.1",
  "inventory",
@@ -6024,7 +6041,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-loader"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "command-group",
  "http",
@@ -6043,7 +6060,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-macros"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "humantime",
  "proc-macro2",
@@ -6055,7 +6072,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-pegboard-ui"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "phf 0.11.3",
  "serde",
@@ -6065,13 +6082,13 @@ dependencies = [
  "upeg-core",
  "upeg-runtime",
  "upeg-sources",
- "upeg-tools",
+ "upeg-toolkit-catalog",
  "web-sys",
 ]
 
 [[package]]
 name = "upeg-plugin-api"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -6079,7 +6096,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-plugin-macros"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6089,7 +6106,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-runtime"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "chromiumoxide",
  "futures-util",
@@ -6103,7 +6120,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-sources"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rusqlite",
  "serde",
@@ -6114,14 +6131,14 @@ dependencies = [
  "upeg-core",
  "upeg-loader",
  "upeg-runtime",
- "upeg-tools",
+ "upeg-toolkit-native",
  "upeg-wasm",
  "uuid",
 ]
 
 [[package]]
 name = "upeg-tool-grammar"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6129,8 +6146,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "upeg-toolkit-catalog"
+version = "0.5.2"
+dependencies = [
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "upeg-core",
+ "upeg-runtime",
+]
+
+[[package]]
+name = "upeg-toolkit-guest"
+version = "0.5.2"
+dependencies = [
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2 0.10.9",
+ "upeg-core",
+ "upeg-toolkit-catalog",
+ "upeg-tools",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "upeg-toolkit-native"
+version = "0.5.2"
+dependencies = [
+ "command-group",
+ "flate2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "upeg-core",
+ "upeg-runtime",
+ "upeg-toolkit-catalog",
+ "ureq",
+]
+
+[[package]]
+name = "upeg-toolkit-pack"
+version = "0.5.2"
+dependencies = [
+ "flate2",
+ "serde_json",
+ "sha2 0.10.9",
+ "upeg-core",
+ "upeg-runtime",
+ "upeg-toolkit-catalog",
+ "upeg-tools",
+]
+
+[[package]]
 name = "upeg-tools"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "base32",
  "base64 0.22.1",
@@ -6171,7 +6244,7 @@ dependencies = [
 
 [[package]]
 name = "upeg-wasm"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "extism",
  "serde_json",
@@ -6183,7 +6256,7 @@ dependencies = [
 
 [[package]]
 name = "upeg_frb"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "axum",
  "flutter_rust_bridge",
@@ -6203,7 +6276,8 @@ dependencies = [
  "upeg-pegboard-ui",
  "upeg-runtime",
  "upeg-sources",
- "upeg-tools",
+ "upeg-toolkit-catalog",
+ "upeg-toolkit-native",
  "uuid",
  "wasm-bindgen",
 ]

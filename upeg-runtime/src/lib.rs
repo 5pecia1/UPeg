@@ -84,7 +84,7 @@ pub use search::search_toolbox_tools;
 pub use toolbox::{
     ToolMetaRuntimeExt, ToolboxRegistration, ToolboxRegistrationGroup, board_context,
     boards_for_surface, register_board_context, tags_for_surface, tool_json_entries_for_surface,
-    toolbox_add_single_text_tool_with_dispatcher,
+    toolbox_add_builtin_catalog_tool, toolbox_add_single_text_tool_with_dispatcher,
     toolbox_add_single_text_tool_with_dispatcher_managed, toolbox_add_tool,
     toolbox_add_tool_managed, toolbox_add_tool_with_dispatcher,
     toolbox_add_tool_with_dispatcher_managed, toolbox_add_toolkit, toolbox_has_id,

@@ -181,6 +181,11 @@ fn apply_backup(backup: &EnvironmentBackup) -> Result<(), FrbError> {
     let boards_json = serde_json::to_string(&backup.boards).map_err(|err| FrbError::Io {
         message: format!("boards serialize: {err}"),
     })?;
+    #[cfg(not(target_arch = "wasm32"))]
+    upeg_sources::pegboard::save_boards_json(&boards_json).map_err(|error| FrbError::Io {
+        message: format!("boards write failed: {error}"),
+    })?;
+    #[cfg(target_arch = "wasm32")]
     storage::set_item(storage::BOARDS_KEY, &boards_json).map_err(|()| FrbError::Io {
         message: "boards write failed".to_string(),
     })?;

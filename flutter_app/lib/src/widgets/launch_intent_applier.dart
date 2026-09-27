@@ -31,6 +31,7 @@ import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/launch_intent_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/tools_provider.dart';
+import 'package:upeg/src/state/toolkit_runtime_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/widgets/controlled_embed/surface.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -157,9 +158,9 @@ class _LaunchIntentApplierState extends ConsumerState<LaunchIntentApplier> {
     if (tool == null) return;
     final ToolArgs args =
         parseLaunchIntentInput(argsJson, tool) ?? ToolArgs.empty;
-    final outcome = await dispatchToolAsync(
-      toolId: toolId.value,
-      argsJson: args.encodeJson(),
+    final outcome = await ref.read(toolkitDispatchProvider)(
+      toolId: toolId,
+      args: args,
       boardKey: ref.read(currentBoardKeyProvider)?.value,
       // A deep link / popup activation is not a person
       // answering an approval barrier, so it never approves.

@@ -117,7 +117,7 @@ pub enum FrbError {
 /// the Dart UI isolate and would freeze the splash; the async surface runs
 /// it on an FRB worker so the splash stays responsive.
 pub fn init_app() -> Result<AppInitReport, FrbError> {
-    upeg_tools::register_all();
+    super::tools::register_toolkit_runtime().map_err(|message| FrbError::Internal { message })?;
 
     // User-provided runtime sources must be registered before host
     // discovery and before the launch intent is resolved, so a cold-boot

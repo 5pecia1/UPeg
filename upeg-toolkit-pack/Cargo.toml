@@ -1,0 +1,21 @@
+[package]
+name = "upeg-toolkit-pack"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Build and verify independently published toolkit artifacts"
+
+[dependencies]
+serde_json.workspace = true
+flate2.workspace = true
+sha2.workspace = true
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-toolkit-catalog.workspace = true
+upeg-tools = { workspace = true, features = ["all-toolkits"] }
+upeg-runtime.workspace = true
+
+[lints]
+workspace = true

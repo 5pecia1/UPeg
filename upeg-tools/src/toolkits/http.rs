@@ -31,8 +31,10 @@ const ERROR_BODY_MAX_CHARS: usize = 200;
 const TRUNCATION_MARKER: &str = "…";
 
 /// Request header naming a JSON request body.
+#[cfg(feature = "eth")]
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 /// Media type for the JSON bodies this module posts.
+#[cfg(feature = "eth")]
 const JSON_MEDIA_TYPE: &str = "application/json";
 
 /// Why an HTTP call failed. Callers prefix the `Display` form with their own
@@ -110,11 +112,13 @@ fn read_body(
 }
 
 /// GET `url`, returning the response body on a 2xx status.
+#[cfg(feature = "weather")]
 pub fn get(agent: &ureq::Agent, url: &str) -> Result<String, HttpError> {
     read_body(agent.get(url).call())
 }
 
 /// POST `body` to `url` as JSON, returning the response body on a 2xx status.
+#[cfg(feature = "eth")]
 pub fn post_json(agent: &ureq::Agent, url: &str, body: &str) -> Result<String, HttpError> {
     read_body(
         agent

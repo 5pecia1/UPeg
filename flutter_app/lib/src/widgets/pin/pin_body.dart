@@ -19,6 +19,8 @@ class PinBody extends StatelessWidget {
     required this.description,
     required this.outputFields,
     required this.outputResult,
+    this.richStatus,
+    this.richSummary,
     this.truncated = false,
     super.key,
   });
@@ -35,6 +37,8 @@ class PinBody extends StatelessWidget {
   /// Canonical runtime result. Rows use the shared canonical presenter;
   /// null preserves label-only rendering from the output schema.
   final CanonicalToolResult? outputResult;
+  final String? richStatus;
+  final String? richSummary;
 
   /// True when the persisted outputs were capped — row previews get a
   /// trailing ellipsis so the cut is honest.
@@ -53,6 +57,20 @@ class PinBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (richStatus case final status?)
+            Text(status, style: TextStyle(color: tokens.fg3, fontSize: 10)),
+          if (richSummary case final summary?)
+            Text(
+              summary,
+              key: const Key('pin-rich-summary'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: tokens.fg,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           if (label != null && label!.isNotEmpty)
             Text(
               label!,
@@ -67,7 +85,9 @@ class PinBody extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          if (outputRows.isNotEmpty)
+          if (outputRows.isNotEmpty &&
+              richSummary == null &&
+              richStatus == null)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -86,7 +106,10 @@ class PinBody extends StatelessWidget {
                 ),
               ),
             )
-          else if (description != null && description!.isNotEmpty)
+          else if (richSummary == null &&
+              richStatus == null &&
+              description != null &&
+              description!.isNotEmpty)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(top: 4),

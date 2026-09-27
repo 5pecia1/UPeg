@@ -9,7 +9,7 @@ use upeg_core::{
 mod boards;
 mod chain;
 mod input;
-mod presentation;
+pub(crate) mod presentation;
 mod setup;
 pub(crate) use chain::chain_step_key;
 pub use setup::{ToolSetupInstallToml, ToolSetupToml};

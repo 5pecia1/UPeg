@@ -90,6 +90,7 @@ commit the result.
 | Tool execution baseline | `just test-baseline-check` | `just test-baseline` |
 | Interface metadata | `just interface-inventory-check` | `just interface-inventory` |
 | Toolkit schema | `just toolkit-schema-check` | `just toolkit-schema` |
+| Distributed Toolkit metadata | `cargo run -p upeg-toolkit-pack -- verify-metadata` | `just toolkit-web-abi` |
 | FRB bindings | `just frb-codegen-check` | `just frb-codegen` |
 | UI parity (goldens) | `just ui-parity-check` | `just ui-parity` |
 
@@ -124,6 +125,7 @@ toolkits and this repo's own `.upeg/toolkits/dev.toml` don't leak into generated
 | Loader for TOML/manifest/plugin sources | `upeg-loader/`, `upeg-sources/` |
 | Runtime dispatch | `upeg-runtime/` |
 | Built-in tools | `upeg-tools/` |
+| Distributed Toolkit catalog and pack builder | `upeg-toolkit-catalog/`, `upeg-toolkit-guest/`, `upeg-toolkit-pack/` |
 | Desktop/PWA app | `flutter_app/` |
 | Chrome extension | `chrome-ext/` |
 | WASM plugin API | `upeg-plugin-api/`, `upeg-plugin-macros/`, `upeg-wasm/` |

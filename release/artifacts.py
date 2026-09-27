@@ -16,6 +16,10 @@ import sys
 MIRROR_SCHEMA = 'upeg-release-manifest/v2'
 PUBLIC_REPO = '5pecia1/UPeg'
 COMPONENTS = ('cli', 'desktop', 'web')
+TOOLKIT_IDS = ('color', 'convert', 'csv', 'devcontainer', 'eth', 'hash', 'id', 'media',
+               'net', 'num', 'qr', 'security', 'text', 'time', 'weather')
+PUBLIC_TOOLKIT_TARGETS = ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
+                          'aarch64-apple-darwin', 'x86_64-pc-windows-msvc')
 SHA_PATTERN = re.compile(r'[0-9a-f]{40}\Z')
 DIGEST_PATTERN = re.compile(r'[0-9a-f]{64}\Z')
 
@@ -36,16 +40,25 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
     files: list[str] = []
     for component in components:
         if component == 'cli':
-            for target in ('x86_64-unknown-linux-gnu', 'aarch64-apple-darwin'):
+            for target in ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
+                           'aarch64-apple-darwin'):
                 files += [f'upeg-{tag}-{target}.tar.gz',
                           f'upeg-{tag}-{target}.tar.gz.sha256']
             files += [f'upeg-{tag}-x86_64-pc-windows-msvc.zip',
                       f'upeg-{tag}-x86_64-pc-windows-msvc.zip.sha256']
         elif component == 'desktop':
             files += [f'upeg_{version}_amd64.deb', f'upeg_{version}_amd64.deb.sha256',
-                      f'upeg-{tag}-x86_64.AppImage', f'upeg-{tag}-x86_64.AppImage.sha256']
+                      f'upeg-{tag}-x86_64.AppImage', f'upeg-{tag}-x86_64.AppImage.sha256',
+                      f'upeg-{tag}.dmg', f'upeg-{tag}.dmg.sha256',
+                      f'upeg-{tag}-x86_64.msix', f'upeg-{tag}-x86_64.msix.sha256']
         elif component == 'web':
             files += [f'upeg-{tag}-web.tar.gz', f'upeg-{tag}-web.tar.gz.sha256']
+        elif component == 'toolkits':
+            for target in PUBLIC_TOOLKIT_TARGETS:
+                payloads = [f'toolkits-{target}-catalog.json',
+                            *(f'toolkits-{target}-{toolkit}-{version}.gz' for toolkit in TOOLKIT_IDS)]
+                files.extend(payloads)
+                files.extend(f'{name}.sha256' for name in payloads)
         else:
             raise GateError(f'unknown component: {component}')
     return sorted(files)
@@ -53,7 +66,7 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
 
 def profile_files(version: str, tag: str, profile: str) -> set[str]:
     if profile == 'public':
-        return set(expected_files(version, tag, list(COMPONENTS)))
+        return set(expected_files(version, tag, [*COMPONENTS, 'toolkits']))
     if profile == 'linux':
         payloads = {
             f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz',

@@ -52,11 +52,11 @@ upeg-sources = { workspace = true }
 # originally avoided a Cargo cycle with the Dioxus `upeg-desktop-ui` crate,
 # which depended on `upeg-cli` for the tray + embedded HTTP server; Phase 11
 # removed that crate.)
-# Linking upeg-tools pulls every #[upeg::tool] submission into this binary's
-# inventory section so the CLI sees the same toolbox as the Flutter desktop UI.
-upeg-tools = { workspace = true }
-# Optional WASM plugin host. Default builds skip the
-# wasmtime/extism dep tax — opt in with `--features wasm-plugin`.
+# Registers generated built-in metadata and downloads verified native sidecars
+# only when their Tools are invoked.
+upeg-toolkit-native.workspace = true
+# Third-party WASM plugin host. The default feature keeps existing plugin
+# install/list and auto-load behavior, including its Extism/Wasmtime cost.
 upeg-wasm = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]

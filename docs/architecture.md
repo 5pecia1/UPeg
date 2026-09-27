@@ -60,6 +60,24 @@ manifest's `[[boards]]`.
 
 Details: `upeg_runtime::toolbox` rustdoc
 
+### Distributed Toolkit packs
+
+The release catalog is a separate distribution record for selected Toolkit
+guests. It binds an application version and ABI digest to each versioned
+web JS/WASM or native artifact by URL, byte count, and SHA-256. A browser
+loads only same-origin web paths. Native public releases use the matching
+GitHub Release catalog and asset for the current target. The loader verifies
+the catalog and pack before caching it, so a first-use download is required
+only when that exact pack is absent; verified cached packs remain usable
+offline. This covers local transforms and hashes after installation; tools
+whose own operation uses the network, such as weather or Ethereum lookups,
+still require connectivity. CI builds the catalog and packs before packaging,
+then repeats the digest checks before publishing.
+
+The [Toolkit pack runtime contract](TOOLKIT_PACK_RUNTIME.md) specifies the
+catalog, integrity, local-fixture, and offline-fallback behavior used by those
+release checks.
+
 ## Call envelope
 
 CLI, HTTP, MCP, and the other non-UI protocols carry one canonical call: a
@@ -155,6 +173,19 @@ rendering, and approval policy are shared contracts decided once in Rust.
   bindings supply every required input. Missing inputs and actions targeting
   write or unknown effects open the prefilled form. Approval still runs
   before dispatch.
+
+Optional presentation version 1 fields describe fixed summary, status,
+notice, collection and detail slots over an existing JSON output. The core
+resolver owns pointer validation and action availability; Flutter and TUI
+render its resolved values. Domain-specific status and eligibility stay with
+the Tool. Successful rich rendering places the raw result behind disclosure;
+invalid or incomplete projections retain the raw result and diagnostics.
+Existing collection/action declarations keep their behavior. Older loaders
+reject unknown fields, so publishers must validate an extended declaration
+against the destination loader before replacing an installed Toolkit.
+
+Details: `upeg_core::presentation` rustdoc and the generated
+[Toolkit manifest reference](TOOL_MANIFEST.md).
 
 Details: `upeg_core::keyboard_catalog`, `upeg_core::capability`,
 `upeg_frb::api::pin_activation`, `upeg_runtime::{approval, progress}`,

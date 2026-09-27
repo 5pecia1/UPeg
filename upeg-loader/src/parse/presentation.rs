@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use upeg_core::{
     ActionBinding, ActionScope, ActionSuccess, OutputSpec, PRESENTATION_VERSION_V1,
-    PresentationAction, PresentationColumn, ToolPresentation, validate_json_pointer,
+    PresentationAction, PresentationColumn, PresentationDetail, PresentationNotices,
+    PresentationStatus, ToolPresentation, validate_json_pointer,
 };
 
 use crate::{LoadError, model::PresentationToml};
@@ -21,14 +22,24 @@ pub(crate) fn resolve_presentation(
             value.version
         )));
     }
-    let collection_fields = [
-        value.output.is_some(),
-        value.rows.is_some(),
-        value.row_key.is_some(),
-        !value.columns.is_empty(),
-    ];
-    if collection_fields.iter().any(|present| *present)
-        && !collection_fields.iter().all(|present| *present)
+    let has_rich = value.title_pointer.is_some()
+        || value.subtitle_pointer.is_some()
+        || value.status.is_some()
+        || !value.summary.is_empty()
+        || value.notices.is_some()
+        || value.detail.is_some()
+        || value.row_detail.is_some()
+        || value.empty_message_pointer.is_some()
+        || value
+            .actions
+            .iter()
+            .any(|action| action.enabled_pointer.is_some());
+    let has_collection =
+        value.rows.is_some() && value.row_key.is_some() && !value.columns.is_empty();
+    if (value.rows.is_some() || value.row_key.is_some() || !value.columns.is_empty())
+        && !has_collection
+        || value.output.is_some() && !has_collection && !has_rich
+        || (has_collection || has_rich) && value.output.is_none()
     {
         return Err(LoadError::InvalidPresentation(
             "output, rows, row_key, and columns must be declared together".to_string(),
@@ -70,12 +81,65 @@ pub(crate) fn resolve_presentation(
         .iter()
         .map(|column| {
             check_pointer(&column.pointer)?;
+            if let Some(pointer) = &column.tone_pointer {
+                check_pointer(pointer)?;
+            }
             Ok(PresentationColumn {
                 label: column.label.clone(),
                 pointer: column.pointer.clone(),
+                tone_pointer: column.tone_pointer.clone(),
+                filterable: column.filterable,
             })
         })
         .collect::<Result<Vec<_>, LoadError>>()?;
+    let lower_columns = |items: &[crate::model::presentation::PresentationColumnToml]| {
+        items
+            .iter()
+            .map(|item| {
+                check_pointer(&item.pointer)?;
+                if let Some(pointer) = &item.tone_pointer {
+                    check_pointer(pointer)?;
+                }
+                Ok(PresentationColumn {
+                    label: item.label.clone(),
+                    pointer: item.pointer.clone(),
+                    tone_pointer: item.tone_pointer.clone(),
+                    filterable: item.filterable,
+                })
+            })
+            .collect::<Result<Vec<_>, LoadError>>()
+    };
+    let lower_detail = |detail: &crate::model::presentation::PresentationDetailToml| -> Result<PresentationDetail, LoadError> {
+        for pointer in [&detail.markdown_pointer, &detail.diff_pointer].into_iter().flatten() {
+            check_pointer(pointer)?;
+        }
+        Ok(PresentationDetail { fields: lower_columns(&detail.fields)?,
+            markdown_pointer: detail.markdown_pointer.clone(), diff_pointer: detail.diff_pointer.clone() })
+    };
+    for pointer in [
+        &value.title_pointer,
+        &value.subtitle_pointer,
+        &value.empty_message_pointer,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        check_pointer(pointer)?;
+    }
+    if let Some(status) = &value.status {
+        check_pointer(&status.label_pointer)?;
+        check_pointer(&status.tone_pointer)?;
+    }
+    if let Some(notices) = &value.notices {
+        check_pointer(&notices.rows_pointer)?;
+        check_pointer(&notices.text_pointer)?;
+        check_pointer(&notices.severity_pointer)?;
+    }
+    if value.row_detail.is_some() && !has_collection {
+        return Err(LoadError::InvalidPresentation(
+            "row_detail requires a collection".to_string(),
+        ));
+    }
     let mut action_ids = HashSet::new();
     let actions = value
         .actions
@@ -110,6 +174,22 @@ pub(crate) fn resolve_presentation(
                     )));
                 }
             };
+            if let Some(pointer) = &action.enabled_pointer {
+                if scope != ActionScope::Result {
+                    return Err(LoadError::InvalidPresentation(
+                        "enabled_pointer requires a result action".to_string(),
+                    ));
+                }
+                check_pointer(pointer)?;
+            }
+            if let Some(pointer) = &action.disabled_reason_pointer {
+                if action.enabled_pointer.is_none() {
+                    return Err(LoadError::InvalidPresentation(
+                        "disabled_reason_pointer requires enabled_pointer".to_string(),
+                    ));
+                }
+                check_pointer(pointer)?;
+            }
             let bindings = action
                 .bindings
                 .iter()
@@ -156,6 +236,8 @@ pub(crate) fn resolve_presentation(
                 target_tool: action.target_tool.clone(),
                 on_success,
                 bindings,
+                enabled_pointer: action.enabled_pointer.clone(),
+                disabled_reason_pointer: action.disabled_reason_pointer.clone(),
             })
         })
         .collect::<Result<Vec<_>, LoadError>>()?;
@@ -166,5 +248,20 @@ pub(crate) fn resolve_presentation(
         row_key: value.row_key.clone(),
         columns,
         actions,
+        title_pointer: value.title_pointer.clone(),
+        subtitle_pointer: value.subtitle_pointer.clone(),
+        status: value.status.as_ref().map(|status| PresentationStatus {
+            label_pointer: status.label_pointer.clone(),
+            tone_pointer: status.tone_pointer.clone(),
+        }),
+        summary: lower_columns(&value.summary)?,
+        notices: value.notices.as_ref().map(|notices| PresentationNotices {
+            rows_pointer: notices.rows_pointer.clone(),
+            text_pointer: notices.text_pointer.clone(),
+            severity_pointer: notices.severity_pointer.clone(),
+        }),
+        detail: value.detail.as_ref().map(lower_detail).transpose()?,
+        row_detail: value.row_detail.as_ref().map(lower_detail).transpose()?,
+        empty_message_pointer: value.empty_message_pointer.clone(),
     })
 }

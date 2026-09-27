@@ -52,7 +52,9 @@ class FakeClient:
                 raise APIError(404, b'not found')
             return dict(self.release)
         if method == 'GET' and path.startswith('/releases/100/assets?'):
-            return [dict(item) for item in self.assets]
+            page = int(parse_qs(urlparse(url).query).get('page', ['1'])[0])
+            start = (page - 1) * 100
+            return [dict(item) for item in self.assets[start:start + 100]]
         if method == 'GET' and path.startswith('/git/ref/tags/'):
             if self.tag is None:
                 raise APIError(404, b'not found')

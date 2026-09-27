@@ -254,9 +254,10 @@ pub fn validate_tool_identity(
     existing: &[ToolMeta],
 ) -> Result<(), CollisionError> {
     let id = full_id_for_key(*key);
-    if upeg_core::inventory::iter::<StaticToolMeta>()
-        .inspect(|tool| tool.assert_valid())
-        .any(|tool| tool.id == id || tool.key() == *key)
+    if crate::toolbox_is_builtin(&id)
+        || upeg_core::inventory::iter::<StaticToolMeta>()
+            .inspect(|tool| tool.assert_valid())
+            .any(|tool| tool.id == id || tool.key() == *key)
     {
         return Err(CollisionError::ShadowsBuiltIn {
             id,

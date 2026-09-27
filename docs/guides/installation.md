@@ -7,9 +7,10 @@ tags: [installation]
 
 # Installation
 
-There are no published binaries or installers yet — upeg is built from
-source. Packaging recipes (`just package-*`, below) exist but produce
-unsigned artifacts for local use; nothing is published for download.
+Published, unsigned release artifacts are listed on
+[GitHub Releases](https://github.com/5pecia1/UPeg/releases). Building from
+source remains supported, and `just package-*` produces local unsigned
+artifacts for development.
 
 ## CLI, TUI, MCP, and HTTP — the `upeg` binary
 
@@ -93,6 +94,13 @@ The PWA smoke harness's Python server adds those headers; a bare
 `python -m http.server` does not. GitHub Pages documentation publishing is
 not application hosting and does not provide this PWA deployment contract.
 
+`just package-web` also builds the selected web Toolkit catalog and its
+versioned JS/WASM packs into the same static bundle. A catalog or artifact
+digest mismatch stops packaging. Native distributed Toolkits use the release
+catalog for the current OS: on the public build this is the matching GitHub
+Release asset. Their first use may download a pack; the verified cache is
+usable offline afterwards.
+
 ## Chrome extension
 
 The extension is dependency-free MV3 JavaScript: it needs no compiler or npm
@@ -159,12 +167,15 @@ its absolute path.
 The release workflow (`release`, manual dispatch) stages a fixed set of
 unsigned release assets, each with a `.sha256` sidecar:
 `upeg-v<ver>-x86_64-unknown-linux-gnu.tar.gz`,
+`upeg-v<ver>-aarch64-unknown-linux-gnu.tar.gz`,
 `upeg-v<ver>-aarch64-apple-darwin.tar.gz`,
 `upeg-v<ver>-x86_64-pc-windows-msvc.zip` (CLI builds),
 `upeg_<ver>_amd64.deb` and `upeg-v<ver>-x86_64.AppImage` (Linux desktop),
-and `upeg-v<ver>-web.tar.gz` (PWA bundle). macOS `.dmg` and Windows
-`.msix` remain local-only recipes — they are not part of the release
-set.
+`upeg-v<ver>.dmg` (macOS desktop), `upeg-v<ver>-x86_64.msix` (Windows
+desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). It also publishes
+native toolkit catalogues and 15 versioned packs per target for Linux
+x86-64/ARM64, macOS ARM64, and Windows x86-64. The published release
+manifest requires every asset and SHA256 sidecar before publication.
 
 ## Verify the install
 

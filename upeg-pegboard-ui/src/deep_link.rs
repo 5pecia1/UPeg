@@ -156,6 +156,7 @@ fn resolve_board(raw: Option<&str>) -> &'static str {
 
 #[cfg(any(not(target_arch = "wasm32"), test))]
 fn resolve_tool(raw: Option<&str>) -> Option<&'static str> {
+    let _ = upeg_toolkit_catalog::register_embedded_metadata();
     raw.map(str::trim)
         .filter(|s| !s.is_empty())
         .and_then(toolbox_tool)

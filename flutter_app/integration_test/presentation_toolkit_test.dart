@@ -193,6 +193,8 @@ final class _PresentationToolkitRobot {
       find.byKey(const Key('field-mode')),
     );
     expect(_fieldValue('project'), _project.path);
+    await tester.tap(find.byKey(const Key('generic-form-bound-inputs')).last);
+    await tester.pumpAndSettle();
     expect(_fieldValue('skill'), _probeSkill);
   }
 
@@ -210,8 +212,25 @@ final class _PresentationToolkitRobot {
     );
     await _tapAndWait(
       find.byKey(const Key('presentation-result-action-apply')),
-      find.byKey(const Key('field-expected_state')),
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ExpandedModalPage &&
+            widget.tool.id == 'ecosystem.mode_apply',
+      ),
     );
+    final applyModal = find.byWidgetPredicate(
+      (widget) =>
+          widget is ExpandedModalPage &&
+          widget.tool.id == 'ecosystem.mode_apply',
+    );
+    final passedInputs = find.descendant(
+      of: applyModal,
+      matching: find.byKey(const Key('generic-form-bound-inputs')),
+    );
+    await tester.ensureVisible(passedInputs);
+    await tester.tap(passedInputs);
+    await tester.pumpAndSettle();
+    await _waitFor(find.byKey(const Key('field-expected_state')));
     expect(_fieldValue('project'), _project.path);
     expect(_fieldValue('skill'), _probeSkill);
     expect(_fieldValue('expected_state'), isNotEmpty);

@@ -1,0 +1,20 @@
+# Toolkit pack runtime
+
+The shell keeps the complete Tool and Toolkit metadata, but built-in execution code ships in separate packs. The generated metadata comes from `#[tool]` and `#[toolkit]` inventory entries, including the five manual GUI entries in `upeg-tools/src/gui_meta.rs`. `upeg-toolkit-pack prepare-web` writes `upeg-toolkit-catalog/src/metadata.snapshot.json`; `verify-metadata` fails if that snapshot drifts from the annotations. The snapshot currently contains 17 Toolkit groups and 73 Tools. `memo` and `embed` are GUI metadata groups; they have no executable pack.
+
+`upeg-tools` has no default toolkit feature. The pack builder compiles exactly one toolkit feature per guest. Browser guests export wasm-bindgen `dispatch(tool_id, args_json) -> String` and `abi_digest() -> String`. `dispatch` returns the existing `ToolResult::to_canonical_json()` wire; a dedicated Worker downloads and verifies the JavaScript glue and WASM bytes, instantiates the guest, and runs it. Browser tool discovery and forms use the shell's generated metadata before any pack download. Network and filesystem toolkits (`devcontainer`, `eth`, `net`, `weather`) have no browser pack and use the attached native host.
+
+Native guests are separate executables. The shell registers the generated built-ins with `upeg-runtime` and runs a sidecar only on invocation. The sidecar accepts JSON lines containing `abi_digest`, `tool_id`, and `args`; it returns the serde `ToolResult` on one line. The shell limits the response size and execution time. Pack artifacts are gzip files, with both compressed and expanded sizes and SHA-256 hashes in the catalog. The installer validates both forms before making the executable available and installs it atomically under the shared UPeg config root. The last verified executable is used offline only when its receipt matches the running app version, ABI digest, target, and Toolkit ID and its expanded hash still matches.
+
+`abi_digest` is SHA-256 of RFC 8785 JCS bytes for the tuple `(guest ABI token, generated metadata snapshot)`. The ABI token is in `upeg-toolkit-catalog/src/guest_abi.txt`. The same value is compiled into every guest and into the Flutter shell via `UPEG_TOOLKIT_ABI_DIGEST`. `catalog_digest` is SHA-256 of RFC 8785 JCS bytes for the catalog object with the `catalog_digest` field removed. Each browser pack URL includes a bundle digest, SHA-256 of the ASCII string `<js_sha256>:<wasm_sha256>`, so a changed pack cannot reuse an immutable URL within the same app version. The Worker and native loader reject an incompatible catalog before loading code.
+
+Native catalog sources use `UPEG_TOOLKIT_CATALOG_URL` at compile time; the same environment variable overrides it at runtime for development. With no value, OSS builds use the versioned GitHub Release catalog `toolkits-<target>-catalog.json`. Pages builds inject their versioned native catalog URL during release builds. The optional `UPEG_TOOLKIT_LOCAL_DIR` points to the output of `build-native` and replaces network reads with local catalog and pack files while applying the same integrity checks. `UPEG_TOOLKIT_CACHE_DIR` overrides the default cache location for isolated tests. Verified catalogs are cached by the SHA-256 of their source URL and read before the network on later runs. A different release URL gets a separate catalog cache.
+
+Build and verify in this order:
+
+1. `cargo run -p upeg-toolkit-pack -- prepare-web --out target/toolkits/abi_digest.txt`
+2. Build Flutter web with `--dart-define=UPEG_TOOLKIT_ABI_DIGEST=<file contents>`.
+3. `cargo run -p upeg-toolkit-pack -- build-web --out flutter_app/build/web/toolkits`
+4. `cargo run -p upeg-toolkit-pack -- verify-web --root flutter_app/build/web --app-version <version>`
+
+For native releases, use `build-native --target <triple> --out <staging> --base-url <https-origin>` and `verify-native --root <staging> --target <triple> --app-version <version>`. OSS release assets add `--flat-release-assets` to `build-native`; Pages staging uses the nested default. Every selected pack is required, and each uploaded gzip file must be at most 25 MiB.

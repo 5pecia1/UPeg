@@ -54,6 +54,7 @@ class StatusBar extends ConsumerWidget {
     }
     final pinnedCount = layoutAsync.value?.placements.length ?? 0;
     final importsLabel = _importsLabel(ref, status);
+    final toolkitLabel = _toolkitLabel(ref);
 
     return Container(
       height: UpegSizing.statusBarHeight,
@@ -98,6 +99,20 @@ class StatusBar extends ConsumerWidget {
             const SizedBox(width: 14),
             Text(importsLabel, style: _baseTextStyle(tokens)),
           ],
+          if (toolkitLabel != null) ...<Widget>[
+            const SizedBox(width: 14),
+            Flexible(
+              child: Semantics(
+                liveRegion: true,
+                label: toolkitLabel,
+                child: Text(
+                  toolkitLabel,
+                  overflow: TextOverflow.ellipsis,
+                  style: _baseTextStyle(tokens),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: 14),
           const Expanded(child: _ProjectContextStatus()),
           Text('v${status.buildVersion}', style: _baseTextStyle(tokens)),
@@ -128,6 +143,31 @@ class StatusBar extends ConsumerWidget {
               })
             : null;
     }
+  }
+
+  String? _toolkitLabel(WidgetRef ref) {
+    final states = ref.watch(toolkitRuntimeProvider).values;
+    for (final state in states) {
+      switch (state) {
+        case ToolkitRuntimeDownloading(:final retrying):
+          return t(
+            ref,
+            retrying
+                ? 'desktop.status.toolkit_retrying'
+                : 'desktop.status.toolkit_downloading',
+          );
+        case ToolkitRuntimeUnavailable(:final offline):
+          return t(
+            ref,
+            offline
+                ? 'desktop.status.toolkit_offline'
+                : 'desktop.status.toolkit_failed',
+          );
+        case ToolkitRuntimeIdle() || ToolkitRuntimeReady():
+          continue;
+      }
+    }
+    return null;
   }
 
   /// Reachability dot color is a total function over the sealed enum.

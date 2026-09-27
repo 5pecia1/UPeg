@@ -55,6 +55,7 @@ FLUTTER_SUITE_CWD = "flutter_app"
 # the same pair is set by the Justfile's `hermetic_sources`.
 PROJECT_MANIFEST_PATH_ENV = "UPEG_PROJECT_MANIFEST_PATH"
 PROJECT_MANIFEST_OVERRIDE_OFF = "off"
+TOOLKIT_TEST_HOME_ENV = "UPEG_TOOLKIT_TEST_HOME"
 
 
 def hermetic_env():
@@ -62,7 +63,10 @@ def hermetic_env():
     env = dict(os.environ)
     for key in ("UPEG_TOOLKITS_DIR", "UPEG_WASM_DIR", "UPEG_MCP_IMPORTS_DIR", "UPEG_LOG_PATH", "UPEG_CREDENTIALS_PATH"):
         env.pop(key, None)
-    env["UPEG_HOME"] = str(Path(__file__).resolve().parents[1] / "target/hermetic-sources/state")
+    env["UPEG_HOME"] = env.get(
+        TOOLKIT_TEST_HOME_ENV,
+        str(Path(__file__).resolve().parents[1] / "target/hermetic-sources/state"),
+    )
     env[PROJECT_MANIFEST_PATH_ENV] = PROJECT_MANIFEST_OVERRIDE_OFF
     return env
 REQUIRED_TEST_FIELDS = ("className", "methodName", "status", "target", "fullName")

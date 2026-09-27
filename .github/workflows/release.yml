@@ -1,7 +1,4 @@
-# Public release build — native runs manually; trusted main controls automatic mirrors.
-#
-# `native` builds public source. `mirror` verifies and publishes the exact
-# payload already staged in this repository as a draft release by the bridge.
+# Public release build from the public main branch.
 #
 # Tag policy: the dispatch `tag` input must equal `v<Cargo workspace version>`
 # (Cargo.toml [workspace.package].version is the version source of truth).
@@ -10,36 +7,16 @@
 # `continuous` downloads. Action pins match .github/workflows/ci.yml.
 name: release
 on:
-  repository_dispatch:
-    types: [upeg_release_mirror]
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'native builds public source; mirror finalizes a bridge draft'
-        required: false
-        default: native
-        type: choice
-        options: [native, mirror]
       tag:
         description: 'Release tag, must equal v<workspace version> (e.g. v0.1.2)'
         required: true
         type: string
-      public_sha:
-        description: 'Immutable public commit for mirror mode'
-        required: false
-        type: string
-      draft_id:
-        description: 'Bridge-created public draft release ID for mirror mode'
-        required: false
-        type: string
-      manifest_sha256:
-        description: 'SHA256 of the bridge release-manifest.json for mirror mode'
-        required: false
-        type: string
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.event.client_payload.tag }}
+  group: ${{ github.workflow }}-${{ inputs.tag }}
   cancel-in-progress: false
 env:
   RUST_VERSION: '1.92.0'
@@ -49,10 +26,12 @@ env:
   FPM_VERSION: '1.17.0'
   APPIMAGETOOL_VERSION: '1.9.1'
   APPIMAGETOOL_SHA256: 'ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0'
+  CREATE_DMG_COMMIT: '994a036532d3ac1bb1cd5a425a0d5d796ecbed83' # v1.2.3
+  CREATE_DMG_SHA256: 'daf28cd130930cb97c5699f4b04c6814968cff00b181049d13c5f27b64911369'
   # AppImage type2 runtime, release tag 20251108.
   APPIMAGE_RUNTIME_TAG: '20251108'
   APPIMAGE_RUNTIME_SHA256: '2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d'
-  RELEASE_TAG: ${{ inputs.tag || github.event.client_payload.tag }}
+  RELEASE_TAG: ${{ inputs.tag }}
 jobs:
   preflight:
     name: preflight
@@ -64,35 +43,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.public_sha || inputs.mode == 'mirror' && inputs.public_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Check native release App configuration
-        if: inputs.mode == 'native'
-        env:
-          APP_ID: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
-          APP_KEY: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
-        run: |
-          [ -n "$APP_ID" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_ID' >&2; exit 1; }
-          [ -n "$APP_KEY" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_PRIVATE_KEY' >&2; exit 1; }
       - name: Resolve and check the release version
         id: resolve
         env:
           REF: ${{ github.ref }}
-          MODE: ${{ github.event_name == 'repository_dispatch' && 'mirror' || inputs.mode }}
-          PUBLIC_SHA: ${{ inputs.public_sha || github.event.client_payload.public_sha }}
-          DRAFT_ID: ${{ inputs.draft_id || github.event.client_payload.draft_id }}
-          MANIFEST_SHA256: ${{ inputs.manifest_sha256 || github.event.client_payload.manifest_sha256 }}
         run: |
           set -euo pipefail
           [ "$REF" = "refs/heads/main" ] \
             || { echo "release builds only run on main (got $REF)" >&2; exit 1; }
-          case "$MODE" in native|mirror) ;; *) echo "unknown release mode: $MODE" >&2; exit 1 ;; esac
-          if [ "$MODE" = mirror ]; then
-            [[ "$PUBLIC_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'mirror public_sha must be a SHA' >&2; exit 1; }
-            [[ "$DRAFT_ID" =~ ^[0-9]+$ ]] || { echo 'mirror draft_id must be numeric' >&2; exit 1; }
-            [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo 'mirror manifest_sha256 must be a SHA256' >&2; exit 1; }
-            [ "$(git rev-parse HEAD)" = "$PUBLIC_SHA" ] || { echo 'mirror public_sha is not the checked out public commit' >&2; exit 1; }
-          fi
           version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' \
             Cargo.toml | head -n 1)"
           [ -n "$version" ] || { echo "workspace version not found" >&2; exit 1; }
@@ -107,11 +67,11 @@ jobs:
   cli-linux:
     name: cli-linux
     needs: preflight
-    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 60
     env:
       TARGET: x86_64-unknown-linux-gnu
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-unknown-linux-gnu-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
       UPEG_COMMIT: ${{ github.sha }}
       UPEG_REPO: ${{ github.repository }}
@@ -137,6 +97,7 @@ jobs:
           cargo build --release -p upeg-cli --bin upeg --target "$TARGET"
           bin="./target/$TARGET/release/upeg"
           just smoke-bin "$bin"
+          just native-toolkit-smoke "$bin" "$TARGET"
           name="upeg-${RELEASE_TAG}-${TARGET}"
           mkdir -p "dist/$name"
           cp "$bin" "dist/$name/"
@@ -157,11 +118,11 @@ jobs:
   cli-macos:
     name: cli-macos
     needs: preflight
-    if: inputs.mode == 'native'
     runs-on: macos-14
     timeout-minutes: 60
     env:
       TARGET: aarch64-apple-darwin
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-aarch64-apple-darwin-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
       UPEG_COMMIT: ${{ github.sha }}
       UPEG_REPO: ${{ github.repository }}
@@ -182,6 +143,7 @@ jobs:
           cargo build --release -p upeg-cli --bin upeg --target "$TARGET"
           bin="./target/$TARGET/release/upeg"
           just smoke-bin "$bin"
+          just native-toolkit-smoke "$bin" "$TARGET"
           name="upeg-${RELEASE_TAG}-${TARGET}"
           mkdir -p "dist/$name"
           cp "$bin" "dist/$name/"
@@ -199,14 +161,68 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  cli-linux-arm64:
+    name: cli-linux-arm64
+    needs: preflight
+    # This runner executes the ARM64 binary directly. Keeping it on Ubuntu
+    # 24.04 matches the x86_64 CLI build's glibc baseline.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      TARGET: aarch64-unknown-linux-gnu
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-aarch64-unknown-linux-gnu-catalog.json
+      UPEG_VERSION: ${{ inputs.tag }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
+      UPEG_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libssl-dev ca-certificates
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ env.TARGET }}
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375
+        with:
+          tool: just@${{ env.JUST_VERSION }}
+      - name: Build, smoke, stage archive
+        run: |
+          set -euo pipefail
+          cargo build --release -p upeg-cli --bin upeg --target "$TARGET"
+          bin="./target/$TARGET/release/upeg"
+          just smoke-bin "$bin"
+          just native-toolkit-smoke "$bin" "$TARGET"
+          name="upeg-${RELEASE_TAG}-${TARGET}"
+          mkdir -p "dist/$name"
+          cp "$bin" "dist/$name/"
+          cp README.md README.ko.md "dist/$name/"
+          bash packaging/release-files.sh stage "dist/$name"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          ( cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" )
+          ls -la dist/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: cli-linux-arm64
+          path: |
+            dist/upeg-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz
+            dist/upeg-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
   cli-windows:
     name: cli-windows
     needs: preflight
-    if: inputs.mode == 'native'
     runs-on: windows-latest
     timeout-minutes: 60
     env:
       TARGET: x86_64-pc-windows-msvc
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-pc-windows-msvc-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
       UPEG_COMMIT: ${{ github.sha }}
       UPEG_REPO: ${{ github.repository }}
@@ -227,6 +243,7 @@ jobs:
           set -euo pipefail
           cargo build --release -p upeg-cli --bin upeg --target "$TARGET"
           just smoke-bin "./target/$TARGET/release/upeg.exe"
+          just native-toolkit-smoke "./target/$TARGET/release/upeg.exe" "$TARGET"
       - name: Stage archive
         shell: bash
         run: |
@@ -254,13 +271,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Validated desktop scope is Linux only: native macOS/Windows packaging
-  # recipes exist (just package-macos-dmg / package-windows-msix) but are not
-  # part of the verified public release set.
   flutter-linux:
     name: flutter-linux
     needs: preflight
-    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 120
     env:
@@ -270,6 +283,7 @@ jobs:
       UPEG_COMMIT: ${{ github.sha }}
       UPEG_REPO: ${{ github.repository }}
       UPEG_APPIMAGE_RUNTIME: /opt/upeg-tools/appimage-runtime-x86_64
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-unknown-linux-gnu-catalog.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -355,11 +369,150 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # One v2 manifest covers the native release assets and their source commit.
+  flutter-macos:
+    name: flutter-macos
+    needs: preflight
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      UPEG_VERSION: ${{ inputs.tag }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
+      UPEG_REPO: ${{ github.repository }}
+      UPEG_PUBLIC_RELEASE: 1
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-aarch64-apple-darwin-catalog.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375
+        with:
+          tool: just@${{ env.JUST_VERSION }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Install pinned create-dmg
+        run: |
+          set -euo pipefail
+          tool_dir="$RUNNER_TEMP/create-dmg"
+          mkdir -p "$tool_dir"
+          curl -fsSL --retry 3 \
+            "https://codeload.github.com/create-dmg/create-dmg/tar.gz/$CREATE_DMG_COMMIT" \
+            -o "$RUNNER_TEMP/create-dmg.tar.gz"
+          echo "$CREATE_DMG_SHA256  $RUNNER_TEMP/create-dmg.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/create-dmg.tar.gz" -C "$tool_dir" --strip-components=1
+          echo "$tool_dir" >> "$GITHUB_PATH"
+      - name: Build and stage macOS DMG
+        run: |
+          set -euo pipefail
+          just package-macos-dmg
+          mkdir -p dist
+          cp "target/packages/macos/upeg-${RELEASE_TAG}.dmg" dist/
+          ( cd dist && shasum -a 256 "upeg-${RELEASE_TAG}.dmg" > "upeg-${RELEASE_TAG}.dmg.sha256" )
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flutter-macos
+          path: |
+            dist/upeg-${{ env.RELEASE_TAG }}.dmg
+            dist/upeg-${{ env.RELEASE_TAG }}.dmg.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  flutter-windows:
+    name: flutter-windows
+    needs: preflight
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      UPEG_VERSION: ${{ inputs.tag }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
+      UPEG_REPO: ${{ github.repository }}
+      UPEG_PUBLIC_RELEASE: 1
+      UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-pc-windows-msvc-catalog.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375
+        with:
+          tool: just@${{ env.JUST_VERSION }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Build and stage Windows MSIX
+        shell: bash
+        run: |
+          set -euo pipefail
+          just package-windows-msix
+          mapfile -d '' packages < <(find target/packages/windows -maxdepth 1 -type f -name '*.msix' -print0)
+          [ "${#packages[@]}" -eq 1 ] || { echo 'expected exactly one Windows MSIX' >&2; exit 1; }
+          mkdir -p dist
+          name="upeg-${RELEASE_TAG}-x86_64.msix"
+          cp "${packages[0]}" "dist/$name"
+          ( cd dist && sha256sum "$name" > "$name.sha256" )
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flutter-windows
+          path: |
+            dist/upeg-${{ env.RELEASE_TAG }}-x86_64.msix
+            dist/upeg-${{ env.RELEASE_TAG }}-x86_64.msix.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  toolkit-native:
+    name: toolkit native (${{ matrix.target }})
+    needs: preflight
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: macos-14, target: aarch64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+      - name: Build and verify immutable public native toolkit assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          base_url="https://github.com/5pecia1/UPeg/releases/download/$RELEASE_TAG"
+          out="toolkit-release/${{ matrix.target }}"
+          cargo run -p upeg-toolkit-pack -- build-native --target "${{ matrix.target }}" --out "$out" --base-url "$base_url" --flat-release-assets
+          cargo run -p upeg-toolkit-pack -- verify-native --root "$out" --target "${{ matrix.target }}" --app-version "$version"
+          bash packaging/pages-static.sh limits "$out"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: toolkit-native-${{ matrix.target }}
+          path: toolkit-release/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  # One v2 manifest covers every public release asset and its source commit.
   manifest:
     name: manifest
-    needs: [preflight, cli-linux, cli-macos, cli-windows, flutter-linux]
-    if: inputs.mode == 'native'
+    needs: [preflight, cli-linux, cli-linux-arm64, cli-macos, cli-windows, flutter-linux, flutter-macos, flutter-windows, toolkit-native]
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
@@ -402,7 +555,7 @@ jobs:
           retention-days: 7
 
   release-ci:
-    name: release-${{ github.event_name == 'repository_dispatch' && 'mirror' || inputs.mode }}-${{ matrix.lane }}
+    name: release-${{ matrix.lane }}
     needs: preflight
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 120
@@ -419,37 +572,9 @@ jobs:
         with:
           lane: ${{ matrix.lane }}
 
-  mirror-publish:
-    name: verify and finalize mirror release
-    needs: [preflight, release-ci]
-    if: inputs.mode == 'mirror' || github.event_name == 'repository_dispatch'
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    env:
-      RELEASE_TAG: ${{ inputs.tag || github.event.client_payload.tag }}
-      PUBLIC_SHA: ${{ needs.preflight.outputs.public_sha }}
-      DRAFT_ID: ${{ inputs.draft_id || github.event.client_payload.draft_id }}
-      MANIFEST_SHA256: ${{ inputs.manifest_sha256 || github.event.client_payload.manifest_sha256 }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Finalize the verified draft
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          python3 release/github_release.py finalize --repo "$GITHUB_REPOSITORY" \
-            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --release-id "$DRAFT_ID" \
-            --manifest-sha256 "$MANIFEST_SHA256"
-
   native-publish:
     name: publish native release
     needs: [preflight, manifest, release-ci]
-    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 20
     env:
@@ -488,6 +613,13 @@ jobs:
           PY
           python3 release/artifacts.py verify-mirror files \
             incoming/release-manifest/release-manifest.json --tag "$RELEASE_TAG"
+      - name: Check native release App configuration
+        env:
+          APP_ID: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
+          APP_KEY: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          [ -n "$APP_ID" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_ID' >&2; exit 1; }
+          [ -n "$APP_KEY" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_PRIVATE_KEY' >&2; exit 1; }
       - name: Mint the public release App token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
         id: public-release-token

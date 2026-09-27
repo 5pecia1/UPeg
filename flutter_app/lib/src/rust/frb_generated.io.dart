@@ -27,6 +27,7 @@ import 'api/status.dart';
 import 'api/tools.dart';
 import 'api/tools/file_input_policy.dart';
 import 'api/tools/input_field.dart';
+import 'api/tools/presentation_view.dart';
 import 'api/tweaks.dart';
 import 'api/webview.dart';
 import 'dart:async';
@@ -189,6 +190,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PegboardSelectionDto dco_decode_box_autoadd_pegboard_selection_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PresentationDetailDto dco_decode_box_autoadd_presentation_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PresentationStatusDto dco_decode_box_autoadd_presentation_status_dto(
     dynamic raw,
   );
 
@@ -409,6 +420,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MemoEntry> dco_decode_list_memo_entry(dynamic raw);
 
   @protected
+  List<String?> dco_decode_list_opt_String(dynamic raw);
+
+  @protected
   List<OutputFieldDto> dco_decode_list_output_field_dto(dynamic raw);
 
   @protected
@@ -416,6 +430,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PlacementDto> dco_decode_list_placement_dto(dynamic raw);
+
+  @protected
+  List<PresentationActionAvailabilityDto>
+  dco_decode_list_presentation_action_availability_dto(dynamic raw);
 
   @protected
   List<PresentationActionDto> dco_decode_list_presentation_action_dto(
@@ -429,6 +447,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PresentationColumnDto> dco_decode_list_presentation_column_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationFieldDto> dco_decode_list_presentation_field_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationNoticeDto> dco_decode_list_presentation_notice_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<PresentationRowDetailDto> dco_decode_list_presentation_row_detail_dto(
     dynamic raw,
   );
 
@@ -492,6 +525,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CanonicalToolResult? dco_decode_opt_box_autoadd_canonical_tool_result(
+    dynamic raw,
+  );
+
+  @protected
   ControlledEmbedUserAgentDto?
   dco_decode_opt_box_autoadd_controlled_embed_user_agent_dto(dynamic raw);
 
@@ -535,6 +573,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NumberConstraintsDto? dco_decode_opt_box_autoadd_number_constraints_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PresentationDetailDto? dco_decode_opt_box_autoadd_presentation_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PresentationStatusDto? dco_decode_opt_box_autoadd_presentation_status_dto(
     dynamic raw,
   );
 
@@ -601,6 +649,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlacementDto dco_decode_placement_dto(dynamic raw);
 
   @protected
+  PresentationActionAvailabilityDto
+  dco_decode_presentation_action_availability_dto(dynamic raw);
+
+  @protected
   PresentationActionDto dco_decode_presentation_action_dto(dynamic raw);
 
   @protected
@@ -610,10 +662,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PresentationColumnDto dco_decode_presentation_column_dto(dynamic raw);
 
   @protected
+  PresentationDetailDto dco_decode_presentation_detail_dto(dynamic raw);
+
+  @protected
+  PresentationFieldDto dco_decode_presentation_field_dto(dynamic raw);
+
+  @protected
+  PresentationNoticeDto dco_decode_presentation_notice_dto(dynamic raw);
+
+  @protected
+  PresentationRowDetailDto dco_decode_presentation_row_detail_dto(dynamic raw);
+
+  @protected
   PresentationRowDto dco_decode_presentation_row_dto(dynamic raw);
 
   @protected
   PresentationRowsDto dco_decode_presentation_rows_dto(dynamic raw);
+
+  @protected
+  PresentationStatusDto dco_decode_presentation_status_dto(dynamic raw);
+
+  @protected
+  PresentationViewDto dco_decode_presentation_view_dto(dynamic raw);
 
   @protected
   ProjectActivationDto dco_decode_project_activation_dto(dynamic raw);
@@ -683,6 +753,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnsupportedReasonDto dco_decode_unsupported_reason_dto(dynamic raw);
+
+  @protected
+  WebToolkitDispatchPreparation dco_decode_web_toolkit_dispatch_preparation(
+    dynamic raw,
+  );
 
   @protected
   WebViewExecutionCompletionDto dco_decode_web_view_execution_completion_dto(
@@ -893,6 +968,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PegboardSelectionDto sse_decode_box_autoadd_pegboard_selection_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationDetailDto sse_decode_box_autoadd_presentation_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationStatusDto sse_decode_box_autoadd_presentation_status_dto(
     SseDeserializer deserializer,
   );
 
@@ -1169,6 +1254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MemoEntry> sse_decode_list_memo_entry(SseDeserializer deserializer);
 
   @protected
+  List<String?> sse_decode_list_opt_String(SseDeserializer deserializer);
+
+  @protected
   List<OutputFieldDto> sse_decode_list_output_field_dto(
     SseDeserializer deserializer,
   );
@@ -1178,6 +1266,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PlacementDto> sse_decode_list_placement_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationActionAvailabilityDto>
+  sse_decode_list_presentation_action_availability_dto(
     SseDeserializer deserializer,
   );
 
@@ -1193,6 +1287,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PresentationColumnDto> sse_decode_list_presentation_column_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationFieldDto> sse_decode_list_presentation_field_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationNoticeDto> sse_decode_list_presentation_notice_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PresentationRowDetailDto> sse_decode_list_presentation_row_detail_dto(
     SseDeserializer deserializer,
   );
 
@@ -1278,6 +1387,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CanonicalToolResult? sse_decode_opt_box_autoadd_canonical_tool_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ControlledEmbedUserAgentDto?
   sse_decode_opt_box_autoadd_controlled_embed_user_agent_dto(
     SseDeserializer deserializer,
@@ -1329,6 +1443,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NumberConstraintsDto? sse_decode_opt_box_autoadd_number_constraints_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationDetailDto? sse_decode_opt_box_autoadd_presentation_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationStatusDto? sse_decode_opt_box_autoadd_presentation_status_dto(
     SseDeserializer deserializer,
   );
 
@@ -1401,6 +1525,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlacementDto sse_decode_placement_dto(SseDeserializer deserializer);
 
   @protected
+  PresentationActionAvailabilityDto
+  sse_decode_presentation_action_availability_dto(SseDeserializer deserializer);
+
+  @protected
   PresentationActionDto sse_decode_presentation_action_dto(
     SseDeserializer deserializer,
   );
@@ -1416,12 +1544,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PresentationDetailDto sse_decode_presentation_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationFieldDto sse_decode_presentation_field_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationNoticeDto sse_decode_presentation_notice_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationRowDetailDto sse_decode_presentation_row_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PresentationRowDto sse_decode_presentation_row_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   PresentationRowsDto sse_decode_presentation_rows_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationStatusDto sse_decode_presentation_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PresentationViewDto sse_decode_presentation_view_dto(
     SseDeserializer deserializer,
   );
 
@@ -1515,6 +1673,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnsupportedReasonDto sse_decode_unsupported_reason_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WebToolkitDispatchPreparation sse_decode_web_toolkit_dispatch_preparation(
     SseDeserializer deserializer,
   );
 
@@ -1779,6 +1942,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_pegboard_selection_dto(
     PegboardSelectionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_presentation_detail_dto(
+    PresentationDetailDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_presentation_status_dto(
+    PresentationStatusDto self,
     SseSerializer serializer,
   );
 
@@ -2128,6 +2303,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_opt_String(List<String?> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_output_field_dto(
     List<OutputFieldDto> self,
     SseSerializer serializer,
@@ -2146,6 +2324,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_presentation_action_availability_dto(
+    List<PresentationActionAvailabilityDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_presentation_action_dto(
     List<PresentationActionDto> self,
     SseSerializer serializer,
@@ -2160,6 +2344,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_presentation_column_dto(
     List<PresentationColumnDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_field_dto(
+    List<PresentationFieldDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_notice_dto(
+    List<PresentationNoticeDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_presentation_row_detail_dto(
+    List<PresentationRowDetailDto> self,
     SseSerializer serializer,
   );
 
@@ -2266,6 +2468,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_canonical_tool_result(
+    CanonicalToolResult? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_controlled_embed_user_agent_dto(
     ControlledEmbedUserAgentDto? self,
     SseSerializer serializer,
@@ -2325,6 +2533,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_number_constraints_dto(
     NumberConstraintsDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_presentation_detail_dto(
+    PresentationDetailDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_presentation_status_dto(
+    PresentationStatusDto? self,
     SseSerializer serializer,
   );
 
@@ -2422,6 +2642,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_placement_dto(PlacementDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_presentation_action_availability_dto(
+    PresentationActionAvailabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_presentation_action_dto(
     PresentationActionDto self,
     SseSerializer serializer,
@@ -2440,6 +2666,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_presentation_detail_dto(
+    PresentationDetailDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_field_dto(
+    PresentationFieldDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_notice_dto(
+    PresentationNoticeDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_row_detail_dto(
+    PresentationRowDetailDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_presentation_row_dto(
     PresentationRowDto self,
     SseSerializer serializer,
@@ -2448,6 +2698,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_presentation_rows_dto(
     PresentationRowsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_status_dto(
+    PresentationStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_presentation_view_dto(
+    PresentationViewDto self,
     SseSerializer serializer,
   );
 
@@ -2556,6 +2818,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_unsupported_reason_dto(
     UnsupportedReasonDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_web_toolkit_dispatch_preparation(
+    WebToolkitDispatchPreparation self,
     SseSerializer serializer,
   );
 

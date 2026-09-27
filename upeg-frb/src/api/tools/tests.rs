@@ -224,6 +224,49 @@ fn canonical_tool_result_exposes_failure_schema_as_canonical_error() {
 }
 
 #[test]
+fn web_toolkit_preparation_reuses_tool_id_validation() {
+    let prepared = prepare_web_toolkit_dispatch(
+        "not a tool id".to_owned(),
+        "{}".to_owned(),
+        None,
+        None,
+        false,
+    );
+
+    assert!(prepared.effective_args_json.is_none());
+    assert_eq!(
+        prepared
+            .error
+            .and_then(|error| error.error)
+            .map(|error| error.code),
+        Some(INVALID_TOOL_ID_ERROR_CODE.to_owned())
+    );
+}
+
+#[test]
+fn web_toolkit_preparation_shapes_reserved_approval_after_context() {
+    let prepared = prepare_web_toolkit_dispatch(
+        "num.hex_to_decimal".to_owned(),
+        r#"{"input":"0xff","approve":true}"#.to_owned(),
+        None,
+        None,
+        false,
+    );
+
+    assert!(prepared.error.is_none());
+    let args: serde_json::Value = serde_json::from_str(
+        prepared
+            .effective_args_json
+            .as_deref()
+            .expect("valid dispatch must prepare args"),
+    )
+    .expect("prepared args are JSON");
+    assert_eq!(args["input"], "0xff");
+    assert!(args.get(APPROVE_RESERVED_ARG).is_none());
+    assert!(args.get(upeg_core::EXECUTION_CONTEXT_ARG).is_some());
+}
+
+#[test]
 fn dispatch_tool_rejects_noncanonical_tool_id() {
     let outcome = dispatch_tool(
         " num.hex_to_decimal ".to_string(),

@@ -119,6 +119,7 @@ class GenericFormWidget extends ConsumerStatefulWidget {
     required this.controller,
     this.onValidationChanged,
     this.compact = false,
+    this.boundInputKeys = const <String>{},
     super.key,
   });
 
@@ -129,6 +130,7 @@ class GenericFormWidget extends ConsumerStatefulWidget {
   /// label as a placeholder, smaller type and tighter spacing so the form
   /// fits a tile. The expanded modal leaves this false for the full layout.
   final bool compact;
+  final Set<String> boundInputKeys;
 
   /// Optional gate hook: fires whenever the aggregate validity flips.
   /// `true` ⇒ every required field is filled and every field validator
@@ -360,6 +362,22 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
         child: Text(t(ref, 'modal.generic.no_inputs')),
       );
     }
+    final visible = fields
+        .where(
+          (field) =>
+              _fieldVisible(field) &&
+              (!isImageConversionTool(widget.tool.id) ||
+                  field.key != ImageConversionFields.outputLimit),
+        )
+        .toList();
+    final bound = visible
+        .where(
+          (field) =>
+              widget.boundInputKeys.contains(field.key) &&
+              field.fieldType is InputFieldType_Text &&
+              _validationText(widget.controller.value(field.key)).isNotEmpty,
+        )
+        .toList();
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
       child: Focus(
@@ -374,17 +392,34 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
                 padding: const EdgeInsets.only(bottom: _expandedFieldSpacing),
                 child: Text(t(ref, 'media.convert.guidance')),
               ),
-            for (final field in fields.where(
-              (field) =>
-                  _fieldVisible(field) &&
-                  (!isImageConversionTool(widget.tool.id) ||
-                      field.key != ImageConversionFields.outputLimit),
+            for (final field in visible.where(
+              (field) => !bound.contains(field),
             ))
               Padding(
                 padding: EdgeInsets.only(
                   bottom: _compact ? UpegSizing.radius2 : _expandedFieldSpacing,
                 ),
                 child: _buildField(field),
+              ),
+            if (bound.isNotEmpty)
+              Material(
+                type: MaterialType.transparency,
+                child: ExpansionTile(
+                  key: const Key('generic-form-bound-inputs'),
+                  title: Text(t(ref, 'modal.generic.bound_inputs')),
+                  initiallyExpanded: bound.any(
+                    (field) => !_validateField(field).isOk,
+                  ),
+                  children: [
+                    for (final field in bound)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: _expandedFieldSpacing,
+                        ),
+                        child: _buildField(field),
+                      ),
+                  ],
+                ),
               ),
             if (isImageConversionTool(widget.tool.id)) ...[
               if (widget.controller.value(ImageConversionFields.format) ==

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.5.1+1
+version: 0.5.2+1
 
 environment:
   sdk: ^3.12.0
@@ -75,7 +75,11 @@ dependencies:
   # hood) so the desktop build links it harmlessly even though only the
   # wasm/PWA runtime ever dispatches through the attach client.
   http: ^1.6.0
-
+  flutter_markdown_plus: ^1.0.12
+  markdown: ^7.3.1
+  # Rich knowledge output needs standards-based headings, links, tables and
+  # fenced code blocks; the previous hand-written line parser supported only
+  # a small subset of Markdown.
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -102,7 +106,7 @@ msix_config:
   publisher_display_name: upeg contributors
   identity_name: io.github.5pecia1.upeg
   publisher: CN=upeg contributors
-  msix_version: 0.5.1.0
+  msix_version: 0.5.2.0
   logo_path: web/icons/Icon-512.png
   capabilities: internetClient
   # Register the upeg:// custom scheme so packaged Windows installs route

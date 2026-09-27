@@ -11158,6 +11158,156 @@
       }
     },
     {
+      "id": "toolkit.embed",
+      "surfaces": [
+        "desktop",
+        "pwa",
+        "ext"
+      ],
+      "kind": "toolkit",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": null,
+          "schemaRef": "toolkit.embed.manifest",
+          "description": "Toolkit manifest contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "none",
+          "schema": null,
+          "schemaRef": null,
+          "description": "Manifest schema entries describe static schema artifacts and do not emit ToolResult outputs",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-runtime/src/toolbox.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "toolkit.memo",
+      "surfaces": [
+        "desktop",
+        "pwa",
+        "ext"
+      ],
+      "kind": "toolkit",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": null,
+          "schemaRef": "toolkit.memo.manifest",
+          "description": "Toolkit manifest contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "none",
+          "schema": null,
+          "schemaRef": null,
+          "description": "Manifest schema entries describe static schema artifacts and do not emit ToolResult outputs",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-runtime/src/toolbox.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "toolkit.net",
+      "surfaces": [
+        "desktop",
+        "pwa",
+        "ext"
+      ],
+      "kind": "toolkit",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": null,
+          "schemaRef": "toolkit.net.manifest",
+          "description": "Toolkit manifest contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "none",
+          "schema": null,
+          "schemaRef": null,
+          "description": "Manifest schema entries describe static schema artifacts and do not emit ToolResult outputs",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-runtime/src/toolbox.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
       "id": "desktop.board.view",
       "surfaces": [
         "desktop"

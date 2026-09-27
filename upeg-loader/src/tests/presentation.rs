@@ -115,3 +115,79 @@ target_tool = "demo.second"
     .expect_err("action ids select actions and must be unique");
     assert!(matches!(error, LoadError::InvalidPresentation(message) if message.contains("unique")));
 }
+
+#[test]
+fn optional_output_only_fields_preserve_version_one() {
+    let parsed = parse_manifest(&manifest(
+        r#"[tools.presentation]
+version = 1
+output = "result"
+title_pointer = "/view/title"
+summary = [{ label = "Changes", pointer = "/view/changes" }]
+
+[tools.presentation.status]
+label_pointer = "/view/status/label"
+tone_pointer = "/view/status/tone"
+
+[[tools.presentation.actions]]
+id = "apply"
+scope = "result"
+label = "Apply"
+target_tool = "demo.apply"
+enabled_pointer = "/view/actions/apply/enabled"
+disabled_reason_pointer = "/view/actions/apply/reason"
+"#,
+    ))
+    .expect("additive v1 fields load");
+    let presentation = parsed.tools[0].0.presentation.as_ref().unwrap();
+    assert_eq!(presentation.version, 1);
+    assert_eq!(presentation.title_pointer.as_deref(), Some("/view/title"));
+    assert_eq!(
+        presentation.actions[0].enabled_pointer.as_deref(),
+        Some("/view/actions/apply/enabled")
+    );
+}
+
+#[test]
+fn output_alone_without_display_fields_is_still_rejected() {
+    let error = parse_manifest(&manifest(
+        "[tools.presentation]\nversion = 1\noutput = \"result\"\n",
+    ))
+    .expect_err("bare output is not a display contract");
+    assert!(matches!(error, LoadError::InvalidPresentation(_)));
+}
+
+#[test]
+fn optional_display_pointer_must_be_valid_json_pointer() {
+    let error = parse_manifest(&manifest(
+        "[tools.presentation]\nversion = 1\noutput = \"result\"\ntitle_pointer = \"view/title\"\n",
+    ))
+    .expect_err("invalid display pointer must fail at load time");
+    assert!(
+        matches!(error, LoadError::InvalidPresentation(message) if message.contains("JSON Pointer"))
+    );
+}
+
+#[test]
+fn condition_is_limited_to_result_actions() {
+    let error = parse_manifest(&manifest(
+        r#"[tools.presentation]
+version = 1
+output = "result"
+rows = "/items"
+row_key = "/id"
+columns = [{ label = "Name", pointer = "/name" }]
+
+[[tools.presentation.actions]]
+id = "open"
+scope = "row"
+label = "Open"
+target_tool = "demo.detail"
+enabled_pointer = "/view/enabled"
+"#,
+    ))
+    .expect_err("row conditions are outside this contract");
+    assert!(
+        matches!(error, LoadError::InvalidPresentation(message) if message.contains("result action"))
+    );
+}

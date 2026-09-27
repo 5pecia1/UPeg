@@ -225,6 +225,14 @@ mod tests {
             row_key: None,
             columns: Vec::new(),
             actions: Vec::new(),
+            title_pointer: None,
+            subtitle_pointer: None,
+            status: None,
+            summary: Vec::new(),
+            notices: None,
+            detail: None,
+            row_detail: None,
+            empty_message_pointer: None,
         });
         let _guard = toolbox_add_tool_managed(meta);
         let result = pin_activation_for(

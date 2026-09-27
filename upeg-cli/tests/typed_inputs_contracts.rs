@@ -742,6 +742,7 @@ fn the_tui_form_surface_follows_the_driving_canonical_input_spec() {
 /// (iter 108 regression).
 #[test]
 fn an_empty_form_field_round_trips_to_its_default_on_the_dispatch_path() {
+    upeg_toolkit_native::register_native_toolkits().expect("generated builtins register");
     let tool = toolbox_tool("text.repeat").expect("text.repeat must be a registered built-in");
     let mut state = tool.input_spec.initial_form_state();
     for field in &mut state.fields {

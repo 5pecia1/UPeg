@@ -1,0 +1,3728 @@
+{
+  "schema_version": 1,
+  "app_version": "0.5.2",
+  "toolkits": [
+    {
+      "id": "color",
+      "tags": [
+        "pure",
+        "color"
+      ],
+      "description": "Color conversion utilities.",
+      "tools": [
+        {
+          "id": "color.contrast",
+          "toolkit": "color",
+          "local_id": "contrast",
+          "tags": [],
+          "display_label": "Contrast checker",
+          "description": "Compute the WCAG 2.x contrast ratio between two hex colors, with AA/AAA pass/fail.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "foreground",
+                "label": null,
+                "description": "Foreground hex color, with or without leading #",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "background",
+                "label": null,
+                "description": "Background hex color, with or without leading #",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Contrast ratio + AA/AAA pass/fail flags",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "color.hex_to_rgb",
+          "toolkit": "color",
+          "local_id": "hex_to_rgb",
+          "tags": [],
+          "display_label": "Hex → RGB",
+          "description": "Parse a hex color (#ff8800 or ff8800) into comma-separated R,G,B decimals.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Hex color, with or without leading #",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "color.rgb_to_hex",
+          "toolkit": "color",
+          "local_id": "rgb_to_hex",
+          "tags": [],
+          "display_label": "RGB → Hex",
+          "description": "Pack `r,g,b` decimals (each 0-255) into a #-prefixed lowercase hex color.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "`r,g,b` decimals (each 0-255)",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "convert",
+      "tags": [
+        "pure",
+        "encoding"
+      ],
+      "description": "Encoding, decoding, and serialization utilities.",
+      "tools": [
+        {
+          "id": "convert.base32_decode",
+          "toolkit": "convert",
+          "local_id": "base32_decode",
+          "tags": [],
+          "display_label": "Base32 decode",
+          "description": "Decode a Base32 string (RFC 4648) back to UTF-8.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Base32 string to decode",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.base32_encode",
+          "toolkit": "convert",
+          "local_id": "base32_encode",
+          "tags": [],
+          "display_label": "Base32 encode",
+          "description": "Encode a UTF-8 string as RFC 4648 Base32 (uppercase, padded).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to encode",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.base64_decode",
+          "toolkit": "convert",
+          "local_id": "base64_decode",
+          "tags": [],
+          "display_label": "Base64 decode",
+          "description": "Decode a Standard Base64 string back to UTF-8.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Base64 string to decode",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "convert.base64_encode",
+          "toolkit": "convert",
+          "local_id": "base64_encode",
+          "tags": [],
+          "display_label": "Base64 encode",
+          "description": "Encode a UTF-8 string as Standard Base64 (RFC 4648, padded).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to encode",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "convert.html_decode",
+          "toolkit": "convert",
+          "local_id": "html_decode",
+          "tags": [],
+          "display_label": "HTML decode",
+          "description": "Decode the 5 standard HTML entities + numeric forms (&#42;, &#x2A;).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "HTML-escaped text",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.html_encode",
+          "toolkit": "convert",
+          "local_id": "html_encode",
+          "tags": [],
+          "display_label": "HTML encode",
+          "description": "Escape the 5 standard HTML/XML entities (& < > \" ').",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to escape",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.json_format",
+          "toolkit": "convert",
+          "local_id": "json_format",
+          "tags": [],
+          "display_label": "JSON format",
+          "description": "Pretty-print a JSON string with 2-space indentation.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "JSON to format",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Pretty JSON output",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U2T",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "convert.json_minify",
+          "toolkit": "convert",
+          "local_id": "json_minify",
+          "tags": [],
+          "display_label": "JSON minify",
+          "description": "Re-serialize a JSON document with no whitespace.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "JSON to minify",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.nfc",
+          "toolkit": "convert",
+          "local_id": "nfc",
+          "tags": [],
+          "display_label": "To NFC (Windows)",
+          "description": "Unicode-normalize a string to NFC (composed form), e.g. for Windows filenames.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "String to normalize",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.nfd",
+          "toolkit": "convert",
+          "local_id": "nfd",
+          "tags": [],
+          "display_label": "To NFD (macOS)",
+          "description": "Unicode-normalize a string to NFD (decomposed form), e.g. for macOS filenames.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "String to normalize",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.url_decode",
+          "toolkit": "convert",
+          "local_id": "url_decode",
+          "tags": [],
+          "display_label": "URL decode",
+          "description": "Decode a percent-encoded string back to UTF-8.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Percent-encoded string",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.url_encode",
+          "toolkit": "convert",
+          "local_id": "url_encode",
+          "tags": [],
+          "display_label": "URL encode",
+          "description": "Percent-encode a string per RFC 3986 (every reserved char escaped).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "String to encode",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.url_query_format",
+          "toolkit": "convert",
+          "local_id": "url_query_format",
+          "tags": [],
+          "display_label": "URL query format",
+          "description": "Serialize a JSON object back to a URL query string (no leading `?`).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "JSON object whose keys/values become query pairs",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "convert.url_query_parse",
+          "toolkit": "convert",
+          "local_id": "url_query_parse",
+          "tags": [],
+          "display_label": "URL query parse",
+          "description": "Parse a URL query string (`a=1&b=2`) into a JSON object of strings.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Query string with or without leading `?`",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Query pairs as a JSON object of strings",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "csv",
+      "tags": [
+        "pure",
+        "data"
+      ],
+      "description": "CSV row-level diffing, CSV-to-JSON, and column selection.",
+      "tools": [
+        {
+          "id": "csv.diff",
+          "toolkit": "csv",
+          "local_id": "diff",
+          "tags": [],
+          "display_label": "CSV diff",
+          "description": "Diff two CSV texts row by row, reporting added/removed/changed counts plus sample rows.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "left",
+                "label": null,
+                "description": "First CSV text",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "right",
+                "label": null,
+                "description": "Second CSV text",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Added/removed/changed row counts plus up to 20 sample rows",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "csv.select",
+          "toolkit": "csv",
+          "local_id": "select",
+          "tags": [],
+          "display_label": "CSV select",
+          "description": "Select a subset of columns (by header name) from CSV text, in the given order.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "CSV text with a header row",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "columns",
+                "label": null,
+                "description": "Comma-separated column names to keep, e.g. \"a,c\"",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "csv.to_json",
+          "toolkit": "csv",
+          "local_id": "to_json",
+          "tags": [],
+          "display_label": "CSV → JSON",
+          "description": "Parse CSV text (header row required) into a JSON array of objects.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "CSV text with a header row",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "One JSON object per data row, keyed by header column names",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "devcontainer",
+      "tags": [
+        "file",
+        "vscode",
+        "native"
+      ],
+      "description": "Locate VS Code/Cursor Dev Container workspaces from workspaceStorage.",
+      "tools": [
+        {
+          "id": "devcontainer.list",
+          "toolkit": "devcontainer",
+          "local_id": "list",
+          "tags": [],
+          "display_label": "Dev Container list",
+          "description": "List VS Code/Cursor Dev Container workspaces from workspaceStorage, ranked by recency.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "app",
+                "label": null,
+                "description": "Editor filter: all|code|cursor|insiders|vscodium (default all)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "JSON array of Dev Container entries (app, paths, uri, ranks, decoded authority)",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "devcontainer.lookup",
+          "toolkit": "devcontainer",
+          "local_id": "lookup",
+          "tags": [],
+          "display_label": "Dev Container lookup",
+          "description": "Find the top-ranked Dev Container workspace matching a pattern; optionally return one field.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "pattern",
+                "label": null,
+                "description": "Case-insensitive filter (space-separated tokens are ANDed)",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "field",
+                "label": null,
+                "description": "Single field: container|host|config|uri|remote|storage|app|id",
+                "required": false,
+                "kind": "String"
+              },
+              {
+                "name": "app",
+                "label": null,
+                "description": "Editor filter: all|code|cursor|insiders|vscodium (default all)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "The matching entry as a JSON object, or the requested field as a JSON string",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "embed",
+      "tags": [],
+      "description": "",
+      "tools": [
+        {
+          "id": "embed.transform_tools",
+          "toolkit": "embed",
+          "local_id": "transform_tools",
+          "tags": [
+            "embed",
+            "web"
+          ],
+          "display_label": "Transform.tools embed",
+          "description": "WebView embed of transform.tools (selector-mapped).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "view",
+                "label": null,
+                "description": "Embedded transform.tools workspace",
+                "kind": {
+                  "EmbeddedView": {
+                    "url": "https://transform.tools/json-to-typescript"
+                  }
+                }
+              }
+            ]
+          },
+          "primary_output_id": "view",
+          "effect": "unknown",
+          "source": {
+            "type": "static"
+          },
+          "pin": "Embed",
+          "pegboard_units": "U2",
+          "invoker": "Static",
+          "surfaces": [
+            "Desktop",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": [
+            "dev"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eth",
+      "tags": [
+        "network",
+        "crypto"
+      ],
+      "description": "Minimal Ethereum JSON-RPC reads (gas price, address balance).",
+      "tools": [
+        {
+          "id": "eth.address_lookup",
+          "toolkit": "eth",
+          "local_id": "address_lookup",
+          "tags": [],
+          "display_label": "ETH address lookup",
+          "description": "Look up an Ethereum address's balance (ETH) via JSON-RPC `eth_getBalance`.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "address",
+                "label": null,
+                "description": "Ethereum address, e.g. 0x...",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "endpoint",
+                "label": null,
+                "description": "JSON-RPC endpoint override (default: a public keyless RPC)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "trading"
+          ]
+        },
+        {
+          "id": "eth.gas",
+          "toolkit": "eth",
+          "local_id": "gas",
+          "tags": [],
+          "display_label": "ETH gas price",
+          "description": "Current Ethereum gas price (gwei) via JSON-RPC `eth_gasPrice`.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "endpoint",
+                "label": null,
+                "description": "JSON-RPC endpoint override (default: a public keyless RPC)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Current gas price in gwei",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "trading"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hash",
+      "tags": [
+        "pure",
+        "hash"
+      ],
+      "description": "Hashing utilities.",
+      "tools": [
+        {
+          "id": "hash.crc32",
+          "toolkit": "hash",
+          "local_id": "crc32",
+          "tags": [],
+          "display_label": "CRC32",
+          "description": "IEEE CRC-32 checksum of a UTF-8 string (lowercase hex, 8 chars).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to checksum",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "hash.md5",
+          "toolkit": "hash",
+          "local_id": "md5",
+          "tags": [],
+          "display_label": "MD5",
+          "description": "MD5 hash of a UTF-8 string (lowercase hex). Not cryptographically secure — use sha256 for that.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to hash",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "hash.sha1",
+          "toolkit": "hash",
+          "local_id": "sha1",
+          "tags": [],
+          "display_label": "SHA-1",
+          "description": "SHA-1 hash of a UTF-8 string (lowercase hex, 40 chars). Not cryptographically secure — git/legacy interop only.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to hash",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "hash.sha256",
+          "toolkit": "hash",
+          "local_id": "sha256",
+          "tags": [],
+          "display_label": "SHA-256",
+          "description": "SHA-256 hash of a UTF-8 string (lowercase hex).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to hash",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "hash.sha512",
+          "toolkit": "hash",
+          "local_id": "sha512",
+          "tags": [],
+          "display_label": "SHA-512",
+          "description": "SHA-512 hash of a UTF-8 string (lowercase hex, 128 chars).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "UTF-8 string to hash",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "id",
+      "tags": [
+        "pure",
+        "identifier",
+        "generator"
+      ],
+      "description": "Identifier generators.",
+      "tools": [
+        {
+          "id": "id.nanoid",
+          "toolkit": "id",
+          "local_id": "nanoid",
+          "tags": [],
+          "display_label": "NanoID",
+          "description": "Generate a 21-character URL-safe NanoID (collision-resistant).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "id.uuid_v4",
+          "toolkit": "id",
+          "local_id": "uuid_v4",
+          "tags": [],
+          "display_label": "UUID v4",
+          "description": "Generate a purely-random UUID v4 (RFC 9562).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "id.uuid_v7",
+          "toolkit": "id",
+          "local_id": "uuid_v7",
+          "tags": [],
+          "display_label": "UUID v7",
+          "description": "Generate a fresh time-ordered UUID v7 (RFC 9562).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "media",
+      "tags": [
+        "media",
+        "file",
+        "pdf",
+        "image",
+        "native"
+      ],
+      "description": "Image and PDF file conversion utilities.",
+      "tools": [
+        {
+          "id": "media.image_convert",
+          "toolkit": "media",
+          "local_id": "image_convert",
+          "tags": [],
+          "display_label": "Convert image",
+          "description": "Convert one image and save it directly. SVG is rasterized; animated images and multi-page TIFF use the first frame/page. WebP output is lossless.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Image file",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": [
+                      "bmp",
+                      "gif",
+                      "ico",
+                      "jpeg",
+                      "jpg",
+                      "png",
+                      "qoi",
+                      "svg",
+                      "tif",
+                      "tiff",
+                      "webp"
+                    ],
+                    "max_file_bytes": 52428800,
+                    "max_total_bytes": 52428800
+                  }
+                }
+              },
+              {
+                "name": "output_format",
+                "label": null,
+                "description": "Output format",
+                "required": true,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "png",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "jpeg",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "webp",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "gif",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "bmp",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "tiff",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "ico",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "qoi",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "jpeg_quality",
+                "label": null,
+                "description": "JPEG quality (1–100)",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 100.0,
+                    "default": 90.0
+                  }
+                }
+              },
+              {
+                "name": "background",
+                "label": null,
+                "description": "JPEG background color",
+                "required": false,
+                "kind": "String",
+                "constraints": {
+                  "string": {
+                    "regex": "^#[0-9a-fA-F]{6}$",
+                    "placeholder": "#FFFFFF",
+                    "default": "#FFFFFF"
+                  }
+                }
+              },
+              {
+                "name": "svg_width",
+                "label": null,
+                "description": "SVG output width in pixels (0 = original size)",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 0.0,
+                    "max": 8192.0,
+                    "default": 0.0
+                  }
+                }
+              },
+              {
+                "name": "max_output_bytes",
+                "label": null,
+                "description": "Maximum output bytes",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": 67108864.0
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Converted image",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.image_to_pdf",
+          "toolkit": "media",
+          "local_id": "image_to_pdf",
+          "tags": [],
+          "display_label": "Images → PDF",
+          "description": "",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "A PNG/JPEG image, a flat directory of them, or a zip of them",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 100,
+                    "extensions": []
+                  }
+                }
+              },
+              {
+                "name": "max_output_bytes",
+                "label": null,
+                "description": "Maximum encoded PDF bytes",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": 67108864.0
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Generated PDF",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.images_convert",
+          "toolkit": "media",
+          "local_id": "images_convert",
+          "tags": [],
+          "display_label": "Batch convert images",
+          "description": "Convert selected images to a ZIP. SVG is rasterized; animation and multi-page TIFF use the first frame/page. WebP output is lossless.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "images",
+                "label": null,
+                "description": "Images to convert (up to 100 files)",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 100,
+                    "extensions": [
+                      "bmp",
+                      "gif",
+                      "ico",
+                      "jpeg",
+                      "jpg",
+                      "png",
+                      "qoi",
+                      "svg",
+                      "tif",
+                      "tiff",
+                      "webp"
+                    ],
+                    "max_file_bytes": 52428800,
+                    "max_total_bytes": 52428800
+                  }
+                }
+              },
+              {
+                "name": "output_format",
+                "label": null,
+                "description": "Output image format",
+                "required": true,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "png",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "jpeg",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "webp",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "gif",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "bmp",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "tiff",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "ico",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "qoi",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "jpeg_quality",
+                "label": null,
+                "description": "JPEG quality (1–100)",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 100.0,
+                    "default": 90.0
+                  }
+                }
+              },
+              {
+                "name": "background",
+                "label": null,
+                "description": "JPEG background color",
+                "required": false,
+                "kind": "String",
+                "constraints": {
+                  "string": {
+                    "regex": "^#[0-9a-fA-F]{6}$",
+                    "placeholder": "#FFFFFF",
+                    "default": "#FFFFFF"
+                  }
+                }
+              },
+              {
+                "name": "svg_width",
+                "label": null,
+                "description": "SVG output width in pixels (0 = original size)",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 0.0,
+                    "max": 8192.0,
+                    "default": 0.0
+                  }
+                }
+              },
+              {
+                "name": "max_output_bytes",
+                "label": null,
+                "description": "Maximum output zip bytes",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": 67108864.0
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Zip of converted images",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pdf_extract_images",
+          "toolkit": "media",
+          "local_id": "pdf_extract_images",
+          "tags": [],
+          "display_label": "PDF → embedded images",
+          "description": "",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PDF file bytes",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Zip of extracted images",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pdf_inspect",
+          "toolkit": "media",
+          "local_id": "pdf_inspect",
+          "tags": [],
+          "display_label": "Inspect PDF",
+          "description": "Classify every PDF page and report OCR recommendations. Does not perform OCR or validate text encoding.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PDF file (up to 32 MiB and 500 pages)",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "PDF classification and one-based OCR page numbers",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pdf_to_images",
+          "toolkit": "media",
+          "local_id": "pdf_to_images",
+          "tags": [],
+          "display_label": "PDF → PNG images",
+          "description": "",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PDF file bytes",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              },
+              {
+                "name": "dpi",
+                "label": null,
+                "description": "Render DPI, default 144, valid 36..=600",
+                "required": false,
+                "kind": "Number"
+              },
+              {
+                "name": "max_output_bytes",
+                "label": null,
+                "description": "Maximum encoded page and zip bytes",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": 67108864.0
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Zip of page PNGs",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pdf_to_markdown",
+          "toolkit": "media",
+          "local_id": "pdf_to_markdown",
+          "tags": [],
+          "display_label": "PDF → Markdown",
+          "description": "Extract native PDF text locally. Check the report for partial or unavailable content; OCR is not performed.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PDF file (up to 32 MiB and 500 pages)",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "markdown",
+                "label": null,
+                "description": "Extracted Markdown (empty when unavailable)",
+                "kind": "Markdown"
+              },
+              {
+                "name": "report",
+                "label": null,
+                "description": "Extraction status and one-based OCR page numbers",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "markdown",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pptx_extract_images",
+          "toolkit": "media",
+          "local_id": "pptx_extract_images",
+          "tags": [],
+          "display_label": "PPTX → embedded images",
+          "description": "",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PPTX/Office file bytes",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Zip of extracted images",
+                "kind": "File"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "memo",
+      "tags": [],
+      "description": "",
+      "tools": [
+        {
+          "id": "memo.create",
+          "toolkit": "memo",
+          "local_id": "create",
+          "tags": [
+            "memo",
+            "action"
+          ],
+          "display_label": "New memo",
+          "description": "Action button: create a new memo.",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "shortcut",
+            "keys": "Cmd+Shift+N"
+          },
+          "pin": "Action",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Desktop",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": [
+            "personal"
+          ]
+        },
+        {
+          "id": "memo.scratch",
+          "toolkit": "memo",
+          "local_id": "scratch",
+          "tags": [
+            "memo",
+            "note"
+          ],
+          "display_label": "Scratch memo",
+          "description": "Quick scratch memo on the pegboard (local-first).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "memo",
+                "label": null,
+                "description": "Persisted scratch memo content",
+                "kind": "Markdown"
+              }
+            ]
+          },
+          "primary_output_id": "memo",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Live",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Desktop",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": [
+            "dev",
+            "personal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "net",
+      "tags": [],
+      "description": "",
+      "tools": [
+        {
+          "id": "net.status",
+          "toolkit": "net",
+          "local_id": "status",
+          "tags": [
+            "live",
+            "network"
+          ],
+          "display_label": "Net status",
+          "description": "Network status + latency.",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "status",
+                "label": null,
+                "description": "OK / FAIL",
+                "kind": "String"
+              },
+              {
+                "name": "ping_ms",
+                "label": null,
+                "description": "Round-trip latency in milliseconds",
+                "kind": "Number"
+              },
+              {
+                "name": "ipv6",
+                "label": null,
+                "description": "IPv6 reachable",
+                "kind": "Boolean"
+              }
+            ]
+          },
+          "primary_output_id": "status",
+          "effect": "unknown",
+          "source": {
+            "type": "timer",
+            "interval": {
+              "secs": 5,
+              "nanos": 0
+            }
+          },
+          "pin": "Live",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Desktop",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": [
+            "trading"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "num",
+      "tags": [
+        "pure",
+        "numeric"
+      ],
+      "description": "Numeric base conversion utilities (hex/decimal/binary).",
+      "tools": [
+        {
+          "id": "num.binary_to_decimal",
+          "toolkit": "num",
+          "local_id": "binary_to_decimal",
+          "tags": [],
+          "display_label": "Binary → Decimal",
+          "description": "Parse a binary digit string (with or without `0b` prefix) into a decimal u128.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Binary string, e.g. \"11111111\" or \"0b11111111\"",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Decimal value",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "num.decimal_to_binary",
+          "toolkit": "num",
+          "local_id": "decimal_to_binary",
+          "tags": [],
+          "display_label": "Decimal → Binary",
+          "description": "Format a decimal number as a binary digit string (no `0b` prefix).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Decimal number, e.g. \"255\"",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "num.decimal_to_hex",
+          "toolkit": "num",
+          "local_id": "decimal_to_hex",
+          "tags": [],
+          "display_label": "Decimal → Hex",
+          "description": "Format a decimal number as lowercase hex (no `0x` prefix).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Decimal number, e.g. \"255\"",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "num.hex_to_decimal",
+          "toolkit": "num",
+          "local_id": "hex_to_decimal",
+          "tags": [],
+          "display_label": "Hex → Decimal",
+          "description": "Parse a hex string (with or without `0x` prefix) into a decimal u128.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Hex string, e.g. \"0xff\" or \"DEADBEEF\"",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Decimal value",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qr",
+      "tags": [
+        "pure",
+        "visual"
+      ],
+      "description": "QR code generation and decoding.",
+      "tools": [
+        {
+          "id": "qr.decode",
+          "toolkit": "qr",
+          "local_id": "decode",
+          "tags": [],
+          "display_label": "QR decode",
+          "description": "Decode a QR code from an image (PNG/JPEG) into text.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "QR code image bytes (PNG or JPEG)",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": []
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "qr.encode",
+          "toolkit": "qr",
+          "local_id": "encode",
+          "tags": [],
+          "display_label": "QR encode",
+          "description": "Generate a QR code from a string, rendered as unicode block characters.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to encode (max 2000 bytes)",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "tags": [
+        "pure",
+        "security",
+        "generator"
+      ],
+      "description": "Security helper utilities.",
+      "tools": [
+        {
+          "id": "security.bytes_generate",
+          "toolkit": "security",
+          "local_id": "bytes_generate",
+          "tags": [],
+          "display_label": "Random bytes",
+          "description": "Generate `count` cryptographically random bytes as lowercase hex (default 16, max 1024).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "count",
+                "label": null,
+                "description": "Byte count (default 16, max 1024)",
+                "required": false,
+                "kind": "Integer"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "security.password_estimate",
+          "toolkit": "security",
+          "local_id": "password_estimate",
+          "tags": [],
+          "display_label": "Password strength estimate",
+          "description": "Estimate password strength locally with zxcvbn and return score/warnings as JSON.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Password to evaluate",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Score, label, warnings, and crack-time estimates",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "security.password_generate",
+          "toolkit": "security",
+          "local_id": "password_generate",
+          "tags": [],
+          "display_label": "Password generator",
+          "description": "Generate a random local password with OS entropy (count 8-128, default 20).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "count",
+                "label": null,
+                "description": "Password length",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 8.0,
+                    "max": 128.0,
+                    "default": 20.0
+                  }
+                }
+              },
+              {
+                "name": "include_symbols",
+                "label": null,
+                "description": "Include punctuation symbols (default false)",
+                "required": false,
+                "kind": "Boolean"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "text",
+      "tags": [
+        "pure",
+        "text"
+      ],
+      "description": "Text processing utilities.",
+      "tools": [
+        {
+          "id": "text.char_count",
+          "toolkit": "text",
+          "local_id": "char_count",
+          "tags": [],
+          "display_label": "Char count",
+          "description": "Count Unicode scalar values (chars), not bytes.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to count chars in",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Character count",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.contains",
+          "toolkit": "text",
+          "local_id": "contains",
+          "tags": [],
+          "display_label": "Contains",
+          "description": "Test whether `input` contains `pattern`, returning `true` or `false`.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to search",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "pattern",
+                "label": null,
+                "description": "Substring to look for",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Whether `pattern` occurs in `input`",
+                "kind": "Boolean"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.diff",
+          "toolkit": "text",
+          "local_id": "diff",
+          "tags": [],
+          "display_label": "Text diff",
+          "description": "Diff two text inputs line by line (similar to `diff`).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "left",
+                "label": null,
+                "description": "First text",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "right",
+                "label": null,
+                "description": "Second text",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.join",
+          "toolkit": "text",
+          "local_id": "join",
+          "tags": [],
+          "display_label": "Join",
+          "description": "Join a JSON array of strings with `separator` (default: \" \").",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "JSON array of strings",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "separator",
+                "label": null,
+                "description": "Separator (default: space)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.line_count",
+          "toolkit": "text",
+          "local_id": "line_count",
+          "tags": [],
+          "display_label": "Line count",
+          "description": "Count lines in a string. Empty input is 0; trailing newline doesn't add a line.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to count lines in",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Line count",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.lowercase",
+          "toolkit": "text",
+          "local_id": "lowercase",
+          "tags": [],
+          "display_label": "Lowercase",
+          "description": "Lowercase a string (Unicode-aware).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to lowercase",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.regex_match",
+          "toolkit": "text",
+          "local_id": "regex_match",
+          "tags": [],
+          "display_label": "Regex match",
+          "description": "Find every match of a regular expression in an input string.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "pattern",
+                "label": null,
+                "description": "Rust regex syntax",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to search",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Matched substrings in order",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": [
+            "dev"
+          ]
+        },
+        {
+          "id": "text.repeat",
+          "toolkit": "text",
+          "local_id": "repeat",
+          "tags": [],
+          "display_label": "Repeat",
+          "description": "Repeat a string `count` times (default 1, max 1024).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to repeat",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "count",
+                "label": null,
+                "description": "Repeat count (default 1, max 1024)",
+                "required": false,
+                "kind": "Integer"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.replace",
+          "toolkit": "text",
+          "local_id": "replace",
+          "tags": [],
+          "display_label": "Replace",
+          "description": "Replace all occurrences of `from` with `to` in `input`.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to search",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "from",
+                "label": null,
+                "description": "Substring to replace",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "to",
+                "label": null,
+                "description": "Replacement text",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.reverse",
+          "toolkit": "text",
+          "local_id": "reverse",
+          "tags": [],
+          "display_label": "Reverse text",
+          "description": "Reverse a string by Unicode scalar values (NOT graphemes — combining marks reverse separately).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to reverse",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.slugify",
+          "toolkit": "text",
+          "local_id": "slugify",
+          "tags": [],
+          "display_label": "Slugify",
+          "description": "Convert text to a URL-safe lowercase slug ([a-z0-9] runs joined by hyphens).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to slugify",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.split",
+          "toolkit": "text",
+          "local_id": "split",
+          "tags": [],
+          "display_label": "Split",
+          "description": "Split text on `separator` (default: whitespace) and return a JSON array.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to split",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "separator",
+                "label": null,
+                "description": "Separator; empty/omitted = whitespace",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Split parts as a JSON array of strings",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.trim",
+          "toolkit": "text",
+          "local_id": "trim",
+          "tags": [],
+          "display_label": "Trim",
+          "description": "Strip leading and trailing whitespace (Unicode-aware).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to trim",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.uppercase",
+          "toolkit": "text",
+          "local_id": "uppercase",
+          "tags": [],
+          "display_label": "Uppercase",
+          "description": "Uppercase a string (Unicode-aware).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to uppercase",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "text.word_count",
+          "toolkit": "text",
+          "local_id": "word_count",
+          "tags": [],
+          "display_label": "Word count",
+          "description": "Count whitespace-separated words in a string.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Text to count words in",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Word count",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "time",
+      "tags": [
+        "pure",
+        "time"
+      ],
+      "description": "Timestamp utilities.",
+      "tools": [
+        {
+          "id": "time.epoch",
+          "toolkit": "time",
+          "local_id": "epoch",
+          "tags": [
+            "live",
+            "ticker"
+          ],
+          "display_label": "Unix epoch (live)",
+          "description": "Unix epoch + ISO timestamp (live ticker).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "epoch",
+                "label": null,
+                "description": "Current Unix epoch seconds",
+                "kind": "Number"
+              },
+              {
+                "name": "iso",
+                "label": null,
+                "description": "ISO 8601 timestamp",
+                "kind": "DateTime"
+              }
+            ]
+          },
+          "primary_output_id": "epoch",
+          "effect": "unknown",
+          "source": {
+            "type": "timer",
+            "interval": {
+              "secs": 1,
+              "nanos": 0
+            }
+          },
+          "pin": "Live",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Desktop",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": [
+            "trading",
+            "personal"
+          ]
+        },
+        {
+          "id": "time.epoch_now",
+          "toolkit": "time",
+          "local_id": "epoch_now",
+          "tags": [],
+          "display_label": "Epoch timestamp",
+          "description": "Current UTC time as Unix epoch seconds.",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "time.iso_now",
+          "toolkit": "time",
+          "local_id": "iso_now",
+          "tags": [],
+          "display_label": "ISO timestamp",
+          "description": "Current UTC time as ISO 8601 (YYYY-MM-DDTHH:MM:SSZ).",
+          "input_spec": {
+            "fields": []
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
+      "id": "weather",
+      "tags": [
+        "network",
+        "weather"
+      ],
+      "description": "Current weather and multi-day forecast lookups by city (Open-Meteo).",
+      "tools": [
+        {
+          "id": "weather.forecast",
+          "toolkit": "weather",
+          "local_id": "forecast",
+          "tags": [],
+          "display_label": "Weather forecast",
+          "description": "Multi-day daily forecast for a city (Open-Meteo, no API key).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "city",
+                "label": null,
+                "description": "City name to look up, e.g. Seoul",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "days",
+                "label": null,
+                "description": "Number of forecast days (default 7, valid 1..=16)",
+                "required": false,
+                "kind": "Integer"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Daily forecast entries: date, weather code/description, min/max temperature",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "weather.lookup",
+          "toolkit": "weather",
+          "local_id": "lookup",
+          "tags": [],
+          "display_label": "Weather lookup",
+          "description": "Look up current weather for a city (Open-Meteo, no API key).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "city",
+                "label": null,
+                "description": "City name to look up, e.g. Seoul",
+                "required": true,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Current weather: observation time (local), temperature, humidity, weather code/description, wind speed",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    }
+  ]
+}

@@ -28,6 +28,7 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/diagnostics_provider.dart';
 import 'package:upeg/src/widgets/diagnostics_section.dart';
@@ -55,6 +56,7 @@ import 'package:upeg/src/widgets/palette_overlay.dart';
 import 'package:upeg/src/widgets/settings_overlay.dart';
 
 part '../widgets/expanded_modal/live_run_block.dart';
+part '../widgets/expanded_modal/modal_shortcuts.dart';
 
 /// Test seam for opening the Settings overlay from modal-level
 /// shortcuts. Production delegates to [showSettingsOverlay].
@@ -71,25 +73,6 @@ final settingsOverlayLauncherProvider = Provider<SettingsOverlayLauncher>(
 /// tool that ran and returned a failure. Distinct so the two are
 /// distinguishable in a copied result.
 const String _dispatchStreamFailedCode = 'dispatch_stream_failed';
-
-/// Batch O2 (I13 F3): modal-wide shortcut intent for "+ pin". Routed
-/// through `Shortcuts`/`Actions` so bespoke forms (which bind F1+F2
-/// only) let F3 bubble up to the modal shell.
-class _PinIntent extends Intent {
-  const _PinIntent();
-}
-
-class _CopyIntent extends Intent {
-  const _CopyIntent();
-}
-
-class _RunIntent extends Intent {
-  const _RunIntent();
-}
-
-class _CloseIntent extends Intent {
-  const _CloseIntent();
-}
 
 /// Where one Run request currently sits.
 ///
@@ -117,6 +100,7 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
     this.presentationCalls,
     this.presentationCall,
     this.presentationAction,
+    this.collapseBoundInputs = false,
     this.onRefresh,
     this.autoRunRead = false,
     super.key,
@@ -133,6 +117,7 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
   final PresentationCallOriginController? presentationCalls;
   final PresentationCallIdentity? presentationCall;
   final PresentationActionDto? presentationAction;
+  final bool collapseBoundInputs;
   final ValueChanged<PresentationRefreshRequest>? onRefresh;
   final bool autoRunRead;
 
@@ -261,6 +246,10 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       await _attachDispatch(external, args);
       return;
     }
+    if (ref.read(isWasmRuntimeProvider)) {
+      await _webDispatch(args, approve: verdict.approve);
+      return;
+    }
     await _streamDispatch(
       args,
       approve: verdict.approve,
@@ -292,6 +281,25 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
         _outcomeRunId = null;
       });
     }
+  }
+
+  Future<void> _webDispatch(ToolArgs args, {required bool approve}) async {
+    setState(() => _phase = _RunPhase.dispatching);
+    final result = await ref.read(toolkitDispatchProvider)(
+      toolId: ToolId.parse(widget.tool.id),
+      args: args,
+      boardKey:
+          widget.pinKey?.$1.value ?? ref.read(currentBoardKeyProvider)?.value,
+      pinId: widget.pinKey?.$2.value,
+      approve: approve,
+    );
+    if (!mounted) return;
+    setState(() {
+      _phase = _RunPhase.idle;
+      _outcome = result;
+      _outcomeRunId = null;
+      _runId = null;
+    });
   }
 
   Future<void> _streamDispatch(
@@ -489,6 +497,17 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       ).showSnackBar(SnackBar(content: Text(resolved.diagnostics.join('\n'))));
       return;
     }
+    final view = ref.read(presentationViewResolverProvider)(
+      toolId: widget.tool.id,
+      outputsJson: jsonEncode(outcome.jsonValues),
+    );
+    final collapseBoundInputs =
+        view.diagnostics.isEmpty &&
+        (view.title != null ||
+            view.status != null ||
+            view.summary.isNotEmpty ||
+            view.notices.isNotEmpty ||
+            view.detail != null);
     final target = ref.read(toolByIdProvider(ToolId.parse(action.targetTool)));
     final initial =
         ToolArgs.tryDecodeObject(resolved.valuesJson) ?? ToolArgs.empty;
@@ -545,6 +564,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           parentCall: active,
           childCall: childCall,
           action: action,
+          collapseBoundInputs: collapseBoundInputs,
           autoRunRead:
               target.effect == ToolEffectDto.read &&
               resolved.unboundRequiredInputs.isEmpty,
@@ -563,6 +583,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     required PresentationCallIdentity parentCall,
     required PresentationCallIdentity childCall,
     required PresentationActionDto action,
+    required bool collapseBoundInputs,
     required bool autoRunRead,
   }) async {
     await Navigator.of(context).push<void>(
@@ -574,6 +595,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           presentationCalls: calls,
           presentationCall: childCall,
           presentationAction: action,
+          collapseBoundInputs: collapseBoundInputs,
           onRefresh: widget.onRefresh ?? _handleRefreshRequest,
           autoRunRead: autoRunRead,
         ),
@@ -790,126 +812,167 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                 ? KeyEventResult.handled
                 : KeyEventResult.ignored,
             child: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 560,
-                    maxHeight: 640,
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      border: Border.all(color: tokens.line),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 60,
-                          offset: Offset(0, 20),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ExpandedModalHeader(tokens: tokens, tool: tool),
-                        Flexible(
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (tool.description.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: Text(
-                                      tool.description,
-                                      style: TextStyle(
-                                        color: tokens.fg3,
-                                        fontSize: 11,
-                                        height: 1.45,
-                                      ),
-                                    ),
-                                  ),
-                                ExternalReadinessPanel(tool: tool),
-                                if (bespoke != null)
-                                  bespoke(
-                                    context,
-                                    tool,
-                                    _handleBespokeSubmit,
-                                    _outcome?.primaryOutputText,
-                                    widget.initialInput,
-                                  )
-                                else ...[
-                                  GenericFormWidget(
-                                    tool: tool,
-                                    controller: _controller,
-                                    onValidationChanged: (allOk) =>
-                                        setState(() => _formAllOk = allOk),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ExpandedModalPrimaryButton(
-                                      key: const Key('expanded-modal-run-btn'),
-                                      label: t(ref, 'modal.action.run_short'),
-                                      trailingHint: '[F1]',
-                                      // Toolless tools (no required fields)
-                                      // can always Run; otherwise gate on the
-                                      // aggregate validation result. A request
-                                      // in flight also disables Run so a slow
-                                      // tool can't be double-fired.
-                                      enabled:
-                                          (tool.inputFields.isEmpty ||
-                                              _formAllOk) &&
-                                          readinessAllowsRun &&
-                                          !_phase.blocksRun,
-                                      loading: _phase.showsSpinner,
-                                      onPressed: _handleRun,
-                                    ),
-                                  ),
-                                ],
-                                if (_phase.showsSpinner) ...[
-                                  const SizedBox(height: 12),
-                                  _LiveRunBlock(
-                                    tail: _tail,
-                                    tokens: tokens,
-                                    onCancel: _handleCancel,
-                                  ),
-                                ],
-                                if (_outcome != null) ...[
-                                  const SizedBox(height: 14),
-                                  OutcomeBlock(
-                                    outcome: _outcome!,
-                                    outputFields: tool.outputFields,
-                                    tool: tool,
-                                    tokens: tokens,
-                                    onRowAction: _handlePresentationAction,
-                                    onResultAction: (action) =>
-                                        _handlePresentationAction(action, null),
-                                    onReadRowNavigate: (action, row) =>
-                                        _handlePresentationAction(
-                                          action,
-                                          row,
-                                          singleClick: true,
-                                        ),
-                                  ),
-                                  if (!_outcome!.ok && _outcomeRunId != null)
-                                    DiagnosticRunButton(
-                                      runId: _outcomeRunId!.value,
-                                    ),
-                                ],
-                              ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // A resolved collection needs enough room for its list and
+                  // selected detail. Plain forms retain the compact dialog.
+                  final presentationWidth = tool.presentation == null
+                      ? 560.0
+                      : 1000.0;
+                  final presentationHeight = tool.presentation == null
+                      ? 640.0
+                      : 720.0;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: presentationWidth,
+                        maxHeight: presentationHeight,
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: tokens.surface,
+                          border: Border.all(color: tokens.line),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 60,
+                              offset: Offset(0, 20),
                             ),
-                          ),
+                          ],
                         ),
-                        ExpandedModalFooter(tokens: tokens, tool: tool),
-                      ],
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ExpandedModalHeader(tokens: tokens, tool: tool),
+                            Flexible(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  14,
+                                  16,
+                                  14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (tool.description.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: Text(
+                                          tool.description,
+                                          style: TextStyle(
+                                            color: tokens.fg3,
+                                            fontSize: 11,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                      ),
+                                    ExternalReadinessPanel(tool: tool),
+                                    if (bespoke != null)
+                                      bespoke(
+                                        context,
+                                        tool,
+                                        _handleBespokeSubmit,
+                                        _outcome?.primaryOutputText,
+                                        widget.initialInput,
+                                      )
+                                    else ...[
+                                      GenericFormWidget(
+                                        tool: tool,
+                                        controller: _controller,
+                                        boundInputKeys:
+                                            widget.collapseBoundInputs
+                                            ? widget
+                                                      .presentationAction
+                                                      ?.bindings
+                                                      .map(
+                                                        (binding) =>
+                                                            binding.target,
+                                                      )
+                                                      .toSet() ??
+                                                  const {}
+                                            : const {},
+                                        onValidationChanged: (allOk) =>
+                                            setState(() => _formAllOk = allOk),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ExpandedModalPrimaryButton(
+                                          key: const Key(
+                                            'expanded-modal-run-btn',
+                                          ),
+                                          label: t(
+                                            ref,
+                                            'modal.action.run_short',
+                                          ),
+                                          trailingHint: '[F1]',
+                                          // Toolless tools (no required fields)
+                                          // can always Run; otherwise gate on the
+                                          // aggregate validation result. A request
+                                          // in flight also disables Run so a slow
+                                          // tool can't be double-fired.
+                                          enabled:
+                                              (tool.inputFields.isEmpty ||
+                                                  _formAllOk) &&
+                                              readinessAllowsRun &&
+                                              !_phase.blocksRun,
+                                          loading: _phase.showsSpinner,
+                                          onPressed: _handleRun,
+                                        ),
+                                      ),
+                                    ],
+                                    if (_phase.showsSpinner) ...[
+                                      const SizedBox(height: 12),
+                                      _LiveRunBlock(
+                                        tail: _tail,
+                                        tokens: tokens,
+                                        onCancel: _handleCancel,
+                                      ),
+                                    ],
+                                    if (_outcome != null) ...[
+                                      const SizedBox(height: 14),
+                                      OutcomeBlock(
+                                        outcome: _outcome!,
+                                        outputFields: tool.outputFields,
+                                        tool: tool,
+                                        tokens: tokens,
+                                        onRowAction: _handlePresentationAction,
+                                        onResultAction: (action) =>
+                                            _handlePresentationAction(
+                                              action,
+                                              null,
+                                            ),
+                                        onReadRowNavigate: (action, row) =>
+                                            _handlePresentationAction(
+                                              action,
+                                              row,
+                                              singleClick: true,
+                                            ),
+                                      ),
+                                      if (!_outcome!.ok &&
+                                          _outcomeRunId != null)
+                                        DiagnosticRunButton(
+                                          runId: _outcomeRunId!.value,
+                                        ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            ExpandedModalFooter(tokens: tokens, tool: tool),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ),
@@ -917,22 +980,4 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       ),
     );
   }
-}
-
-/// In-flight run strip: the tool's last few output lines plus the way
-/// out of a run that is taking too long.
-///
-/// Only mounted while a dispatch is actually running, so an idle modal
-/// looks exactly as it did before streaming existed.
-String? _copyTextForOutcome(CanonicalToolResult? outcome) {
-  if (outcome == null) return null;
-  final candidates = [
-    outcome.errorMessage,
-    outcome.primaryOutputText,
-    outcome.outputs.isEmpty ? null : outcome.canonicalJsonText(),
-  ];
-  for (final candidate in candidates) {
-    if (candidate != null && candidate.isNotEmpty) return candidate;
-  }
-  return null;
 }

@@ -11,6 +11,10 @@ members = [
     "upeg-runtime",
     "upeg-sources",
     "upeg-tool-grammar",
+    "upeg-toolkit-catalog",
+    "upeg-toolkit-guest",
+    "upeg-toolkit-native",
+    "upeg-toolkit-pack",
     "upeg-tools",
     "upeg-wasm",
 ]
@@ -29,7 +33,7 @@ lto = "thin"
 # Single source of truth for workspace member versions. Each member opts in
 # via `version.workspace = true` in its own [package] block. Bump here for
 # any release — do not edit the seven member Cargo.toml files individually.
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 rust-version = "1.92"
 authors = ["upeg contributors"]
@@ -113,6 +117,7 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+serde_jcs = "0.2"
 syn = { version = "2", features = ["full"] }
 # `sync` is load-bearing for the HTTP surface's streaming route: the
 # blocking dispatch worker hands NDJSON lines to the response body over
@@ -179,6 +184,8 @@ upeg-runtime = { path = "upeg-runtime", version = "0.5" }
 upeg-sources = { path = "upeg-sources", version = "0.5" }
 upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.5" }
 upeg-tools = { path = "upeg-tools", version = "0.5" }
+upeg-toolkit-catalog = { path = "upeg-toolkit-catalog", version = "0.5" }
+upeg-toolkit-native = { path = "upeg-toolkit-native", version = "0.5" }
 upeg-wasm = { path = "upeg-wasm", version = "0.5" }
 
 [workspace.lints.rust]

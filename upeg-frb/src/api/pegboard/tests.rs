@@ -346,6 +346,7 @@ fn pinned_boards_for_tool_returns_empty_when_unpinned() {
 
 #[test]
 fn count_for_tag_dto_returns_total_count_for_all_tag() {
+    upeg_toolkit_catalog::register_embedded_metadata().expect("register builtin metadata");
     let n = count_for_tag(ALL_TAG.to_string());
     // Real toolbox has > 0 tools.
     assert!(n > 0, "ALL_TAG count must include every registered tool");

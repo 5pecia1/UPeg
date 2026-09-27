@@ -42,9 +42,9 @@ typedef LivePinKey = ({PinKey pinKey, ToolId toolId});
 final liveDispatchToolFnProvider = Provider<LiveDispatchFn>(
   (ref) =>
       ({PinKey? pinKey, required ToolId toolId, required ToolArgs args}) =>
-          dispatchToolAsync(
-            toolId: toolId.value,
-            argsJson: args.encodeJson(),
+          ref.read(toolkitDispatchProvider)(
+            toolId: toolId,
+            args: args,
             boardKey:
                 pinKey?.$1.value ?? ref.read(currentBoardKeyProvider)?.value,
             pinId: pinKey?.$2.value,

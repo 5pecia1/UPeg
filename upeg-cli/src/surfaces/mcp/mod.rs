@@ -241,6 +241,7 @@ fn handle_in_lane(
     log: Option<&McpLogWriter>,
     board_state: Option<&upeg_sources::pegboard::PegboardState>,
 ) -> Option<Value> {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let surface = caller.surface;
     let id = request.get(FIELD_ID).cloned();
     let is_notification = !expects_response(&request);

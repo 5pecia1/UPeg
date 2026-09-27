@@ -39,6 +39,12 @@ use serde_json::Value;
 
 use crate::InputSpec;
 
+mod view;
+pub use view::{
+    PresentationTone, ResolvedAction, ResolvedDetail, ResolvedField, ResolvedNotice,
+    ResolvedStatus, ResolvedView, resolve_action_availability, resolve_view,
+};
+
 pub const PRESENTATION_VERSION_V1: u16 = 1;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -49,6 +55,7 @@ pub enum ToolEffect {
     Unknown,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ToolPresentation {
     pub version: u16,
@@ -57,25 +64,62 @@ pub struct ToolPresentation {
     pub row_key: Option<String>,
     pub columns: Vec<PresentationColumn>,
     pub actions: Vec<PresentationAction>,
+    pub title_pointer: Option<String>,
+    pub subtitle_pointer: Option<String>,
+    pub status: Option<PresentationStatus>,
+    pub summary: Vec<PresentationColumn>,
+    pub notices: Option<PresentationNotices>,
+    pub detail: Option<PresentationDetail>,
+    pub row_detail: Option<PresentationDetail>,
+    pub empty_message_pointer: Option<String>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PresentationColumn {
     pub label: String,
     pub pointer: String,
+    pub tone_pointer: Option<String>,
+    pub filterable: bool,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PresentationStatus {
+    pub label_pointer: String,
+    pub tone_pointer: String,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PresentationNotices {
+    pub rows_pointer: String,
+    pub text_pointer: String,
+    pub severity_pointer: String,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PresentationDetail {
+    pub fields: Vec<PresentationColumn>,
+    pub markdown_pointer: Option<String>,
+    pub diff_pointer: Option<String>,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionScope {
     Row,
     Result,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionSuccess {
     RefreshOrigin,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PresentationAction {
     pub id: String,
@@ -84,8 +128,11 @@ pub struct PresentationAction {
     pub target_tool: String,
     pub on_success: Option<ActionSuccess>,
     pub bindings: BTreeMap<String, ActionBinding>,
+    pub enabled_pointer: Option<String>,
+    pub disabled_reason_pointer: Option<String>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActionBinding {
     Input { pointer: String },
@@ -99,6 +146,7 @@ pub struct PresentationRow {
     pub key: String,
     pub value: Value,
     pub cells: Vec<Value>,
+    pub cell_tones: Vec<Option<PresentationTone>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -184,10 +232,23 @@ pub fn resolve_rows(presentation: &ToolPresentation, outputs: &Value) -> RowsRes
                     .unwrap_or(Value::Null)
             })
             .collect();
+        let cell_tones = presentation
+            .columns
+            .iter()
+            .map(|column| {
+                column
+                    .tone_pointer
+                    .as_deref()
+                    .and_then(|pointer| value.pointer(pointer))
+                    .and_then(Value::as_str)
+                    .and_then(PresentationTone::parse)
+            })
+            .collect();
         rows.push(PresentationRow {
             key,
             value: value.clone(),
             cells,
+            cell_tones,
         });
     }
     RowsResolution {
@@ -289,8 +350,18 @@ mod tests {
             columns: vec![PresentationColumn {
                 label: "Enabled".to_string(),
                 pointer: "/enabled".to_string(),
+                tone_pointer: None,
+                filterable: false,
             }],
             actions: Vec::new(),
+            title_pointer: None,
+            subtitle_pointer: None,
+            status: None,
+            summary: Vec::new(),
+            notices: None,
+            detail: None,
+            row_detail: None,
+            empty_message_pointer: None,
         }
     }
 
@@ -324,6 +395,8 @@ mod tests {
             label: "Choose project".into(),
             target_tool: "demo.project".into(),
             on_success: None,
+            enabled_pointer: None,
+            disabled_reason_pointer: None,
             bindings: BTreeMap::from([(
                 "project".into(),
                 ActionBinding::Output {
@@ -370,6 +443,8 @@ mod tests {
             label: "Open".to_string(),
             target_tool: "demo.target".to_string(),
             on_success: None,
+            enabled_pointer: None,
+            disabled_reason_pointer: None,
             bindings: BTreeMap::from([(
                 "count".to_string(),
                 ActionBinding::Row {
@@ -397,6 +472,8 @@ mod tests {
             label: "Bad".to_string(),
             target_tool: "demo.target".to_string(),
             on_success: None,
+            enabled_pointer: None,
+            disabled_reason_pointer: None,
             bindings: BTreeMap::from([(
                 "_upeg".to_string(),
                 ActionBinding::Constant { value: json!(true) },

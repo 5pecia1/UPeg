@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use upeg_core::{
-    StaticToolMeta, Surface,
+    Surface,
     interface_inventory::{
         Compatibility, ContractIoKind, ContractShape, DocRef, INTERFACE_INVENTORY_SCHEMA_VERSION,
         InterfaceEntry, InterfaceInventory, InterfaceInventoryError, InterfaceKind, OwnerRef,
@@ -702,7 +702,9 @@ fn test_inventory_entry(
 }
 
 fn static_tool_inventory() -> InterfaceInventory {
-    let entries = upeg_core::inventory::iter::<StaticToolMeta>()
+    upeg_toolkit_native::register_native_toolkits().expect("register generated builtins");
+    let entries = upeg_runtime::toolbox_tools()
+        .filter(|tool| upeg_runtime::toolbox_is_builtin(tool.id))
         .map(|tool| {
             test_inventory_entry(
                 tool.id,

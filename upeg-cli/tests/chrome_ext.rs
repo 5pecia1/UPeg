@@ -431,6 +431,7 @@ fn the_detector_table_declares_pattern_label_key_and_tool_per_row_as_data() {
 
 #[test]
 fn tool_ids_and_args_named_by_the_detector_table_exist_in_the_toolbox() {
+    upeg_toolkit_native::register_native_toolkits().expect("generated builtins register");
     // The table's whole promise is "this match dispatches to that tool".
     // A renamed tool or a renamed input field must fail here, not silently
     // 404 in a tooltip on somebody's page.

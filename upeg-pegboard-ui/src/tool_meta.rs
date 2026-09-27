@@ -61,7 +61,7 @@ mod tests {
         reason = "registration failure is a fixture bug, not runtime"
     )]
     fn desktop_tools_are_registered_with_display_label_metadata() {
-        upeg_tools::register_all();
+        upeg_toolkit_catalog::register_embedded_metadata().expect("register builtins");
         for id in [
             "num.hex_to_decimal",
             "convert.json_format",
