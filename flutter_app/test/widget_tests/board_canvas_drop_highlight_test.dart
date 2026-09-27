@@ -100,16 +100,34 @@ void main() {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+        placements: [
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+        ],
       );
       // The dragged tool moving alone, nothing else displaced -> accept.
       List<PlacementDto> acceptLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) {
-        return [PlacementDto(toolId: toolId.value, x: x, y: y, w: 1, h: 1)];
+        return [
+          PlacementDto(
+            toolId: toolId.value,
+            pinId: toolId.value,
+            x: x,
+            y: y,
+            w: 1,
+            h: 1,
+          ),
+        ];
       }
 
       await tester.pumpWidget(
@@ -150,21 +168,49 @@ void main() {
         boardKey: 'dev',
         boardCols: 6,
         placements: [
-          PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
-          PlacementDto(toolId: 'fixture.b', x: 1, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+          PlacementDto(
+            toolId: 'fixture.b',
+            pinId: 'fixture.b',
+            x: 1,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ],
       );
       // Committing here would push fixture.b out of its current (1, 0)
       // slot -> the preview reports fixture.b displaced to (2, 0).
       List<PlacementDto> pushLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) {
         return [
-          PlacementDto(toolId: toolId.value, x: x, y: y, w: 1, h: 1),
-          const PlacementDto(toolId: 'fixture.b', x: 2, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: toolId.value,
+            pinId: toolId.value,
+            x: x,
+            y: y,
+            w: 1,
+            h: 1,
+          ),
+          const PlacementDto(
+            toolId: 'fixture.b',
+            pinId: 'fixture.b',
+            x: 2,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ];
       }
 
@@ -195,13 +241,20 @@ void main() {
           boardKey: 'dev',
           boardCols: 6,
           placements: [
-            PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: 'fixture.a',
+              pinId: 'fixture.a',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ],
         );
         // Empty preview list == FRB rejected the anchor.
         List<PlacementDto> rejectLoader(
           BoardKey boardKey,
-          ToolId toolId,
+          PinId toolId,
           int x,
           int y,
         ) => const <PlacementDto>[];
@@ -226,15 +279,33 @@ void main() {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+        placements: [
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+        ],
       );
       List<PlacementDto> acceptLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) {
-        return [PlacementDto(toolId: toolId.value, x: x, y: y, w: 1, h: 1)];
+        return [
+          PlacementDto(
+            toolId: toolId.value,
+            pinId: toolId.value,
+            x: x,
+            y: y,
+            w: 1,
+            h: 1,
+          ),
+        ];
       }
 
       await tester.pumpWidget(
@@ -253,15 +324,33 @@ void main() {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+        placements: [
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+        ],
       );
       List<PlacementDto> acceptLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) {
-        return [PlacementDto(toolId: toolId.value, x: x, y: y, w: 1, h: 1)];
+        return [
+          PlacementDto(
+            toolId: toolId.value,
+            pinId: toolId.value,
+            x: x,
+            y: y,
+            w: 1,
+            h: 1,
+          ),
+        ];
       }
 
       await tester.pumpWidget(
@@ -282,11 +371,20 @@ void main() {
       const snapshot = LayoutSnapshotDto(
         boardKey: 'dev',
         boardCols: 6,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+        placements: [
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+        ],
       );
       List<PlacementDto> loader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) => const <PlacementDto>[];

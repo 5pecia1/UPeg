@@ -10,7 +10,7 @@ import 'tools/file_input_policy.dart';
 import 'tools/input_field.dart';
 part 'tools.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dispatch_tool_impl`, `error`, `shape_approval_arg`, `strip_approved_steps`
+// These functions are ignored because they are not marked as `pub`: `dispatch_tool_impl_for_pin`, `error`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 PresentationRowsDto resolveToolPresentationRows({
@@ -57,18 +57,19 @@ List<ToolDto> listTools({String? toolkit}) =>
 /// CLI/HTTP/MCP/TUI). `None` dispatches globally with only the
 /// `desktop` surface label.
 ///
-/// `approve` lifts a Chain's approval barrier — see
-/// [`APPROVE_RESERVED_ARG`] for why it is a typed parameter and not a
-/// key the caller writes into `args_json`.
+/// `approve` lifts a Chain's approval barrier through a typed parameter;
+/// caller-supplied JSON cannot grant approval.
 CanonicalToolResult dispatchTool({
   required String toolId,
   required String argsJson,
   String? boardKey,
+  String? pinId,
   required bool approve,
 }) => RustLib.instance.api.crateApiToolsDispatchTool(
   toolId: toolId,
   argsJson: argsJson,
   boardKey: boardKey,
+  pinId: pinId,
   approve: approve,
 );
 
@@ -77,11 +78,13 @@ Future<CanonicalToolResult> dispatchToolAsync({
   required String toolId,
   required String argsJson,
   String? boardKey,
+  String? pinId,
   required bool approve,
 }) => RustLib.instance.api.crateApiToolsDispatchToolAsync(
   toolId: toolId,
   argsJson: argsJson,
   boardKey: boardKey,
+  pinId: pinId,
   approve: approve,
 );
 
@@ -562,7 +565,7 @@ class ToolDto {
   /// in front of the run. Dispatching without it is not unsafe — the
   /// gated step refuses with `approval_required` and nothing runs — but
   /// it is a dead end for the person, who has no way to answer from a
-  /// failed result. See `docs/architecture/chain.md`.
+  /// failed result. See `upeg_runtime::approval`'s module docs.
   final bool requiresApproval;
 
   /// Surface labels (`cli`, `tui`, `desktop`, …) whose approval this

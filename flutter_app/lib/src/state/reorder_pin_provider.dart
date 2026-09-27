@@ -14,15 +14,16 @@ import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
 
 typedef ReorderPinFn =
-    Future<void> Function(ToolId toolId, OrderDirectionDto direction);
+    Future<void> Function(PinId pinId, OrderDirectionDto direction);
 
 final reorderPinFnProvider = Provider<ReorderPinFn>((ref) {
-  return (toolId, direction) async {
+  return (pinId, direction) async {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return;
-    await ref
-        .read(pegboardMutationsProvider)
-        .reorder(boardKey, toolId, direction);
+    await ref.read(pegboardMutationsProvider).reorder((
+      boardKey,
+      pinId,
+    ), direction);
   };
 });
 

@@ -1,0 +1,10 @@
+schema_version = 1
+name = "Demo app"
+
+[[boards]]
+id = "demo-app"
+label = "Demo app"
+
+# Built-in board names (`dev` / `trading` / `personal`) cannot be used —
+# "which board do you mean" would diverge per surface, so the loader
+# refuses them.

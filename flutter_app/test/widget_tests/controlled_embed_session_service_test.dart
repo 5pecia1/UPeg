@@ -70,6 +70,47 @@ void main() {
   });
   tearDown(() => service.close());
 
+  test('keeps_same_tool_sessions_independent_for_each_pin_key', () async {
+    final firstKey = (BoardKey.parse('dev'), PinId.parse('controlled-first'));
+    final secondKey = (BoardKey.parse('dev'), PinId.parse('controlled-second'));
+    final first = ControlledEmbedSessionSpec(
+      pinKey: firstKey,
+      toolId: _toolId,
+      url: _url,
+    );
+    final second = ControlledEmbedSessionSpec(
+      pinKey: secondKey,
+      toolId: _toolId,
+      url: _url,
+    );
+
+    final firstEntry = await service.ensure(first);
+    final secondEntry = await service.ensure(second);
+
+    expect(firstEntry, isNot(same(secondEntry)));
+    expect(factory.sessions, hasLength(2));
+    expect(service.entryForPin(firstKey), same(firstEntry));
+    expect(service.entryForPin(secondKey), same(secondEntry));
+    expect(service.entryForTool(_toolId), isNull);
+  });
+
+  test('should isolate one tool session from two board pin sessions', () async {
+    final firstKey = (BoardKey.parse('dev'), PinId.parse('first'));
+    final secondKey = (BoardKey.parse('dev'), PinId.parse('second'));
+    final toolEntry = await service.ensure(_spec);
+    final firstEntry = await service.ensure(
+      ControlledEmbedSessionSpec(pinKey: firstKey, toolId: _toolId, url: _url),
+    );
+    final secondEntry = await service.ensure(
+      ControlledEmbedSessionSpec(pinKey: secondKey, toolId: _toolId, url: _url),
+    );
+
+    expect(factory.sessions, hasLength(3));
+    expect(service.entryForTool(_toolId), same(toolEntry));
+    expect(service.entryForPin(firstKey), same(firstEntry));
+    expect(service.entryForPin(secondKey), same(secondEntry));
+  });
+
   test(
     'an_output_conversion_failure_after_a_successful_raw_read_stays_failed_past_debug_reservation_and_event_clearing',
     () async {
@@ -93,7 +134,7 @@ void main() {
       factory.sessions.single.readPayload = '{"result":"not-a-number"}';
 
       final outcome = await _run(service);
-      final entry = service.entryFor(_toolId)!;
+      final entry = service.entryForTool(_toolId)!;
 
       expect(normalizedTool, _toolId);
       expect(rawResult?.ok, isTrue);
@@ -108,7 +149,7 @@ void main() {
 
       final debugEntry = await service.ensure(_spec);
       final release = service.reserveDebugger(debugEntry);
-      service.clearEvents(_toolId);
+      service.clearEventsForTool(_toolId);
       await service.ensure(
         ControlledEmbedSessionSpec(
           toolId: ToolId.parse('test.other.session'),
@@ -150,8 +191,8 @@ void main() {
           '{"caption":"value","amount":"42.5"}';
 
       final outcome = await _run(service);
-      final entry = service.entryFor(_toolId)!;
-      service.clearEvents(_toolId);
+      final entry = service.entryForTool(_toolId)!;
+      service.clearEventsForTool(_toolId);
       final release = service.reserveDebugger(await service.ensure(_spec));
 
       expect(outcome.result.primaryOutputId, 'caption');
@@ -173,7 +214,7 @@ void main() {
     'a_page_created_by_a_normal_run_reruns_in_the_same_state_when_the_debugger_reserves_it',
     () async {
       final first = await _run(service);
-      final originalEntry = service.entryFor(_toolId)!;
+      final originalEntry = service.entryForTool(_toolId)!;
       final debugEntry = await service.ensure(
         ControlledEmbedSessionSpec(toolId: _toolId, url: _url),
       );
@@ -191,7 +232,7 @@ void main() {
       release();
       release();
       expect(debugEntry.displayedInDebugger, isFalse);
-      expect(identical(service.entryFor(_toolId), originalEntry), isTrue);
+      expect(identical(service.entryForTool(_toolId), originalEntry), isTrue);
     },
   );
 
@@ -208,7 +249,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(browser.operations, ['write']);
       expect(
-        service.entryFor(_toolId)?.phase,
+        service.entryForTool(_toolId)?.phase,
         ControlledEmbedSessionPhase.running,
       );
       gate.complete();
@@ -227,7 +268,7 @@ void main() {
         {'result': '2'},
       ]);
       expect(
-        service.entryFor(_toolId)?.phase,
+        service.entryForTool(_toolId)?.phase,
         ControlledEmbedSessionPhase.ready,
       );
       expect(factory.sessions, hasLength(1));
@@ -322,7 +363,7 @@ void main() {
 
       expect(factory.sessions, hasLength(1));
       expect(browser.closeCalls, 0);
-      expect(service.entryFor(_toolId)?.spec, _spec);
+      expect(service.entryForTool(_toolId)?.spec, _spec);
       gate.complete();
       expect((await operation).result.ok, isTrue);
     },
@@ -403,7 +444,7 @@ void main() {
         clock.flushMicrotasks();
         final browser = factory.sessions.single;
         expect(
-          service.entryFor(_toolId)?.phase,
+          service.entryForTool(_toolId)?.phase,
           ControlledEmbedSessionPhase.loading,
         );
 
@@ -433,7 +474,7 @@ void main() {
       ];
 
       final outcome = await _run(service, bindings: bindings);
-      final entry = service.entryFor(_toolId)!;
+      final entry = service.entryForTool(_toolId)!;
 
       expect(outcome.result.ok, isFalse);
       expect(outcome.waitTimeout?.roleLabel, 'input');

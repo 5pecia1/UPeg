@@ -9,6 +9,7 @@ import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/memos.dart' show MemoEntry;
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/controlled_embed_settings_provider.dart';
@@ -75,10 +76,13 @@ void main() {
             ),
             resolveEmbedFnProvider.overrideWith(
               (ref) =>
-                  ({required ToolId toolId, required ToolArgs args}) =>
-                      const EmbedResolutionDto(
-                        url: 'https://transform.tools/json-to-typescript',
-                      ),
+                  ({
+                    PinKey? pinKey,
+                    required ToolId toolId,
+                    required ToolArgs args,
+                  }) => const EmbedResolutionDto(
+                    url: 'https://transform.tools/json-to-typescript',
+                  ),
             ),
           ],
           child: MaterialApp(
@@ -90,6 +94,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'embed.transform_tools',
+                      pinId: 'embed.transform_tools',
                       x: 0,
                       y: 0,
                       w: 2,
@@ -159,7 +164,7 @@ void main() {
         embedIframeFactory = const DartUiWebIframeFactory();
       });
 
-      ToolId? movedTool;
+      PinId? movedTool;
       var tapped = false;
       await tester.pumpWidget(
         ProviderScope(
@@ -174,8 +179,11 @@ void main() {
             ),
             resolveEmbedFnProvider.overrideWith(
               (ref) =>
-                  ({required ToolId toolId, required ToolArgs args}) =>
-                      const EmbedResolutionDto(url: 'https://example.test/e'),
+                  ({
+                    PinKey? pinKey,
+                    required ToolId toolId,
+                    required ToolArgs args,
+                  }) => const EmbedResolutionDto(url: 'https://example.test/e'),
             ),
           ],
           child: MaterialApp(
@@ -190,6 +198,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'embed.transform_tools',
+                        pinId: 'embed.transform_tools',
                         x: 0,
                         y: 0,
                         w: 2,
@@ -201,11 +210,11 @@ void main() {
                   onMovePin:
                       ({
                         required boardKey,
-                        required toolId,
+                        required pinId,
                         required anchorX,
                         required anchorY,
                       }) {
-                        movedTool = toolId;
+                        movedTool = pinId;
                       },
                 ),
               ),
@@ -234,7 +243,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(movedTool, ToolId.parse('embed.transform_tools'));
+      expect(movedTool, PinId.parse('embed.transform_tools'));
     });
 
     testWidgets(
@@ -269,7 +278,7 @@ void main() {
               ...i18nTestOverrides,
               controlledEmbedNativeSupportedProvider.overrideWithValue(true),
               controlledEmbedToolExecutorProvider.overrideWithValue(
-                ({required toolId, required args, boardKey}) async =>
+                ({required toolId, required args, boardKey, pinId}) async =>
                     controlledEmbedSuccessResult({'intro': 'board preview'}),
               ),
               toolsLoaderProvider.overrideWith(
@@ -278,10 +287,13 @@ void main() {
               ),
               resolveEmbedFnProvider.overrideWith(
                 (ref) =>
-                    ({required ToolId toolId, required ToolArgs args}) =>
-                        const EmbedResolutionDto(
-                          url: 'https://example.test/controlled',
-                        ),
+                    ({
+                      PinKey? pinKey,
+                      required ToolId toolId,
+                      required ToolArgs args,
+                    }) => const EmbedResolutionDto(
+                      url: 'https://example.test/controlled',
+                    ),
               ),
               selectorBindingsLoaderProvider.overrideWithValue(
                 (ToolId _) => const [],
@@ -299,6 +311,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'embed.example_controlled',
+                        pinId: 'embed.example_controlled',
                         x: 0,
                         y: 0,
                         w: 2,
@@ -354,7 +367,11 @@ void main() {
             isWasmRuntimeProvider.overrideWithValue(false),
             resolveEmbedFnProvider.overrideWith(
               (ref) =>
-                  ({required ToolId toolId, required ToolArgs args}) => null,
+                  ({
+                    PinKey? pinKey,
+                    required ToolId toolId,
+                    required ToolArgs args,
+                  }) => null,
             ),
           ],
           child: MaterialApp(
@@ -366,6 +383,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'embed.urlless_tool',
+                      pinId: 'embed.urlless_tool',
                       x: 0,
                       y: 0,
                       w: 2,
@@ -438,6 +456,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'memo.scratch',
+                      pinId: 'memo.scratch',
                       x: 0,
                       y: 0,
                       w: 2,
@@ -508,7 +527,14 @@ void main() {
                     boardKey: 'dev',
                     boardCols: 6,
                     placements: [
-                      PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
+                      PlacementDto(
+                        toolId: 'eth.gas',
+                        pinId: 'eth.gas',
+                        x: 0,
+                        y: 0,
+                        w: 1,
+                        h: 1,
+                      ),
                     ],
                   ),
                   onPinTap: (_) {},

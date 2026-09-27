@@ -6,6 +6,7 @@ import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/pegboard_selection_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
@@ -44,6 +45,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -51,6 +53,7 @@ void main() {
               ),
               PlacementDto(
                 toolId: 'convert.base64_decode',
+                pinId: 'convert.base64_decode',
                 x: 1,
                 y: 0,
                 w: 1,
@@ -69,6 +72,45 @@ void main() {
       expect(find.text('CONVERT.BASE64_DECODE'), findsOneWidget);
     });
 
+    testWidgets(
+      'BoardCanvas_keeps_two_instances_of_the_same_tool_as_distinct_widgets',
+      (tester) async {
+        final board = BoardKey.parse('dev');
+        final firstKey = (board, PinId.parse('pin-first'));
+        final secondKey = (board, PinId.parse('pin-second'));
+        await tester.pumpWidget(
+          boardCanvasHarness(
+            snapshot: const LayoutSnapshotDto(
+              boardKey: 'dev',
+              boardCols: 6,
+              placements: [
+                PlacementDto(
+                  toolId: 'num.hex_to_decimal',
+                  pinId: 'pin-first',
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
+                PlacementDto(
+                  toolId: 'num.hex_to_decimal',
+                  pinId: 'pin-second',
+                  x: 1,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
+              ],
+            ),
+          ),
+        );
+
+        expect(find.byType(Pin), findsNWidgets(2));
+        expect(find.byKey(ValueKey<PinKey>(firstKey)), findsOneWidget);
+        expect(find.byKey(ValueKey<PinKey>(secondKey)), findsOneWidget);
+      },
+    );
+
     testWidgets('BoardCanvas_renders_a_U2_pin_at_double_width', (tester) async {
       await tester.pumpWidget(
         boardCanvasHarness(
@@ -76,7 +118,14 @@ void main() {
             boardKey: 'dev',
             boardCols: 6,
             placements: [
-              PlacementDto(toolId: 'fake.u2', x: 0, y: 0, w: 2, h: 1),
+              PlacementDto(
+                toolId: 'fake.u2',
+                pinId: 'fake.u2',
+                x: 0,
+                y: 0,
+                w: 2,
+                h: 1,
+              ),
             ],
           ),
         ),
@@ -102,6 +151,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 2,
                 y: 3,
                 w: 1,
@@ -137,6 +187,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -230,6 +281,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'num.hex_to_decimal',
+                        pinId: 'num.hex_to_decimal',
                         x: 0,
                         y: 0,
                         w: 1,
@@ -237,6 +289,7 @@ void main() {
                       ),
                       PlacementDto(
                         toolId: 'convert.base64_decode',
+                        pinId: 'convert.base64_decode',
                         x: 3,
                         y: 2,
                         w: 1,
@@ -274,11 +327,32 @@ void main() {
       'clicking_a_TagChipRow_filters_the_visible_BoardCanvas_pins_and_all_restores_them',
       (tester) async {
         const allPlacements = [
-          PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
-          PlacementDto(toolId: 'text.lowercase', x: 1, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: 'num.hex_to_decimal',
+            pinId: 'num.hex_to_decimal',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+          PlacementDto(
+            toolId: 'text.lowercase',
+            pinId: 'text.lowercase',
+            x: 1,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ];
         const purePlacements = [
-          PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: 'num.hex_to_decimal',
+            pinId: 'num.hex_to_decimal',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ];
         final observedTags = <TagSelection>[];
         final container = ProviderContainer(

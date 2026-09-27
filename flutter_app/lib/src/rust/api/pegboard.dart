@@ -114,6 +114,18 @@ void pinTool({required String boardKey, required String toolId}) => RustLib
     .api
     .crateApiPegboardPinTool(boardKey: boardKey, toolId: toolId);
 
+/// Add another instance of a tool to one board and return its stable pin id.
+String addPin({required String boardKey, required String toolId}) => RustLib
+    .instance
+    .api
+    .crateApiPegboardAddPin(boardKey: boardKey, toolId: toolId);
+
+/// Remove one instance, leaving any other pins of the same tool in place.
+void removePin({required String boardKey, required String pinId}) => RustLib
+    .instance
+    .api
+    .crateApiPegboardRemovePin(boardKey: boardKey, pinId: pinId);
+
 /// Remove every placement carrying `tool_id` from `board_key` and
 /// persist. No-op (still `Ok`) if the tool wasn't pinned. Returns
 /// [`FrbError::Validation`] when the board is unknown.
@@ -127,21 +139,21 @@ void unpinTool({required String boardKey, required String toolId}) => RustLib
 /// two push-placement moves, so unrelated pins keep their relative slots.
 void reorderPin({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required OrderDirectionDto direction,
 }) => RustLib.instance.api.crateApiPegboardReorderPin(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   direction: direction,
 );
 
 void setPinColor({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   String? color,
 }) => RustLib.instance.api.crateApiPegboardSetPinColor(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   color: color,
 );
 
@@ -160,22 +172,22 @@ void setPinColor({
 /// of persisting an overlapping layout.
 void setPinSpan({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required int cols,
   required int rows,
 }) => RustLib.instance.api.crateApiPegboardSetPinSpan(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   cols: cols,
   rows: rows,
 );
 
 /// Drop the user span override for `tool_id` on `board_key` so the
 /// manifest footprint applies again.
-void clearPinSpan({required String boardKey, required String toolId}) => RustLib
+void clearPinSpan({required String boardKey, required String pinId}) => RustLib
     .instance
     .api
-    .crateApiPegboardClearPinSpan(boardKey: boardKey, toolId: toolId);
+    .crateApiPegboardClearPinSpan(boardKey: boardKey, pinId: pinId);
 
 /// Save an argument preset on `tool_id`'s placement on `board_key`.
 ///
@@ -185,20 +197,20 @@ void clearPinSpan({required String boardKey, required String toolId}) => RustLib
 /// touched.
 void setPinArgsPreset({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required String presetJson,
 }) => RustLib.instance.api.crateApiPegboardSetPinArgsPreset(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   presetJson: presetJson,
 );
 
 /// Remove the saved argument preset from `tool_id`'s placement on
 /// `board_key`.
-void clearPinArgsPreset({required String boardKey, required String toolId}) =>
+void clearPinArgsPreset({required String boardKey, required String pinId}) =>
     RustLib.instance.api.crateApiPegboardClearPinArgsPreset(
       boardKey: boardKey,
-      toolId: toolId,
+      pinId: pinId,
     );
 
 /// Create a new board with the given user-supplied `title`. Returns the
@@ -251,12 +263,12 @@ void deleteBoard({required String boardKey}) =>
 /// valid start column before the runtime reflow runs.
 void movePin({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required int anchorX,
   required int anchorY,
 }) => RustLib.instance.api.crateApiPegboardMovePin(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   anchorX: anchorX,
   anchorY: anchorY,
 );
@@ -279,12 +291,12 @@ void movePin({
 /// projected push before committing.
 List<PlacementDto> previewPush({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required int anchorX,
   required int anchorY,
 }) => RustLib.instance.api.crateApiPegboardPreviewPush(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   anchorX: anchorX,
   anchorY: anchorY,
 );
@@ -305,12 +317,12 @@ List<PlacementDto> previewPush({
 /// would push neighbours (warn tint) or drop cleanly.
 List<PlacementDto> previewResize({
   required String boardKey,
-  required String toolId,
+  required String pinId,
   required int cols,
   required int rows,
 }) => RustLib.instance.api.crateApiPegboardPreviewResize(
   boardKey: boardKey,
-  toolId: toolId,
+  pinId: pinId,
   cols: cols,
   rows: rows,
 );
@@ -403,6 +415,7 @@ class PegboardSelectionDto {
 /// pegboard coordinates the Dart canvas uses for absolute-position layout
 /// (drag & drop).
 class PlacementDto {
+  final String pinId;
   final String toolId;
 
   /// Pegboard column.
@@ -435,6 +448,7 @@ class PlacementDto {
   final String? argsPresetJson;
 
   const PlacementDto({
+    required this.pinId,
     required this.toolId,
     required this.x,
     required this.y,
@@ -448,6 +462,7 @@ class PlacementDto {
 
   @override
   int get hashCode =>
+      pinId.hashCode ^
       toolId.hashCode ^
       x.hashCode ^
       y.hashCode ^
@@ -463,6 +478,7 @@ class PlacementDto {
       identical(this, other) ||
       other is PlacementDto &&
           runtimeType == other.runtimeType &&
+          pinId == other.pinId &&
           toolId == other.toolId &&
           x == other.x &&
           y == other.y &&

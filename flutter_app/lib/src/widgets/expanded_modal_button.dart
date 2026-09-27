@@ -13,6 +13,7 @@ import 'package:upeg/src/pages/expanded_modal_page.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/controlled_embed/surface.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
@@ -55,6 +56,7 @@ Future<ExpandedModalOpenResult> openExpandedModalForToolId(
   WidgetRef ref,
   ToolId toolId, {
   ToolArgs? initialInput,
+  PinKey? pinKey,
 }) async {
   var tool = ref.read(toolByIdProvider(toolId));
   if (tool == null) {
@@ -77,9 +79,14 @@ Future<ExpandedModalOpenResult> openExpandedModalForToolId(
   // full-screen surface that mounts the same tile widget in a
   // Scaffold so the form + Run + outputs experience still works.
   if (tool.pinKind == PinKindDto.controlledEmbed) {
-    await ControlledEmbedSurface.open(context, tool);
+    await ControlledEmbedSurface.open(context, tool, pinKey: pinKey);
     return ExpandedModalOpened(tool);
   }
-  await ExpandedModalPage.open(context, tool, initialInput: initialInput);
+  await ExpandedModalPage.open(
+    context,
+    tool,
+    initialInput: initialInput,
+    pinKey: pinKey,
+  );
   return ExpandedModalOpened(tool);
 }

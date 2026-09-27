@@ -32,6 +32,8 @@ import 'package:upeg/src/state/locale_provider.dart';
 import 'package:upeg/src/state/move_pin_slot_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart';
+import 'package:upeg/src/state/pegboard_mutations_provider.dart'
+    show RemovePinMutator, removePinMutatorProvider;
 import 'package:upeg/src/state/reorder_pin_provider.dart';
 import 'package:upeg/src/state/push_preview_provider.dart';
 import 'package:upeg/src/state/selector_bindings_provider.dart';
@@ -81,6 +83,7 @@ const String editColorMenuText = 'edit color';
 const String unpinMenuText = 'unpin';
 const contextMenuPlacement = PlacementDto(
   toolId: contextMenuToolId,
+  pinId: contextMenuToolId,
   x: 0,
   y: 0,
   w: 1,
@@ -93,7 +96,7 @@ class SeededFocusedPinNotifier extends FocusedPinNotifier {
   final String _seed;
 
   @override
-  ToolId? build() => ToolId.parse(_seed);
+  PinId? build() => PinId.parse(_seed);
 }
 
 Widget boardPageHarness({
@@ -107,7 +110,7 @@ Widget boardPageHarness({
   PinActivationFn? pinActivation,
   IsPinnedLoader? isPinnedLoader,
   PinMutator? pinMutator,
-  PinMutator? unpinMutator,
+  RemovePinMutator? removePinMutator,
   MovePinSlotFn? movePinSlot,
   ReorderPinFn? reorderPin,
   MovePinCommitFn? movePinCommit,
@@ -155,8 +158,8 @@ Widget boardPageHarness({
         isPinnedLoaderProvider.overrideWithValue(isPinnedLoader),
       if (pinMutator != null)
         pinToolMutatorProvider.overrideWithValue(pinMutator),
-      if (unpinMutator != null)
-        unpinToolMutatorProvider.overrideWithValue(unpinMutator),
+      if (removePinMutator != null)
+        removePinMutatorProvider.overrideWithValue(removePinMutator),
       if (movePinSlot != null)
         movePinSlotFnProvider.overrideWithValue(movePinSlot),
       if (reorderPin != null)
@@ -483,11 +486,19 @@ Future<void> pumpBoardWithControlledEmbed(
         // h:2 gives the inline form + Run row + output strip enough
         // vertical room that the tile does not overflow its pin cell.
         placements: const <PlacementDto>[
-          PlacementDto(toolId: embedToolId, x: 0, y: 0, w: 2, h: 2),
+          PlacementDto(
+            toolId: embedToolId,
+            pinId: embedToolId,
+            x: 0,
+            y: 0,
+            w: 2,
+            h: 2,
+          ),
         ],
       ),
-      resolveEmbed: ({required ToolId toolId, required ToolArgs args}) =>
-          const EmbedResolutionDto(url: 'https://example.test/controlled'),
+      resolveEmbed:
+          ({PinKey? pinKey, required ToolId toolId, required ToolArgs args}) =>
+              const EmbedResolutionDto(url: 'https://example.test/controlled'),
       selectorBindings: (ToolId _) => const [],
       controlledEmbedSettings: (ToolId _) => const ControlledEmbedSettingsDto(),
       windowModeNotifier: windowModeNotifier,

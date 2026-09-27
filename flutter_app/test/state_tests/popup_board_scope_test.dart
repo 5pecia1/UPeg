@@ -25,7 +25,7 @@ PaletteHit _hit(String id) => PaletteHit(
 );
 
 PlacementDto _placement(String toolId, {required int x, required int y}) =>
-    PlacementDto(toolId: toolId, x: x, y: y, w: 1, h: 1);
+    PlacementDto(toolId: toolId, pinId: toolId, x: x, y: y, w: 1, h: 1);
 
 LayoutSnapshotDto _layout(String boardKey, List<PlacementDto> placements) =>
     LayoutSnapshotDto(boardKey: boardKey, boardCols: 6, placements: placements);

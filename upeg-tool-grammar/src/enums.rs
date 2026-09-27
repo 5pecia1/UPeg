@@ -2,16 +2,13 @@
 //! reference (`pin`, `pegboard_units`, `invoker`, `surfaces`), plus the
 //! shared ident validator.
 //!
-//! Neither macro crate can depend on `upeg_core` directly — `upeg_core`
-//! depends on `upeg-macros` for `#[tool]`/`#[toolkit]`, so the dependency
-//! can only run one way — so these lists are hand-kept copies of the real
-//! enum variants rather than a shared import. Drift between this file and
-//! the real enums is caught by a sync test
-//! (`upeg-tools/tests/macro_variant_sync.rs`), which reads this file's
-//! source and `upeg-core/src/types.rs` and compares the lists.
+//! Neither macro crate can depend on `upeg_core`: it depends on
+//! `upeg-macros` for `#[tool]`/`#[toolkit]`. These lists therefore copy the
+//! real enum variants. `upeg-tools/tests/macro_variant_sync.rs` compares
+//! this source with `upeg-core/src/types.rs` to catch drift.
 //!
 //! Keep each list's order and spelling identical to the corresponding
-//! enum's variants so that sync test's diff output stays readable.
+//! enum variants so that the sync test's diff stays readable.
 
 use syn::{Ident, Result};
 
@@ -39,13 +36,12 @@ pub const ALLOWED_INVOKERS: &[&str] = &[
 pub const ALLOWED_SURFACES: &[&str] = &["Cli", "Tui", "Desktop", "Pwa", "Ext", "Mcp", "Http"];
 
 /// Validates that `ident` names a known variant of the `upeg_core` enum
-/// backing `field` (one of `pin`, `pegboard_units`, `invoker`, `surfaces`).
+/// backing `field`: `pin`, `pegboard_units`, `invoker`, or `surfaces`.
 ///
 /// Pasting an unchecked ident straight into `::upeg_core::SomeEnum::#ident`
-/// (as the macros' codegen does) produces a raw, unhelpful rustc "no variant
-/// named" error deep inside macro expansion. Callers run this first so a
-/// typo like `pegboard_units = U3` gets a message naming the field and
-/// listing the real options.
+/// (as macro codegen does) gives an unhelpful rustc "no variant named" error
+/// inside macro expansion. Calling this first reports the field and valid
+/// options, for example for `pegboard_units = U3`.
 pub fn validate_enum_ident(ident: &Ident, field: &str, allowed: &[&str]) -> Result<()> {
     let value = ident.to_string();
     if allowed.contains(&value.as_str()) {

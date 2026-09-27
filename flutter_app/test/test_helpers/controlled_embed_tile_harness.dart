@@ -9,12 +9,15 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
+import 'package:upeg/src/state/embed_resolver_provider.dart';
 import 'package:upeg/src/state/controlled_embed_settings_provider.dart';
 import 'package:upeg/src/state/selector_bindings_provider.dart';
 import 'package:upeg/src/widgets/controlled_embed/debug_modal.dart';
 import 'package:upeg/src/widgets/controlled_embed/runner.dart';
 import 'package:upeg/src/widgets/controlled_embed/settings.dart';
+import 'package:upeg/src/widgets/controlled_embed/surface.dart';
 import 'package:upeg/src/widgets/controlled_embed/tile.dart';
+import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 
 import '../shared/fake_controlled_embed_widget.dart';
@@ -48,6 +51,10 @@ const kLongControlledEmbedOutput =
 const kSelectorMissControlledEmbedError =
     'selector miss: #intro; controlled embed output could not be read after trigger';
 const kOmittedSettingsDto = ControlledEmbedSettingsDto();
+final kControlledEmbedTestPinKey = (
+  BoardKey.parse('dev'),
+  PinId.parse('controlled-test'),
+);
 
 final class ControlledEmbedTileRobot {
   ControlledEmbedTileRobot(this.tester);
@@ -59,6 +66,7 @@ final class ControlledEmbedTileRobot {
     double width = 800,
     double height = 500,
     ClipboardWriter? clipboard,
+    bool surface = false,
   }) async {
     controlledEmbedFixture.settings = resolveBrowserSettings(settings);
     await tester.pumpWidget(
@@ -72,23 +80,30 @@ final class ControlledEmbedTileRobot {
           controlledEmbedSettingsLoaderProvider.overrideWithValue(
             (ToolId _) => settings,
           ),
+          resolveEmbedFnProvider.overrideWithValue(
+            ({required ToolId toolId, required ToolArgs args}) =>
+                fixtureResolution(),
+          ),
           if (clipboard != null)
             clipboardWriterProvider.overrideWithValue(clipboard),
         ],
         child: MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: width,
-                height: height,
-                child: ControlledEmbedTile(
-                  tool: tool ?? fixtureTool(),
-                  resolution: fixtureResolution(),
+          home: surface
+              ? ControlledEmbedSurface(tool: tool ?? fixtureTool())
+              : Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: width,
+                      height: height,
+                      child: ControlledEmbedTile(
+                        pinKey: kControlledEmbedTestPinKey,
+                        tool: tool ?? fixtureTool(),
+                        resolution: fixtureResolution(),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -214,12 +229,12 @@ final class ControlledEmbedDebugRobot {
                   onPressed: () => showDialog<void>(
                     context: context,
                     builder: (_) => ControlledEmbedDebugModal(
+                      pinKey: kControlledEmbedTestPinKey,
                       tool: fixtureTool(),
                       resolution: fixtureResolution(),
                       bindings: controlledEmbedFixture.bindings,
                       initialInputs: inputs,
                       resolvedSettings: settings,
-                      boardKey: controlledEmbedFixture.boardKey,
                     ),
                   ),
                   child: const Text('Open debugger'),

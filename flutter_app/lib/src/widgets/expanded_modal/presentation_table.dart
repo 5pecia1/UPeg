@@ -46,6 +46,7 @@ class PresentationTable extends StatefulWidget {
     required this.columns,
     required this.rows,
     required this.actions,
+    this.onReadRowNavigate,
     required this.rowActionsEnabled,
     required this.diagnostics,
     required this.tokens,
@@ -57,6 +58,10 @@ class PresentationTable extends StatefulWidget {
   final List<PresentationTableColumn> columns;
   final List<PresentationTableRow> rows;
   final List<PresentationTableAction> actions;
+
+  /// A declared read-only follow-up may open on one row click. Write actions
+  /// deliberately remain behind their explicit action button and Run flow.
+  final ValueChanged<PresentationTableRow>? onReadRowNavigate;
   final bool rowActionsEnabled;
   final List<String> diagnostics;
   final UpegTokens tokens;
@@ -134,7 +139,10 @@ class _PresentationTableState extends State<PresentationTable> {
               row: row,
               selected: row.key == _selectedKey,
               tokens: widget.tokens,
-              onTap: () => setState(() => _selectedKey = row.key),
+              onTap: () {
+                setState(() => _selectedKey = row.key);
+                widget.onReadRowNavigate?.call(row);
+              },
             ),
           if (visibleRows.isEmpty)
             Padding(

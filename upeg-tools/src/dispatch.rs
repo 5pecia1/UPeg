@@ -52,7 +52,24 @@ pub enum RegisteredDispatch {
 ///   3. [`try_runtime_dispatch`] — `None` (registered, no dispatcher) →
 ///      [`RegisteredDispatch::Unimplemented`]; otherwise [`RegisteredDispatch::Ran`].
 pub fn dispatch_registered(tool_id: &str, args: &Value) -> RegisteredDispatch {
+    let _active_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => {
+            return RegisteredDispatch::Ran(upeg_runtime::tool_failure(
+                "project_switching",
+                message,
+            ));
+        }
+    };
     register_all();
+    if upeg_runtime::project_scope::is_project_tool_blocked(tool_id) {
+        return RegisteredDispatch::Ran(upeg_runtime::tool_failure(
+            "project_tool_conflict",
+            format!(
+                "tool `{tool_id}` has both global and project definitions; choose one in .upeg/project.toml"
+            ),
+        ));
+    }
     if toolbox_tool(tool_id).is_none() {
         return RegisteredDispatch::NotFound;
     }

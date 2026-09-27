@@ -16,7 +16,6 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
-import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/pin.dart';
 
@@ -25,6 +24,7 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 const _placement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 0,
   y: 0,
   w: 1,
@@ -35,6 +35,7 @@ const _placement = PlacementDto(
 /// "reset size" menu item to appear.
 const _resizedPlacement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 0,
   y: 0,
   w: 2,
@@ -44,7 +45,7 @@ const _resizedPlacement = PlacementDto(
 );
 
 Widget _harness({
-  PinMutator? unpin,
+  RemovePinMutator? unpin,
   ClearPinSpanMutator? clearSpan,
   String? boardKey,
   PinTapCallback? onTap,
@@ -55,7 +56,7 @@ Widget _harness({
     overrides: [
       ...i18nTestOverrides,
       fakeBindingCatalogOverride,
-      if (unpin != null) unpinToolMutatorProvider.overrideWithValue(unpin),
+      if (unpin != null) removePinMutatorProvider.overrideWithValue(unpin),
       if (clearSpan != null)
         clearPinSpanMutatorProvider.overrideWithValue(clearSpan),
       if (boardKey != null)
@@ -111,10 +112,10 @@ void main() {
       tester,
     ) async {
       BoardKey? observedBoard;
-      ToolId? observedTool;
-      void recorder(BoardKey boardKey, ToolId toolId) {
+      PinId? observedPin;
+      void recorder(BoardKey boardKey, PinId pinId) {
         observedBoard = boardKey;
-        observedTool = toolId;
+        observedPin = pinId;
       }
 
       await tester.pumpWidget(_harness(unpin: recorder, boardKey: 'dev'));
@@ -129,7 +130,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(observedBoard, BoardKey.parse('dev'));
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+      expect(observedPin, PinId.parse('num.hex_to_decimal'));
     });
 
     testWidgets('a_pin_right_click_opens_the_expanded_modal', (tester) async {
@@ -198,10 +199,10 @@ void main() {
       tester,
     ) async {
       BoardKey? observedBoard;
-      ToolId? observedTool;
-      void recorder(BoardKey boardKey, ToolId toolId) {
+      PinId? observedPin;
+      void recorder(BoardKey boardKey, PinId pinId) {
         observedBoard = boardKey;
-        observedTool = toolId;
+        observedPin = pinId;
       }
 
       await tester.pumpWidget(
@@ -222,7 +223,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(observedBoard, BoardKey.parse('dev'));
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+      expect(observedPin, PinId.parse('num.hex_to_decimal'));
     });
 
     testWidgets('context_menu_items_annotate_their_bound_key_labels', (

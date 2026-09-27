@@ -29,9 +29,12 @@ import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
+import 'package:upeg/src/state/diagnostics_provider.dart';
+import 'package:upeg/src/widgets/diagnostics_section.dart';
 import 'package:upeg/src/state/external_readiness_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/presentation_call_origin.dart';
 import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -110,10 +113,12 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
   const ExpandedModalPage({
     required this.tool,
     this.initialInput,
+    this.pinKey,
     this.presentationCalls,
     this.presentationCall,
     this.presentationAction,
     this.onRefresh,
+    this.autoRunRead = false,
     super.key,
   });
 
@@ -124,10 +129,12 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
   /// `upeg://open?input=…` JSON object and threads it here so the
   /// user opens the modal with their fields already populated.
   final ToolArgs? initialInput;
+  final PinKey? pinKey;
   final PresentationCallOriginController? presentationCalls;
   final PresentationCallIdentity? presentationCall;
   final PresentationActionDto? presentationAction;
   final ValueChanged<PresentationRefreshRequest>? onRefresh;
+  final bool autoRunRead;
 
   /// Helper that pushes this page onto the navigator, used by
   /// Pin taps and palette hits. The `initialInput` flag is reserved
@@ -136,6 +143,7 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
     BuildContext context,
     ToolDto tool, {
     ToolArgs? initialInput,
+    PinKey? pinKey,
   }) {
     return Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
@@ -147,8 +155,11 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
         ).modalBarrierDismissLabel,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
-        pageBuilder: (_, _, _) =>
-            ExpandedModalPage(tool: tool, initialInput: initialInput),
+        pageBuilder: (_, _, _) => ExpandedModalPage(
+          tool: tool,
+          initialInput: initialInput,
+          pinKey: pinKey,
+        ),
       ),
     );
   }
@@ -163,6 +174,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       PresentationCallOriginController();
   PresentationCallIdentity? _presentationCall;
   CanonicalToolResult? _outcome;
+  DispatchRunId? _outcomeRunId;
 
   /// Aggregate validity from the [GenericFormWidget]. Run is disabled
   /// (greyed-out, ignores taps) until every required field passes its
@@ -194,7 +206,18 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     if (initial != null && initial.isNotEmpty) {
       _controller.seed(initial, fields: widget.tool.inputFields);
     }
+    if (_shouldAutoRunRead) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_dispatchToolArgs(_controller.snapshot()));
+      });
+    }
   }
+
+  bool get _shouldAutoRunRead =>
+      widget.autoRunRead ||
+      (widget.tool.effect == ToolEffectDto.read &&
+          widget.tool.presentation != null &&
+          !widget.tool.inputFields.any((field) => field.required_));
 
   /// The one funnel every Run in this modal passes through: approval
   /// gate, then one streamed dispatch.
@@ -257,11 +280,16 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     ToolArgs args,
   ) async {
     setState(() => _phase = _RunPhase.dispatching);
-    final result = await external.dispatchRemote(widget.tool, args);
+    final result = await external.dispatchRemote(
+      widget.tool,
+      args,
+      pinKey: widget.pinKey,
+    );
     if (mounted) {
       setState(() {
         _phase = _RunPhase.idle;
         _outcome = result;
+        _outcomeRunId = null;
       });
     }
   }
@@ -298,14 +326,20 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     setState(() {
       _phase = _RunPhase.dispatching;
       _runId = runId;
+      _outcomeRunId = null;
       _tail = const LiveTail.empty(maxLines: modalLiveTailMaxLines);
       _cancelRequested = false;
     });
     CanonicalToolResult? completed;
     var streamFailed = false;
-    final runningLease = running.begin(toolId);
+    // The modal can be opened from palette/deep links without a placement;
+    // it intentionally does not claim a board-pin running indicator.
+    final runningLease = widget.pinKey == null
+        ? null
+        : running.begin(widget.pinKey!);
     try {
       final events = dispatch(
+        pinKey: widget.pinKey,
         toolId: toolId,
         args: args,
         approve: approve,
@@ -325,7 +359,10 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                 ? calls.acceptResult(call)
                 : calls.acceptRefresh(refreshRun);
             if (accepted && (refreshRun == null || result.ok)) {
-              setState(() => _outcome = result);
+              setState(() {
+                _outcome = result;
+                _outcomeRunId = runId;
+              });
             }
         }
       }
@@ -366,7 +403,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           (streamFailed || completed == null || !completed.ok)) {
         calls.refreshFailed(refreshRun);
       }
-      running.end(runningLease);
+      if (runningLease != null) running.end(runningLease);
       if (mounted) {
         setState(() {
           _phase = _RunPhase.idle;
@@ -434,8 +471,9 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   /// the normal Run path still owns approval and dispatch.
   void _handlePresentationAction(
     PresentationActionDto action,
-    PresentationTableRow? row,
-  ) {
+    PresentationTableRow? row, {
+    bool singleClick = false,
+  }) {
     final outcome = _outcome;
     if (outcome == null) return;
     final resolved = ref.read(presentationBindingsResolverProvider)(
@@ -462,6 +500,15 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           ),
         ),
       );
+      return;
+    }
+    // Single-click navigation is intentionally narrow: the target must have
+    // declared itself read-only and every required value must already have
+    // been validated and bound. Any write, unknown effect, or incomplete
+    // target stays on the explicit action + Run path.
+    if (singleClick &&
+        (target.effect != ToolEffectDto.read ||
+            resolved.unboundRequiredInputs.isNotEmpty)) {
       return;
     }
     final calls = widget.presentationCalls ?? _presentationCalls;
@@ -498,6 +545,9 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           parentCall: active,
           childCall: childCall,
           action: action,
+          autoRunRead:
+              target.effect == ToolEffectDto.read &&
+              resolved.unboundRequiredInputs.isEmpty,
         ),
       );
       return;
@@ -513,6 +563,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     required PresentationCallIdentity parentCall,
     required PresentationCallIdentity childCall,
     required PresentationActionDto action,
+    required bool autoRunRead,
   }) async {
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
@@ -524,24 +575,37 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
           presentationCall: childCall,
           presentationAction: action,
           onRefresh: widget.onRefresh ?? _handleRefreshRequest,
+          autoRunRead: autoRunRead,
         ),
       ),
     );
     if (calls.active == childCall) calls.replaceActive(parentCall);
   }
 
-  void _handleCopy() {
+  Future<void> _handleCopy() async {
+    final writer = ref.read(clipboardWriterProvider);
+    if (_outcome?.ok == false && _outcomeRunId != null) {
+      try {
+        final api = ref.read(diagnosticsApiProvider);
+        final report = await diagnosticForRun(api, _outcomeRunId!.value);
+        if (report != null) {
+          await writer.write(await api.export(report.id, debug: false));
+          return;
+        }
+      } on Object {
+        // Results can also come from a host without retained diagnostics.
+      }
+    }
     final text = _copyTextForOutcome(_outcome);
     if (text == null) return;
-    final writer = ref.read(clipboardWriterProvider);
-    unawaited(writer.write(text));
+    await writer.write(text);
   }
 
   Future<void> _openPalette() {
     return showPaletteOverlay(context, onPick: _handlePaletteHit);
   }
 
-  void _handlePaletteHit(PaletteHit hit) {
+  void _handlePaletteHit(PaletteHit hit, PinKey? pinKey) {
     final toolId = ToolId.parse(hit.id);
     final tool = ref.read(toolByIdProvider(toolId));
     if (tool == null) {
@@ -574,10 +638,10 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       // URL-less embed: fall through to modal.
     }
     if (tool.pinKind == PinKindDto.controlledEmbed) {
-      unawaited(ControlledEmbedSurface.open(context, tool));
+      unawaited(ControlledEmbedSurface.open(context, tool, pinKey: pinKey));
       return;
     }
-    unawaited(ExpandedModalPage.open(context, tool));
+    unawaited(ExpandedModalPage.open(context, tool, pinKey: pinKey));
   }
 
   bool _handleAliasKey(KeyEvent event) {
@@ -825,7 +889,17 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
                                     onRowAction: _handlePresentationAction,
                                     onResultAction: (action) =>
                                         _handlePresentationAction(action, null),
+                                    onReadRowNavigate: (action, row) =>
+                                        _handlePresentationAction(
+                                          action,
+                                          row,
+                                          singleClick: true,
+                                        ),
                                   ),
+                                  if (!_outcome!.ok && _outcomeRunId != null)
+                                    DiagnosticRunButton(
+                                      runId: _outcomeRunId!.value,
+                                    ),
                                 ],
                               ],
                             ),

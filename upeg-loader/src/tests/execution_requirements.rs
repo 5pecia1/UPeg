@@ -55,7 +55,8 @@ fn registered_execution_requirements_keep_command_and_manifest_relative_cwd() {
 #[test]
 fn project_execution_requirements_keep_root_caller_cannot_escape() {
     let root = tool_dir("project", "git", "");
-    let outcome = crate::load_and_register_file_verbose(&root.join("kit.toml"));
+    let ids = std::collections::HashSet::from(["requirements-project.run".to_string()]);
+    let outcome = crate::load_project_toolkit_file_verbose(&root.join("kit.toml"), &root, &ids);
     assert!(
         outcome.failed.is_empty(),
         "registration failed: {:?}",

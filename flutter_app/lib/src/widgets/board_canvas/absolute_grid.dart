@@ -201,7 +201,7 @@ class AbsoluteGridState extends ConsumerState<AbsoluteGrid> {
     }
     final PlacementDto? resizeAnchor = activeResizeForBoard == null
         ? null
-        : findPlacementByToolId(widget.placements, activeResizeForBoard.toolId);
+        : findPlacementByPinId(widget.placements, activeResizeForBoard.toolId);
     return KeyedSubtree(
       key: _gridKey,
       child: SizedBox(
@@ -244,7 +244,7 @@ class AbsoluteGridState extends ConsumerState<AbsoluteGrid> {
               Positioned(
                 key: ValueKey<PinKey>((
                   widget.boardKey,
-                  ToolId.parse(placement.toolId),
+                  PinId.parse(placement.pinId),
                 )),
                 left: BoardGridMetrics.pixelX(placement.x),
                 top: BoardGridMetrics.pixelY(placement.y),

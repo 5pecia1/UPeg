@@ -1,7 +1,7 @@
 # Support
 
-upeg is an early-stage project maintained on a best-effort basis — there
-is no support SLA.
+upeg is early-stage and maintained on a best-effort basis; there is no
+support SLA.
 
 ## Where to ask
 
@@ -18,8 +18,8 @@ is no support SLA.
 - **Security** — never in issues; follow
   [SECURITY.md](https://github.com/5pecia1/UPeg/blob/main/SECURITY.md).
 
-When reporting a problem, `upeg doctor --json` output and the exact
-command or UI steps help most. Never paste tokens, credential values, or
+When reporting a problem, `upeg doctor --json` output and exact commands or
+UI steps help most. Never paste tokens, credential values, or
 `~/.upeg/server.json` contents into an issue.
 
 ## Response expectations

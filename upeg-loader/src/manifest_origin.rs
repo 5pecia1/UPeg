@@ -6,16 +6,16 @@
 //!   * a base directory to resolve a relative `cwd = "…"` against, which
 //!     every file-backed manifest can provide; and
 //!   * an implicit working directory for the spawned child, which only a
-//!     Project Manifest can provide — a tool declared in
+//!     project Toolkit can provide — a tool declared in
 //!     `~/.upeg/toolkits/dev.toml` has no business running in
-//!     `~/.upeg/toolkits`, while a tool declared in a repo's `upeg.toml`
+//!     `~/.upeg/toolkits`, while a tool declared in a repo's `.upeg/toolkits/dev.toml`
 //!     should run at the repo root no matter which subdirectory the
 //!     caller happens to be in.
 //!
 //! That second point is a *boundary*, not merely a fallback: a caller's
-//! `_upeg.cwd` may move a Project Manifest tool to a directory inside
+//! `_upeg.cwd` may move a project Toolkit tool to a directory inside
 //! the project (a workspace member, a subpackage), but one pointing
-//! outside the project is ignored in favour of the manifest directory.
+//! outside the project is ignored in favour of the project root.
 //! A toolkit-directory tool has no project to belong to, so there the
 //! caller's directory wins outright. The rule is enforced in
 //! `dispatcher::external::invoker`'s `WorkingDirectoryPolicy`.
@@ -32,11 +32,14 @@ pub(crate) enum ManifestOrigin {
     /// A `*.toml` file under the toolkits directory
     /// (`~/.upeg/toolkits`, or `$UPEG_TOOLKITS_DIR`).
     ToolkitDirectory { directory: PathBuf },
-    /// A Project Manifest (`upeg.toml`) merged from a project root.
-    ProjectManifest { directory: PathBuf },
+    /// A project Toolkit loaded under `.upeg/toolkits/`.
+    ProjectToolkit { directory: PathBuf },
 }
 
 impl ManifestOrigin {
+    pub(crate) const fn is_project(&self) -> bool {
+        matches!(self, Self::ProjectToolkit { .. })
+    }
     /// Classify a toolkits-directory manifest by its file path.
     pub(crate) fn toolkit_file(path: &Path) -> Option<Self> {
         Some(Self::ToolkitDirectory {
@@ -44,17 +47,21 @@ impl ManifestOrigin {
         })
     }
 
-    /// Classify a Project Manifest by its file path.
-    pub(crate) fn project_manifest(path: &Path) -> Option<Self> {
-        Some(Self::ProjectManifest {
-            directory: manifest_directory(path)?,
+    pub(crate) fn project_root(root: &Path) -> Option<Self> {
+        let absolute = if root.is_absolute() {
+            root.to_path_buf()
+        } else {
+            std::env::current_dir().ok()?.join(root)
+        };
+        Some(Self::ProjectToolkit {
+            directory: absolute,
         })
     }
 
     /// Directory a relative `cwd` declaration resolves against.
     pub(crate) fn base_directory(&self) -> &Path {
         match self {
-            Self::ToolkitDirectory { directory } | Self::ProjectManifest { directory } => directory,
+            Self::ToolkitDirectory { directory } | Self::ProjectToolkit { directory } => directory,
         }
     }
 
@@ -66,7 +73,7 @@ impl ManifestOrigin {
     pub(crate) fn implicit_working_directory(&self) -> Option<&Path> {
         match self {
             Self::ToolkitDirectory { .. } => None,
-            Self::ProjectManifest { directory } => Some(directory),
+            Self::ProjectToolkit { directory } => Some(directory),
         }
     }
 }

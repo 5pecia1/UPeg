@@ -10,21 +10,24 @@ import 'tools.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
-/// Persist `result` as the last outcome of `tool_id` on `board_key`.
+/// Persist `result` as the last outcome of `pin_id` / `tool_id` on
+/// `board_key`.
 /// Both ok and error results are recorded — the store keeps whatever
 /// the dispatch produced; presentation policy (e.g. render only ok
 /// results inline) stays with the consumer.
 void recordLastOutcome({
   required String boardKey,
+  required String pinId,
   required String toolId,
   required CanonicalToolResult result,
 }) => RustLib.instance.api.crateApiLastOutcomesRecordLastOutcome(
   boardKey: boardKey,
+  pinId: pinId,
   toolId: toolId,
   result: result,
 );
 
-/// All persisted outcomes for `board_key`, sorted by tool id.
+/// All persisted outcomes for `board_key`, sorted by pin id.
 ///
 /// Best-effort read (mirrors `list_boards`): an unopenable store or a
 /// corrupt row yields an empty / shorter list instead of an error —
@@ -37,6 +40,8 @@ List<LastOutcomeDto> loadLastOutcomes({required String boardKey}) => RustLib
 /// One persisted outcome for a pinned tool, as returned by
 /// [`load_last_outcomes`].
 class LastOutcomeDto {
+  /// The placement identity, independent from `tool_id`.
+  final String pinId;
   final String toolId;
 
   /// The canonical result as recorded (minus `error.details`, which
@@ -50,6 +55,7 @@ class LastOutcomeDto {
   final PlatformInt64 updatedAtMs;
 
   const LastOutcomeDto({
+    required this.pinId,
     required this.toolId,
     required this.result,
     required this.truncated,
@@ -58,6 +64,7 @@ class LastOutcomeDto {
 
   @override
   int get hashCode =>
+      pinId.hashCode ^
       toolId.hashCode ^
       result.hashCode ^
       truncated.hashCode ^
@@ -68,6 +75,7 @@ class LastOutcomeDto {
       identical(this, other) ||
       other is LastOutcomeDto &&
           runtimeType == other.runtimeType &&
+          pinId == other.pinId &&
           toolId == other.toolId &&
           result == other.result &&
           truncated == other.truncated &&

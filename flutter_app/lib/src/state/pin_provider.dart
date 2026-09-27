@@ -1,8 +1,7 @@
-/// Per-(board, tool) pin status + FRB mutation seams.
+/// Per-placement identity and legacy pin query seams.
 ///
-/// `pinnedProvider((boardKey, toolId))` returns a boolean that the
-/// palette rows render as a pill. Widgets should perform writes through
-/// `pegboardMutationsProvider` so refresh rules remain centralized.
+/// The active palette adds a fresh placement through [addPinMutatorProvider].
+/// Legacy tool-level query seams remain temporarily for non-canvas callers.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,10 +10,17 @@ import 'package:upeg/src/rust/api/pegboard.dart' as frb;
 
 /// Identity for the family — Dart's standard `Record` already
 /// implements value equality, but a typedef documents the intent.
-typedef PinKey = (BoardKey boardKey, ToolId toolId);
+typedef PinKey = (BoardKey boardKey, PinId pinId);
 
 typedef IsPinnedLoader = bool Function(BoardKey boardKey, ToolId toolId);
+typedef AddPinMutator = String Function(BoardKey boardKey, ToolId toolId);
 typedef PinMutator = void Function(BoardKey boardKey, ToolId toolId);
+
+final addPinMutatorProvider = Provider<AddPinMutator>(
+  (ref) =>
+      (boardKey, toolId) =>
+          frb.addPin(boardKey: boardKey.value, toolId: toolId.value),
+);
 
 final isPinnedLoaderProvider = Provider<IsPinnedLoader>(
   (ref) =>
@@ -34,15 +40,7 @@ final unpinToolMutatorProvider = Provider<PinMutator>(
           frb.unpinTool(boardKey: boardKey.value, toolId: toolId.value),
 );
 
-final pinnedProvider = Provider.family<bool, PinKey>((ref, key) {
-  final load = ref.watch(isPinnedLoaderProvider);
-  return load(key.$1, key.$2);
-});
-
-/// Resolves the set of board keys that already contain `toolId` in their
-/// persisted layout. Drives the palette's multi-board pin chip cluster.
-///
-/// Overrideable for widget tests via [pinnedBoardsLoaderProvider].
+/// Resolves boards that contain a tool for legacy consumers.
 typedef PinnedBoardsLoader = Set<BoardKey> Function(ToolId toolId);
 
 final pinnedBoardsLoaderProvider = Provider<PinnedBoardsLoader>(

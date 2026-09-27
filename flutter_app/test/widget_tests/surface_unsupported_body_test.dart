@@ -99,6 +99,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'media.image_to_pdf',
+                        pinId: 'media.image_to_pdf',
                         x: 0,
                         y: 0,
                         w: 1,
@@ -152,6 +153,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'media.image_to_pdf',
+                      pinId: 'media.image_to_pdf',
                       x: 0,
                       y: 0,
                       w: 1,
@@ -204,6 +206,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'media.image_to_pdf',
+                      pinId: 'media.image_to_pdf',
                       x: 0,
                       y: 0,
                       w: 1,

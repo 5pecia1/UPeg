@@ -17,6 +17,7 @@ pub fn search_toolbox_tools(
     query: SearchQuery<'_>,
     signals: SearchSignals,
 ) -> Vec<SearchResult<'static>> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
     upeg_core::search::search_tools(&tools, query, signals)
 }

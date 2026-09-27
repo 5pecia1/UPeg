@@ -1,11 +1,20 @@
 use super::{parse_single_tool as parse_fixture_tool, runtime_success_text, single_tool_toml_str};
 use crate::{
-    LoadError, load_and_register_dir, load_and_register_dir_verbose,
-    load_and_register_file_verbose, load_dir,
+    LoadError, inspect_project_toolkit, load_and_register_dir, load_and_register_dir_verbose,
+    load_dir, load_project_toolkit_file_verbose,
 };
 use std::path::Path;
 use upeg_core::PinKind;
 use upeg_runtime::ToolMetaRuntimeExt;
+
+fn load_project_toolkit(path: &Path) -> crate::LoadOutcome {
+    let ids: std::collections::HashSet<String> = inspect_project_toolkit(path)
+        .expect("inspect Toolkit")
+        .tool_ids
+        .into_iter()
+        .collect();
+    load_project_toolkit_file_verbose(path, path.parent().expect("project root"), &ids)
+}
 
 #[test]
 fn loaded_and_registered_tool_is_visible_in_registry() {
@@ -158,7 +167,7 @@ fn file_verbose_load_and_register_merges_one_project_manifest() {
     let dir = std::env::temp_dir().join("upeg_loader_project_file");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("upeg.toml");
+    let path = dir.join("projectfile.toml");
     std::fs::write(
         &path,
         r#"id = "projectfile"
@@ -174,7 +183,7 @@ command = "echo"
     )
     .unwrap();
 
-    let out = load_and_register_file_verbose(&path);
+    let out = load_project_toolkit(&path);
     assert!(
         out.failed.is_empty(),
         "project manifest failed: {:?}",
@@ -194,7 +203,7 @@ fn load_registers_trigger_bindings_for_discovery_surfaces() {
     let dir = std::env::temp_dir().join("upeg_loader_trigger_bindings");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("upeg.toml");
+    let path = dir.join("triggerfile.toml");
     std::fs::write(
         &path,
         r#"id = "triggerfile"
@@ -212,7 +221,7 @@ triggers = [
     )
     .unwrap();
 
-    let out = load_and_register_file_verbose(&path);
+    let out = load_project_toolkit(&path);
     assert!(
         out.failed.is_empty(),
         "trigger manifest failed: {:?}",
@@ -528,7 +537,7 @@ triggers = [{{ source = "webhook" }}]"##,
         )),
     )
     .unwrap();
-    assert_eq!(load_and_register_file_verbose(&path).failed.len(), 0);
+    assert_eq!(load_project_toolkit(&path).failed.len(), 0);
     assert_eq!(
         upeg_runtime::embed_url_for(id),
         Some("https://example.test/old")
@@ -549,7 +558,7 @@ command = "echo""#,
         )),
     )
     .unwrap();
-    assert_eq!(load_and_register_file_verbose(&path).failed.len(), 0);
+    assert_eq!(load_project_toolkit(&path).failed.len(), 0);
     assert_eq!(upeg_runtime::embed_url_for(id), None);
     assert!(upeg_runtime::selector_bindings_for(id).is_empty());
     assert!(upeg_runtime::trigger_bindings_for(id).is_empty());

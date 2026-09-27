@@ -13,6 +13,69 @@ use upeg_runtime::toolbox_add_tool_managed;
 
 const EXPECTED_FIXED_BOARD_COLS: u32 = 6;
 
+#[test]
+fn duplicate_pins_keep_independent_presets_and_dispatch_results() {
+    run_with_storage_backup(|| {
+        let board = create_board("Duplicate pin presets".to_string()).unwrap();
+        let first = add_pin(board.clone(), "num.hex_to_decimal".to_string()).unwrap();
+        let second = add_pin(board.clone(), "num.hex_to_decimal".to_string()).unwrap();
+        assert_ne!(first, second);
+        set_pin_args_preset(
+            board.clone(),
+            first.clone(),
+            r#"{"input":"0x10"}"#.to_string(),
+        )
+        .unwrap();
+        set_pin_args_preset(
+            board.clone(),
+            second.clone(),
+            r#"{"input":"0x20"}"#.to_string(),
+        )
+        .unwrap();
+
+        let snapshot = load_layout_snapshot(board.clone());
+        assert_eq!(
+            snapshot
+                .placements
+                .iter()
+                .filter(|p| p.tool_id == "num.hex_to_decimal")
+                .count(),
+            2
+        );
+        let first_result = crate::api::tools::dispatch_tool(
+            "num.hex_to_decimal".to_string(),
+            "{}".to_string(),
+            Some(board.clone()),
+            Some(first.clone()),
+            false,
+        );
+        let second_result = crate::api::tools::dispatch_tool(
+            "num.hex_to_decimal".to_string(),
+            "{}".to_string(),
+            Some(board.clone()),
+            Some(second.clone()),
+            false,
+        );
+        assert!(first_result.ok && second_result.ok);
+        assert_ne!(
+            first_result.outputs[0].value,
+            second_result.outputs[0].value
+        );
+
+        remove_pin(board.clone(), first).unwrap();
+        let after = load_layout_snapshot(board);
+        assert_eq!(
+            after
+                .placements
+                .iter()
+                .filter(|p| p.tool_id == "num.hex_to_decimal")
+                .count(),
+            1
+        );
+        assert_eq!(after.placements[0].pin_id, second);
+    });
+}
+
 /// Build a `ToolMeta` for fixture-only PegboardUnits coverage. Each
 /// helper creates a fresh `local_id` so collisions never bubble up
 /// across tests.

@@ -29,6 +29,7 @@ upeg-core = { workspace = true, features = ["serde"] }
 upeg-pegboard-ui.workspace = true
 upeg-runtime.workspace = true
 upeg-tools.workspace = true
+uuid.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 open.workspace = true
@@ -42,6 +43,7 @@ upeg-sources.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [features]
 default = []

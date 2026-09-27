@@ -1,7 +1,9 @@
 use crate::ToolToml;
 use crate::model::KeyValueToml;
 use serde_json::json;
-use upeg_core::ToolResult;
+use upeg_core::{
+    EXECUTION_CONTEXT_ARG, EXECUTION_CONTEXT_PIN_ID, EXECUTION_CONTEXT_PIN_TOOL_ID, ToolResult,
+};
 use upeg_runtime::{DispatchArgs, tool_success_primary_text};
 
 /// Environment variable that carries the active Board key into External
@@ -12,6 +14,8 @@ pub const BOARD_ENV: &str = "UPEG_BOARD";
 /// Environment variable that carries the auto-detected project manifest
 /// path into External tool subprocesses.
 pub const PROJECT_MANIFEST_ENV: &str = "UPEG_PROJECT_MANIFEST";
+pub const PROJECT_ROOT_ENV: &str = "UPEG_PROJECT_ROOT";
+pub const SURFACE_ENV: &str = "UPEG_SURFACE";
 
 const TOOL_ERROR_CODE: &str = "tool_error";
 /// Canonical `error.code` for a run that was stopped on request — the
@@ -388,8 +392,24 @@ pub(crate) fn controlled_embed_dispatcher_for(
             .collect();
 
         let backend = upeg_runtime::controlled_embed::controlled_embed_backend();
+        let placement = args
+            .get(EXECUTION_CONTEXT_ARG)
+            .and_then(serde_json::Value::as_object)
+            .and_then(|context| {
+                // A Chain may inherit the originating pin's context while
+                // dispatching another tool. Only its own pin uses that page.
+                (context.get(EXECUTION_CONTEXT_PIN_TOOL_ID)?.as_str()? == tool_id)
+                    .then_some(())
+                    .and_then(|()| {
+                        Some(upeg_runtime::controlled_embed::ControlledEmbedPlacement {
+                            board_key: context.get("board")?.as_str()?,
+                            pin_id: context.get(EXECUTION_CONTEXT_PIN_ID)?.as_str()?,
+                        })
+                    })
+            });
         let response = backend.run(upeg_runtime::controlled_embed::ControlledEmbedRequest {
             tool_id: &tool_id,
+            placement,
             url,
             bindings: &bindings,
             inputs: &pair_refs,

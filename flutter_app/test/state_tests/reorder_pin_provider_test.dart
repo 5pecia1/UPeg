@@ -20,7 +20,7 @@ void main() {
   group('ReorderPinProvider', () {
     test('reorderPin_default_calls_atomic_reorder_mutator_once', () async {
       BoardKey? observedBoard;
-      ToolId? observedTool;
+      PinId? observedPin;
       OrderDirectionDto? observedDirection;
       var callCount = 0;
 
@@ -30,10 +30,10 @@ void main() {
             () => _SeededCurrentBoardNotifier('dev'),
           ),
           reorderPinMutatorProvider.overrideWith(
-            (ref) => (boardKey, toolId, direction) {
+            (ref) => (boardKey, pinId, direction) {
               callCount += 1;
               observedBoard = boardKey;
-              observedTool = toolId;
+              observedPin = pinId;
               observedDirection = direction;
             },
           ),
@@ -42,13 +42,13 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(reorderPinFnProvider)(
-        ToolId.parse('num.hex_to_decimal'),
+        PinId.parse('num.hex_to_decimal'),
         OrderDirectionDto.next,
       );
 
       expect(callCount, 1);
       expect(observedBoard, BoardKey.parse('dev'));
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+      expect(observedPin, PinId.parse('num.hex_to_decimal'));
       expect(observedDirection, OrderDirectionDto.next);
     });
 
@@ -71,7 +71,7 @@ void main() {
         addTearDown(container.dispose);
 
         await container.read(reorderPinFnProvider)(
-          ToolId.parse('num.hex_to_decimal'),
+          PinId.parse('num.hex_to_decimal'),
           OrderDirectionDto.next,
         );
 

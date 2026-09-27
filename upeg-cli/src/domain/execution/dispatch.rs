@@ -114,7 +114,14 @@ pub enum Outcome {
 ///   3. Tool exists but no dispatcher → `Failure(dispatch not implemented…)`.
 ///      Reachable only when meta is registered without a paired dispatcher.
 pub fn dispatch_tool(id: &str, args: &Value) -> Outcome {
+    let _project_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => {
+            return Outcome::Failure(dispatch_failure("project_switching", message.to_string()));
+        }
+    };
     let started = Instant::now();
+    let diagnostic_context = crate::adapters::diagnostics::capture_dispatch(id, args);
     let outcome = match upeg_tools::dispatch_registered(id, args) {
         RegisteredDispatch::NotFound => Outcome::NotFound,
         RegisteredDispatch::Ran(ToolResult::Success(success)) => Outcome::Success(success),
@@ -125,6 +132,7 @@ pub fn dispatch_tool(id: &str, args: &Value) -> Outcome {
         )),
     };
     crate::adapters::execution_log::record_dispatch(id, args, &outcome, started.elapsed());
+    crate::adapters::diagnostics::record_dispatch(diagnostic_context, &outcome);
     outcome
 }
 

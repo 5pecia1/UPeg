@@ -23,29 +23,38 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 typedef LiveDispatchFn =
     Future<CanonicalToolResult> Function({
+      PinKey? pinKey,
       required ToolId toolId,
       required ToolArgs args,
     });
+
+/// The instance key isolates lifecycle state; [ToolId] remains the catalog
+/// lookup and dispatch target.
+typedef LivePinKey = ({PinKey pinKey, ToolId toolId});
 
 /// Live pin polls dispatch with the currently-selected board's context
 /// (pin args-preset merge + `_upeg.board`), matching the modal bridge.
 final liveDispatchToolFnProvider = Provider<LiveDispatchFn>(
   (ref) =>
-      ({required ToolId toolId, required ToolArgs args}) => dispatchToolAsync(
-        toolId: toolId.value,
-        argsJson: args.encodeJson(),
-        boardKey: ref.read(currentBoardKeyProvider)?.value,
-        // Never approves: polling and pin activation are machine-timed,
-        // and an approval barrier is a question for a person. A gated
-        // tool reached this way stops at the barrier, which is the
-        // honest outcome — the confirmation lives in the run flows
-        // (`widgets/approval_confirm_dialog.dart`).
-        approve: false,
-      ),
+      ({PinKey? pinKey, required ToolId toolId, required ToolArgs args}) =>
+          dispatchToolAsync(
+            toolId: toolId.value,
+            argsJson: args.encodeJson(),
+            boardKey:
+                pinKey?.$1.value ?? ref.read(currentBoardKeyProvider)?.value,
+            pinId: pinKey?.$2.value,
+            // Never approves: polling and pin activation are machine-timed,
+            // and an approval barrier is a question for a person. A gated
+            // tool reached this way stops at the barrier, which is the
+            // honest outcome — the confirmation lives in the run flows
+            // (`widgets/approval_confirm_dialog.dart`).
+            approve: false,
+          ),
 );
 
 /// Sealed result of one live polling slot.
@@ -82,18 +91,21 @@ final class LiveOutcomeStale extends LiveOutcomeState {
   final String errorMessage;
 }
 
-/// Provider family keyed on [`ToolId`]. AutoDispose so the timer
+/// Provider family keyed on [`LivePinKey`]. AutoDispose so the timer
 /// cancels as soon as the last watcher (typically a board-canvas pin)
 /// leaves the tree.
 final liveOutcomeProvider = NotifierProvider.autoDispose
-    .family<LiveOutcomeNotifier, LiveOutcomeState, ToolId>(
+    .family<LiveOutcomeNotifier, LiveOutcomeState, LivePinKey>(
       LiveOutcomeNotifier.new,
     );
 
 class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
-  LiveOutcomeNotifier(this.toolId);
+  LiveOutcomeNotifier(this.livePin);
 
-  final ToolId toolId;
+  final LivePinKey livePin;
+
+  PinKey get pinKey => livePin.pinKey;
+  ToolId get toolId => livePin.toolId;
   Timer? _coldStartTimer;
   Timer? _ticker;
   bool _disposed = false;
@@ -144,7 +156,11 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
 
     _inFlight = true;
     try {
-      final outcome = await dispatch(toolId: toolId, args: ToolArgs.empty);
+      final outcome = await dispatch(
+        pinKey: pinKey,
+        toolId: toolId,
+        args: ToolArgs.empty,
+      );
       if (_disposed) return;
 
       _applyOutcome(outcome);

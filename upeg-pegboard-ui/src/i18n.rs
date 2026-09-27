@@ -140,6 +140,8 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "desktop.empty.add_tool"        => "+ pin",
     "desktop.status.board_prefix"   => "board ",
     "desktop.status.pinned_suffix"  => " · {pinned}/{total} pinned",
+    "desktop.status.project_global" => "global",
+    "desktop.status.project" => "project {name}",
 
     // Command palette (palette.rs).
     "palette.placeholder"           => "search tools, paste, or type a command…",
@@ -159,6 +161,8 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "settings.section.theme"        => "theme",
     "settings.section.layout"       => "layout",
     "settings.section.language"     => "language",
+    "settings.section.project"      => "project",
+    "settings.section.diagnostics"  => "diagnostics",
     "settings.radio.mode"           => "mode",
     "settings.radio.accent"         => "accent",
     "settings.radio.locale"         => "locale",
@@ -403,7 +407,7 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     // Keyboard cheatsheet (widgets/cheatsheet_overlay.dart). Structure
     // comes from `upeg_core::binding_catalog()`; these keys are its
     // `keys.scope.*` / `keys.cmd.*` labels. Wording follows
-    // docs/ui-ux-surface-contract.md. The coverage test
+    // `upeg_core::keyboard_catalog` module docs. The coverage test
     // `all_cheatsheet_label_keys_exist_in_both_locales` pins
     // completeness against the catalog.
     "keys.title"                   => "Keyboard shortcuts",
@@ -521,6 +525,8 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "desktop.empty.add_tool"        => "+ 핀",
     "desktop.status.board_prefix"   => "보드 ",
     "desktop.status.pinned_suffix"  => " · {pinned}/{total} 핀됨",
+    "desktop.status.project_global" => "전역",
+    "desktop.status.project" => "프로젝트 {name}",
 
     "palette.placeholder"           => "도구 검색, 붙여넣기 또는 명령 입력…",
     "palette.empty_toolbox"         => "툴박스가 비어 있습니다.",
@@ -537,6 +543,8 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "settings.section.theme"        => "테마",
     "settings.section.layout"       => "레이아웃",
     "settings.section.language"     => "언어",
+    "settings.section.project"      => "프로젝트",
+    "settings.section.diagnostics"  => "진단",
     "settings.radio.mode"           => "모드",
     "settings.radio.accent"         => "강조색",
     "settings.radio.locale"         => "언어",

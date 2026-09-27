@@ -162,10 +162,18 @@ pub struct Cli {
     /// Applied once, before runtime sources are loaded.
     #[arg(long, global = true, value_name = "DIR")]
     pub working_directory: Option<std::path::PathBuf>,
+    /// Select a `.upeg` project root without changing process cwd.
+    #[arg(long, global = true, value_name = "DIR")]
+    pub project: Option<std::path::PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Inspect, validate, initialize, and resolve a `.upeg` project.
+    Project {
+        #[command(subcommand)]
+        action: ProjectAction,
+    },
     /// Interface inventory generation and drift checks.
     Interface {
         #[command(subcommand)]
@@ -215,6 +223,11 @@ pub enum Command {
         /// Emit JSON instead of tab-separated rows.
         #[arg(long)]
         json: bool,
+    },
+    /// Inspect, copy, or export retained local failure diagnostics.
+    Diagnostics {
+        #[command(subcommand)]
+        action: DiagnosticAction,
     },
     /// Manage credential references. Values stay in env/OS secret stores.
     Credential {
@@ -373,6 +386,76 @@ pub enum Command {
     /// `--local` with the same semantics as `call`.
     #[command(external_subcommand)]
     External(Vec<OsString>),
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum ProjectChoiceArg {
+    Global,
+    Project,
+}
+
+impl From<ProjectChoiceArg> for upeg_core::ProjectToolChoice {
+    fn from(value: ProjectChoiceArg) -> Self {
+        match value {
+            ProjectChoiceArg::Global => Self::Global,
+            ProjectChoiceArg::Project => Self::Project,
+        }
+    }
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ProjectAction {
+    /// Show the active or detected project and its conflicts.
+    Show {
+        #[arg(long)]
+        json: bool,
+        root: Option<std::path::PathBuf>,
+    },
+    /// Validate project.toml and every project Toolkit without running tools.
+    Validate {
+        #[arg(long)]
+        json: bool,
+        root: Option<std::path::PathBuf>,
+    },
+    /// Create a `.upeg` marker and a minimal project.toml.
+    Init {
+        root: Option<std::path::PathBuf>,
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Choose the global or project definition for a duplicate Tool id.
+    Choose {
+        tool_id: String,
+        choice: ProjectChoiceArg,
+        #[arg(long)]
+        root: Option<std::path::PathBuf>,
+    },
+}
+
+/// Failure-report operations. Reports are redacted and bounded before they
+/// reach disk; `export --debug` merely includes the already-safe detail JSON.
+#[derive(Subcommand, Debug)]
+pub enum DiagnosticAction {
+    /// List retained reports, newest first.
+    List {
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show one report by id.
+    Show {
+        id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Print a redacted support bundle suitable for copying or saving.
+    Export {
+        id: String,
+        /// Include the redacted structured failure details.
+        #[arg(long)]
+        debug: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]

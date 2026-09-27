@@ -22,6 +22,7 @@ import 'package:upeg/src/rust/api/pin_activation.dart';
 import 'package:upeg/src/rust/api/memos.dart' show MemoEntry;
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/features/memos/memos_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart' show ToolArgs;
 import 'package:upeg/src/widgets/pin.dart';
 
@@ -43,7 +44,14 @@ void main() {
               boardKey: query.boardKey.value,
               boardCols: 6,
               placements: const <PlacementDto>[
-                PlacementDto(toolId: toolId, x: 0, y: 0, w: 1, h: 1),
+                PlacementDto(
+                  toolId: toolId,
+                  pinId: toolId,
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
               ],
             ),
             pinActivation: ({required toolId, required argsJson}) =>
@@ -51,20 +59,21 @@ void main() {
             resolver: noKeyboardCommand,
             extraOverrides: [
               ...dispatchOverrides(
-                ({required ToolId toolId, required ToolArgs args}) async =>
-                    const CanonicalToolResult(
-                      ok: true,
-                      primaryOutputId: 'out',
-                      outputs: [
-                        CanonicalOutputEntry(
-                          id: 'out',
-                          kind: 'string',
-                          value: CanonicalOutputValue.string(
-                            value: 'INLINE-42',
-                          ),
-                        ),
-                      ],
+                ({
+                  PinKey? pinKey,
+                  required ToolId toolId,
+                  required ToolArgs args,
+                }) async => const CanonicalToolResult(
+                  ok: true,
+                  primaryOutputId: 'out',
+                  outputs: [
+                    CanonicalOutputEntry(
+                      id: 'out',
+                      kind: 'string',
+                      value: CanonicalOutputValue.string(value: 'INLINE-42'),
                     ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -96,6 +105,7 @@ void main() {
             placements: const <PlacementDto>[
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,

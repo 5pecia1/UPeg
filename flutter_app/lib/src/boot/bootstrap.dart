@@ -8,6 +8,7 @@ import 'package:upeg/src/boot/logging.dart';
 typedef EnsureFlutterInitialized = WidgetsBinding Function();
 typedef AsyncBootStep = Future<void> Function();
 typedef RunAppFn = void Function(Widget app);
+typedef InternalErrorReporterInstaller = void Function();
 
 Future<void> bootstrapUpegApp({
   required EnsureFlutterInitialized ensureFlutterInitialized,
@@ -15,6 +16,7 @@ Future<void> bootstrapUpegApp({
   required AsyncBootStep ensureWindowManagerInitialized,
   required AsyncBootStep initializeRustLib,
   required RunAppFn runAppFn,
+  InternalErrorReporterInstaller? installInternalErrorReporter,
   BootLog log = defaultBootLog,
 }) async {
   ensureFlutterInitialized();
@@ -26,5 +28,6 @@ Future<void> bootstrapUpegApp({
   log('upeg: RustLib.init — start');
   await initializeRustLib();
   log('upeg: RustLib.init — done');
+  installInternalErrorReporter?.call();
   runAppFn(const ProviderScope(child: UpegApp()));
 }

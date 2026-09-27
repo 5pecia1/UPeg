@@ -28,7 +28,7 @@ const MCP_IMPORTS_SOURCE_LABEL: &str = "mcp-imports";
 /// Both say "client" out loud on purpose. `upeg host status` runs in a
 /// SEPARATE one-shot process from the host, and project-manifest
 /// detection is per process working directory
-/// (docs/architecture/project-manifest.md) — so this block reports what
+/// (`upeg_sources::project` module docs) — so this block reports what
 /// THIS process resolves, which is not necessarily the manifest the
 /// running host loaded from wherever it was started. Reporting it under
 /// a bare `Project manifest` heading read as if it were the host's.
@@ -39,8 +39,10 @@ const CLIENT_PROJECT_MANIFEST_JSON_KEY: &str = "client";
 pub enum HostKind {
     /// `server.json` exists and `/healthz` answered.
     Running,
-    /// `server.json` exists but `/healthz` failed; cleanup needed.
+    /// The recorded process is gone and its stale record was removed.
     Stale,
+    /// The record remains because the process is alive or its state is unknown.
+    Unreachable,
     /// No `server.json` at all.
     NotRunning,
 }
@@ -75,7 +77,7 @@ pub fn status_json() -> Value {
         // phase, read back off the `/healthz` document `probe()` just
         // proved answers (infrastructure::mcp_imports).
         //
-        // Emitted UNCONDITIONALLY. docs/architecture/mcp.md promises
+        // Emitted UNCONDITIONALLY. The mcp_imports module docs promise
         // `{"state": "unknown"}` when the host does not answer, and a
         // consumer that has to tell "absent key" from "unknown" gets the
         // same non-answer twice in two shapes — so a stale/not-running
@@ -223,7 +225,11 @@ pub(crate) fn format_status_text(
             )
         }
         (HostKind::Stale, Some(info)) => format!(
-            "Stale (server.json present, /healthz unreachable; cleaned up)\n  recorded pid: {}\n",
+            "Stale (recorded process gone; server.json cleaned up)\n  recorded pid: {}\n",
+            info.pid
+        ),
+        (HostKind::Unreachable, Some(info)) => format!(
+            "Unreachable (server.json retained; retry when the host responds)\n  recorded pid: {}\n",
             info.pid
         ),
         _ => "Not running\n".to_string(),
@@ -246,7 +252,8 @@ pub(crate) fn format_status_json(kind: &HostKind, info: Option<&discovery::Serve
 }
 
 /// Name of the desktop Settings switch that owns the embedded host's
-/// lifecycle (`Tweaks.local_http_host`, docs/architecture/host-topology.md).
+/// lifecycle (`Tweaks.local_http_host`,
+/// `upeg_cli::infrastructure::attach` module docs).
 const DESKTOP_LOCAL_HOST_SWITCH: &str = "Local HTTP host";
 
 /// What `upeg host stop` may do to the host `server.json` names.
@@ -354,7 +361,10 @@ fn probe() -> (HostKind, Option<discovery::ServerInfo>) {
     };
     match discovery::read_reachable() {
         Some(reachable) => (HostKind::Running, Some(reachable)),
-        None => (HostKind::Stale, Some(info)),
+        None => match discovery::read() {
+            Some(current) => (HostKind::Unreachable, Some(current)),
+            None => (HostKind::Stale, Some(info)),
+        },
     }
 }
 
@@ -549,6 +559,15 @@ mod tests {
     }
 
     #[test]
+    fn format_status_text_unreachable_says_record_is_retained() {
+        let info = fake_info();
+        let out = format_status_text(&HostKind::Unreachable, Some(&info), "/tmp/server.json");
+        assert!(out.starts_with("Unreachable "));
+        assert!(out.contains("retained"));
+        assert!(out.contains("1234"));
+    }
+
+    #[test]
     fn format_status_text_running_without_info_reads_as_not_running() {
         // Defensive: probe() shouldn't produce this combination, but
         // the formatter must not panic if it does.
@@ -576,7 +595,7 @@ mod tests {
     }
 
     /// `upeg host status --json` promises an `mcpImports` block in
-    /// every answer (docs/architecture/mcp.md): a missing key and
+    /// every answer (see `mcp_imports` module docs): a missing key and
     /// `"state": "unknown"` are the same non-answer, and shipping both
     /// shapes makes every consumer handle two.
     #[test]

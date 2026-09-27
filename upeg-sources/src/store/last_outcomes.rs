@@ -1,7 +1,7 @@
 //! Per-pin last dispatch outcome persistence on the SQLite store.
 //!
-//! Keyed per placement (`board_key`, `tool_id`): the same tool pinned on
-//! two boards keeps two independent outcomes. Rows are a device-local
+//! Keyed per placement (`board_key`, `pin_id`): repeated pins of the same
+//! tool keep independent outcomes. Rows are a device-local
 //! cache — an unpin deletes the row outright (see
 //! `store::pegboard::tombstone_placement_tx`), and `record` simply
 //! overwrites; there is no tombstone/merge story.
@@ -25,6 +25,7 @@ pub const OUTPUTS_JSON_MAX_BYTES: usize = 64 * 1024;
 /// `device_id` are store-owned and never supplied by the caller.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLastOutcome {
+    pub pin_id: String,
     pub tool_id: String,
     pub ok: bool,
     pub primary_output_id: Option<String>,
@@ -37,6 +38,7 @@ pub struct NewLastOutcome {
 /// One persisted outcome row as read back from the store.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LastOutcomeRecord {
+    pub pin_id: String,
     pub tool_id: String,
     pub ok: bool,
     pub primary_output_id: Option<String>,
@@ -115,11 +117,11 @@ impl Store {
         let capped = cap_outputs_json(&outcome.outputs_json, outcome.primary_output_id.as_deref());
         let sql = format!(
             "INSERT INTO {LAST_OUTCOMES_TABLE} \
-               (board_key, tool_id, ok, primary_output_id, outputs_json, truncated, \
+               (board_key, pin_id, tool_id, ok, primary_output_id, outputs_json, truncated, \
                 error_code, error_message, updated_at, device_id) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
-             ON CONFLICT(board_key, tool_id) DO UPDATE SET \
-               ok = excluded.ok, primary_output_id = excluded.primary_output_id, \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+             ON CONFLICT(board_key, pin_id) DO UPDATE SET \
+               tool_id = excluded.tool_id, ok = excluded.ok, primary_output_id = excluded.primary_output_id, \
                outputs_json = excluded.outputs_json, truncated = excluded.truncated, \
                error_code = excluded.error_code, error_message = excluded.error_message, \
                updated_at = excluded.updated_at, device_id = excluded.device_id"
@@ -129,6 +131,7 @@ impl Store {
                 &sql,
                 params![
                     board_key,
+                    outcome.pin_id,
                     outcome.tool_id,
                     outcome.ok,
                     outcome.primary_output_id,
@@ -144,27 +147,28 @@ impl Store {
         })
     }
 
-    /// All persisted outcomes for one board, sorted by `tool_id`.
+    /// All persisted outcomes for one board, sorted by `pin_id`.
     pub fn load_last_outcomes(
         &self,
         board_key: &str,
     ) -> Result<Vec<LastOutcomeRecord>, StoreError> {
         let sql = format!(
-            "SELECT tool_id, ok, primary_output_id, outputs_json, truncated, \
+            "SELECT pin_id, tool_id, ok, primary_output_id, outputs_json, truncated, \
                     error_code, error_message, updated_at \
-             FROM {LAST_OUTCOMES_TABLE} WHERE board_key = ?1 ORDER BY tool_id"
+             FROM {LAST_OUTCOMES_TABLE} WHERE board_key = ?1 ORDER BY pin_id"
         );
         let mut stmt = self.connection().prepare(&sql)?;
         let rows = stmt.query_map([board_key], |row| {
             Ok(LastOutcomeRecord {
-                tool_id: row.get(0)?,
-                ok: row.get(1)?,
-                primary_output_id: row.get(2)?,
-                outputs_json: row.get(3)?,
-                truncated: row.get(4)?,
-                error_code: row.get(5)?,
-                error_message: row.get(6)?,
-                updated_at_ms: row.get(7)?,
+                pin_id: row.get(0)?,
+                tool_id: row.get(1)?,
+                ok: row.get(2)?,
+                primary_output_id: row.get(3)?,
+                outputs_json: row.get(4)?,
+                truncated: row.get(5)?,
+                error_code: row.get(6)?,
+                error_message: row.get(7)?,
+                updated_at_ms: row.get(8)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>()
@@ -175,20 +179,20 @@ impl Store {
     /// pegboard tombstone path calls the transaction-level twin
     /// automatically; this is the direct seam for callers that clear an
     /// outcome without unpinning.
-    pub fn clear_last_outcome(&mut self, board_key: &str, tool_id: &str) -> Result<(), StoreError> {
-        self.write_tx(|tx| clear_last_outcome_tx(tx, board_key, tool_id))
+    pub fn clear_last_outcome(&mut self, board_key: &str, pin_id: &str) -> Result<(), StoreError> {
+        self.write_tx(|tx| clear_last_outcome_tx(tx, board_key, pin_id))
     }
 }
 
 /// Transaction-level delete shared with the pegboard tombstone path so
-/// unpinning a tool always clears its persisted outcome in the same
+/// unpinning a placement always clears its persisted outcome in the same
 /// write transaction.
 pub(crate) fn clear_last_outcome_tx(
     tx: &rusqlite::Transaction<'_>,
     board_key: &str,
-    tool_id: &str,
+    pin_id: &str,
 ) -> Result<(), StoreError> {
-    let sql = format!("DELETE FROM {LAST_OUTCOMES_TABLE} WHERE board_key = ?1 AND tool_id = ?2");
-    tx.execute(&sql, params![board_key, tool_id])?;
+    let sql = format!("DELETE FROM {LAST_OUTCOMES_TABLE} WHERE board_key = ?1 AND pin_id = ?2");
+    tx.execute(&sql, params![board_key, pin_id])?;
     Ok(())
 }

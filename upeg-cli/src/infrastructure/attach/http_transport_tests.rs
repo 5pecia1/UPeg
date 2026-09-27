@@ -40,6 +40,72 @@ fn read_test_request_to_end(stream: &mut TcpStream) {
 }
 
 #[test]
+fn ipv6_attach_uses_a_bracketed_socket_and_host_authority() {
+    let Ok(listener) = TcpListener::bind("[::1]:0") else {
+        return; // IPv6 is unavailable on this runner.
+    };
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!(
+        "http://[::1]:{}/healthz",
+        listener.local_addr().unwrap().port()
+    );
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error)
+                        if error.kind() == ErrorKind::WouldBlock && Instant::now() < deadline =>
+                    {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(error) => panic!("no IPv6 attach request: {error}"),
+                }
+            };
+            let mut request = [0_u8; 512];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            assert!(request.contains("Host: [::1]:"), "{request}");
+            stream
+                .write_all(b"HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\n{}")
+                .unwrap();
+        });
+        let result = request("GET", &endpoint, None, &[], "").unwrap();
+        assert_eq!(result, (200, "{}".to_string()));
+    });
+}
+
+#[test]
+fn changed_discovery_record_sends_no_bearer_request() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!("http://{}/mcp", listener.local_addr().unwrap());
+    let info = crate::infrastructure::discovery::ServerInfo::new(
+        format!("http://{}", listener.local_addr().unwrap()),
+        "old-token",
+    );
+    let host = crate::infrastructure::discovery::DiscoveredHost::for_test(info.clone());
+    let mut replacement = info;
+    replacement.token = "new-token".into();
+    host.replace_for_test(&replacement);
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_millis(500)))
+                .unwrap();
+            let mut request = [0_u8; 512];
+            assert_eq!(stream.read(&mut request).unwrap_or(0), 0);
+        });
+        let error = request_discovered("POST", &endpoint, &host, &[], "{}")
+            .expect_err("the changed record must prevent the bearer request");
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("discovery changed"));
+    });
+}
+
+#[test]
 fn http_response_parses_status_and_body() {
     // Given
     let raw = response(
@@ -313,6 +379,7 @@ fn real_tcp_attach_returns_oversized_response_as_controlled_error() {
             token: None,
             extra_headers: &[],
             body: "{}",
+            discovered: None,
         },
         limits,
         RequestBudget::DISPATCH,

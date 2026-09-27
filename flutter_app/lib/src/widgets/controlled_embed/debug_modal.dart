@@ -15,6 +15,7 @@ import 'package:upeg/src/widgets/controlled_embed/debug.dart';
 import 'package:upeg/src/features/controlled_embed/providers.dart';
 import 'package:upeg/src/features/controlled_embed/session_service.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 
 import 'package:upeg/src/widgets/controlled_embed/settings.dart'
@@ -35,8 +36,8 @@ class ControlledEmbedDebugModal extends ConsumerStatefulWidget {
     required this.resolution,
     required this.bindings,
     required this.initialInputs,
+    this.pinKey,
     this.resolvedSettings,
-    this.boardKey,
     super.key,
   });
 
@@ -51,7 +52,7 @@ class ControlledEmbedDebugModal extends ConsumerStatefulWidget {
 
   /// Current form snapshot (field key → value string).
   final Map<String, Object?> initialInputs;
-  final String? boardKey;
+  final PinKey? pinKey;
 
   /// Resolved browser settings from the manifest (UA + viewport).
   /// `null` means settings were omitted — preserve default behavior.
@@ -74,6 +75,7 @@ class _ControlledEmbedDebugModalState
   Map<String, String> _latestOutputs = {};
 
   ToolId get _toolId => ToolId.parse(widget.tool.id);
+  PinKey? get _pinKey => widget.pinKey;
 
   @override
   void initState() {
@@ -87,6 +89,7 @@ class _ControlledEmbedDebugModalState
     try {
       final session = await _sessions.ensure(
         ControlledEmbedSessionSpec(
+          pinKey: _pinKey,
           toolId: _toolId,
           url: widget.resolution.url,
           settings: widget.resolvedSettings,
@@ -134,7 +137,8 @@ class _ControlledEmbedDebugModalState
       final result = await ref.read(controlledEmbedToolExecutorProvider)(
         toolId: _toolId,
         args: ToolArgs.fromJsonObject(widget.initialInputs),
-        boardKey: widget.boardKey,
+        boardKey: _pinKey?.$1.value,
+        pinId: _pinKey?.$2.value,
       );
       if (!mounted) return;
       setState(() {
@@ -175,7 +179,14 @@ class _ControlledEmbedDebugModalState
     }
   }
 
-  void _clearConsole() => _sessions.clearEvents(_toolId);
+  void _clearConsole() {
+    final pinKey = _pinKey;
+    if (pinKey == null) {
+      _sessions.clearEventsForTool(_toolId);
+    } else {
+      _sessions.clearEventsForPin(pinKey);
+    }
+  }
 
   void _close() => Navigator.of(context).pop();
 

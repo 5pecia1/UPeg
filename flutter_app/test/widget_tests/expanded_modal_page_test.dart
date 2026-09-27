@@ -131,6 +131,15 @@ class _RecordingClipboardWriter extends ClipboardWriter {
   }
 }
 
+final class _SeededCurrentBoard extends CurrentBoardNotifier {
+  _SeededCurrentBoard(this.boardKey);
+
+  final BoardKey boardKey;
+
+  @override
+  BoardKey? build() => boardKey;
+}
+
 Widget _harness({
   required _SyncDispatch dispatch,
   SettingsOverlayLauncher? settingsLauncher,
@@ -140,6 +149,8 @@ Widget _harness({
   List<ToolDto>? tools,
   List<PaletteHit> paletteHits = const <PaletteHit>[],
   PinActivationFn? activation,
+  BoardKey? currentBoardKey,
+  AddPinMutator? addPin,
 }) {
   final ToolDto effectiveTool = tool ?? _fixtureTool;
   final catalog = tools ?? <ToolDto>[effectiveTool];
@@ -156,6 +167,11 @@ Widget _harness({
         (ref) =>
             () => const <BoardDto>[BoardDto(key: 'dev', title: 'Dev')],
       ),
+      if (currentBoardKey != null)
+        currentBoardKeyProvider.overrideWith(
+          () => _SeededCurrentBoard(currentBoardKey),
+        ),
+      if (addPin != null) addPinMutatorProvider.overrideWithValue(addPin),
       if (keyboardResolver == null)
         fakeKeyboardResolverOverride
       else
@@ -180,7 +196,7 @@ Widget _harness({
       ),
       resolveEmbedFnProvider.overrideWith(
         (ref) =>
-            ({required toolId, required args}) =>
+            ({pinKey, required toolId, required args}) =>
                 const EmbedResolutionDto(url: 'https://example.test/embed'),
       ),
       if (settingsLauncher != null)
@@ -213,7 +229,7 @@ Widget _routeHarness({required _SyncDispatch dispatch}) {
         ),
       ),
       resolveEmbedFnProvider.overrideWithValue(
-        ({required toolId, required args}) => null,
+        ({pinKey, required toolId, required args}) => null,
       ),
       fakeKeyboardResolverOverride,
     ],
@@ -241,7 +257,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _harness(
-          dispatch: ({required toolId, required args}) {
+          dispatch: ({pinKey, required toolId, required args}) {
             return _emptySuccess;
           },
         ),
@@ -262,7 +278,7 @@ void main() {
         String? capturedArgs;
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) {
+            dispatch: ({pinKey, required toolId, required args}) {
               capturedToolId = toolId.value;
               capturedArgs = args.encodeJson();
               return _textSuccess('255');
@@ -294,7 +310,7 @@ void main() {
       String? capturedArgs;
       await tester.pumpWidget(
         _harness(
-          dispatch: ({required toolId, required args}) {
+          dispatch: ({pinKey, required toolId, required args}) {
             capturedToolId = toolId.value;
             capturedArgs = args.encodeJson();
             return _emptySuccess;
@@ -317,7 +333,7 @@ void main() {
       String? capturedArgs;
       await tester.pumpWidget(
         _harness(
-          dispatch: ({required toolId, required args}) {
+          dispatch: ({pinKey, required toolId, required args}) {
             capturedArgs = args.encodeJson();
             return _emptySuccess;
           },
@@ -339,7 +355,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           clipboardWriter: clipboard,
-          dispatch: ({required toolId, required args}) {
+          dispatch: ({pinKey, required toolId, required args}) {
             return _textSuccess('copied output');
           },
         ),
@@ -360,7 +376,8 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _routeHarness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -382,7 +399,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           tool: _toollessTool,
-          dispatch: ({required toolId, required args}) {
+          dispatch: ({pinKey, required toolId, required args}) {
             capturedToolId = toolId.value;
             return _emptySuccess;
           },
@@ -401,7 +418,8 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _routeHarness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -422,7 +440,7 @@ void main() {
         var dispatchCount = 0;
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) {
+            dispatch: ({pinKey, required toolId, required args}) {
               dispatchCount += 1;
               return _emptySuccess;
             },
@@ -449,7 +467,7 @@ void main() {
           settingsLauncher: (_) async {
             openedSettings = true;
           },
-          dispatch: ({required toolId, required args}) => _emptySuccess,
+          dispatch: ({pinKey, required toolId, required args}) => _emptySuccess,
         ),
       );
 
@@ -469,7 +487,8 @@ void main() {
             settingsLauncher: (_) async {
               openedSettings = true;
             },
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -495,7 +514,7 @@ void main() {
           _harness(
             tool: _uuidV7Tool,
             clipboardWriter: clipboard,
-            dispatch: ({required toolId, required args}) {
+            dispatch: ({pinKey, required toolId, required args}) {
               expect(toolId.value, 'id.uuid_v7');
               expect(args.isEmpty, isTrue);
               return _textSuccess(generated);
@@ -530,7 +549,8 @@ void main() {
         await tester.pumpWidget(
           _harness(
             tool: _toollessTool,
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -549,7 +569,8 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -567,7 +588,8 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 
@@ -582,11 +604,49 @@ void main() {
     );
 
     testWidgets(
+      'picking_and_pinning_a_palette_tool_opens_its_modal_for_the_new_pin',
+      (tester) async {
+        final boardKey = BoardKey.parse('dev');
+        final pinKey = (boardKey, PinId.parse('new-pin'));
+        await tester.pumpWidget(
+          _harness(
+            tool: _toollessTool,
+            tools: <ToolDto>[_toollessTool, _fixtureTool],
+            paletteHits: <PaletteHit>[_paletteHitFor(_fixtureTool)],
+            currentBoardKey: boardKey,
+            addPin: (board, tool) {
+              expect(board, boardKey);
+              expect(tool, ToolId.parse(_fixtureTool.id));
+              return pinKey.$2.value;
+            },
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
+          ),
+        );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+        await tester.pumpAndSettle();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        final pages = tester.widgetList<ExpandedModalPage>(
+          find.byType(ExpandedModalPage),
+        );
+        expect(pages, hasLength(2));
+        expect(pages.last.tool.id, _fixtureTool.id);
+        expect(pages.last.pinKey, pinKey);
+      },
+    );
+
+    testWidgets(
       'picking_an_embed_without_a_URL_in_the_Palette_opens_a_nested_modal',
       (tester) async {
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
             tools: [_fixtureTool, _urlLessEmbedTool],
             paletteHits: [_paletteHitFor(_urlLessEmbedTool)],
             activation: ({required toolId, required argsJson}) =>
@@ -616,7 +676,8 @@ void main() {
 
         await tester.pumpWidget(
           _harness(
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
             tools: [_fixtureTool, _urlBackedEmbedTool],
             paletteHits: [_paletteHitFor(_urlBackedEmbedTool)],
             activation: ({required toolId, required argsJson}) =>
@@ -651,7 +712,8 @@ void main() {
                   required KeyboardScopeDto scope,
                   required bool hasToolFocus,
                 }) => null,
-            dispatch: ({required toolId, required args}) => _emptySuccess,
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _emptySuccess,
           ),
         );
 

@@ -65,22 +65,50 @@ void main() {
         boardKey: 'dev',
         boardCols: _fixedBoardCols,
         placements: [
-          PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
-          PlacementDto(toolId: 'fixture.b', x: 1, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+          PlacementDto(
+            toolId: 'fixture.b',
+            pinId: 'fixture.b',
+            x: 1,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ],
       );
 
       List<PlacementDto> previewLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int x,
         int y,
       ) {
         // The projected layout after dragging fixture.b onto (0,0):
         // fixture.b at (0,0); fixture.a displaced to (1,0).
         return const [
-          PlacementDto(toolId: 'fixture.b', x: 0, y: 0, w: 1, h: 1),
-          PlacementDto(toolId: 'fixture.a', x: 1, y: 0, w: 1, h: 1),
+          PlacementDto(
+            toolId: 'fixture.b',
+            pinId: 'fixture.b',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 1,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
         ];
       }
 
@@ -104,7 +132,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.b'),
+            toolId: PinId.parse('fixture.b'),
             originX: 1,
             originY: 0,
             maxX: _u1MaxStartX,
@@ -140,20 +168,34 @@ void main() {
           boardKey: 'media',
           boardCols: _fixedBoardCols,
           placements: [
-            PlacementDto(toolId: 'fixture.media', x: 0, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: 'fixture.media',
+              pinId: 'fixture.media',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ],
         );
         var loaderCalled = false;
 
         List<PlacementDto> previewLoader(
           BoardKey boardKey,
-          ToolId toolId,
+          PinId toolId,
           int x,
           int y,
         ) {
           loaderCalled = true;
           return const [
-            PlacementDto(toolId: 'fixture.other', x: 1, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: 'fixture.other',
+              pinId: 'fixture.other',
+              x: 1,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ];
         }
 
@@ -169,7 +211,7 @@ void main() {
             .read(moveModeProvider.notifier)
             .start(
               boardKey: _devBoardKey,
-              toolId: ToolId.parse('fixture.dragged'),
+              toolId: PinId.parse('fixture.dragged'),
               originX: 0,
               originY: 0,
               maxX: _u1MaxStartX,

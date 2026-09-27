@@ -389,20 +389,23 @@ fn io_type_list_constant_matches_the_closed_io_types_array() {
 
 #[cfg(feature = "serde")]
 #[test]
-fn placement_with_none_new_fields_is_byte_identical_to_the_legacy_json() {
+fn placement_serialization_includes_the_legacy_derived_pin_id() {
     let legacy_json = r#"{"tool_id":"clock.now","x":1,"y":2}"#;
+    let stored_json = r#"{"pin_id":"clock.now","tool_id":"clock.now","x":1,"y":2}"#;
     let placement = Placement::new("clock.now", 1, 2);
 
-    assert_eq!(serde_json::to_string(&placement).unwrap(), legacy_json);
+    assert_eq!(serde_json::to_string(&placement).unwrap(), stored_json);
     let back: Placement = serde_json::from_str(legacy_json).unwrap();
     assert_eq!(back, placement);
 
     let legacy_colored_json = r##"{"tool_id":"clock.now","x":1,"y":2,"color":"#A1B2C3"}"##;
+    let stored_colored_json =
+        r##"{"pin_id":"clock.now","tool_id":"clock.now","x":1,"y":2,"color":"#A1B2C3"}"##;
     let colored =
         Placement::new("clock.now", 1, 2).with_color(Some(PinColorHex::parse("#A1B2C3").unwrap()));
     assert_eq!(
         serde_json::to_string(&colored).unwrap(),
-        legacy_colored_json
+        stored_colored_json
     );
     let back: Placement = serde_json::from_str(legacy_colored_json).unwrap();
     assert_eq!(back, colored);

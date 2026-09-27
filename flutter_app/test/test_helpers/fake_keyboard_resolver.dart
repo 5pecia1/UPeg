@@ -155,6 +155,7 @@ KeyboardCommandDto? _settingsCommand(String key, {required bool shift}) {
     'l' || 'L' || 'ArrowRight' => const KeyboardCommandDto.move(
       direction: DirectionDto.right,
     ),
+    '/' => const KeyboardCommandDto.close(),
     'h' ||
     'H' ||
     'ArrowLeft' => const KeyboardCommandDto.move(direction: DirectionDto.left),

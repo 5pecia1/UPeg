@@ -49,7 +49,7 @@ class _SeededCurrentBoardNotifier extends CurrentBoardNotifier {
 }
 
 Widget _harness({
-  required PinMutator pinFn,
+  required AddPinMutator pinFn,
   required ToolDto tool,
   String boardKey = 'dev',
 }) {
@@ -59,7 +59,7 @@ Widget _harness({
       currentBoardKeyProvider.overrideWith(
         () => _SeededCurrentBoardNotifier(boardKey),
       ),
-      pinToolMutatorProvider.overrideWithValue(pinFn),
+      addPinMutatorProvider.overrideWithValue(pinFn),
       dispatchStreamFnProvider.overrideWithValue(
         stubDispatchStream(
           ({required toolId, required args, required approve}) async =>
@@ -85,6 +85,7 @@ void main() {
           pinFn: (board, tool) {
             observedBoard = board;
             observedTool = tool;
+            return 'pin';
           },
         ),
       );
@@ -105,6 +106,7 @@ void main() {
             pinFn: (board, tool) {
               observedBoard = board;
               observedTool = tool;
+              return 'pin';
             },
           ),
         );

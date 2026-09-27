@@ -5,7 +5,7 @@ use serde::Deserialize;
 ///
 /// Project-declared boards are the only way a manifest can add a board
 /// tab; they exist while the manifest is detected and disappear when it
-/// is not (`docs/architecture/project-manifest.md`). Toolkit manifests
+/// is not (`upeg_sources::project` module docs). Toolkit manifests
 /// under `~/.upeg/toolkits` are global and have no project to scope a
 /// board to, so the loader rejects `[[boards]]` there.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

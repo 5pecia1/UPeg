@@ -37,7 +37,7 @@ fn examples_mcp_dir() -> PathBuf {
 
 /// The repo's own dogfood Project Manifest (`/<repo>/upeg.toml`).
 fn dogfood_project_manifest() -> PathBuf {
-    workspace_root().join("upeg.toml")
+    workspace_root().join(".upeg/toolkits/dev.toml")
 }
 
 #[test]

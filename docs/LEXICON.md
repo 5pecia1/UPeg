@@ -35,14 +35,14 @@ in English in every locale.
 
 | Term | TOML key | Rust symbol | JSON field | Definition |
 |---|---|---|---|---|
-| Toolkit | `[toolkit]` | `Toolkit`, `ToolkitMeta` | `toolkit` | A non-callable group / distribution namespace. Example: `convert`. |
-| Tool | `[tool]` | `Tool`, `ToolMeta` | `tool` | The invocable unit owned by exactly one Toolkit. Full id: `{toolkit}.{tool}`. |
+| Toolkit | root `id = "..."` | `Toolkit`, `ToolkitMeta` | `toolkit` | A non-callable group / distribution namespace. Example: `convert`. |
+| Tool | `[[tools]]` with a local `id` | `Tool`, `ToolMeta` | `tool` | The invocable unit owned by exactly one Toolkit. Full id: `{toolkit}.{tool}`. |
 | Tag | `tags = [...]` | `tags` | `tags` | A navigation/filter label inherited from the Toolkit and extended at Tool level. |
-| Pin | `boards = [...]` (membership) | `pin_tool_to_board()` | (behavior) | The act of pinning a Tool to a Board, and the visible attachment it produces. |
+| Pin | `boards = [...]` on a Tool (initial membership) | `pin_tool_to_board()` | (behavior) | The act of pinning a Tool to a Board, and the visible attachment it produces. |
 | PinKind | `pin = "Inline"` | `PinKind` | `pin` | How a Tool is presented on a board. Values: `Inline`, `Launcher`, `Live`, `Action`, `Embed`, `ControlledEmbed`, `Chain`, `Llm`. |
-| Board | `boards = [...]` | `Board`, `BoardData` | `boards` | One top-level tab of the user-owned Pegboard. Holds the pin set of one context. |
-| Toolbox | — | `Toolbox` (internal) | — | Every Tool `upeg` currently knows. Built by merging Static + Declarative + Wasm + MCP Import with the project manifest. An internal data structure — a surface never exposes the word `Registry`. |
-| Project Manifest | `upeg.toml` (root) | `ProjectManifest` | — | A `upeg.toml` auto-detected and merged into the current project's Toolbox. |
+| Board | project-only `[[boards]]` declaration | `Board`, `BoardData` | `boards` | One top-level tab of the user-owned Pegboard. Holds the pin set of one context. Built-in and user-created Boards also exist. |
+| Toolbox | — | `Toolbox` (internal) | — | Every Tool `upeg` currently knows. Built by merging Static + Declarative + Wasm + MCP Import with the active project Toolkits. An internal data structure — a surface never exposes the word `Registry`. |
+| Project | `.upeg/` marker; optional `project.toml` and `toolkits/*.toml` | `ProjectRoot`, `ProjectDefinition` | — | The nearest marked directory supplies project boards and Toolkit additions. Duplicate Tool ids require an explicit source choice. |
 | Board Context | reserved `_upeg` arg | `BoardExecutionContext` | `_upeg.boardEnv`, `_upeg.projectManifest` | Execution metadata: board key, board env, project manifest path. |
 | Chain Tool | `invoker = "Chain"` | `Invoker::Chain` | `invoker: "chain"` | A Tool whose invoker composes other Tools. |
 | Trigger | `[[triggers]]` | `Trigger` | `triggers` | An event source that runs a Tool automatically. |
@@ -51,9 +51,9 @@ in English in every locale.
 | Invoker | `invoker = "..."` | `Invoker` | `invoker` | The invocation mechanism: `Function`, `External`, `Http`, `Static`, `Embed`, `Chain`, `Llm`, `Wasm`. |
 | Source | `source = ...` | `Source` | `source` | Where a tool starts from. Values: `UserInput` (default), `Timer`, `Shortcut`, `Manual`, `Static`. A GUI presentation hint; non-GUI surfaces ignore the variation and call the function directly. |
 | Surface | `surfaces = [...]` | `Surface` | `surfaces` | An access interface: `cli`, `tui`, `desktop`, `pwa`, `ext`, `mcp`, `http`. |
-| Principal | — | `Principal`, `PrincipalRole` | `_upeg.principal` | The caller identity `{ role, surface }` stamped by the runtime. If a Surface is "which door," a principal is "what authority." `role` values: `operator`, `agent`, `local`. Caller-sent values are erased (see [Call envelope](architecture/call-envelope.md)). |
+| Principal | — | `Principal`, `PrincipalRole` | `_upeg.principal` | The caller identity `{ role, surface }` stamped by the runtime. If a Surface is "which door," a principal is "what authority." `role` values: `operator`, `agent`, `local`. Caller-sent values are erased (see [Call envelope](architecture.md#call-envelope)). |
 | Agent Token | — | `HostTokens` | — | A second bearer token issued through `UPEG_HTTP_AGENT_TOKENS`. Enters the data plane but is stamped as the `agent` principal and cannot cross a Chain approval barrier. Same shape as the operator token (`~/.upeg/server.json`); only the authority differs. |
-| pty | `pty = true` | — | `pty` | A declaration that gives an `External` invoker's child a real terminal instead of two pipes. For programs that judge solely by `isatty(3)`; Unix-only. The identifier stays `pty` in every locale (see [Manifest contract](architecture/manifest.md)). |
+| pty | `pty = true` | — | `pty` | A declaration that gives an `External` invoker's child a real terminal instead of two pipes. For programs that judge solely by `isatty(3)`; Unix-only. The identifier stays `pty` in every locale (see [Manifest contract](architecture.md#manifest)). |
 | IoType | inside `input_spec`/`output_spec` | `IoType` | inside `inputSchema`/`outputSchema` | The closed I/O type vocabulary every surface shares. |
 | View Embed | `outputs = [v: EmbeddedView(url)]` | `IoType::EmbeddedView` | `embedded_view` | An embed mode that shows an external website as a Pin's output. No I/O bridge; the user manipulates the iframe directly. |
 | Controlled Embed | `invoker = "Embed"` + `[[tools.controlled_embed.bindings]]` | `Invoker::Embed` + `controlled_embed.bindings` | `controlled_embed.bindings` | An embed mode where upeg drives an external page through CSS selectors. The Pin shows an ordinary form/result while the iframe acts as the engine. |
@@ -97,7 +97,7 @@ There is no `timestamp` Toolkit — use `time`.
 | Source | Definition |
 |---|---|
 | Static | Rust code compiled into upeg with `#[upeg::toolkit]` / `#[upeg::tool]` |
-| Declarative | Toolkit TOML in `~/.upeg/toolkits/*.toml` or a project's `upeg.toml` |
+| Declarative | Toolkit TOML in `~/.upeg/toolkits/*.toml` or a project's `.upeg/toolkits/*.toml` |
 | Wasm | A `.wasm` Toolkit binary that exports a upeg manifest and invocable functions |
 | MCP Import | Tools imported from an **Upstream MCP Server** declared in `~/.upeg/mcp-imports/*.toml`. Here upeg is the MCP *client*. A long-lived server process eager-loads at startup. Distinct from the `mcp` Surface below |
 

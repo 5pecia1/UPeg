@@ -94,7 +94,7 @@ Widget _harness({required TagSelection selectedTag}) {
       ),
     ],
     child: MaterialApp(
-      home: Scaffold(body: PaletteOverlay(onPick: (_) {})),
+      home: Scaffold(body: PaletteOverlay(onPick: (_, _) {})),
     ),
   );
 }

@@ -14,7 +14,54 @@
 //! What a UI does with it: `requires_approval` says "confirm before you
 //! dispatch, or the run will stop at the barrier", and
 //! [`ToolApprovalPolicy::surfaces`] says whether *this* surface's
-//! confirmation would even be honored (`docs/architecture/chain.md`).
+//! confirmation would even be honored.
+//!
+//! # Authorization contract
+//!
+//! `approve = true` and `_upeg.approvedSteps` are ordinary caller-filled
+//! values — *intent*, not identity. Authorization runs on the stamped
+//! identity (`_upeg.principal.role`, `_upeg.surface`) as two independent
+//! gates, judged in this order by `upeg-loader`'s chain approval module:
+//!
+//! | Gate | Question | Denial code |
+//! |---|---|---|
+//! | principal | Is this caller qualified to approve? | `approval_denied_for_principal` |
+//! | surface | Does this chain honor approvals through that door? | `approval_denied_for_surface` |
+//! | — | Authorized surface but no approval sent | `approval_required` |
+//!
+//! `agent` is the only excluded role: issuing an agent token is the
+//! operator saying "you are not me", so no manifest can widen
+//! `approval_surfaces` to reverse it. `local` (the MCP stdio lane)
+//! stands on the same OS-user boundary as `cli` and passes the
+//! principal gate; the surface gate judges it separately.
+//!
+//! `approval_surfaces` defaults to `cli`/`tui`/`desktop` — the surfaces
+//! whose caller *is* the OS user account. `mcp`/`http`/`pwa` must be
+//! named explicitly. `ext` is never an approval surface: the browser
+//! extension has no approval gesture, so load-time validation rejects it.
+//! Validation also rejects unknown or empty
+//! entries, an empty list, the declaration on a non-Chain Tool, and a
+//! list that does not intersect the Tool's own `surfaces`. A Tool with
+//! no barrier reports `requires_approval = false` and an empty surface
+//! list — with nothing to approve, it names no approver.
+//!
+//! # Surface gestures
+//!
+//! | Surface | Gesture | When this surface's approval is not honored |
+//! |---|---|---|
+//! | CLI | `upeg call <chain> -a approve=true` | denial message lists the authorized surfaces |
+//! | TUI | confirm dialog in front of the run — `Enter`/`F1`/`y` approve, `Esc`/`n`/`q` cancel | result pane writes the reason and the authorized surfaces instead of prompting |
+//! | Desktop | pre-run confirm dialog — run after approval / cancel | dialog explains the reason and authorized surfaces; does not dispatch |
+//! | MCP · HTTP · PWA | none | the manifest must name that surface in `approval_surfaces` |
+//! | Ext | none | unsupported; use Desktop upeg |
+//!
+//! The reserved key is made by a confirmation, not by a form: the TUI
+//! puts `approve` into args only from the confirm dialog's yes, and
+//! Desktop receives `approve` as a typed FRB parameter that Rust
+//! attaches — Rust erases a caller-sent `approve` key first, so neither
+//! Dart-assembled args nor an args preset stored on a pin can claim
+//! approval. No path that bypasses a confirmation survives inside the
+//! UI.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

@@ -18,20 +18,26 @@ import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/embed_resolver_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/controlled_embed/tile.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 class ControlledEmbedSurface extends ConsumerWidget {
-  const ControlledEmbedSurface({required this.tool, super.key});
+  const ControlledEmbedSurface({required this.tool, this.pinKey, super.key});
 
   final ToolDto tool;
+  final PinKey? pinKey;
 
-  static Future<void> open(BuildContext context, ToolDto tool) {
+  static Future<void> open(
+    BuildContext context,
+    ToolDto tool, {
+    PinKey? pinKey,
+  }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => ControlledEmbedSurface(tool: tool),
+        builder: (_) => ControlledEmbedSurface(tool: tool, pinKey: pinKey),
       ),
     );
   }
@@ -86,6 +92,7 @@ class ControlledEmbedSurface extends ConsumerWidget {
                             // outer Scaffold provides the room the
                             // 118 px pin body can't.
                             child: ControlledEmbedTile(
+                              pinKey: pinKey,
                               tool: tool,
                               resolution: resolution,
                             ),

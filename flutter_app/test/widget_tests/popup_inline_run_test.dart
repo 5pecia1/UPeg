@@ -104,7 +104,7 @@ Override _fakeDispatch(
   Future<CanonicalToolResult> Function(ToolId toolId) dispatch, {
   List<String>? calls,
 }) => liveDispatchToolFnProvider.overrideWith(
-  (ref) => ({required toolId, required args}) {
+  (ref) => ({pinKey, required toolId, required args}) {
     calls?.add(toolId.value);
     return dispatch(toolId);
   },
@@ -185,12 +185,9 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('0198-uuid'), findsOneWidget);
-        // Shared cache record — back on the board the pin shows the same
-        // result.
-        expect(
-          container.read(lastOutcomeProvider)[ToolId.parse('id.uuid_v7')],
-          isNotNull,
-        );
+        // Popup results stay in the popup's result state and do not write
+        // to the selected board's pin cache.
+        expect(container.read(lastOutcomeProvider), isEmpty);
       },
     );
 
@@ -376,10 +373,24 @@ void main() {
               boardCols: 6,
               placements: query.boardKey.value == 'dev'
                   ? const [
-                      PlacementDto(toolId: 'a.one', x: 0, y: 0, w: 1, h: 1),
+                      PlacementDto(
+                        toolId: 'a.one',
+                        pinId: 'a.one',
+                        x: 0,
+                        y: 0,
+                        w: 1,
+                        h: 1,
+                      ),
                     ]
                   : const [
-                      PlacementDto(toolId: 'b.two', x: 0, y: 0, w: 1, h: 1),
+                      PlacementDto(
+                        toolId: 'b.two',
+                        pinId: 'b.two',
+                        x: 0,
+                        y: 0,
+                        w: 1,
+                        h: 1,
+                      ),
                     ],
             ),
       ),

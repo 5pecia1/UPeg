@@ -85,17 +85,35 @@ Widget _harness({
 const _singlePinSnapshot = LayoutSnapshotDto(
   boardKey: 'dev',
   boardCols: _fixedBoardCols,
-  placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+  placements: [
+    PlacementDto(
+      toolId: 'fixture.a',
+      pinId: 'fixture.a',
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+    ),
+  ],
 );
 
 /// Pass-through projection: returns only the resize target with the requested span.
 List<PlacementDto> _acceptLoader(
   BoardKey boardKey,
-  ToolId toolId,
+  PinId toolId,
   int cols,
   int rows,
 ) {
-  return [PlacementDto(toolId: toolId.value, x: 0, y: 0, w: cols, h: rows)];
+  return [
+    PlacementDto(
+      toolId: toolId.value,
+      pinId: toolId.value,
+      x: 0,
+      y: 0,
+      w: cols,
+      h: rows,
+    ),
+  ];
 }
 
 /// Drags the handle one cell to the right and returns without releasing it.
@@ -154,7 +172,7 @@ void main() {
       final requestedSpans = <(int, int)>[];
       List<PlacementDto> recordingLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int cols,
         int rows,
       ) {
@@ -203,20 +221,48 @@ void main() {
           boardKey: 'dev',
           boardCols: _fixedBoardCols,
           placements: [
-            PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1),
-            PlacementDto(toolId: 'fixture.b', x: 1, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: 'fixture.a',
+              pinId: 'fixture.a',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
+            PlacementDto(
+              toolId: 'fixture.b',
+              pinId: 'fixture.b',
+              x: 1,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ],
         );
         // Expanding fixture.a to two columns pushes fixture.b to (2,0).
         List<PlacementDto> pushLoader(
           BoardKey boardKey,
-          ToolId toolId,
+          PinId toolId,
           int cols,
           int rows,
         ) {
           return [
-            PlacementDto(toolId: toolId.value, x: 0, y: 0, w: cols, h: rows),
-            const PlacementDto(toolId: 'fixture.b', x: 2, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: toolId.value,
+              pinId: toolId.value,
+              x: 0,
+              y: 0,
+              w: cols,
+              h: rows,
+            ),
+            const PlacementDto(
+              toolId: 'fixture.b',
+              pinId: 'fixture.b',
+              x: 2,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ];
         }
 
@@ -252,7 +298,7 @@ void main() {
     testWidgets('an_empty_preview_hides_the_resize_overlay', (tester) async {
       List<PlacementDto> rejectLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int cols,
         int rows,
       ) => const <PlacementDto>[];
@@ -277,9 +323,9 @@ void main() {
     testWidgets('releasing_a_handle_drag_sends_setSpan_to_the_commit_seam', (
       tester,
     ) async {
-      ToolId? observedTool;
+      PinId? observedTool;
       ResizeCommitAction? observedAction;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+      Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
         observedTool = toolId;
         observedAction = action;
       }
@@ -297,7 +343,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(observedTool, ToolId.parse('fixture.a'));
+      expect(observedTool, PinId.parse('fixture.a'));
       final action = observedAction;
       expect(action, isA<ResizeCommitSetSpan>());
       final setSpan = action as ResizeCommitSetSpan;
@@ -309,7 +355,7 @@ void main() {
 
     testWidgets('a_drag_without_movement_does_not_commit', (tester) async {
       var called = false;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+      Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
         called = true;
       }
 
@@ -354,7 +400,7 @@ void main() {
             .read(resizeModeProvider.notifier)
             .start(
               boardKey: _devBoardKey,
-              toolId: ToolId.parse('fixture.a'),
+              toolId: PinId.parse('fixture.a'),
               baseCols: 1,
               baseRows: 1,
               manifestCols: 1,
@@ -380,7 +426,7 @@ void main() {
       var loaderCalled = false;
       List<PlacementDto> recordingLoader(
         BoardKey boardKey,
-        ToolId toolId,
+        PinId toolId,
         int cols,
         int rows,
       ) {
@@ -391,7 +437,16 @@ void main() {
       const mediaSnapshot = LayoutSnapshotDto(
         boardKey: 'media',
         boardCols: _fixedBoardCols,
-        placements: [PlacementDto(toolId: 'fixture.a', x: 0, y: 0, w: 1, h: 1)],
+        placements: [
+          PlacementDto(
+            toolId: 'fixture.a',
+            pinId: 'fixture.a',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+          ),
+        ],
       );
       await tester.pumpWidget(
         _harness(snapshot: mediaSnapshot, resizePreviewLoader: recordingLoader),
@@ -405,7 +460,7 @@ void main() {
           .read(resizeModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.a'),
+            toolId: PinId.parse('fixture.a'),
             baseCols: 1,
             baseRows: 1,
             manifestCols: 1,

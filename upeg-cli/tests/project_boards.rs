@@ -12,7 +12,7 @@
 //! either one silently breaks the other:
 //!
 //!   * the *grammar* — what a manifest may declare and what the loader
-//!     refuses (`docs/architecture/project-manifest.md`); and
+//!     refuses (`upeg_sources::project` module docs); and
 //!   * the *repo's own dogfood manifest*, which declares `upeg-dev` and
 //!     pins all 15 maintenance tools there. If the grammar drifts, the
 //!     manifest the maintainers actually run every day is the first
@@ -30,9 +30,12 @@ fn workspace_root() -> PathBuf {
 /// The `[[boards]]` example the docs point at.
 #[test]
 fn the_project_manifest_example_declares_boards() {
-    let path = workspace_root().join("examples/project-manifest/upeg.toml");
+    let root = workspace_root().join("examples/project-manifest");
+    let config = root.join(".upeg/project.toml");
+    let path = root.join(".upeg/toolkits/demo.toml");
     let raw =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let config_raw = std::fs::read_to_string(&config).expect("project config");
 
     // `parse_toolkit_full` runs the same `[[boards]]` validation the
     // Project Manifest loader does (canonical id, no `:`, no built-in
@@ -41,7 +44,7 @@ fn the_project_manifest_example_declares_boards() {
         upeg_loader::parse_toolkit_full(&raw).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
 
     assert!(
-        raw.contains("[[boards]]"),
+        config_raw.contains("[[boards]]"),
         "the example's point is the `[[boards]]` declaration"
     );
     assert!(
@@ -59,14 +62,17 @@ fn the_project_manifest_example_declares_boards() {
 fn the_repo_dogfood_manifest_gathers_tools_on_a_dedicated_board() {
     const PROJECT_BOARD: &str = "upeg-dev";
 
-    let path = workspace_root().join("upeg.toml");
+    let root = workspace_root();
+    let config = root.join(".upeg/project.toml");
+    let path = root.join(".upeg/toolkits/dev.toml");
     let raw =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let config_raw = std::fs::read_to_string(config).expect("project config");
     let (_toolkit, tools) =
         upeg_loader::parse_toolkit_full(&raw).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
 
     assert!(
-        raw.contains(&format!("id = \"{PROJECT_BOARD}\"")),
+        config_raw.contains(&format!("id = \"{PROJECT_BOARD}\"")),
         "the dogfood manifest declares the `{PROJECT_BOARD}` board"
     );
     let off_board: Vec<&str> = tools

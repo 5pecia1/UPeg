@@ -104,6 +104,9 @@
   "noBoardsFound": {
     "message": "보드가 없습니다 — 먼저 도구를 보드에 핀하세요."
   },
+  "extensionAdapterUpgradeRequired": {
+    "message": "이 upeg 호스트는 확장 프로그램 보드 어댑터를 지원하지 않습니다. upeg를 업그레이드한 뒤 다시 연결하세요."
+  },
 
   "toolListLoading": {
     "message": "핀된 도구 로딩 중…"
@@ -130,6 +133,15 @@
   },
   "jsonFieldNote": {
     "message": "이 필드는 전용 컨트롤이 없습니다 — JSON 값을 입력하세요."
+  },
+  "presetFileStored": {
+    "message": "저장된 파일 프리셋은 교체 파일을 선택하지 않는 한 호스트에 유지됩니다."
+  },
+  "inPagePresetFileUnsupported": {
+    "message": "이 인페이지 도구에는 브라우저에서 표현할 수 없는 저장된 파일 프리셋이 있습니다. 데스크톱 upeg에서 여세요."
+  },
+  "approvalUnsupported": {
+    "message": "이 도구는 브라우저 확장 프로그램에서 제공할 수 없는 승인이 필요합니다. 데스크톱 upeg에서 여세요."
   },
   "fieldRequired": {
     "message": "\"$FIELD$\"은(는) 필수입니다.",

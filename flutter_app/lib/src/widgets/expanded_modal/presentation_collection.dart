@@ -4,10 +4,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/presentation_resolver_provider.dart';
+import 'package:upeg/src/state/tools_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/presentation_table.dart';
 
@@ -21,6 +23,7 @@ class PresentationCollection extends ConsumerWidget {
     required this.tokens,
     required this.onRowAction,
     required this.onResultAction,
+    required this.onReadRowNavigate,
     super.key,
   });
 
@@ -30,6 +33,8 @@ class PresentationCollection extends ConsumerWidget {
   final void Function(PresentationActionDto action, PresentationTableRow row)
   onRowAction;
   final void Function(PresentationActionDto action) onResultAction;
+  final void Function(PresentationActionDto action, PresentationTableRow row)
+  onReadRowNavigate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,6 +51,14 @@ class PresentationCollection extends ConsumerWidget {
         .toList(growable: false);
     final resultActions = presentation.actions
         .where((action) => action.scope == ActionScopeDto.result)
+        .toList(growable: false);
+    final readRowActions = rowActions
+        .where((action) {
+          final target = ref.read(
+            toolByIdProvider(ToolId.parse(action.targetTool)),
+          );
+          return target?.effect == ToolEffectDto.read;
+        })
         .toList(growable: false);
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -76,6 +89,9 @@ class PresentationCollection extends ConsumerWidget {
                   ),
                 )
                 .toList(growable: false),
+            onReadRowNavigate: readRowActions.length == 1
+                ? (row) => onReadRowNavigate(readRowActions.single, row)
+                : null,
             rowActionsEnabled: resolved.rowActionsEnabled,
             diagnostics: resolved.diagnostics,
             tokens: tokens,

@@ -10,8 +10,8 @@ void main() {
     test('isolates drafts for the same tool across different boards', () {
       final store = InlineDraftStore();
       final toolId = ToolId.parse('text.pair');
-      final firstKey = (BoardKey.parse('first'), toolId);
-      final secondKey = (BoardKey.parse('second'), toolId);
+      final firstKey = (BoardKey.parse('first'), PinId.parse(toolId.value));
+      final secondKey = (BoardKey.parse('second'), PinId.parse(toolId.value));
       final draft = ToolArgs.fromJsonObject(const <String, Object?>{
         'left': '첫 번째 보드',
       });
@@ -24,7 +24,7 @@ void main() {
 
     test('clears exactly the draft stored under a pin key', () {
       final store = InlineDraftStore();
-      final PinKey pinKey = (BoardKey.parse('dev'), ToolId.parse('text.pair'));
+      final PinKey pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
       store.set(
         pinKey,
         ToolArgs.fromJsonObject(const <String, Object?>{'left': '임시 값'}),

@@ -1,6 +1,6 @@
 //! Project-scoped board identity: namespaces and store keys.
 //!
-//! A Project Manifest (`upeg.toml`) may declare its own boards with a
+//! A `.upeg/project.toml` declaration may add project boards with a
 //! top-level `[[boards]]` array. Those boards exist only while that
 //! manifest is detected, and their pins must never bleed into another
 //! project — two checkouts of the same repository are two different
@@ -14,8 +14,8 @@
 //!   project board  →  store key = "project:<namespace>:<id>"
 //! ```
 //!
-//! `<namespace>` is a stable digest of the manifest's absolute path
-//! ([`ProjectBoardNamespace::for_manifest_path`]); `<id>` is the id the
+//! `<namespace>` is a stable digest of the project root's absolute path
+//! ([`ProjectBoardNamespace::for_project_root`]); `<id>` is the id the
 //! manifest declared. Surfaces never show the store key — the *visible*
 //! board reference stays the bare declared id (see
 //! `upeg_sources::pegboard`), because [`crate::BoardKey`] rejects the
@@ -40,11 +40,11 @@ const NAMESPACE_HEX_WIDTH: usize = 16;
 
 /// Stable identity of the Project Manifest a board belongs to.
 ///
-/// Derived from the manifest's path, so moving a project directory
+/// Derived from the project root's path, so moving a project directory
 /// starts a fresh set of project-board placements — an accepted
-/// trade-off, documented in `docs/architecture/project-manifest.md`:
-/// path is the only identity upeg can read before parsing the manifest,
-/// and a manifest-declared id would collide between unrelated
+/// trade-off, documented in `upeg_sources::project`'s module docs:
+/// path is the only identity upeg can read before parsing the config,
+/// and a project-declared id would collide between unrelated
 /// checkouts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ProjectBoardNamespace(String);
@@ -52,10 +52,10 @@ pub struct ProjectBoardNamespace(String);
 impl ProjectBoardNamespace {
     /// Digest `path` into a namespace. The path is used verbatim — the
     /// caller is responsible for handing over an absolute path (the
-    /// loader resolves the manifest path before it gets here), because
+    /// loader canonicalizes the project root before it gets here), because
     /// two spellings of the same file must not produce two namespaces.
     #[must_use]
-    pub fn for_manifest_path(path: &Path) -> Self {
+    pub fn for_project_root(path: &Path) -> Self {
         Self(fnv1a64_hex(path.to_string_lossy().as_bytes()))
     }
 
@@ -183,22 +183,22 @@ mod tests {
 
     #[test]
     fn namespace_is_stable_for_the_same_path() {
-        let a = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/proj/upeg.toml"));
-        let b = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/proj/upeg.toml"));
+        let a = ProjectBoardNamespace::for_project_root(Path::new("/home/u/proj"));
+        let b = ProjectBoardNamespace::for_project_root(Path::new("/home/u/proj"));
         assert_eq!(a, b);
         assert_eq!(a.as_str().len(), NAMESPACE_HEX_WIDTH);
     }
 
     #[test]
     fn namespace_differs_between_projects() {
-        let a = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/a/upeg.toml"));
-        let b = ProjectBoardNamespace::for_manifest_path(Path::new("/home/u/b/upeg.toml"));
+        let a = ProjectBoardNamespace::for_project_root(Path::new("/home/u/a"));
+        let b = ProjectBoardNamespace::for_project_root(Path::new("/home/u/b"));
         assert_ne!(a, b);
     }
 
     #[test]
     fn project_store_key_round_trips() {
-        let namespace = ProjectBoardNamespace::for_manifest_path(Path::new("/p/upeg.toml"));
+        let namespace = ProjectBoardNamespace::for_project_root(Path::new("/p"));
         let stored = BoardStoreKey::project(&namespace, &key("upeg-dev"));
 
         assert_eq!(

@@ -95,7 +95,7 @@ final class _LocalizedStatusRobot {
     return _pump(
       GenericInlinePinBody(
         tool: tool,
-        pinKey: (BoardKey.parse('dev'), ToolId.parse(tool.id)),
+        pinKey: (BoardKey.parse('dev'), PinId.parse(tool.id)),
       ),
       dispatch: dispatch,
     );
@@ -177,7 +177,7 @@ void main() {
       final pending = Completer<CanonicalToolResult>();
       var calls = 0;
       final robot = _LocalizedStatusRobot(tester);
-      await robot.pumpInline(({required toolId, required args}) {
+      await robot.pumpInline(({pinKey, required toolId, required args}) {
         calls += 1;
         return pending.future;
       });
@@ -210,7 +210,7 @@ void main() {
     (tester) async {
       const privateDetail = '/private/localized-status.txt';
       final robot = _LocalizedStatusRobot(tester);
-      await robot.pumpInline(({required toolId, required args}) async {
+      await robot.pumpInline(({pinKey, required toolId, required args}) async {
         throw Exception(privateDetail);
       });
       await robot.run();

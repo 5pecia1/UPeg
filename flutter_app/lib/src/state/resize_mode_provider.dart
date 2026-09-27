@@ -60,7 +60,7 @@ final class ResizeModeActive extends ResizeModeState {
   });
 
   final BoardKey boardKey;
-  final ToolId toolId;
+  final PinId toolId;
   final int baseCols;
   final int baseRows;
   final int currentCols;
@@ -79,7 +79,7 @@ class ResizeModeNotifier extends Notifier<ResizeModeState> {
   /// effective size as both base and current.
   void start({
     required BoardKey boardKey,
-    required ToolId toolId,
+    required PinId toolId,
     required int baseCols,
     required int baseRows,
     required int manifestCols,
@@ -284,7 +284,7 @@ void commitResizeMode(ProviderContainer container) {
   int manifestRows,
   int maxCols,
 })?
-_focusedResizeSeed(ProviderContainer container, ToolId toolId) {
+_focusedResizeSeed(ProviderContainer container, PinId toolId) {
   final boardKey = container.read(currentBoardKeyProvider);
   if (boardKey == null) return null;
   final snapshot = container.read(layoutLoaderProvider)(
@@ -292,7 +292,7 @@ _focusedResizeSeed(ProviderContainer container, ToolId toolId) {
   );
   PlacementDto? placement;
   for (final candidate in snapshot.placements) {
-    if (candidate.toolId == toolId.value) {
+    if (candidate.pinId == toolId.value) {
       placement = candidate;
       break;
     }
@@ -302,7 +302,9 @@ _focusedResizeSeed(ProviderContainer container, ToolId toolId) {
   // still loading, fall back to the placement's effective size (best
   // effort — reset/clearSpan detection then treats "as rendered" as
   // the manifest).
-  final units = container.read(toolByIdProvider(toolId))?.pegboardUnits;
+  final units = container
+      .read(toolByIdProvider(ToolId.parse(placement.toolId)))
+      ?.pegboardUnits;
   final manifest = units?.footprint ?? (cols: placement.w, rows: placement.h);
   return (
     boardKey: boardKey,

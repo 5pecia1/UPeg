@@ -83,6 +83,7 @@ pub(crate) async fn openapi_spec() -> Json<Value> {
         paths.insert(format!("/v1/tools/{}", t.id), path_item);
     }
     insert_v21_resource_paths(&mut paths);
+    insert_extension_board_paths(&mut paths);
     insert_mcp_paths(&mut paths);
 
     Json(json!({
@@ -97,6 +98,55 @@ pub(crate) async fn openapi_spec() -> Json<Value> {
         },
         "paths": Value::Object(paths),
     }))
+}
+
+fn insert_extension_board_paths(paths: &mut serde_json::Map<String, Value>) {
+    let json_response = json!({
+        "description": "Extension Board JSON, including declared non-File saved input presets only.",
+        "content": { "application/json": { "schema": { "type": "object" } } }
+    });
+    for (path, summary, params) in [
+        ("/v1/ext/boards", "List extension-visible Boards", &[][..]),
+        (
+            "/v1/ext/boards/{board}",
+            "Show one extension-visible Board",
+            &["board"][..],
+        ),
+    ] {
+        paths.insert(
+            path.to_string(),
+            json!({
+                "get": with_path_parameters(json!({
+                    "summary": summary,
+                    "responses": {
+                        "200": json_response.clone(),
+                        "404": error_response("Board id is unknown.")
+                    }
+                }), params)
+            }),
+        );
+    }
+    paths.insert(
+        "/v1/ext/boards/{board}/tools/{id}".to_string(),
+        json!({
+            "post": with_path_parameters(json!({
+                "summary": "Run an extension-visible pinned Tool with extension Board context",
+                "requestBody": {
+                    "required": false,
+                    "content": { "application/json": { "schema": { "type": "object" } } }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tool ran and returned the canonical result envelope.",
+                        "content": { "application/json": { "schema": tool_call_response_schema() } }
+                    },
+                    "400": error_response("Request body is not valid JSON."),
+                    "404": error_response("Board or pinned Tool id is unknown."),
+                    "422": error_response("Tool failed or requires unsupported approval.")
+                }
+            }), &["board", "id"])
+        }),
+    );
 }
 
 fn insert_v21_resource_paths(paths: &mut serde_json::Map<String, Value>) {

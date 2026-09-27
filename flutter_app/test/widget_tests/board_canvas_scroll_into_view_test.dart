@@ -32,8 +32,22 @@ const LayoutSnapshotDto _snapshot = LayoutSnapshotDto(
   boardKey: 'dev',
   boardCols: 6,
   placements: [
-    PlacementDto(toolId: _nearToolId, x: 0, y: 0, w: 1, h: 1),
-    PlacementDto(toolId: _farToolId, x: _farCol, y: _farRow, w: 1, h: 1),
+    PlacementDto(
+      toolId: _nearToolId,
+      pinId: _nearToolId,
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+    ),
+    PlacementDto(
+      toolId: _farToolId,
+      pinId: _farToolId,
+      x: _farCol,
+      y: _farRow,
+      w: 1,
+      h: 1,
+    ),
   ],
 );
 
@@ -73,7 +87,7 @@ void _focus(WidgetTester tester, String toolId) {
   ProviderScope.containerOf(
     tester.element(find.byKey(_gridKey)),
     listen: false,
-  ).read(focusedPinProvider.notifier).focus(ToolId.parse(toolId));
+  ).read(focusedPinProvider.notifier).focus(PinId.parse(toolId));
 }
 
 void main() {
@@ -193,7 +207,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse(_farToolId));
+          .focus(PinId.parse(_farToolId));
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

@@ -63,7 +63,6 @@ mod tests {
         ("ControlledEmbedToml", 12),
         ("ControlledEmbedBrowserToml", 12),
         ("BindingWaitToml", 13),
-        ("BoardEntryToml", 14),
         ("PresentationToml", 15),
         ("PresentationColumnToml", 16),
         ("PresentationActionToml", 17),

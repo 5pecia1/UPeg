@@ -7,7 +7,7 @@ import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 
 /// Quit-confirm dialog — contract row `q` in
-/// `docs/ui-ux-surface-contract.md`: quitting always routes through an
+/// `upeg_core::keyboard_catalog`: quitting always routes through an
 /// explicit confirmation, mirroring the TUI's `ConfirmQuit` view. Key
 /// handling reuses the shared confirm scope (the TUI maps ConfirmQuit to
 /// `KeyboardScope::ConfirmDelete` too), so F1 / Enter / `y` confirm and

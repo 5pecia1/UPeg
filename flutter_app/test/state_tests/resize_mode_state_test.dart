@@ -28,7 +28,7 @@ void _startU1({
       .read(resizeModeProvider.notifier)
       .start(
         boardKey: _devBoardKey,
-        toolId: ToolId.parse(toolId),
+        toolId: PinId.parse(toolId),
         baseCols: baseCols,
         baseRows: baseRows,
         manifestCols: manifestCols,
@@ -58,7 +58,7 @@ void main() {
         expect(state, isA<ResizeModeActive>());
         final active = state as ResizeModeActive;
         expect(active.boardKey, _devBoardKey);
-        expect(active.toolId, ToolId.parse('num.hex_to_decimal'));
+        expect(active.toolId, PinId.parse('num.hex_to_decimal'));
         expect(active.baseCols, 2);
         expect(active.baseRows, 1);
         expect(active.currentCols, 2);
@@ -157,7 +157,7 @@ void main() {
 
       final committed = c.read(resizeModeProvider.notifier).commit();
       expect(committed, isNotNull);
-      expect(committed!.toolId, ToolId.parse('fixture.echo'));
+      expect(committed!.toolId, PinId.parse('fixture.echo'));
       expect(committed.currentCols, 3);
       expect(committed.currentRows, 1);
       expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());

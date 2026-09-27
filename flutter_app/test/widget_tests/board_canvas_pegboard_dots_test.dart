@@ -155,6 +155,7 @@ void main() {
               placements: [
                 PlacementDto(
                   toolId: 'num.hex_to_decimal',
+                  pinId: 'num.hex_to_decimal',
                   x: 0,
                   y: 0,
                   w: 1,

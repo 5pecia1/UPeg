@@ -98,7 +98,7 @@ Widget _inlineHarness({required _DispatchLog log, required ToolDto tool}) {
           height: 220,
           child: GenericInlinePinBody(
             tool: tool,
-            pinKey: (BoardKey.parse('dev'), ToolId.parse(tool.id)),
+            pinKey: (BoardKey.parse('dev'), PinId.parse(tool.id)),
           ),
         ),
       ),

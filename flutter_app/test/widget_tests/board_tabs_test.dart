@@ -478,7 +478,7 @@ void main() {
       final container = _container(boards);
       container
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
+          .focus(PinId.parse('num.hex_to_decimal'));
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -577,7 +577,7 @@ void main() {
       // Focus a pin → becomes enabled
       container
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
+          .focus(PinId.parse('num.hex_to_decimal'));
       await tester.pumpAndSettle();
 
       // Now tapping should work

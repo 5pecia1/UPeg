@@ -35,8 +35,8 @@ void main() {
           currentBoardKey: 'dev',
           focusedToolId: 'num.hex_to_decimal',
           isPinnedLoader: (boardKey, toolId) => true,
-          unpinMutator: (boardKey, toolId) {
-            observed = (boardKey, toolId);
+          removePinMutator: (boardKey, pinId) {
+            observed = (boardKey, pinId);
           },
           resolver:
               ({
@@ -60,53 +60,45 @@ void main() {
 
       expect(observed, (
         BoardKey.parse('dev'),
-        ToolId.parse('num.hex_to_decimal'),
+        PinId.parse('num.hex_to_decimal'),
       ));
     });
 
-    testWidgets(
-      'BoardPage_pins_an_unpinned_focused_tool_on_the_TogglePin_command',
-      (tester) async {
-        PinKey? observed;
-        await tester.pumpWidget(
-          boardPageHarness(
-            currentBoardKey: 'dev',
-            focusedToolId: 'num.hex_to_decimal',
-            isPinnedLoader: (boardKey, toolId) => false,
-            pinMutator: (boardKey, toolId) {
-              observed = (boardKey, toolId);
-            },
-            resolver:
-                ({
-                  required String key,
-                  required bool ctrl,
-                  required bool meta,
-                  required bool shift,
-                  required bool alt,
-                  required bool hasToolFocus,
-                  required KeyboardScopeDto scope,
-                }) {
-                  if (key == 'p') return const KeyboardCommandDto.togglePin();
-                  return null;
-                },
-          ),
-        );
+    testWidgets('BoardPage_does_not_remove_a_pin_when_none_is_focused', (
+      tester,
+    ) async {
+      var removeCalls = 0;
+      await tester.pumpWidget(
+        boardPageHarness(
+          currentBoardKey: 'dev',
+          removePinMutator: (_, _) => removeCalls += 1,
+          resolver:
+              ({
+                required String key,
+                required bool ctrl,
+                required bool meta,
+                required bool shift,
+                required bool alt,
+                required bool hasToolFocus,
+                required KeyboardScopeDto scope,
+              }) {
+                if (key == 'p') return const KeyboardCommandDto.togglePin();
+                return null;
+              },
+        ),
+      );
 
-        await tester.pumpAndSettle();
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
-        await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+      await tester.pump();
 
-        expect(observed, (
-          BoardKey.parse('dev'),
-          ToolId.parse('num.hex_to_decimal'),
-        ));
-      },
-    );
+      expect(removeCalls, 0);
+    });
 
     testWidgets(
       'BoardPage_routes_the_Reorder_previous_command_to_the_reorder_provider',
       (tester) async {
-        ToolId? observedTool;
+        PinId? observedTool;
         OrderDirectionDto? observedDirection;
         await tester.pumpWidget(
           boardPageHarness(
@@ -140,7 +132,7 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
         await tester.pump();
 
-        expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+        expect(observedTool, PinId.parse('num.hex_to_decimal'));
         expect(observedDirection, OrderDirectionDto.previous);
       },
     );
@@ -155,6 +147,20 @@ void main() {
           tools: [
             fixtureToolDto(id: 'num.hex_to_decimal', label: 'Hex to Dec'),
           ],
+          layoutLoader: (query) => LayoutSnapshotDto(
+            boardKey: query.boardKey.value,
+            boardCols: 6,
+            placements: const [
+              PlacementDto(
+                toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+            ],
+          ),
           pinActivation: ({required toolId, required argsJson}) {
             return PinActivationDto.openModal(toolId: toolId.value);
           },
@@ -193,6 +199,7 @@ void main() {
             placements: const <PlacementDto>[
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -250,9 +257,30 @@ void main() {
             boardKey: query.boardKey.value,
             boardCols: 12,
             placements: const <PlacementDto>[
-              PlacementDto(toolId: 'fixture.left', x: 0, y: 0, w: 1, h: 1),
-              PlacementDto(toolId: 'fixture.right', x: 4, y: 0, w: 1, h: 1),
-              PlacementDto(toolId: 'fixture.down', x: 0, y: 1, w: 1, h: 1),
+              PlacementDto(
+                toolId: 'fixture.left',
+                pinId: 'fixture.left',
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+              PlacementDto(
+                toolId: 'fixture.right',
+                pinId: 'fixture.right',
+                x: 4,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+              PlacementDto(
+                toolId: 'fixture.down',
+                pinId: 'fixture.down',
+                x: 0,
+                y: 1,
+                w: 1,
+                h: 1,
+              ),
             ],
           ),
           tools: [
@@ -440,6 +468,7 @@ void main() {
             placements: const [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,

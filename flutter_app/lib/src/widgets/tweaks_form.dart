@@ -22,7 +22,9 @@ import 'package:upeg/src/rust/api/tweaks.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/backup_section.dart';
+import 'package:upeg/src/widgets/diagnostics_section.dart';
 import 'package:upeg/src/widgets/host_attach_section.dart';
+import 'package:upeg/src/widgets/project_context_section.dart';
 
 /// Externally-stable handles for the "Local HTTP host" row. Tests grip
 /// these instead of the localized copy, so a catalog edit never
@@ -80,6 +82,16 @@ class _TweaksFormBodyState extends ConsumerState<_TweaksFormBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _Section(
+          label: t(ref, 'settings.section.project').toUpperCase(),
+          child: const ProjectContextSection(),
+        ),
+        const SizedBox(height: 14),
+        _Section(
+          label: t(ref, 'settings.section.diagnostics').toUpperCase(),
+          child: const DiagnosticsSection(),
+        ),
+        const SizedBox(height: 14),
         _Section(
           label: t(ref, 'settings.section.theme').toUpperCase(),
           child: Column(

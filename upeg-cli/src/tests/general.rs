@@ -371,7 +371,7 @@ fn register_context_echo_tool(id: &'static str, toolkit: &'static str) {
 fn trigger_fire_stamps_the_first_declared_binding_label() {
     // `_upeg.trigger` carries the fired trigger, never the tool id — the tool
     // already knows its own id. `fire` names a tool, so the first declared
-    // binding wins (docs/architecture/call-envelope.md).
+    // binding wins (`upeg_runtime::execution` module docs).
     const ID: &str = "trigfire.labelled";
     register_context_echo_tool(ID, "trigfire");
     upeg_runtime::set_trigger_bindings(

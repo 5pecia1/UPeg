@@ -733,20 +733,36 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
       style: _fieldStyle,
       decoration: _decoration(
         field,
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.folder_open),
-          onPressed: () async {
-            final bridge = ref.read(filePickerBridgeProvider);
-            final picked = await bridge.pickOpenPath();
-            if (picked == null) return;
-            if (!mounted) return;
-            widget.controller.set(field.key, TextValue(picked));
-            _onValueChanged(field);
-          },
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: Key('field-${field.key}-pick-file'),
+              tooltip: t(ref, 'modal.generic.file_path_pick_file'),
+              icon: const Icon(Icons.insert_drive_file_outlined),
+              onPressed: () => _pickPath(field, directory: false),
+            ),
+            IconButton(
+              key: Key('field-${field.key}-pick-directory'),
+              tooltip: t(ref, 'modal.generic.file_path_pick_folder'),
+              icon: const Icon(Icons.folder_open),
+              onPressed: () => _pickPath(field, directory: true),
+            ),
+          ],
         ),
       ),
       onChanged: (value) => _onTextChanged(field, value),
     );
+  }
+
+  Future<void> _pickPath(InputFieldDto field, {required bool directory}) async {
+    final bridge = ref.read(filePickerBridgeProvider);
+    final picked = directory
+        ? await bridge.pickDirectoryPath()
+        : await bridge.pickOpenPath();
+    if (picked == null || !mounted) return;
+    widget.controller.set(field.key, TextValue(picked));
+    _onValueChanged(field);
   }
 
   Widget _urlField(InputFieldDto field) {

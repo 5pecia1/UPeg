@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use upeg_runtime::{CancellationToken, ProgressEvent, ProgressReporter, ProgressSink};
 
 use super::*;
-use crate::infrastructure::discovery::ServerInfo;
+use crate::infrastructure::discovery::{DiscoveredHost, ServerInfo};
 
 /// Upper bound on how long the client waits for the test host to
 /// finish writing its response.
@@ -70,8 +70,8 @@ fn live_call(sink: &Arc<CollectSink>, cancel: Option<CancellationToken>) -> Live
     LiveCall::new(Some(ProgressReporter::new(shared)), cancel)
 }
 
-fn server_info(address: std::net::SocketAddr) -> ServerInfo {
-    ServerInfo::new(format!("http://{address}"), TEST_TOKEN)
+fn server_info(address: std::net::SocketAddr) -> DiscoveredHost {
+    DiscoveredHost::for_test(ServerInfo::new(format!("http://{address}"), TEST_TOKEN))
 }
 
 /// Read request headers and body to the end. The client always sends
@@ -129,6 +129,15 @@ fn scripted_host(
     pause: Duration,
 ) -> (std::net::SocketAddr, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("test host bind");
+    scripted_host_for(listener, status_line, script, pause)
+}
+
+fn scripted_host_for(
+    listener: TcpListener,
+    status_line: &'static str,
+    script: Vec<String>,
+    pause: Duration,
+) -> (std::net::SocketAddr, std::thread::JoinHandle<String>) {
     let address = listener.local_addr().expect("test host address");
     let handle = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("accept connection");
@@ -148,6 +157,73 @@ fn scripted_host(
         request
     });
     (address, handle)
+}
+
+#[test]
+fn ipv6_plain_board_and_stream_attach_use_bracketed_authority() {
+    let Ok(first) = TcpListener::bind("[::1]:0") else {
+        return; // IPv6 is unavailable on this runner.
+    };
+    let success = json!({ "ok": true, "primary_output_id": null, "outputs": [] }).to_string();
+    let (address, server) = scripted_host_for(
+        first,
+        "HTTP/1.0 200 OK",
+        vec![success.clone()],
+        Duration::ZERO,
+    );
+    let host = server_info(address);
+    assert!(matches!(
+        super::super::dispatch_tool(&host, TEST_TOOL_ID, &json!({}), Surface::Tui).unwrap(),
+        Outcome::Success(_)
+    ));
+    let request = server.join().unwrap();
+    assert!(request.contains(&format!("Host: [{address_ip}]:", address_ip = address.ip())));
+
+    let second = TcpListener::bind("[::1]:0").unwrap();
+    let (address, server) =
+        scripted_host_for(second, "HTTP/1.0 200 OK", vec![success], Duration::ZERO);
+    let host = server_info(address);
+    assert!(matches!(
+        super::super::dispatch_tool_on_board(
+            &host,
+            TEST_BOARD,
+            TEST_TOOL_ID,
+            &json!({}),
+            Surface::Tui
+        )
+        .unwrap(),
+        Outcome::Success(_)
+    ));
+    let request = server.join().unwrap();
+    assert!(request.contains(&format!("/v1/boards/{TEST_BOARD}/tools/{TEST_TOOL_ID}")));
+    assert!(request.contains(&format!("Host: [{address_ip}]:", address_ip = address.ip())));
+
+    let third = TcpListener::bind("[::1]:0").unwrap();
+    let (address, server) = scripted_host_for(
+        third,
+        "HTTP/1.0 200 OK",
+        vec![success_result_line()],
+        Duration::ZERO,
+    );
+    let host = server_info(address);
+    let sink = Arc::new(CollectSink::default());
+    assert!(matches!(
+        dispatch_tool_on_board_streamed(
+            &host,
+            TEST_BOARD,
+            TEST_TOOL_ID,
+            &json!({}),
+            Surface::Tui,
+            &live_call(&sink, None)
+        )
+        .unwrap(),
+        StreamedDispatch::Streamed(Outcome::Success(_))
+    ));
+    let request = server.join().unwrap();
+    assert!(request.contains(&format!(
+        "/v1/boards/{TEST_BOARD}/tools/{TEST_TOOL_ID}/stream"
+    )));
+    assert!(request.contains(&format!("Host: [{address_ip}]:", address_ip = address.ip())));
 }
 
 #[test]

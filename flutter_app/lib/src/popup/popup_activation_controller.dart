@@ -23,11 +23,9 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/popup/popup_activation_route.dart';
 import 'package:upeg/src/popup/popup_inline_outcome_provider.dart';
 import 'package:upeg/src/state/app_state.dart';
-import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart';
 import 'package:upeg/src/state/pending_activation_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
-import 'package:upeg/src/state/running_tools_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -35,6 +33,27 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 final popupActivationControllerProvider = Provider<PopupActivationController>(
   PopupActivationController.new,
 );
+
+final popupRunningToolsProvider =
+    NotifierProvider<PopupRunningToolsNotifier, Set<ToolId>>(
+      PopupRunningToolsNotifier.new,
+    );
+
+class PopupRunningToolsNotifier extends Notifier<Set<ToolId>> {
+  @override
+  Set<ToolId> build() => const <ToolId>{};
+
+  bool begin(ToolId toolId) {
+    if (state.contains(toolId)) return false;
+    state = Set<ToolId>.unmodifiable(<ToolId>{...state, toolId});
+    return true;
+  }
+
+  void end(ToolId toolId) {
+    if (!state.contains(toolId)) return;
+    state = Set<ToolId>.unmodifiable(<ToolId>{...state}..remove(toolId));
+  }
+}
 
 class PopupActivationController {
   PopupActivationController(this._ref);
@@ -67,22 +86,14 @@ class PopupActivationController {
   }
 
   Future<void> _runInline(ToolId toolId) async {
-    // Double-dispatch gate (same contract as the modal Run button): a
-    // second tap while the tool is still resolving is a no-op.
-    if (_ref.read(runningToolsProvider).contains(toolId)) return;
-    final running = _ref.read(runningToolsProvider.notifier);
+    final running = _ref.read(popupRunningToolsProvider.notifier);
+    if (!running.begin(toolId)) return;
     final dispatch = _ref.read(liveDispatchToolFnProvider);
-    final runningLease = running.begin(toolId);
     final outcome = await dispatch(
       toolId: toolId,
       args: ToolArgs.empty,
-    ).whenComplete(() => running.end(runningLease));
+    ).whenComplete(() => running.end(toolId));
     _ref.read(popupInlineOutcomeProvider.notifier).record(toolId, outcome);
-    if (outcome.ok) {
-      // Shared cache with the board: switching to the full surface
-      // shows the same result inline on the pin.
-      _ref.read(lastOutcomeProvider.notifier).record(toolId, outcome);
-    }
   }
 
   /// Copy the most recent inline result to the clipboard (F2).

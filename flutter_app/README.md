@@ -1,28 +1,27 @@
 # upeg — Flutter UI
 
-`flutter_app/` is the Desktop/PWA/Chrome-ext UI surface for upeg
-(Universal Pegboard). It renders the Pegboard/Board/Pin UI and talks to
-the Rust workspace through `flutter_rust_bridge` (`upeg-frb`) — tool
-registry, execution, and platform IPC stay on the Rust side; this
-package owns rendering only.
+`flutter_app/` is upeg's Desktop/PWA UI (Universal Pegboard). It renders
+the Pegboard/Board/Pin UI and communicates with the Rust workspace through
+`flutter_rust_bridge` (`upeg-frb`); tool registry, execution, and platform
+IPC remain in Rust. The package owns rendering only. The Chrome extension is
+a separate dependency-free JavaScript surface in `chrome-ext/`.
 
 ## Running
 
 ```bash
 cd flutter_app
-flutter run -d linux     # or -d chrome / -d web-server / -d macos
+flutter run -d linux
 ```
 
-CMake/cargokit builds the `upeg-frb` cdylib and installs it into the
-Flutter bundle automatically — no separate manual `cargo build` step is
-needed for the Linux desktop target. See the top-level
-[`README.md`](../README.md) for platform-specific instructions (macOS,
-Web, packaging).
+CMake/cargokit automatically builds and installs the `upeg-frb` cdylib
+into the Flutter bundle, so Linux needs no separate `cargo build`. For
+web, run `just flutter-run-web` or `just flutter-run-web-server` from the
+repository root; both build the FRB WASM bridge first. See the top-level
+[`README.md`](../README.md) for macOS, web, and packaging instructions.
 
 ## Codegen and tests
 
-From the repo root, `just` recipes wrap the Flutter/Dart tooling used in
-CI:
+From the repo root, `just` wraps the Flutter/Dart tooling used in CI:
 
 ```bash
 just frb-codegen              # regenerate FRB Rust↔Dart bindings after upeg-frb API changes
@@ -36,5 +35,5 @@ just flutter-fmt               # dart format lib/ test/
 just flutter-fmt-check         # dart format --set-exit-if-changed
 ```
 
-See the top-level [`README.md`](../README.md) and `Justfile` for the
-full list of recipes and drift-check gates.
+See the top-level [`README.md`](../README.md) and `Justfile` for all
+recipes and drift-check gates.

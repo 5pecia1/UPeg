@@ -29,6 +29,25 @@ void main() {
     robot.expectUnsupported(false);
   });
 
+  testWidgets('should run an offboard surface in its tool session', (
+    tester,
+  ) async {
+    final robot = ControlledEmbedTileRobot(tester);
+    await robot.pump(surface: true);
+    await robot.tapRun();
+
+    expect(controlledEmbedFixture.calls.single.boardKey, isNull);
+    final toolId = ToolId.parse(fixtureTool().id);
+    final entry = controlledEmbedFixture.sessions.entryForTool(toolId);
+    expect(entry, isNotNull);
+    expect(
+      controlledEmbedFixture.sessions.entryForPin(kControlledEmbedTestPinKey),
+      isNull,
+    );
+    await robot.tapDebug();
+    expect(controlledEmbedFixture.sessions.entryForTool(toolId), same(entry));
+  });
+
   testWidgets(
     'opening_debug_shows_the_app_session_without_running_the_tool_automatically',
     (tester) async {
@@ -38,8 +57,8 @@ void main() {
       ControlledEmbedDebugRobot(tester).expectVisible(true);
       expect(controlledEmbedFixture.calls, isEmpty);
       expect(controlledEmbedFixture.factory.sessions, hasLength(1));
-      final entry = controlledEmbedFixture.sessions.entryFor(
-        ToolId.parse(fixtureTool().id),
+      final entry = controlledEmbedFixture.sessions.entryForPin(
+        kControlledEmbedTestPinKey,
       )!;
       expect(entry.displayedInDebugger, isTrue);
       await ControlledEmbedDebugRobot(tester).tapClose();

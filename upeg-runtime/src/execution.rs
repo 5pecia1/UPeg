@@ -23,6 +23,70 @@
 //! filesystem looking for `upeg.toml`) is the [`ProjectContext`] port.
 //! Adapters supply the implementation — `upeg-sources` for filesystem
 //! surfaces, [`RegistryProjectContext`] for registry-only surfaces.
+//!
+//! # The shared call envelope
+//!
+//! Every non-UI surface reduces a call to
+//! `{ "tool": "{toolkit}.{tool}", "args": { … } }` — CLI `call` and the
+//! dynamic route, HTTP `POST /v1/tools/{id}` (and the board-scoped
+//! sibling), and MCP `tools/call` (`name` + `arguments`) all land here.
+//!
+//! # Reserved context: `_upeg`
+//!
+//! `args._upeg` is reserved for surface-supplied context so it cannot
+//! collide with user input. The keys split in two:
+//!
+//! * **Surface-stamped** — always erased when the caller sends them
+//!   (anti-spoofing): `board`, `boardEnv`, `projectManifest`, `surface`,
+//!   `principal`, `trigger`, `pinId`, `pinToolId`.
+//! * **Caller-preserved** — a narrow allow-list that survives the
+//!   erasure because no surface-side original exists to stamp over them
+//!   ([`CALLER_PRESERVED_CONTEXT_KEYS`]): `cwd` (absolute directory the
+//!   `External` child runs in) and `approvedSteps` (Chain-step approval
+//!   *intent* — whether intent is honored is judged separately by
+//!   `principal.role` + `surface`). GUI surfaces (`desktop`/`pwa`) strip
+//!   both approval levers (`approve`, `_upeg.approvedSteps`) from args
+//!   entirely and carry approval as one typed FRB parameter instead
+//!   (`upeg-frb`'s `shape_approval_arg`).
+//!
+//! `surface` answers "which door" (`cli`, `mcp`, `http`, …) — a local
+//! client attached to a host declares it through `X-Upeg-Origin-Surface`
+//! and the host verifies and stamps it. `principal` answers "what
+//! authority": `{ role, surface }` where role is `operator` (in-process
+//! `cli`/`tui`/`desktop`, or the operator bearer token over HTTP),
+//! `local` (a process the OS user launched — the MCP stdio lane), or
+//! `agent` (an agent token, or any caller the host cannot identify —
+//! the floor for `http`/`pwa`/`ext`). Every call gets a principal:
+//! per-surface defaults are total, and only an authenticating surface
+//! narrows the default with a token. The principal is consumed by the
+//! Chain approval gate and the execution log's `principal` column —
+//! the log stores only the role label, never a token value.
+//!
+//! An `External` invoker additionally receives `UPEG_BOARD`,
+//! `UPEG_PROJECT_MANIFEST`, and each `boardEnv` entry as process env.
+//!
+//! # Sub-calls inherit `_upeg`
+//!
+//! A Chain step's args are a new object built by the manifest template
+//! with caller text poured in through `{{input.*}}`, so a `_upeg`
+//! written there is caller data, not identity. [`inherit_call_context`]
+//! discards it and hands down the call's `_upeg` block as-is — a nested
+//! chain's approval barrier is judged by the outer call's real surface
+//! and principal, and no step args can fabricate either. A call with no
+//! `_upeg` produces no such key on step args.
+//!
+//! # `_upeg.trigger`
+//!
+//! Stamps the Trigger that fired — `<source>`, or
+//! `<source>:<condition>` when a condition exists (`clipboard`,
+//! `file:/tmp/drop.txt`, `schedule:every:30s`, `hotkey:ctrl+shift+u`).
+//! A condition may itself contain `:`, so it splits at the *first*
+//! delimiter only. It is a string, not an object, because the execution
+//! log's `trigger` column and the `--trigger` filter read a string.
+//! Stamp points: the CLI trigger poll loop, the `hotkey` adapter,
+//! `POST /v1/trigger/{tool_id}`, and `upeg trigger fire`. `trigger fire`
+//! names a Tool, not a binding, so the first declared binding wins; a
+//! Tool with no bindings stamps nothing.
 
 use serde_json::Value;
 use upeg_core::{
@@ -257,8 +321,8 @@ const CALLER_APPROVED_STEPS_KEY: &str = EXECUTION_CONTEXT_APPROVED_STEPS;
 ///     wipe (`preserve_existing = false`) — that wipe is deliberate and
 ///     stays in place.
 ///   - **Carried-from-caller**: [`CALLER_APPROVED_STEPS_KEY`] (Chain-step
-///     approval, docs/architecture/chain.md — the caller states intent
-///     here; whether that intent is honored is decided by the Chain
+///     approval — the caller states intent here; whether that intent is
+///     honored is decided by the Chain
 ///     dispatcher against the surface label, which the caller cannot
 ///     spoof) and
 ///     [`EXECUTION_CONTEXT_CWD`] (the caller's working directory). These
@@ -309,34 +373,22 @@ fn merge_execution_context(
 /// surface. It cannot stamp `_upeg.surface`, and the block its template
 /// produced is not identity: `{{input.*}}` splices caller text into that
 /// template, so a caller can write any `_upeg` key it likes into a step's
-/// args. So the sub-call's own block goes through the same reserved-block
-/// wipe every surface applies, and the parent call's block is installed in
-/// its place.
-///
-/// One definition of "authoritative-from-surface"
-/// ([`merge_execution_context`]), one answer to "which surface is asking"
-/// no matter how deep the call sits. Nesting neither forges the answer nor
-/// loses it: a chain step inside a chain still sees the surface, board, and
-/// `cwd` the outermost surface stamped.
+/// args. The sub-call's entire block is discarded and the parent call's
+/// block is installed in its place. This includes the reserved
+/// `_upeg.approvedSteps` and `_upeg.cwd` keys: a template cannot create
+/// those context values absent from its parent call. Ordinary step args
+/// such as top-level `approve` keep their Chain contract.
 pub fn inherit_call_context(args: Value, call: &Value) -> Value {
-    let entries = call
+    let mut object = into_args_object(args);
+    object.remove(EXECUTION_CONTEXT_ARG);
+    if let Some(context) = call
         .get(EXECUTION_CONTEXT_ARG)
         .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-    let mut merged = merge_execution_context(args, entries, false);
-    // A call with no context hands down no context. Leaving an empty
-    // `_upeg` block behind would put a key in the sub-call's args that
-    // nobody wrote — visible to every dispatcher that iterates them.
-    if merged
-        .get(EXECUTION_CONTEXT_ARG)
-        .and_then(Value::as_object)
-        .is_some_and(serde_json::Map::is_empty)
-        && let Some(object) = merged.as_object_mut()
+        .filter(|context| !context.is_empty())
     {
-        object.remove(EXECUTION_CONTEXT_ARG);
+        object.insert(EXECUTION_CONTEXT_ARG.into(), Value::Object(context.clone()));
     }
-    merged
+    Value::Object(object)
 }
 
 /// Apply the execution context to `args`:
@@ -526,6 +578,7 @@ mod tests {
                 "surface": "cli",
                 "board": "dev",
                 "cwd": "/workspaces/upeg",
+                "approvedSteps": ["gate"],
             },
         });
 
@@ -541,6 +594,7 @@ mod tests {
             context.get("cwd"),
             Some(&Value::String("/workspaces/upeg".into()))
         );
+        assert_eq!(context["approvedSteps"], serde_json::json!(["gate"]));
         assert_eq!(out["input"], "x");
     }
 
@@ -561,6 +615,28 @@ mod tests {
             .expect("runtime context object");
         assert_eq!(context.get("surface"), Some(&Value::String("mcp".into())));
         assert!(context.get("board").is_none(), "{context:?}");
+    }
+
+    #[test]
+    fn sub_call_drops_child_approval_and_cwd_when_parent_did_not_supply_them() {
+        let call = serde_json::json!({
+            EXECUTION_CONTEXT_ARG: {
+                "surface": "cli",
+                "principal": { "role": "operator", "surface": "cli" },
+            },
+        });
+        let child = serde_json::json!({
+            "input": "x",
+            EXECUTION_CONTEXT_ARG: {
+                "approvedSteps": ["gate"],
+                "cwd": "/child/forged",
+            },
+        });
+
+        let out = inherit_call_context(child, &call);
+
+        assert_eq!(out[EXECUTION_CONTEXT_ARG], call[EXECUTION_CONTEXT_ARG]);
+        assert_eq!(out["input"], "x");
     }
 
     #[test]

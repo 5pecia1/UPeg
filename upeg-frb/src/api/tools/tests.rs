@@ -188,6 +188,7 @@ fn canonical_tool_result_exposes_success_schema_as_canonical_output() {
         "num.hex_to_decimal".to_string(),
         r#"{"input":"0xff"}"#.to_string(),
         None,
+        None,
         false,
     );
 
@@ -209,6 +210,7 @@ fn canonical_tool_result_exposes_failure_schema_as_canonical_error() {
         "nonexistent.tool".to_string(),
         "{}".to_string(),
         None,
+        None,
         false,
     );
 
@@ -227,6 +229,7 @@ fn dispatch_tool_rejects_noncanonical_tool_id() {
         " num.hex_to_decimal ".to_string(),
         "{}".to_string(),
         None,
+        None,
         false,
     );
     assert!(!outcome.ok);
@@ -240,6 +243,7 @@ fn dispatch_tool_returns_canonical_output_entry_when_output_spec_present() {
     let outcome = dispatch_tool(
         "num.hex_to_decimal".to_string(),
         r#"{"input":"0xff"}"#.to_string(),
+        None,
         None,
         false,
     );

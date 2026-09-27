@@ -108,16 +108,17 @@ fn a_project_manifest_absent_at_start_is_detected_once_created() {
         |_| {},
         || {
             let _environment = SourceEnvironment::isolated();
-            let path = upeg_core::paths::config_root()
+            let root = upeg_core::paths::config_root()
                 .expect("config root")
-                .join("upeg.toml");
+                .join("new-project");
+            std::fs::create_dir_all(&root).expect("project root");
             unsafe {
-                std::env::set_var("UPEG_PROJECT_MANIFEST_PATH", &path);
+                std::env::set_var("UPEG_PROJECT_MANIFEST_PATH", &root);
             }
             let config = upeg_sources::RuntimeSourceConfig::from_env();
             assert!(config.project_manifest.is_none());
             upeg_sources::load_local_runtime_sources(&config);
-            std::fs::write(&path, "id = 'new_project'\n").expect("create the project manifest");
+            std::fs::create_dir_all(root.join(".upeg")).expect("create the project marker");
 
             let error = board_connection_preview(&BoardKey::parse("dev").expect("board"))
                 .expect_err("must restart before honouring the new manifest");

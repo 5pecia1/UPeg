@@ -323,11 +323,12 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
     final runningTools = ref.read(runningToolsProvider.notifier);
     final runId = nextDispatchRunId();
     setState(() => _runId = runId);
-    final runningLease = runningTools.begin(_toolId);
+    final runningLease = runningTools.begin(widget.pinKey);
 
     CanonicalToolResult outcome = _safeFailureResult();
     try {
       final events = dispatch(
+        pinKey: widget.pinKey,
         toolId: _toolId,
         args: args,
         approve: approve,

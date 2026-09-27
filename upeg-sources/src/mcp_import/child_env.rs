@@ -21,7 +21,7 @@
 
 use tokio::process::Command;
 
-/// Env var name. `pub` — documented at docs/architecture/mcp.md and
+/// Env var name. `pub` — documented in this module's docs and
 /// read (indirectly, via [`is_mcp_import_child`]) by `upeg-cli`'s
 /// long-lived host entry points.
 pub const MCP_IMPORT_CHILD_ENV: &str = "UPEG_MCP_IMPORT_CHILD";

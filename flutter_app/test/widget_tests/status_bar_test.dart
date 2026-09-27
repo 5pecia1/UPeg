@@ -17,6 +17,7 @@ import 'package:upeg/src/rust/api/status.dart'
 import 'package:upeg/src/rust/api/tweaks.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/status_provider.dart';
+import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/status_bar.dart';
@@ -30,6 +31,7 @@ const BoardDto _prod = BoardDto(key: 'prod', title: 'Prod');
 
 const PlacementDto _placement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 0,
   y: 0,
   w: 1,
@@ -60,6 +62,7 @@ ProviderContainer _scope({
   required Map<String, List<PlacementDto>> layouts,
   String? selectedKey,
   StatusSnapshotDto status = _defaultStatus,
+  ProjectDefinition? project,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -84,6 +87,7 @@ ProviderContainer _scope({
             ),
       ),
       statusSnapshotProvider.overrideWith(() => _FakeStatusNotifier(status)),
+      projectContextApiProvider.overrideWithValue(_ProjectApi(project)),
     ],
   );
   if (selectedKey != null) {
@@ -101,6 +105,32 @@ class _FakeStatusNotifier extends StatusNotifier {
 
   @override
   StatusSnapshotDto build() => _initial;
+}
+
+class _ProjectApi implements ProjectContextApi {
+  const _ProjectApi(this.project);
+  final ProjectDefinition? project;
+
+  @override
+  Future<ProjectDefinition?> current() async => project;
+
+  @override
+  Future<ProjectDefinition> validateRoot(String root) =>
+      Future<ProjectDefinition>.error(UnimplementedError());
+
+  @override
+  Future<ProjectActivation> activate(String root) =>
+      Future<ProjectActivation>.error(UnimplementedError());
+
+  @override
+  Future<void> close() => Future<void>.error(UnimplementedError());
+
+  @override
+  Future<ProjectActivation> setToolChoice({
+    required String root,
+    required String toolId,
+    required ProjectToolChoice choice,
+  }) => Future<ProjectActivation>.error(UnimplementedError());
 }
 
 Widget _harness(ProviderContainer container) {
@@ -193,6 +223,29 @@ void main() {
       // The stale hardcoded label must be GONE.
       expect(find.text('loopback-only'), findsNothing);
     });
+
+    testWidgets(
+      'StatusBar_shows_a_compact_project_name_with_full_root_tooltip',
+      (tester) async {
+        final container = _scope(
+          boards: const <BoardDto>[_dev],
+          layouts: const <String, List<PlacementDto>>{},
+          project: const ProjectDefinition(
+            root: '/very/long/path/to/a/project',
+            name: 'Project A',
+            boardCount: 0,
+            toolkits: [],
+          ),
+        );
+        addTearDown(container.dispose);
+        await container.read(boardsProvider.future);
+        await tester.pumpWidget(_harness(container));
+        await tester.pumpAndSettle();
+
+        expect(find.text('project Project A'), findsOneWidget);
+        expect(find.byTooltip('/very/long/path/to/a/project'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'always_on_status_text_uses_fg3_the_at_least_3_to_1_contrast_token',
@@ -366,7 +419,7 @@ void main() {
     ) async {
       // The embedded host starts serving before it loads imports. During
       // that window a count of 0 means "not in yet", not "no imports",
-      // so the chip must say so (docs/architecture/mcp.md).
+      // so the chip must say so (`upeg_cli::infrastructure::mcp_imports` module docs).
       final container = _scope(
         boards: const <BoardDto>[_dev],
         layouts: const <String, List<PlacementDto>>{},

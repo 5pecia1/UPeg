@@ -1,6 +1,8 @@
 ---
 title: Troubleshooting
 description: "Diagnosing upeg: doctor output, host/discovery state, tokens, manifest detection, and headless browsers."
+type: Guide
+tags: [diagnostics]
 ---
 
 # Troubleshooting
@@ -15,6 +17,32 @@ upeg doctor --json   # same data, machine-readable
 `doctor` reports which runtime source directories exist and how many tools
 loaded — most "my tool is missing" problems end there.
 
+## Export a failed run safely
+
+Failures of External tools and local source loading leave a bounded local
+diagnostic report. This is separate from `upeg log`: the execution log stays
+metadata-only, while a diagnostic retains the capped stdout/stderr and error
+details needed to explain a failure.
+
+```bash
+upeg diagnostics list
+upeg diagnostics show <id>
+upeg diagnostics export <id> > upeg-failure.json
+upeg diagnostics export <id> --debug > upeg-failure-debug.json
+```
+
+Reports are retained locally in a newest-200 window. Before persistence and
+export, common credential assignments and authorization headers are redacted;
+Tool arguments, environment values, and successful outputs are never captured.
+`--debug` includes the remaining redacted structured error details, not an
+uncapped process or environment dump.
+
+Desktop exposes recent reports in Settings → Diagnostics. A failed tool result
+links to the report for that exact run; copying that failure uses the retained,
+redacted report when available. Closing a result does not delete its diagnostic.
+Framework and platform errors from Flutter use the same report store. Browser
+Controlled Embed debug remains a separate workbench.
+
 ## A Tool is missing or a manifest is ignored
 
 - Run `upeg tool validate <path>` on the manifest — parse and schema errors
@@ -24,16 +52,23 @@ loaded — most "my tool is missing" problems end there.
 - Check which directories are actually read: `~/.upeg/toolkits/`,
   `~/.upeg/wasm/`, `~/.upeg/mcp-imports/` — or the `$UPEG_TOOLKITS_DIR` /
   `$UPEG_WASM_DIR` / `$UPEG_MCP_IMPORTS_DIR` overrides if set.
-- **Project manifests** (`upeg.toml`) are detected from cwd upward, but only
-  through ancestors inside `$HOME` — a checkout under `/tmp` or another
-  world-writable root is deliberately not followed (see
-  [security absolutes](../product/security-absolutes.md)). Pin a path with
-  `$UPEG_PROJECT_MANIFEST_PATH`, or disable detection with `off`.
-- A tool id like `dev.git_log` in a project manifest only exists while you
-  run upeg inside that project. From another directory it's `unknown tool`.
+- A project starts at a `.upeg/` marker. Its optional
+  `.upeg/project.toml` and `.upeg/toolkits/*.toml` are loaded only from the
+  nearest marked ancestor; UPeg never falls back to a home-directory project.
+  Run `upeg project validate` at the project root to name every invalid file,
+  or pass `--project <root>` to select a known project without changing cwd.
+- A project tool such as `dev.git_log` exists only while its manifest is
+  loaded. From another project (or outside its nearest `.upeg/` root) it is
+  `unknown tool`; use `--project <root>` when invoking it from elsewhere.
 - WASM plugin commands (`upeg plugin install`, `upeg wasm`) are absent only
   from `--no-default-features` builds — `wasm-plugin` is a default feature.
   `upeg doctor` lists enabled features.
+- MCP-imported tools can be missing for a few seconds right after a
+  desktop-embedded host starts — it serves before imports finish loading.
+  Poll `importsPending` on `/healthz` (`upeg host status --json` shows it as
+  `mcpImports`), watch for `notifications/tools/list_changed` on an SSE
+  stream, or just re-read `tools/list` a little later. Reloading an import
+  always means restarting the host.
 
 ## Host, token, and HTTP problems
 
@@ -76,7 +111,7 @@ loaded — most "my tool is missing" problems end there.
 
 - `FileValue` `bytes` must be standard padded RFC 4648 Base64 — URL-safe
   `-`/`_`, whitespace, missing padding, and the legacy numeric array are all
-  rejected. See the [File wire contract](../architecture/file-wire.md).
+  rejected. See the [File wire contract](../architecture.md#file-wire).
 - Size budgets differ per direction and surface (100 files / 50 MiB in,
   64 MiB out, 1,000,000-byte HTTP/MCP envelopes, 640 KiB extension input) —
   the same document lists them.

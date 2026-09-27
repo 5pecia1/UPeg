@@ -117,7 +117,12 @@ impl RuntimeSourceConfig {
     pub fn from_env() -> Self {
         Self {
             toolkits_dir: upeg_core::paths::toolkits_dir(),
-            project_manifest: crate::project::detect_project_manifest_lookup(),
+            project_manifest: crate::project::current_project_root()
+                .map(|root| crate::project::ProjectManifestLookup {
+                    path: root.join(upeg_core::PROJECT_MARKER_DIR),
+                    origin: crate::project::ProjectManifestOrigin::EnvOverride,
+                })
+                .or_else(crate::project::detect_project_manifest_lookup),
             wasm_dir: upeg_core::paths::wasm_dir(),
             mcp_import_dir: upeg_core::paths::mcp_import_dir(),
         }
@@ -167,13 +172,25 @@ pub fn load_local_runtime_sources(config: &RuntimeSourceConfig) -> RuntimeSource
 /// `upeg-cli/src/domain/execution/context.rs::requires_local_dispatch`.
 /// Doing it here, at the single load site, is why no surface can forget.
 fn load_project_manifest(lookup: &crate::project::ProjectManifestLookup) -> ProjectManifestLoad {
-    let outcome = upeg_loader::load_and_register_file_verbose(&lookup.path);
-    let path = lookup.path.display().to_string();
-    for id in &outcome.loaded {
-        upeg_runtime::register_tool_provenance(
-            id,
-            upeg_runtime::ToolProvenance::ProjectManifest { path: path.clone() },
-        );
+    let mut outcome = upeg_loader::LoadOutcome::default();
+    match lookup.path.parent().map(crate::project::activate_project) {
+        Some(Ok(activation)) => {
+            outcome.loaded = activation.loaded_tool_ids;
+            outcome.failed.extend(
+                activation
+                    .failed
+                    .into_iter()
+                    .map(|(path, reason)| (path, upeg_loader::LoadError::Project(reason))),
+            );
+        }
+        Some(Err(error)) => outcome.failed.push((
+            lookup.path.clone(),
+            upeg_loader::LoadError::Project(error.to_string()),
+        )),
+        None => outcome.failed.push((
+            lookup.path.clone(),
+            upeg_loader::LoadError::Project("missing project root".into()),
+        )),
     }
     ProjectManifestLoad {
         path: lookup.path.clone(),
@@ -287,7 +304,7 @@ fn load_mcp_import_dir(dir: Option<&Path>) -> (DirectoryStatus, McpImportRegistr
 /// TUI deliberately skip it so they never spawn upstream subprocesses;
 /// they reach imported tools through an attached host instead. There is
 /// no reload — restarting the host process re-imports
-/// (docs/architecture/mcp.md).
+/// (`upeg_sources::mcp_import` module docs).
 pub fn load_mcp_imports_for_host(config: &RuntimeSourceConfig) -> McpImportLoad {
     let (directory, servers) = load_mcp_import_dir(config.mcp_import_dir.as_deref());
     McpImportLoad { directory, servers }
@@ -602,9 +619,10 @@ done
 
     #[test]
     fn runtime_source_load_loads_toolkits_and_project_manifest() {
+        let _guard = crate::project::project_test_guard();
         let root = std::env::temp_dir().join(format!("upeg-sources-load-{}", std::process::id()));
         let toolkits = root.join("toolkits");
-        let project_manifest = root.join("upeg.toml");
+        let project_manifest = root.join("project/.upeg");
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&toolkits).unwrap();
         std::fs::write(
@@ -619,8 +637,14 @@ command = "printf"
 args_template = ["runtime"]"#,
         )
         .unwrap();
+        std::fs::create_dir_all(project_manifest.join("toolkits")).unwrap();
         std::fs::write(
-            &project_manifest,
+            project_manifest.join("project.toml"),
+            "schema_version = 1\n",
+        )
+        .unwrap();
+        std::fs::write(
+            project_manifest.join("toolkits/project.toml"),
             r#"id = "sources_project"
 
 [[tools]]
@@ -660,7 +684,13 @@ args_template = ["project"]"#,
             assert_eq!(
                 upeg_runtime::tool_provenance(id),
                 upeg_runtime::ToolProvenance::ProjectManifest {
-                    path: project.path.display().to_string(),
+                    path: project
+                        .path
+                        .join("toolkits/project.toml")
+                        .canonicalize()
+                        .unwrap()
+                        .display()
+                        .to_string(),
                 },
                 "project manifest tool `{id}` must carry provenance"
             );
@@ -675,6 +705,7 @@ args_template = ["project"]"#,
         }
         assert!(matches!(report.wasm, DirectoryStatus::Unconfigured));
         assert!(matches!(report.mcp_imports, DirectoryStatus::Unconfigured));
+        crate::project::close_project().expect("close project after source test");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

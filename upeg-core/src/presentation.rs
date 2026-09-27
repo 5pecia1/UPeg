@@ -1,4 +1,37 @@
 //! Optional presentation metadata and pure JSON binding resolution.
+//!
+//! Contract: a Tool still accepts one input object and returns one
+//! canonical `ToolResult`; presentation metadata only describes how a
+//! surface displays a JSON output and offers a follow-up Tool form. It
+//! introduces no new invoker, I/O kind, workflow engine, or
+//! domain-specific widget, and Tools without it behave as before. v1
+//! supports a collection of JSON objects with a stable string/integer
+//! row key and scalar columns, addressed by an output id plus JSON
+//! Pointers for rows/key/columns. Missing or duplicate row keys disable
+//! row actions and retain the raw JSON with a diagnostic; partial or
+//! restored results are never presented as fresh complete data.
+//!
+//! Actions have row or result scope and a statically declared target
+//! Tool id. Input bindings copy native JSON values from the invocation
+//! input, the selected row, the output-id-to-value map, or a literal —
+//! a binding can never populate reserved `_upeg` context. Missing
+//! declared sources and invalid bound values are diagnosed; required
+//! fields left unbound are filled in the target's existing form, and
+//! opening a form never executes it. Capability, surface, approval, and
+//! input validation stay with the dispatcher; text stays data.
+//!
+//! Invocation context: the surface retains a transient identity —
+//! input, host identity, result generation, selected row key. A
+//! persisted result may display but cannot seed actions until the Tool
+//! is run again; follow-up forms keep the original context, not global
+//! state. The `effect` hint (`read`/`write`/`unknown`, default unknown)
+//! is author metadata, not authorization; only a declared `read` origin
+//! may auto re-run via `refresh_origin` after a successful action. The
+//! origin is valid only while its frame, input, host, and generation
+//! are unchanged, and the refresh response re-checks that. A failed
+//! refresh does not turn a successful write into a failure; transport
+//! loss leaves a write outcome unknown — the surface marks the original
+//! result stale and lets the user re-read.
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -195,6 +228,7 @@ pub fn resolve_bindings(
             ActionBinding::Constant { value } => Some(value.clone()),
         };
         match resolved {
+            Some(Value::Null) => {}
             Some(value) => {
                 values.insert(target.clone(), value);
             }
@@ -269,6 +303,44 @@ mod tests {
         assert_eq!(resolved.rows[0].cells, vec![json!(true)]);
         assert!(!resolved.row_actions_enabled);
         assert!(resolved.diagnostics[0].contains("duplicated"));
+    }
+
+    #[test]
+    fn a_null_project_binding_leaves_the_required_folder_for_the_user_to_choose() {
+        let target = InputSpec::new(vec![
+            InputFieldSpec::new(
+                InputName::new("project").unwrap(),
+                None,
+                None,
+                true,
+                InputKind::FilePath,
+            )
+            .unwrap(),
+        ])
+        .unwrap();
+        let action = PresentationAction {
+            id: "choose".into(),
+            scope: ActionScope::Result,
+            label: "Choose project".into(),
+            target_tool: "demo.project".into(),
+            on_success: None,
+            bindings: BTreeMap::from([(
+                "project".into(),
+                ActionBinding::Output {
+                    pointer: "/result/project".into(),
+                },
+            )]),
+        };
+        let resolved = resolve_bindings(
+            &action,
+            &json!({}),
+            None,
+            &json!({"result": {"project": null}}),
+            &target,
+        );
+        assert!(resolved.diagnostics.is_empty());
+        assert!(resolved.values.is_empty());
+        assert_eq!(resolved.unbound_required_inputs, vec!["project"]);
     }
 
     #[test]

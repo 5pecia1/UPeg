@@ -47,6 +47,7 @@ final _mediaBoardKey = BoardKey.parse('media');
 
 const _focusedPlacement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 4,
   y: 2,
   w: _u1Span,
@@ -55,6 +56,7 @@ const _focusedPlacement = PlacementDto(
 
 const _widePlacement = PlacementDto(
   toolId: 'fixture.wide',
+  pinId: 'fixture.wide',
   x: _u2MaxStartX,
   y: 0,
   w: _u2Span,
@@ -84,7 +86,7 @@ void main() {
 
         c
             .read(focusedPinProvider.notifier)
-            .focus(ToolId.parse('num.hex_to_decimal'));
+            .focus(PinId.parse('num.hex_to_decimal'));
         final handled = handleMoveModeCommand(
           c,
           cmd: const KeyboardCommandDto.startMove(),
@@ -116,7 +118,7 @@ void main() {
 
         c
             .read(focusedPinProvider.notifier)
-            .focus(ToolId.parse('num.hex_to_decimal'));
+            .focus(PinId.parse('num.hex_to_decimal'));
         final handled = handleMoveModeCommand(
           c,
           cmd: const KeyboardCommandDto.startMove(),
@@ -148,12 +150,12 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
-      c.read(focusedPinProvider.notifier).focus(ToolId.parse('id.uuid_v7'));
+      c.read(focusedPinProvider.notifier).focus(PinId.parse('id.uuid_v7'));
       c
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('id.uuid_v7'),
+            toolId: PinId.parse('id.uuid_v7'),
             originX: 0,
             originY: 0,
             maxX: _u1MaxStartX,
@@ -174,12 +176,12 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
-      c.read(focusedPinProvider.notifier).focus(ToolId.parse('memo.scratch'));
+      c.read(focusedPinProvider.notifier).focus(PinId.parse('memo.scratch'));
       c
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('memo.scratch'),
+            toolId: PinId.parse('memo.scratch'),
             originX: 1,
             originY: 1,
             maxX: _u1MaxStartX,
@@ -197,10 +199,10 @@ void main() {
     test(
       'handleMoveModeCommand_calls_the_seam_on_Commit_while_Active',
       () async {
-        ToolId? observedTool;
+        PinId? observedTool;
         int? observedX;
         int? observedY;
-        Future<void> recorder(ToolId toolId, int x, int y) async {
+        Future<void> recorder(PinId toolId, int x, int y) async {
           observedTool = toolId;
           observedX = x;
           observedY = y;
@@ -216,12 +218,12 @@ void main() {
         );
         addTearDown(c.dispose);
 
-        c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.echo'));
+        c.read(focusedPinProvider.notifier).focus(PinId.parse('fixture.echo'));
         c
             .read(moveModeProvider.notifier)
             .start(
               boardKey: _devBoardKey,
-              toolId: ToolId.parse('fixture.echo'),
+              toolId: PinId.parse('fixture.echo'),
               originX: 2,
               originY: 1,
               maxX: _u1MaxStartX,
@@ -238,7 +240,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         expect(c.read(moveModeProvider), isA<MoveModeIdle>());
-        expect(observedTool, ToolId.parse('fixture.echo'));
+        expect(observedTool, PinId.parse('fixture.echo'));
         expect(observedX, 3);
         expect(observedY, 1);
       },
@@ -247,8 +249,8 @@ void main() {
     test(
       'commit_does_not_save_the_move_on_a_board_other_than_the_starting_one',
       () async {
-        ToolId? observedTool;
-        Future<void> recorder(ToolId toolId, int x, int y) async {
+        PinId? observedTool;
+        Future<void> recorder(PinId toolId, int x, int y) async {
           observedTool = toolId;
         }
 
@@ -271,7 +273,7 @@ void main() {
 
         c
             .read(focusedPinProvider.notifier)
-            .focus(ToolId.parse('num.hex_to_decimal'));
+            .focus(PinId.parse('num.hex_to_decimal'));
         expect(
           handleMoveModeCommand(c, cmd: const KeyboardCommandDto.startMove()),
           isTrue,
@@ -309,12 +311,12 @@ void main() {
 
       c
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
+          .focus(PinId.parse('num.hex_to_decimal'));
       c
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('num.hex_to_decimal'),
+            toolId: PinId.parse('num.hex_to_decimal'),
             originX: _u1MaxStartX,
             originY: 0,
             maxX: _u1MaxStartX,
@@ -347,7 +349,7 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.wide'));
+      c.read(focusedPinProvider.notifier).focus(PinId.parse('fixture.wide'));
       final started = handleMoveModeCommand(
         c,
         cmd: const KeyboardCommandDto.startMove(),
@@ -373,12 +375,12 @@ void main() {
 
       c
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
+          .focus(PinId.parse('num.hex_to_decimal'));
       c
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('num.hex_to_decimal'),
+            toolId: PinId.parse('num.hex_to_decimal'),
             originX: 0,
             originY: 0,
             maxX: _u1MaxStartX,
@@ -398,12 +400,12 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
 
-      c.read(focusedPinProvider.notifier).focus(ToolId.parse('id.uuid_v7'));
+      c.read(focusedPinProvider.notifier).focus(PinId.parse('id.uuid_v7'));
       c
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('id.uuid_v7'),
+            toolId: PinId.parse('id.uuid_v7'),
             originX: 2,
             originY: 0,
             maxX: _u1MaxStartX,

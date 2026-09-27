@@ -11,7 +11,7 @@
 #
 # Strong copyleft (GPL/AGPL/LGPL), source-available-but-not-open licences
 # (SSPL, BUSL, Elastic) and non-commercial terms (CC-BY-NC, Commons Clause)
-# are absent by policy — see docs/architecture/stack.md.
+# are absent by policy — see docs/architecture.md#stack.
 #
 [licenses]
 version = 2

@@ -12,7 +12,6 @@ import 'package:upeg/src/rust/api/pegboard.dart' show BoardDto, PlacementDto;
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
-import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 
 /// Highest board slot addressable by the number-row shortcuts (`1`..`9`).
@@ -77,16 +76,9 @@ BoardDto? currentBoard(WidgetRef ref) {
 
 Future<void> toggleFocusedPin(WidgetRef ref) async {
   final boardKey = ref.read(currentBoardKeyProvider);
-  final toolId = ref.read(focusedPinProvider);
-  if (boardKey == null || toolId == null) return;
-
-  final isPinned = ref.read(pinnedProvider((boardKey, toolId)));
-  final mutations = ref.read(pegboardMutationsProvider);
-  if (isPinned) {
-    await mutations.unpin(boardKey, toolId);
-  } else {
-    await mutations.pin(boardKey, toolId);
-  }
+  final pinId = ref.read(focusedPinProvider);
+  if (boardKey == null || pinId == null) return;
+  await ref.read(pegboardMutationsProvider).remove((boardKey, pinId));
 }
 
 List<PlacementDto> visiblePlacementsForKeyboard(WidgetRef ref) {

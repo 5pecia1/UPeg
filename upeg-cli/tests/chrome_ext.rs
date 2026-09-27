@@ -644,7 +644,7 @@ fn a_controlled_embed_pin_goes_in_page_only_when_the_site_is_enabled() {
     let js = read(TOOL_ROUTING_JS);
     assert!(
         js.contains(
-            "return inPageAvailable && toolSelectorBindings(tool).length > 0\n        ? ACTIVATION_ROUTE.IN_PAGE\n        : ACTIVATION_ROUTE.DEEP_LINK;"
+            "return inPageAvailable && toolSelectorBindings(tool).length > 0 && !hasInPageFilePreset(tool)\n        ? ACTIVATION_ROUTE.IN_PAGE\n        : ACTIVATION_ROUTE.DEEP_LINK;"
         ),
         "a ControlledEmbed pin must fall back to the deep link when there is no page to drive"
     );
@@ -708,7 +708,9 @@ fn popup_js_implements_the_per_site_enablement_toggle() {
 fn host_api_classifies_the_dispatch_fallback_matrix_in_one_place() {
     let js = read(HOST_API_JS);
     for marker in [
-        "const toolCallPath = (toolId) => `/v1/tools/${encodeURIComponent(toolId)}`;",
+        "const toolCallPath = (board, toolId) =>",
+        "`/v1/ext/boards/${encodeURIComponent(board)}/tools/${encodeURIComponent(toolId)}`;",
+        "const globalToolCallPath = (toolId) => `/v1/tools/${encodeURIComponent(toolId)}`;",
         "function classifyDispatchResponse(status, body)",
         "isAuthStatus(status)",
         "HTTP_STATUS.SERVICE_UNAVAILABLE",
@@ -779,6 +781,8 @@ fn popup_html_loads_the_shared_modules_before_popup_js() {
         HOST_API_JS,
         SITE_ACCESS_JS,
         TOOL_ROUTING_JS,
+        "form_values.js",
+        "popup_state.js",
         POPUP_JS,
     ]
     .iter()

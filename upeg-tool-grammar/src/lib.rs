@@ -1,20 +1,16 @@
 //! Shared, drift-prone grammar for upeg's `#[tool]`-style attribute macros.
 //!
-//! Both the built-in `upeg-macros` crate and the WASM-guest
-//! `upeg-plugin-macros` crate parse the same `inputs = [...]` /
-//! `outputs = [...]` DSL, validate the same `{toolkit}.{tool}` identity
-//! rules, and check the same closed set of `pin` / `pegboard_units` /
-//! `invoker` / `surfaces` enum idents. A proc-macro crate cannot export
-//! plain `pub` items ("proc-macro crate types currently cannot export any
-//! items other than functions tagged with `#[proc_macro]` ..."), so this
-//! grammar previously had to be hand-duplicated between macro crates — a
-//! drift-prone state of affairs this crate exists to end.
+//! The built-in `upeg-macros` and WASM-guest `upeg-plugin-macros` crates
+//! parse the same `inputs = [...]` / `outputs = [...]` DSL, validate the
+//! same `{toolkit}.{tool}` identities, and check the same closed
+//! `pin`/`pegboard_units`/`invoker`/`surfaces` enum-ident sets. Proc-macro
+//! crates cannot export plain `pub` items, so this crate replaces their
+//! hand-kept grammar copies.
 //!
 //! This is a **plain library crate** (no `proc-macro = true`), so it can
-//! export ordinary types, consts, and functions for both macro crates to
-//! `use`. It has no dependency on `upeg-core`, `upeg-runtime`, or either
-//! macro crate — only `syn`/`proc-macro2`/`quote`, the token-parsing
-//! primitives every proc-macro crate already needs.
+//! export ordinary types, consts, and functions for both macro crates. It
+//! depends only on `syn`/`proc-macro2`/`quote`, not on `upeg-core`,
+//! `upeg-runtime`, or either macro crate.
 
 #![cfg_attr(
     test,

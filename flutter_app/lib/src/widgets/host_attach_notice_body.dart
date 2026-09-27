@@ -40,6 +40,8 @@ const String kHostAttachMalformedHintKey =
     'host_attach.notice.malformed_response_hint';
 const String kHostAttachInvalidFileHintKey =
     'host_attach.notice.invalid_file_hint';
+const String kHostAttachInvalidPinHintKey =
+    'host_attach.notice.invalid_pin_hint';
 
 /// The user-facing badge + hint for a failed attach dispatch, or `null`
 /// when there is nothing to show (ok, or not dispatched yet, or a
@@ -92,6 +94,13 @@ HostAttachNotice? hostAttachNoticeFor(AttachDispatchResult? result) {
       const HostAttachNotice(
         labelKey: kHostAttachToolErrorLabelKey,
         hintKey: kHostAttachInvalidFileHintKey,
+      ),
+    AttachDispatchToolError(
+      error: CanonicalToolError(code: kAttachInvalidPinErrorCode),
+    ) =>
+      const HostAttachNotice(
+        labelKey: kHostAttachToolErrorLabelKey,
+        hintKey: kHostAttachInvalidPinHintKey,
       ),
     AttachDispatchToolError(:final error) => HostAttachNotice(
       labelKey: kHostAttachToolErrorLabelKey,

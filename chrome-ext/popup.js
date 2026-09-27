@@ -1,5 +1,5 @@
-// upeg popup — PRD §6.6 / docs/ui-ux-surface-contract.md "Chrome extension
-// contract".
+// upeg popup — activation routing contract lives in tool_routing.js;
+// per-site enablement in site_access.js.
 //
 // Renders compact Board tabs + the pinned tool list for the selected
 // board, sourced from the local HTTP surface. Click or `Enter` on a tool
@@ -54,9 +54,21 @@
     activationRouteFor,
     toolInputProperties,
     toolLabel,
+    toolPreset,
+    toolPresetFields,
+    hasInPageFilePreset,
+    toolRequiresApproval,
     toolRequiredFields,
     toolSelectorBindings,
   } = UpegToolRouting;
+  const { initialValue: initialFormValue, scalarValue } = UpegFormValues;
+  const {
+    beginReconnect,
+    beginDispatch,
+    enableDispatchRun,
+    isCurrentConnection,
+    isCurrentDispatch,
+  } = UpegPopupState;
   const TOOL_ID_FIELD = TOOL_FIELD.ID;
   const TOOL_LABEL_FIELD = TOOL_FIELD.LABEL;
   const TOOL_INPUT_SCHEMA_FIELD = TOOL_FIELD.INPUT_SCHEMA;
@@ -189,6 +201,7 @@
     boards: /** @type {string[]} */ ([]),
     activeBoardIndex: 0,
     toolsByBoard: /** @type {Map<string, object[]>} */ (new Map()),
+    connectionEpoch: 0,
     activeToolIndex: 0,
     focusRegion: FOCUS_REGION.TOOLS,
     token: /** @type {string | null} */ (null),
@@ -353,6 +366,7 @@
   // === Data loading (tools per board) ===
 
   async function loadToolsForBoard(board) {
+    const connectionEpoch = state.connectionEpoch;
     if (state.toolsByBoard.has(board)) {
       return;
     }
@@ -362,8 +376,10 @@
     renderToolList();
     try {
       const data = await fetchJson(boardShowPath(board));
+      if (!isCurrentConnection(state, connectionEpoch)) return;
       state.toolsByBoard.set(board, Array.isArray(data.tools) ? data.tools : []);
     } catch {
+      if (!isCurrentConnection(state, connectionEpoch)) return;
       state.toolsByBoard.set(board, null);
     }
     if (state.boards[state.activeBoardIndex] === board) {
@@ -623,8 +639,11 @@
   // === Data loading (boards) ===
 
   async function connect() {
+    const connectionEpoch = beginReconnect(state);
+    closeDispatchPanel();
     try {
       const data = await fetchJson(BOARDS_LIST_PATH);
+      if (!isCurrentConnection(state, connectionEpoch)) return;
       const boards = Array.isArray(data.boards)
         ? data.boards.map((entry) => entry.board).filter((name) => typeof name === 'string')
         : [];
@@ -637,8 +656,13 @@
       render();
       await loadToolsForBoard(state.boards[state.activeBoardIndex]);
     } catch (error) {
+      if (!isCurrentConnection(state, connectionEpoch)) return;
       if (isAuthError(error)) {
         handleAuthFailure();
+        return;
+      }
+      if (error && error.status === 404) {
+        showMessage(i18nMessage('extensionAdapterUpgradeRequired'));
         return;
       }
       showMessage(daemonUnreachableText(), { showRunHint: true });
@@ -659,7 +683,7 @@
     await connect();
   }
 
-  // === Keyboard (docs/ui-ux-surface-contract.md: "Filter bar / compact
+  // === Keyboard (upeg_core::keyboard_catalog: "Filter bar / compact
   // tabs" for the board strip, "Popup / popover menu" for the tool list) ===
 
   const BOARD_PREV_KEYS = new Set(['ArrowLeft', 'h']);
@@ -703,6 +727,16 @@
   // on the route beyond `runDispatch`.
   function activateTool(board, tool) {
     const route = activationRouteFor(tool, { inPageAvailable: state.site.enabled });
+    if (route === ACTIVATION_ROUTE.DEEP_LINK && toolRequiresApproval(tool)) {
+      showMessage(i18nMessage('approvalUnsupported'));
+      openUpegLink.setAttribute('href', buildDeepLink({ board, toolId: tool[TOOL_ID_FIELD] }));
+      return;
+    }
+    if (route === ACTIVATION_ROUTE.DEEP_LINK && hasInPageFilePreset(tool) && state.site.enabled) {
+      showMessage(i18nMessage('inPagePresetFileUnsupported'));
+      openUpegLink.setAttribute('href', buildDeepLink({ board, toolId: tool[TOOL_ID_FIELD] }));
+      return;
+    }
     if (route === ACTIVATION_ROUTE.DEEP_LINK) {
       openDeepLink(board, tool[TOOL_ID_FIELD]);
       return;
@@ -724,6 +758,7 @@
 
   function closeDispatchPanel() {
     state.dispatch = null;
+    enableDispatchRun(dispatchRunEl);
     dispatchPanelEl.hidden = true;
     dispatchFormEl.innerHTML = '';
     clearDispatchResult();
@@ -734,7 +769,7 @@
   // outside string/number/integer/boolean — arrays, the `x-upeg-kind`
   // markdown/json/datetime/file_path/url/file markers — falls back to
   // a raw-JSON textarea rather than growing a bespoke widget per kind.
-  function buildDispatchField(name, propertySchema, required) {
+  function buildDispatchField(name, propertySchema, required, initial, hasStoredFile) {
     const wrapper = document.createElement('div');
     wrapper.className = 'dispatch-field';
 
@@ -795,7 +830,29 @@
         ? 'json'
         : ty || JSON_SCHEMA_TYPE.STRING;
     control.dataset.required = required ? 'true' : 'false';
+    control.dataset.hasInitial = initial.hasValue ? 'true' : 'false';
+    if (initial.hasValue) control.dataset.initialValue = JSON.stringify(initial.value);
+    control.dataset.hasStoredFile = hasStoredFile ? 'true' : 'false';
+    control.dataset.touched = 'false';
+    control.addEventListener('input', () => { control.dataset.touched = 'true'; });
+    control.addEventListener('change', () => { control.dataset.touched = 'true'; });
+    if (initial.hasValue && !isFile) {
+      if (control.dataset.fieldType === JSON_SCHEMA_TYPE.BOOLEAN) {
+        control.checked = initial.value === true;
+      } else if (control.dataset.fieldType === 'json') {
+        control.value = JSON.stringify(initial.value);
+      } else if (initial.value !== null && initial.value !== undefined) {
+        control.value = String(initial.value);
+      }
+    }
     wrapper.appendChild(control);
+
+    if (isFile && hasStoredFile) {
+      const note = document.createElement('p');
+      note.className = 'dispatch-field-note';
+      note.textContent = i18nMessage('presetFileStored');
+      wrapper.appendChild(note);
+    }
 
     if (jsonPassthrough) {
       const note = document.createElement('p');
@@ -809,14 +866,22 @@
 
   function openDispatchForm(board, tool, route) {
     state.dispatch = { board, tool, running: false, route };
+    enableDispatchRun(dispatchRunEl);
     dispatchToolLabelEl.textContent = toolLabel(tool);
     dispatchFormEl.innerHTML = '';
     clearDispatchResult();
 
     const properties = toolInputProperties(tool);
     const required = new Set(toolRequiredFields(tool));
+    const presetFields = new Set(toolPresetFields(tool));
     for (const [name, propertySchema] of Object.entries(properties)) {
-      dispatchFormEl.appendChild(buildDispatchField(name, propertySchema, required.has(name)));
+      dispatchFormEl.appendChild(buildDispatchField(
+        name,
+        propertySchema,
+        required.has(name),
+        initialFormValue(toolPreset(tool), name, propertySchema),
+        presetFields.has(name) && propertySchema && propertySchema[UPEG_KIND_FIELD] === UPEG_KIND_FILE,
+      ));
     }
 
     dispatchPanelEl.hidden = false;
@@ -886,22 +951,20 @@
   // renders the offending field's problem in `dispatchStatusEl`) when a
   // required field is empty or a JSON-passthrough field doesn't parse.
   async function readDispatchFormValues() {
-    const args = {};
+    const args = Object.create(null);
     const controls = dispatchFormEl.querySelectorAll('input, select, textarea');
     for (const control of controls) {
       const name = control.name;
       const fieldType = control.dataset.fieldType;
       const required = control.dataset.required === 'true';
-
-      if (fieldType === JSON_SCHEMA_TYPE.BOOLEAN) {
-        args[name] = control.checked;
-        continue;
-      }
+      const hasInitial = control.dataset.hasInitial === 'true';
+      const hasStoredFile = control.dataset.hasStoredFile === 'true';
+      const touched = control.dataset.touched === 'true';
 
       if (fieldType === FILE_FIELD_TYPE) {
         const files = Array.from(control.files || []);
         if (files.length === 0) {
-          if (required) {
+          if (required && !hasStoredFile) {
             dispatchStatusEl.textContent = i18nMessage('fieldRequired', [name]);
             return null;
           }
@@ -917,32 +980,24 @@
         continue;
       }
 
-      const raw = control.value.trim();
-      if (raw.length === 0) {
-        if (required) {
-          dispatchStatusEl.textContent = i18nMessage('fieldRequired', [name]);
-          return null;
-        }
-        continue;
+      const value = scalarValue({
+        fieldType,
+        raw: control.value,
+        checked: control.checked,
+        required,
+        hasInitial,
+        touched,
+        initialValue: hasInitial ? JSON.parse(control.dataset.initialValue) : undefined,
+      });
+      if (!value.ok) {
+        dispatchStatusEl.textContent = value.reason.startsWith('number')
+          ? i18nMessage('fieldNotNumber', [name])
+          : value.reason.startsWith('json')
+            ? i18nMessage('fieldNotJson', [name])
+            : i18nMessage('fieldRequired', [name]);
+        return null;
       }
-
-      if (fieldType === JSON_SCHEMA_TYPE.NUMBER || fieldType === JSON_SCHEMA_TYPE.INTEGER) {
-        const value = Number(raw);
-        if (Number.isNaN(value)) {
-          dispatchStatusEl.textContent = i18nMessage('fieldNotNumber', [name]);
-          return null;
-        }
-        args[name] = value;
-      } else if (fieldType === 'json') {
-        try {
-          args[name] = JSON.parse(raw);
-        } catch {
-          dispatchStatusEl.textContent = i18nMessage('fieldNotJson', [name]);
-          return null;
-        }
-      } else {
-        args[name] = raw;
-      }
+      if (value.include) args[name] = value.value;
     }
     return args;
   }
@@ -1099,13 +1154,14 @@
   }
 
   async function runDispatch(board, tool, args, route) {
-    state.dispatch = { board, tool, running: true, route };
+    const session = beginDispatch(state, { board, tool, running: true, route });
     dispatchStatusEl.textContent = i18nMessage('dispatchRunning');
     dispatchRunEl.disabled = true;
     if (route === ACTIVATION_ROUTE.IN_PAGE) {
       const applied = await runInPage(tool, args);
+      if (!isCurrentDispatch(state, session)) return;
       dispatchRunEl.disabled = false;
-      if (state.dispatch) state.dispatch.running = false;
+      session.running = false;
       renderInPageResult(tool, applied);
       return;
     }
@@ -1113,13 +1169,13 @@
       fetchImpl: fetch,
       baseUrl: state.endpoint.baseUrl,
       token: state.token,
+      board,
       toolId: tool[TOOL_ID_FIELD],
       args,
     });
+    if (!isCurrentDispatch(state, session)) return;
     dispatchRunEl.disabled = false;
-    if (state.dispatch) {
-      state.dispatch.running = false;
-    }
+    session.running = false;
     renderDispatchResult(outcome);
   }
 
@@ -1134,9 +1190,10 @@
 
   async function runDispatchForm() {
     if (!state.dispatch || state.dispatch.running) return;
-    const { board, tool, route } = state.dispatch;
+    const session = state.dispatch;
+    const { board, tool, route } = session;
     const args = await readDispatchFormValues();
-    if (args === null) return;
+    if (args === null || !isCurrentDispatch(state, session)) return;
     await runDispatch(board, tool, args, route);
   }
 

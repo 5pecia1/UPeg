@@ -58,6 +58,7 @@ fn readiness_dto(value: upeg_cli::board_agent::BoardToolReadinessStatus) -> Boar
 
 /// Read guidance without implying the browser has access to native project files.
 pub fn load_board_details(board_key: String) -> Result<BoardDetailsDto, FrbError> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     use upeg_pegboard_ui::features::boards::{default_boards, load_boards};
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -150,6 +151,7 @@ pub fn save_board_guidance(
 /// Preview the same scoped tools and defaults the agent receives on connection.
 /// The directory is fixed to the current process so source discovery agrees.
 pub fn preview_board_connection(board_key: String) -> Result<BoardConnectionPreviewDto, FrbError> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     #[cfg(not(target_arch = "wasm32"))]
     {
         use upeg_cli::board_agent::board_connection_preview;

@@ -93,6 +93,10 @@ sealed class WebViewExecutionEventDto with _$WebViewExecutionEventDto {
 class WebViewExecutionRequestDto {
   final BigInt requestId;
   final String toolId;
+
+  /// Present only when this call came from an actual board placement.
+  final String? boardKey;
+  final String? pinId;
   final String url;
   final List<SelectorBindingDto> bindings;
   final ControlledEmbedSettingsDto settings;
@@ -101,6 +105,8 @@ class WebViewExecutionRequestDto {
   const WebViewExecutionRequestDto({
     required this.requestId,
     required this.toolId,
+    this.boardKey,
+    this.pinId,
     required this.url,
     required this.bindings,
     required this.settings,
@@ -111,6 +117,8 @@ class WebViewExecutionRequestDto {
   int get hashCode =>
       requestId.hashCode ^
       toolId.hashCode ^
+      boardKey.hashCode ^
+      pinId.hashCode ^
       url.hashCode ^
       bindings.hashCode ^
       settings.hashCode ^
@@ -123,6 +131,8 @@ class WebViewExecutionRequestDto {
           runtimeType == other.runtimeType &&
           requestId == other.requestId &&
           toolId == other.toolId &&
+          boardKey == other.boardKey &&
+          pinId == other.pinId &&
           url == other.url &&
           bindings == other.bindings &&
           settings == other.settings &&

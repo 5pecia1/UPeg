@@ -12,7 +12,7 @@
 //!
 //! **The surface is not negotiable here.** Every request on this lane is
 //! dispatched as [`Surface::Mcp`] — an MCP client is a program, and no
-//! header moves it (`docs/architecture/http-api.md`). What the request
+//! header moves it (`surfaces::http` module docs). What the request
 //! *can* change is the role: an operator token and an agent token both
 //! pass the bearer gate, and only the first may lift a Chain's approval
 //! barrier. That is [`principal_on_surface`]'s answer, stamped into the

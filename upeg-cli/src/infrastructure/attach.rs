@@ -11,6 +11,57 @@
 //!   - `upeg mcp` proxy mode (§5.7) — forwards stdin JSON-RPC lines
 //!     to `/mcp` and echoes the body back to stdout.
 //!   - Future: `upeg call` auto-attach, `upeg tui` attach dispatch.
+//!
+//! # Host topology
+//!
+//! Surfaces share **at most one** HTTP host per config root, on loopback
+//! (the stdio MCP lane with agents is separate; Unix sockets and
+//! `upeg daemon` are retired). `server.json` is the single source for
+//! discovery, auth, and lifecycle; precedence resolves conflicts
+//! deterministically so the user never picks; and explicit-start is
+//! preserved — no surface implicitly spawns another. Two binaries cover
+//! everything: `upeg` (headless-capable) + the desktop GUI.
+//!
+//! | Tier | Surface | Host eligibility | Lifecycle |
+//! |---|---|---|---|
+//! | L1 | `upeg host start --daemon` | yes — persistent, strong intent | until explicit stop |
+//! | L2 | Desktop GUI + Tray | only when `Tweaks.local_http_host` is on (default OFF — no listener without an explicit decision) | user session |
+//! | L3 | `upeg host start` (foreground) | yes | occupies the shell |
+//! | L4 | `upeg call` / `upeg mcp` / `upeg tui` | no — client or in-process | per call / session |
+//!
+//! Startup algorithm (identical on every surface): no host → an L1/L3
+//! surface becomes it, Desktop runs an in-process L2 host only when the
+//! tweak is on (otherwise it comes up with no host), and any L4 runs
+//! in-process without auto-spawning. Host present → shareable calls
+//! attach while project-manifest Tools self-execute (`upeg_sources::
+//! project`); `upeg mcp` proxies stdio↔`/mcp` without `--board`,
+//! self-executes with it; `upeg host start` against a Desktop-held host
+//! errors with "stop it first". When a host exits, clients do **not**
+//! auto-take-over — they degrade explicitly or fall back to in-process.
+//!
+//! # Discovery file
+//!
+//! `~/.upeg/server.json` (Unix, mode `0600`) /
+//! `%APPDATA%\upeg\server.json` (Windows, current-user ACL):
+//! `{ endpoint, mcp_endpoint, token, pid, started_at_ms, origin }`.
+//! `token` is a 32-byte URL-safe random value; `origin` is `explicit`
+//! (a user-run `upeg host start`) or `embedded` (Desktop's in-process
+//! host) — a file missing the key reads conservatively as `explicit`.
+//!
+//! Discovery checks the recorded PID before probing `/healthz`; a dead
+//! PID cannot be validated by an unrelated listener on the same port.
+//! Unknown process state prevents auto-attach and retains the record.
+//! Every authenticated request from a discovered host rechecks the file
+//! and PID before writing the bearer token. PID reuse and the gap between
+//! this check and the write remain possible; `started_at_ms` is only an
+//! application timestamp, not an OS process birth identity. A host
+//! publishes the file at startup and removes it via RAII on clean exit.
+//!
+//! Multi-user: each OS user gets their own `~/.upeg/` and ephemeral
+//! ports — a shared instance is out of scope. Per-platform tray: macOS
+//! is menubar-only (`LSUIElement`, Dock visibility is a settings
+//! toggle), Windows and SNI-capable Linux use the notification area,
+//! and Linux without SNI has no tray (desktop window only).
 
 use std::io::ErrorKind;
 
@@ -20,7 +71,7 @@ use upeg_core::{
     preflight_file_output_json,
 };
 
-use super::discovery::{self, ServerInfo};
+use super::discovery::{self, DiscoveredHost, ServerInfo};
 use crate::domain::execution::dispatch::Outcome;
 
 /// Path of the host's unauthenticated liveness/pairing document.
@@ -31,7 +82,7 @@ mod http_transport;
 mod stream;
 
 use http_transport::{
-    RequestBudget, post_json as http_post_json, request as http_request,
+    RequestBudget, request_discovered as http_request_discovered,
     request_within as http_request_within,
 };
 pub(crate) use stream::{
@@ -46,7 +97,7 @@ pub(crate) use stream::{
 /// <b>` proxy session keeps its pin gate and preset merge when the
 /// dispatch happens host-side.
 pub fn post_mcp_with_board(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     body: &str,
     board: Option<&upeg_core::BoardKey>,
 ) -> std::io::Result<String> {
@@ -58,13 +109,8 @@ pub fn post_mcp_with_board(
         }
         None => &[],
     };
-    let (status, response) = http_request(
-        "POST",
-        &server.mcp_endpoint,
-        Some(&server.token),
-        extra_headers,
-        body,
-    )?;
+    let (status, response) =
+        http_request_discovered("POST", &server.mcp_endpoint, server, extra_headers, body)?;
     if status == 204 {
         // JSON-RPC notification — no body owed.
         return Ok(String::new());
@@ -77,11 +123,11 @@ pub fn post_mcp_with_board(
     Ok(response)
 }
 
-/// Convenience: read discovery file and verify reachability. Returns
-/// `None` when no host is up or the host failed `/healthz`. Callers
-/// can branch to in-process on `None`.
-pub fn current_host() -> Option<ServerInfo> {
-    discovery::read_reachable()
+/// Select a discovered host only when its process and `/healthz` probe
+/// are healthy. The returned context rechecks both before authenticated
+/// requests; `None` also covers an unknown process verdict.
+pub fn current_host() -> Option<DiscoveredHost> {
+    discovery::discover_reachable()
 }
 
 /// Read a host's `/healthz` document.
@@ -128,7 +174,7 @@ pub fn healthz_json(server: &ServerInfo) -> Option<Value> {
 /// list before believing it (`surfaces/http/mod.rs`), so this is a
 /// declaration, not an authorization.
 pub fn dispatch_tool(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     tool_id: &str,
     args: &Value,
     origin: Surface,
@@ -144,7 +190,7 @@ pub fn dispatch_tool(
 /// Read a host's non-executing External readiness result. An attach failure
 /// stays an attach failure: callers must not silently inspect another host.
 pub fn tool_readiness(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     tool_id: &str,
     board: Option<&upeg_core::BoardKey>,
     origin: Surface,
@@ -160,10 +206,10 @@ pub fn tool_readiness(
     let cwd = std::env::current_dir()
         .map_err(|error| std::io::Error::other(format!("readiness working directory: {error}")))?;
     let cwd = cwd.to_string_lossy();
-    let (status, response) = http_request(
+    let (status, response) = http_request_discovered(
         "GET",
         &url,
-        Some(&server.token),
+        server,
         &[
             (crate::surfaces::http::ORIGIN_SURFACE_HEADER, origin.label()),
             (crate::surfaces::http::READINESS_CWD_HEADER, cwd.as_ref()),
@@ -188,7 +234,7 @@ pub fn tool_readiness(
 /// /v1/boards/{board}/tools/{tool_id}` so the host applies its own
 /// board gate (user PegboardState) and pin-preset merge.
 pub fn dispatch_tool_on_board(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     board: &str,
     tool_id: &str,
     args: &Value,
@@ -204,7 +250,7 @@ pub fn dispatch_tool_on_board(
 }
 
 fn dispatch_via_url(
-    server: &ServerInfo,
+    server: &DiscoveredHost,
     url: &str,
     args: &Value,
     origin: Surface,
@@ -214,10 +260,10 @@ fn dispatch_via_url(
     } else {
         args.to_string()
     };
-    let (status, response) = http_request(
+    let (status, response) = http_request_discovered(
         "POST",
         url,
-        Some(&server.token),
+        server,
         &[(crate::surfaces::http::ORIGIN_SURFACE_HEADER, origin.label())],
         &body,
     )?;
@@ -262,7 +308,11 @@ pub(crate) fn map_dispatch_response(status: u16, response: &str) -> std::io::Res
 /// `/v1/clients/heartbeat`. Used by long-running attach surfaces
 /// (`upeg mcp` proxy) to surface themselves in the "Connected
 /// clients" panel.
-pub fn send_heartbeat(server: &ServerInfo, client_id: &str, label: &str) -> std::io::Result<()> {
+pub fn send_heartbeat(
+    server: &DiscoveredHost,
+    client_id: &str,
+    label: &str,
+) -> std::io::Result<()> {
     let url = format!(
         "{}/v1/clients/heartbeat",
         server.endpoint.trim_end_matches('/')
@@ -272,7 +322,7 @@ pub fn send_heartbeat(server: &ServerInfo, client_id: &str, label: &str) -> std:
         "label": label,
     })
     .to_string();
-    let (status, _) = http_post_json(&url, Some(&server.token), &body)?;
+    let (status, _) = http_request_discovered("POST", &url, server, &[], &body)?;
     if !(200..300).contains(&status) {
         return Err(std::io::Error::other(format!(
             "heartbeat returned HTTP {status}"

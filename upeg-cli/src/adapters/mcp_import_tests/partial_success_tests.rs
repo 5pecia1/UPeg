@@ -28,11 +28,7 @@ sleep 60
 #[test]
 fn server_registers_only_successes_and_reports_skips_on_partial_failure() {
     let (root, script) = write_partial_success_server("partial-success");
-    let cfg = UpstreamConfig {
-        command: script.to_str().unwrap().to_string(),
-        args: Vec::new(),
-        reexport: false,
-    };
+    let cfg = unix_script_config(&script);
 
     let outcome = register_server("partial_srv", &cfg).expect("partial success must register");
 
@@ -80,11 +76,7 @@ IFS= read -r line
 sleep 60
 "##,
     );
-    let cfg = UpstreamConfig {
-        command: script.to_str().unwrap().to_string(),
-        args: Vec::new(),
-        reexport: false,
-    };
+    let cfg = unix_script_config(&script);
 
     match register_server("all_skipped_srv", &cfg) {
         Err(ImportError::AllToolsSkipped { server, skipped }) => {
@@ -106,11 +98,8 @@ fn skipped_tool_is_not_exposed_even_with_reexport_opt_in() {
     // REGISTERED imports to include MCP; a skipped tool registers on
     // no surface at all, so the opt-in cannot resurrect it.
     let (root, script) = write_partial_success_server("reexport-skip");
-    let cfg = UpstreamConfig {
-        command: script.to_str().unwrap().to_string(),
-        args: Vec::new(),
-        reexport: true,
-    };
+    let mut cfg = unix_script_config(&script);
+    cfg.reexport = true;
 
     let outcome = register_server("reexport_skip_srv", &cfg).expect("partial success");
 
@@ -150,11 +139,7 @@ IFS= read -r line
 sleep 60
 "#,
     );
-    let cfg = UpstreamConfig {
-        command: script.to_str().unwrap().to_string(),
-        args: Vec::new(),
-        reexport: false,
-    };
+    let cfg = unix_script_config(&script);
 
     match register_server("num", &cfg) {
         Err(ImportError::IdShadowsBuiltIn { server, ns_id }) => {

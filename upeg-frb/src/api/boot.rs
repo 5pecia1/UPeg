@@ -167,6 +167,7 @@ fn native_host_bootstrap() -> Result<HostState, FrbError> {
 fn load_local_runtime_sources() {
     let report =
         upeg_sources::load_local_runtime_sources(&upeg_sources::RuntimeSourceConfig::from_env());
+    upeg_sources::diagnostics::record_runtime_source_failures(&report);
     log_runtime_source_report(&report);
 }
 

@@ -16,6 +16,7 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart'
     show LiveDispatchFn, liveDispatchToolFnProvider;
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 /// One dispatch, answered without any progress: no chunks, one `Done`.
@@ -42,6 +43,7 @@ typedef StubDispatch =
 /// Adapt a one-shot [StubDispatch] into a [DispatchStreamFn].
 DispatchStreamFn stubDispatchStream(StubDispatch onDispatch) =>
     ({
+      PinKey? pinKey,
       required ToolId toolId,
       required ToolArgs args,
       required bool approve,
@@ -57,11 +59,14 @@ DispatchStreamFn stubDispatchStream(StubDispatch onDispatch) =>
 /// argument meaning the same thing now that the pin streams.
 DispatchStreamFn dispatchStreamFromLive(LiveDispatchFn dispatch) =>
     ({
+      PinKey? pinKey,
       required ToolId toolId,
       required ToolArgs args,
       required bool approve,
       required DispatchRunId runId,
-    }) => dispatchStreamOfResult(() => dispatch(toolId: toolId, args: args));
+    }) => dispatchStreamOfResult(
+      () => dispatch(pinKey: pinKey, toolId: toolId, args: args),
+    );
 
 /// The cancel every stubbed run answers with when a test does not care.
 ///

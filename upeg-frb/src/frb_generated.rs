@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1123061514;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1661980048;
 
 // Section: executor
 
@@ -46,6 +46,67 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__project__activate_project_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "activate_project",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_root = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::project::activate_project(api_root)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__pegboard__add_pin_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_pin",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_board_key = <String>::sse_decode(&mut deserializer);
+            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::pegboard::add_pin(api_board_key, api_tool_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__keyboard__board_slot_is_valid_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -197,11 +258,11 @@ fn wire__crate__api__pegboard__clear_pin_args_preset_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok =
-                    crate::api::pegboard::clear_pin_args_preset(api_board_key, api_tool_id)?;
+                    crate::api::pegboard::clear_pin_args_preset(api_board_key, api_pin_id)?;
                 Ok(output_ok)
             })())
         },
@@ -229,10 +290,39 @@ fn wire__crate__api__pegboard__clear_pin_span_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
-                let output_ok = crate::api::pegboard::clear_pin_span(api_board_key, api_tool_id)?;
+                let output_ok = crate::api::pegboard::clear_pin_span(api_board_key, api_pin_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__project__close_project_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "close_project",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::project::close_project()?;
                 Ok(output_ok)
             })())
         },
@@ -460,6 +550,36 @@ fn wire__crate__api__boot__current_launch_intent_impl(
         },
     )
 }
+fn wire__crate__api__project__current_project_definition_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "current_project_definition",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::project::current_project_definition())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__events__deep_link_broadcast_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -617,6 +737,7 @@ fn wire__crate__api__tools__dispatch_tool_impl(
             let api_tool_id = <String>::sse_decode(&mut deserializer);
             let api_args_json = <String>::sse_decode(&mut deserializer);
             let api_board_key = <Option<String>>::sse_decode(&mut deserializer);
+            let api_pin_id = <Option<String>>::sse_decode(&mut deserializer);
             let api_approve = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
@@ -624,6 +745,7 @@ fn wire__crate__api__tools__dispatch_tool_impl(
                     api_tool_id,
                     api_args_json,
                     api_board_key,
+                    api_pin_id,
                     api_approve,
                 ))?;
                 Ok(output_ok)
@@ -656,6 +778,7 @@ fn wire__crate__api__tools__dispatch_tool_async_impl(
             let api_tool_id = <String>::sse_decode(&mut deserializer);
             let api_args_json = <String>::sse_decode(&mut deserializer);
             let api_board_key = <Option<String>>::sse_decode(&mut deserializer);
+            let api_pin_id = <Option<String>>::sse_decode(&mut deserializer);
             let api_approve = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
@@ -666,6 +789,7 @@ fn wire__crate__api__tools__dispatch_tool_async_impl(
                                 api_tool_id,
                                 api_args_json,
                                 api_board_key,
+                                api_pin_id,
                                 api_approve,
                             )
                             .await,
@@ -703,6 +827,7 @@ fn wire__crate__api__dispatch_stream__dispatch_tool_streamed_impl(
             let api_tool_id = <String>::sse_decode(&mut deserializer);
             let api_args_json = <String>::sse_decode(&mut deserializer);
             let api_board_key = <Option<String>>::sse_decode(&mut deserializer);
+            let api_pin_id = <Option<String>>::sse_decode(&mut deserializer);
             let api_approve = <bool>::sse_decode(&mut deserializer);
             let api_run_id = <String>::sse_decode(&mut deserializer);
             let api_sink = <StreamSink<
@@ -716,6 +841,7 @@ fn wire__crate__api__dispatch_stream__dispatch_tool_streamed_impl(
                         api_tool_id,
                         api_args_json,
                         api_board_key,
+                        api_pin_id,
                         api_approve,
                         api_run_id,
                         api_sink,
@@ -784,6 +910,40 @@ fn wire__crate__api__backup__export_backup_impl(
                 let output_ok = crate::api::backup::export_backup()?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__diagnostics__export_diagnostic_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "export_diagnostic",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_debug = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                    let output_ok = crate::api::diagnostics::export_diagnostic(api_id, api_debug)?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -1196,6 +1356,37 @@ fn wire__crate__api__pegboard__list_boards_impl(
         },
     )
 }
+fn wire__crate__api__diagnostics__list_diagnostics_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_diagnostics",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_limit = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::diagnostics::list_diagnostics(api_limit))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__tools__list_toolkits_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1524,14 +1715,14 @@ fn wire__crate__api__pegboard__move_pin_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_anchor_x = <u32>::sse_decode(&mut deserializer);
             let api_anchor_y = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok = crate::api::pegboard::move_pin(
                     api_board_key,
-                    api_tool_id,
+                    api_pin_id,
                     api_anchor_x,
                     api_anchor_y,
                 )?;
@@ -1786,14 +1977,14 @@ fn wire__crate__api__pegboard__preview_push_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_anchor_x = <u32>::sse_decode(&mut deserializer);
             let api_anchor_y = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(crate::api::pegboard::preview_push(
                     api_board_key,
-                    api_tool_id,
+                    api_pin_id,
                     api_anchor_x,
                     api_anchor_y,
                 ))?;
@@ -1824,17 +2015,50 @@ fn wire__crate__api__pegboard__preview_resize_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_cols = <u32>::sse_decode(&mut deserializer);
             let api_rows = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(crate::api::pegboard::preview_resize(
                     api_board_key,
-                    api_tool_id,
+                    api_pin_id,
                     api_cols,
                     api_rows,
                 ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__diagnostics__record_flutter_error_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "record_flutter_error",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_message = <String>::sse_decode(&mut deserializer);
+            let api_stack = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::diagnostics::record_flutter_error(api_message, api_stack);
+                })?;
                 Ok(output_ok)
             })())
         },
@@ -1862,6 +2086,7 @@ fn wire__crate__api__last_outcomes__record_last_outcome_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_tool_id = <String>::sse_decode(&mut deserializer);
             let api_result =
                 <crate::api::tools::CanonicalToolResult>::sse_decode(&mut deserializer);
@@ -1869,9 +2094,41 @@ fn wire__crate__api__last_outcomes__record_last_outcome_impl(
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok = crate::api::last_outcomes::record_last_outcome(
                     api_board_key,
+                    api_pin_id,
                     api_tool_id,
                     api_result,
                 )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__pegboard__remove_pin_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "remove_pin",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_board_key = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::pegboard::remove_pin(api_board_key, api_pin_id)?;
                 Ok(output_ok)
             })())
         },
@@ -1930,13 +2187,13 @@ fn wire__crate__api__pegboard__reorder_pin_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_direction =
                 <crate::api::keyboard::OrderDirectionDto>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok =
-                    crate::api::pegboard::reorder_pin(api_board_key, api_tool_id, api_direction)?;
+                    crate::api::pegboard::reorder_pin(api_board_key, api_pin_id, api_direction)?;
                 Ok(output_ok)
             })())
         },
@@ -2298,13 +2555,13 @@ fn wire__crate__api__pegboard__set_pin_args_preset_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_preset_json = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok = crate::api::pegboard::set_pin_args_preset(
                     api_board_key,
-                    api_tool_id,
+                    api_pin_id,
                     api_preset_json,
                 )?;
                 Ok(output_ok)
@@ -2334,12 +2591,12 @@ fn wire__crate__api__pegboard__set_pin_color_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_color = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok =
-                    crate::api::pegboard::set_pin_color(api_board_key, api_tool_id, api_color)?;
+                    crate::api::pegboard::set_pin_color(api_board_key, api_pin_id, api_color)?;
                 Ok(output_ok)
             })())
         },
@@ -2367,16 +2624,53 @@ fn wire__crate__api__pegboard__set_pin_span_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_board_key = <String>::sse_decode(&mut deserializer);
-            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_pin_id = <String>::sse_decode(&mut deserializer);
             let api_cols = <u32>::sse_decode(&mut deserializer);
             let api_rows = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok = crate::api::pegboard::set_pin_span(
                     api_board_key,
-                    api_tool_id,
+                    api_pin_id,
                     api_cols,
                     api_rows,
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__project__set_project_tool_choice_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_project_tool_choice",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_root = <String>::sse_decode(&mut deserializer);
+            let api_tool_id = <String>::sse_decode(&mut deserializer);
+            let api_choice =
+                <crate::api::project::ProjectToolChoiceDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::project::set_project_tool_choice(
+                    api_root,
+                    api_tool_id,
+                    api_choice,
                 )?;
                 Ok(output_ok)
             })())
@@ -2411,6 +2705,37 @@ fn wire__crate__api__embed__set_selector_bindings_impl(
             transform_result_sse::<_, crate::api::boot::FrbError>((move || {
                 let output_ok =
                     crate::api::embed::set_selector_bindings(api_tool_id, api_bindings)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__diagnostics__show_diagnostic_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "show_diagnostic",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::diagnostics::show_diagnostic(api_id))?;
                 Ok(output_ok)
             })())
         },
@@ -2841,6 +3166,36 @@ fn wire__crate__api__webview__unregister_webview_provider_impl(
                 let output_ok = Result::<_, ()>::Ok(
                     crate::api::webview::unregister_webview_provider(api_provider_id),
                 )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__project__validate_project_root_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "validate_project_root",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_root = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::boot::FrbError>((move || {
+                let output_ok = crate::api::project::validate_project_root(api_root)?;
                 Ok(output_ok)
             })())
         },
@@ -3580,6 +3935,68 @@ impl SseDecode for crate::api::boot::DesktopLaunchDto {
     }
 }
 
+impl SseDecode for crate::api::diagnostics::DiagnosticReportDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_runId = <String>::sse_decode(deserializer);
+        let mut var_occurredAtMs = <u64>::sse_decode(deserializer);
+        let mut var_appVersion = <String>::sse_decode(deserializer);
+        let mut var_os = <String>::sse_decode(deserializer);
+        let mut var_toolId = <Option<String>>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_cwd = <Option<String>>::sse_decode(deserializer);
+        let mut var_project = <Option<String>>::sse_decode(deserializer);
+        let mut var_errorCode = <String>::sse_decode(deserializer);
+        let mut var_errorMessage = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_stdout = <String>::sse_decode(deserializer);
+        let mut var_stderr = <String>::sse_decode(deserializer);
+        let mut var_debugContext = <Option<String>>::sse_decode(deserializer);
+        return crate::api::diagnostics::DiagnosticReportDto {
+            id: var_id,
+            run_id: var_runId,
+            occurred_at_ms: var_occurredAtMs,
+            app_version: var_appVersion,
+            os: var_os,
+            tool_id: var_toolId,
+            source: var_source,
+            cwd: var_cwd,
+            project: var_project,
+            error_code: var_errorCode,
+            error_message: var_errorMessage,
+            status: var_status,
+            stdout: var_stdout,
+            stderr: var_stderr,
+            debug_context: var_debugContext,
+        };
+    }
+}
+
+impl SseDecode for crate::api::diagnostics::DiagnosticSummaryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_runId = <String>::sse_decode(deserializer);
+        let mut var_occurredAtMs = <u64>::sse_decode(deserializer);
+        let mut var_toolId = <Option<String>>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_errorCode = <String>::sse_decode(deserializer);
+        let mut var_errorMessage = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        return crate::api::diagnostics::DiagnosticSummaryDto {
+            id: var_id,
+            run_id: var_runId,
+            occurred_at_ms: var_occurredAtMs,
+            tool_id: var_toolId,
+            source: var_source,
+            error_code: var_errorCode,
+            error_message: var_errorMessage,
+            status: var_status,
+        };
+    }
+}
+
 impl SseDecode for crate::api::keyboard::DirectionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4134,11 +4551,13 @@ impl SseDecode for crate::api::keyboard::KeyboardScopeDto {
 impl SseDecode for crate::api::last_outcomes::LastOutcomeDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pinId = <String>::sse_decode(deserializer);
         let mut var_toolId = <String>::sse_decode(deserializer);
         let mut var_result = <crate::api::tools::CanonicalToolResult>::sse_decode(deserializer);
         let mut var_truncated = <bool>::sse_decode(deserializer);
         let mut var_updatedAtMs = <i64>::sse_decode(deserializer);
         return crate::api::last_outcomes::LastOutcomeDto {
+            pin_id: var_pinId,
             tool_id: var_toolId,
             result: var_result,
             truncated: var_truncated,
@@ -4277,6 +4696,20 @@ impl SseDecode for Vec<crate::api::tools::input_field::ChoiceOptionDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::tools::input_field::ChoiceOptionDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::diagnostics::DiagnosticSummaryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::diagnostics::DiagnosticSummaryDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -4425,6 +4858,34 @@ impl SseDecode for Vec<u8> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<u8>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::project::ProjectConflictDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::project::ProjectConflictDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::project::ProjectToolkitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::project::ProjectToolkitDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -4648,6 +5109,19 @@ impl SseDecode for Option<crate::api::embed::ControlledEmbedViewportDto> {
     }
 }
 
+impl SseDecode for Option<crate::api::diagnostics::DiagnosticReportDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::diagnostics::DiagnosticReportDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::embed::EmbedResolutionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4744,6 +5218,32 @@ impl SseDecode for Option<crate::api::tools::input_field::NumberConstraintsDto> 
             return Some(
                 <crate::api::tools::input_field::NumberConstraintsDto>::sse_decode(deserializer),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::project::ProjectDefinitionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::project::ProjectDefinitionDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::project::ProjectToolChoiceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::project::ProjectToolChoiceDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -5013,6 +5513,7 @@ impl SseDecode for crate::api::tools::PinKindDto {
 impl SseDecode for crate::api::pegboard::PlacementDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pinId = <String>::sse_decode(deserializer);
         let mut var_toolId = <String>::sse_decode(deserializer);
         let mut var_x = <u32>::sse_decode(deserializer);
         let mut var_y = <u32>::sse_decode(deserializer);
@@ -5023,6 +5524,7 @@ impl SseDecode for crate::api::pegboard::PlacementDto {
         let mut var_spanRows = <Option<u32>>::sse_decode(deserializer);
         let mut var_argsPresetJson = <Option<String>>::sse_decode(deserializer);
         return crate::api::pegboard::PlacementDto {
+            pin_id: var_pinId,
             tool_id: var_toolId,
             x: var_x,
             y: var_y,
@@ -5110,6 +5612,88 @@ impl SseDecode for crate::api::tools::PresentationRowsDto {
             rows: var_rows,
             diagnostics: var_diagnostics,
             row_actions_enabled: var_rowActionsEnabled,
+        };
+    }
+}
+
+impl SseDecode for crate::api::project::ProjectActivationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_root = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_loadedToolIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_failed = <Vec<String>>::sse_decode(deserializer);
+        let mut var_conflicts =
+            <Vec<crate::api::project::ProjectConflictDto>>::sse_decode(deserializer);
+        return crate::api::project::ProjectActivationDto {
+            root: var_root,
+            name: var_name,
+            loaded_tool_ids: var_loadedToolIds,
+            failed: var_failed,
+            conflicts: var_conflicts,
+        };
+    }
+}
+
+impl SseDecode for crate::api::project::ProjectConflictDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_toolId = <String>::sse_decode(deserializer);
+        let mut var_globalSource = <String>::sse_decode(deserializer);
+        let mut var_projectSource = <String>::sse_decode(deserializer);
+        let mut var_choice =
+            <Option<crate::api::project::ProjectToolChoiceDto>>::sse_decode(deserializer);
+        return crate::api::project::ProjectConflictDto {
+            tool_id: var_toolId,
+            global_source: var_globalSource,
+            project_source: var_projectSource,
+            choice: var_choice,
+        };
+    }
+}
+
+impl SseDecode for crate::api::project::ProjectDefinitionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_root = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_boardCount = <u32>::sse_decode(deserializer);
+        let mut var_toolkits =
+            <Vec<crate::api::project::ProjectToolkitDto>>::sse_decode(deserializer);
+        let mut var_conflicts =
+            <Vec<crate::api::project::ProjectConflictDto>>::sse_decode(deserializer);
+        return crate::api::project::ProjectDefinitionDto {
+            root: var_root,
+            name: var_name,
+            board_count: var_boardCount,
+            toolkits: var_toolkits,
+            conflicts: var_conflicts,
+        };
+    }
+}
+
+impl SseDecode for crate::api::project::ProjectToolChoiceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::project::ProjectToolChoiceDto::Global,
+            1 => crate::api::project::ProjectToolChoiceDto::Project,
+            _ => unreachable!("Invalid variant for ProjectToolChoiceDto: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::project::ProjectToolkitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_toolIds = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::project::ProjectToolkitDto {
+            path: var_path,
+            id: var_id,
+            tool_ids: var_toolIds,
         };
     }
 }
@@ -5465,6 +6049,8 @@ impl SseDecode for crate::api::webview::WebViewExecutionRequestDto {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_requestId = <u64>::sse_decode(deserializer);
         let mut var_toolId = <String>::sse_decode(deserializer);
+        let mut var_boardKey = <Option<String>>::sse_decode(deserializer);
+        let mut var_pinId = <Option<String>>::sse_decode(deserializer);
         let mut var_url = <String>::sse_decode(deserializer);
         let mut var_bindings =
             <Vec<crate::api::embed::SelectorBindingDto>>::sse_decode(deserializer);
@@ -5474,6 +6060,8 @@ impl SseDecode for crate::api::webview::WebViewExecutionRequestDto {
         return crate::api::webview::WebViewExecutionRequestDto {
             request_id: var_requestId,
             tool_id: var_toolId,
+            board_key: var_boardKey,
+            pin_id: var_pinId,
             url: var_url,
             bindings: var_bindings,
             settings: var_settings,
@@ -5491,55 +6079,58 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        14 => wire__crate__api__events__deep_link_broadcast_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__events__deep_link_stream_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__tools__dispatch_tool_async_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__dispatch_stream__dispatch_tool_streamed_impl(
+        18 => wire__crate__api__events__deep_link_broadcast_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__events__deep_link_stream_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__tools__dispatch_tool_async_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__dispatch_stream__dispatch_tool_streamed_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => {
+        27 => {
+            wire__crate__api__diagnostics__export_diagnostic_impl(port, ptr, rust_vec_len, data_len)
+        }
+        28 => {
             wire__crate__api__events__focus_loss_broadcast_impl(port, ptr, rust_vec_len, data_len)
         }
-        24 => wire__crate__api__events__focus_loss_stream_impl(port, ptr, rust_vec_len, data_len),
-        25 => {
+        29 => wire__crate__api__events__focus_loss_stream_impl(port, ptr, rust_vec_len, data_len),
+        30 => {
             wire__crate__api__events__host_state_broadcast_impl(port, ptr, rust_vec_len, data_len)
         }
-        26 => wire__crate__api__events__host_state_stream_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__boot__init_app_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__readiness__inspect_tool_readiness_impl(
+        31 => wire__crate__api__events__host_state_stream_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__boot__init_app_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__readiness__inspect_tool_readiness_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__deep_link__launch_intent_dto_default_impl(
+        38 => wire__crate__api__deep_link__launch_intent_dto_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__board_details__load_board_details_impl(
+        43 => wire__crate__api__board_details__load_board_details_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__board_details__preview_board_connection_impl(
+        58 => wire__crate__api__board_details__preview_board_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__board_details__save_board_guidance_impl(
+        69 => wire__crate__api__board_details__save_board_guidance_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__webview__webview_execution_stream_impl(
+        97 => wire__crate__api__webview__webview_execution_stream_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5557,111 +6148,123 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__keyboard__board_slot_is_valid_impl(ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__embed__build_binding_wait_script_impl(ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__embed__build_execution_scripts_impl(ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__dispatch_stream__cancel_dispatch_impl(ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__pegboard__clear_pin_args_preset_impl(ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__pegboard__clear_pin_span_impl(ptr, rust_vec_len, data_len),
-        7 => {
+        1 => wire__crate__api__project__activate_project_impl(ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__pegboard__add_pin_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__keyboard__board_slot_is_valid_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__embed__build_binding_wait_script_impl(ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__embed__build_execution_scripts_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__dispatch_stream__cancel_dispatch_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__pegboard__clear_pin_args_preset_impl(ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__pegboard__clear_pin_span_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__project__close_project_impl(ptr, rust_vec_len, data_len),
+        10 => {
             wire__crate__api__webview__complete_webview_execution_impl(ptr, rust_vec_len, data_len)
         }
-        8 => {
+        11 => {
             wire__crate__api__embed__controlled_embed_settings_for_impl(ptr, rust_vec_len, data_len)
         }
-        9 => wire__crate__api__pegboard__count_for_tag_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__pegboard__count_pinned_for_tag_impl(ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__pegboard__create_board_impl(ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__webview__create_webview_provider_impl(ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__boot__current_launch_intent_impl(ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__pegboard__delete_board_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__pegboard__count_for_tag_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__pegboard__count_pinned_for_tag_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__pegboard__create_board_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__webview__create_webview_provider_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__boot__current_launch_intent_impl(ptr, rust_vec_len, data_len),
         17 => {
+            wire__crate__api__project__current_project_definition_impl(ptr, rust_vec_len, data_len)
+        }
+        20 => wire__crate__api__pegboard__delete_board_impl(ptr, rust_vec_len, data_len),
+        21 => {
             wire__crate__api__capability__dispatch_capability_for_impl(ptr, rust_vec_len, data_len)
         }
-        18 => wire__crate__api__tools__dispatch_tool_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__deep_link__encode_launch_intent_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__backup__export_backup_impl(ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__backup__import_backup_impl(ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__pegboard__is_tool_pinned_impl(ptr, rust_vec_len, data_len),
-        31 => {
+        22 => wire__crate__api__tools__dispatch_tool_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__deep_link__encode_launch_intent_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__backup__export_backup_impl(ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__backup__import_backup_impl(ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__pegboard__is_tool_pinned_impl(ptr, rust_vec_len, data_len),
+        36 => {
             wire__crate__api__keyboard__keyboard_binding_catalog_impl(ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__keyboard__keyboard_command_for_impl(ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__pegboard__list_boards_impl(ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__tools__list_toolkits_impl(ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__tools__list_tools_impl(ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__last_outcomes__load_last_outcomes_impl(ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__pegboard__load_layout_snapshot_impl(ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__pegboard__load_layout_snapshot_for_filter_impl(
+        37 => wire__crate__api__keyboard__keyboard_command_for_impl(ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__pegboard__list_boards_impl(ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__diagnostics__list_diagnostics_impl(ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__tools__list_toolkits_impl(ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__tools__list_tools_impl(ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__last_outcomes__load_last_outcomes_impl(ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__pegboard__load_layout_snapshot_impl(ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__pegboard__load_layout_snapshot_for_filter_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__memos__load_memos_impl(ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__pegboard__load_pegboard_selection_impl(ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__shared_state__load_shared_state_versions_impl(
+        47 => wire__crate__api__memos__load_memos_impl(ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__pegboard__load_pegboard_selection_impl(ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__shared_state__load_shared_state_versions_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__tweaks__load_tweaks_impl(ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__pegboard__move_pin_impl(ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__webview__normalize_webview_result_impl(ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__embed__open_in_browser_impl(ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__deep_link__parse_launch_intent_impl(ptr, rust_vec_len, data_len),
-        49 => {
+        50 => wire__crate__api__tweaks__load_tweaks_impl(ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__pegboard__move_pin_impl(ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__webview__normalize_webview_result_impl(ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__embed__open_in_browser_impl(ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__deep_link__parse_launch_intent_impl(ptr, rust_vec_len, data_len),
+        55 => {
             wire__crate__api__pin_activation__pin_activation_for_impl(ptr, rust_vec_len, data_len)
         }
-        50 => wire__crate__api__pegboard__pin_tool_impl(ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__pegboard__pinned_boards_for_tool_impl(ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__pegboard__preview_push_impl(ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__pegboard__preview_resize_impl(ptr, rust_vec_len, data_len),
-        55 => {
+        56 => wire__crate__api__pegboard__pin_tool_impl(ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__pegboard__pinned_boards_for_tool_impl(ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__pegboard__preview_push_impl(ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__pegboard__preview_resize_impl(ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__diagnostics__record_flutter_error_impl(ptr, rust_vec_len, data_len),
+        62 => {
             wire__crate__api__last_outcomes__record_last_outcome_impl(ptr, rust_vec_len, data_len)
         }
-        56 => wire__crate__api__pegboard__rename_board_impl(ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__pegboard__reorder_pin_impl(ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__embed__resolve_embed_url_impl(ptr, rust_vec_len, data_len),
-        59 => {
+        63 => wire__crate__api__pegboard__remove_pin_impl(ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__pegboard__rename_board_impl(ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__pegboard__reorder_pin_impl(ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__embed__resolve_embed_url_impl(ptr, rust_vec_len, data_len),
+        67 => {
             wire__crate__api__tools__resolve_tool_action_bindings_impl(ptr, rust_vec_len, data_len)
         }
-        60 => wire__crate__api__tools__resolve_tool_presentation_rows_impl(
+        68 => wire__crate__api__tools__resolve_tool_presentation_rows_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__memos__save_memos_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__pegboard__save_pegboard_selection_impl(ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__tweaks__save_tweaks_impl(ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__palette__search_tools_impl(ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__embed__selector_bindings_for_impl(ptr, rust_vec_len, data_len),
-        67 => {
+        70 => wire__crate__api__memos__save_memos_impl(ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__pegboard__save_pegboard_selection_impl(ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__tweaks__save_tweaks_impl(ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__palette__search_tools_impl(ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__embed__selector_bindings_for_impl(ptr, rust_vec_len, data_len),
+        75 => {
             wire__crate__api__embed__set_controlled_embed_settings_impl(ptr, rust_vec_len, data_len)
         }
-        68 => wire__crate__api__pegboard__set_pin_args_preset_impl(ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__pegboard__set_pin_color_impl(ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__pegboard__set_pin_span_impl(ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__embed__set_selector_bindings_impl(ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__boot__shutdown_impl(ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__status__status_snapshot_impl(ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__pegboard__suggestions_for_empty_board_impl(
+        76 => wire__crate__api__pegboard__set_pin_args_preset_impl(ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__pegboard__set_pin_color_impl(ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__pegboard__set_pin_span_impl(ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__project__set_project_tool_choice_impl(ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__embed__set_selector_bindings_impl(ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__diagnostics__show_diagnostic_impl(ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__boot__shutdown_impl(ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__status__status_snapshot_impl(ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__pegboard__suggestions_for_empty_board_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__tweaks__supported_accents_impl(ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__tweaks__supported_locales_impl(ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__tweaks__supported_themes_impl(ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__pegboard__tag_options_impl(ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__pegboard__tag_options_for_board_impl(ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__pause__toggle_paused_impl(ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__pegboard__tools_for_tag_impl(ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__i18n__translate_impl(ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__i18n__translate_args_impl(ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__pegboard__unpin_tool_impl(ptr, rust_vec_len, data_len),
-        85 => {
+        85 => wire__crate__api__tweaks__supported_accents_impl(ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__tweaks__supported_locales_impl(ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__tweaks__supported_themes_impl(ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__pegboard__tag_options_impl(ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__pegboard__tag_options_for_board_impl(ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__pause__toggle_paused_impl(ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__pegboard__tools_for_tag_impl(ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__i18n__translate_impl(ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__i18n__translate_args_impl(ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__pegboard__unpin_tool_impl(ptr, rust_vec_len, data_len),
+        95 => {
             wire__crate__api__webview__unregister_webview_provider_impl(ptr, rust_vec_len, data_len)
         }
+        96 => wire__crate__api__project__validate_project_root_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -6481,6 +7084,67 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::boot::DesktopLaunchDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::DiagnosticReportDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.run_id.into_into_dart().into_dart(),
+            self.occurred_at_ms.into_into_dart().into_dart(),
+            self.app_version.into_into_dart().into_dart(),
+            self.os.into_into_dart().into_dart(),
+            self.tool_id.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.cwd.into_into_dart().into_dart(),
+            self.project.into_into_dart().into_dart(),
+            self.error_code.into_into_dart().into_dart(),
+            self.error_message.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.stdout.into_into_dart().into_dart(),
+            self.stderr.into_into_dart().into_dart(),
+            self.debug_context.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::DiagnosticReportDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::DiagnosticReportDto>
+    for crate::api::diagnostics::DiagnosticReportDto
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::DiagnosticReportDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::DiagnosticSummaryDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.run_id.into_into_dart().into_dart(),
+            self.occurred_at_ms.into_into_dart().into_dart(),
+            self.tool_id.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.error_code.into_into_dart().into_dart(),
+            self.error_message.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::DiagnosticSummaryDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::DiagnosticSummaryDto>
+    for crate::api::diagnostics::DiagnosticSummaryDto
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::DiagnosticSummaryDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::keyboard::DirectionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -6996,6 +7660,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::keyboard::KeyboardScopeDto>
 impl flutter_rust_bridge::IntoDart for crate::api::last_outcomes::LastOutcomeDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.pin_id.into_into_dart().into_dart(),
             self.tool_id.into_into_dart().into_dart(),
             self.result.into_into_dart().into_dart(),
             self.truncated.into_into_dart().into_dart(),
@@ -7452,6 +8117,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PinKindDto>
 impl flutter_rust_bridge::IntoDart for crate::api::pegboard::PlacementDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.pin_id.into_into_dart().into_dart(),
             self.tool_id.into_into_dart().into_dart(),
             self.x.into_into_dart().into_dart(),
             self.y.into_into_dart().into_dart(),
@@ -7586,6 +8252,120 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tools::PresentationRowsDto>
     for crate::api::tools::PresentationRowsDto
 {
     fn into_into_dart(self) -> crate::api::tools::PresentationRowsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::project::ProjectActivationDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.root.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.loaded_tool_ids.into_into_dart().into_dart(),
+            self.failed.into_into_dart().into_dart(),
+            self.conflicts.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::project::ProjectActivationDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::project::ProjectActivationDto>
+    for crate::api::project::ProjectActivationDto
+{
+    fn into_into_dart(self) -> crate::api::project::ProjectActivationDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::project::ProjectConflictDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tool_id.into_into_dart().into_dart(),
+            self.global_source.into_into_dart().into_dart(),
+            self.project_source.into_into_dart().into_dart(),
+            self.choice.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::project::ProjectConflictDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::project::ProjectConflictDto>
+    for crate::api::project::ProjectConflictDto
+{
+    fn into_into_dart(self) -> crate::api::project::ProjectConflictDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::project::ProjectDefinitionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.root.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.board_count.into_into_dart().into_dart(),
+            self.toolkits.into_into_dart().into_dart(),
+            self.conflicts.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::project::ProjectDefinitionDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::project::ProjectDefinitionDto>
+    for crate::api::project::ProjectDefinitionDto
+{
+    fn into_into_dart(self) -> crate::api::project::ProjectDefinitionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::project::ProjectToolChoiceDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Global => 0.into_dart(),
+            Self::Project => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::project::ProjectToolChoiceDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::project::ProjectToolChoiceDto>
+    for crate::api::project::ProjectToolChoiceDto
+{
+    fn into_into_dart(self) -> crate::api::project::ProjectToolChoiceDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::project::ProjectToolkitDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.id.into_into_dart().into_dart(),
+            self.tool_ids.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::project::ProjectToolkitDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::project::ProjectToolkitDto>
+    for crate::api::project::ProjectToolkitDto
+{
+    fn into_into_dart(self) -> crate::api::project::ProjectToolkitDto {
         self
     }
 }
@@ -7948,6 +8728,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::webview::WebViewExecutionRequ
         [
             self.request_id.into_into_dart().into_dart(),
             self.tool_id.into_into_dart().into_dart(),
+            self.board_key.into_into_dart().into_dart(),
+            self.pin_id.into_into_dart().into_dart(),
             self.url.into_into_dart().into_dart(),
             self.bindings.into_into_dart().into_dart(),
             self.settings.into_into_dart().into_dart(),
@@ -8570,6 +9352,41 @@ impl SseEncode for crate::api::boot::DesktopLaunchDto {
     }
 }
 
+impl SseEncode for crate::api::diagnostics::DiagnosticReportDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.run_id, serializer);
+        <u64>::sse_encode(self.occurred_at_ms, serializer);
+        <String>::sse_encode(self.app_version, serializer);
+        <String>::sse_encode(self.os, serializer);
+        <Option<String>>::sse_encode(self.tool_id, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <Option<String>>::sse_encode(self.cwd, serializer);
+        <Option<String>>::sse_encode(self.project, serializer);
+        <String>::sse_encode(self.error_code, serializer);
+        <String>::sse_encode(self.error_message, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.stdout, serializer);
+        <String>::sse_encode(self.stderr, serializer);
+        <Option<String>>::sse_encode(self.debug_context, serializer);
+    }
+}
+
+impl SseEncode for crate::api::diagnostics::DiagnosticSummaryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.run_id, serializer);
+        <u64>::sse_encode(self.occurred_at_ms, serializer);
+        <Option<String>>::sse_encode(self.tool_id, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <String>::sse_encode(self.error_code, serializer);
+        <String>::sse_encode(self.error_message, serializer);
+        <String>::sse_encode(self.status, serializer);
+    }
+}
+
 impl SseEncode for crate::api::keyboard::DirectionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9054,6 +9871,7 @@ impl SseEncode for crate::api::keyboard::KeyboardScopeDto {
 impl SseEncode for crate::api::last_outcomes::LastOutcomeDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.pin_id, serializer);
         <String>::sse_encode(self.tool_id, serializer);
         <crate::api::tools::CanonicalToolResult>::sse_encode(self.result, serializer);
         <bool>::sse_encode(self.truncated, serializer);
@@ -9155,6 +9973,16 @@ impl SseEncode for Vec<crate::api::tools::input_field::ChoiceOptionDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::tools::input_field::ChoiceOptionDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::diagnostics::DiagnosticSummaryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::diagnostics::DiagnosticSummaryDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -9265,6 +10093,26 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::project::ProjectConflictDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::project::ProjectConflictDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::project::ProjectToolkitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::project::ProjectToolkitDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -9455,6 +10303,16 @@ impl SseEncode for Option<crate::api::embed::ControlledEmbedViewportDto> {
     }
 }
 
+impl SseEncode for Option<crate::api::diagnostics::DiagnosticReportDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::diagnostics::DiagnosticReportDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::embed::EmbedResolutionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9531,6 +10389,26 @@ impl SseEncode for Option<crate::api::tools::input_field::NumberConstraintsDto> 
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::tools::input_field::NumberConstraintsDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::project::ProjectDefinitionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::project::ProjectDefinitionDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::project::ProjectToolChoiceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::project::ProjectToolChoiceDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -9780,6 +10658,7 @@ impl SseEncode for crate::api::tools::PinKindDto {
 impl SseEncode for crate::api::pegboard::PlacementDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.pin_id, serializer);
         <String>::sse_encode(self.tool_id, serializer);
         <u32>::sse_encode(self.x, serializer);
         <u32>::sse_encode(self.y, serializer);
@@ -9837,6 +10716,63 @@ impl SseEncode for crate::api::tools::PresentationRowsDto {
         <Vec<crate::api::tools::PresentationRowDto>>::sse_encode(self.rows, serializer);
         <Vec<String>>::sse_encode(self.diagnostics, serializer);
         <bool>::sse_encode(self.row_actions_enabled, serializer);
+    }
+}
+
+impl SseEncode for crate::api::project::ProjectActivationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.root, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Vec<String>>::sse_encode(self.loaded_tool_ids, serializer);
+        <Vec<String>>::sse_encode(self.failed, serializer);
+        <Vec<crate::api::project::ProjectConflictDto>>::sse_encode(self.conflicts, serializer);
+    }
+}
+
+impl SseEncode for crate::api::project::ProjectConflictDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.tool_id, serializer);
+        <String>::sse_encode(self.global_source, serializer);
+        <String>::sse_encode(self.project_source, serializer);
+        <Option<crate::api::project::ProjectToolChoiceDto>>::sse_encode(self.choice, serializer);
+    }
+}
+
+impl SseEncode for crate::api::project::ProjectDefinitionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.root, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <u32>::sse_encode(self.board_count, serializer);
+        <Vec<crate::api::project::ProjectToolkitDto>>::sse_encode(self.toolkits, serializer);
+        <Vec<crate::api::project::ProjectConflictDto>>::sse_encode(self.conflicts, serializer);
+    }
+}
+
+impl SseEncode for crate::api::project::ProjectToolChoiceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::project::ProjectToolChoiceDto::Global => 0,
+                crate::api::project::ProjectToolChoiceDto::Project => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::project::ProjectToolkitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <String>::sse_encode(self.id, serializer);
+        <Vec<String>>::sse_encode(self.tool_ids, serializer);
     }
 }
 
@@ -10115,6 +11051,8 @@ impl SseEncode for crate::api::webview::WebViewExecutionRequestDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.request_id, serializer);
         <String>::sse_encode(self.tool_id, serializer);
+        <Option<String>>::sse_encode(self.board_key, serializer);
+        <Option<String>>::sse_encode(self.pin_id, serializer);
         <String>::sse_encode(self.url, serializer);
         <Vec<crate::api::embed::SelectorBindingDto>>::sse_encode(self.bindings, serializer);
         <crate::api::embed::ControlledEmbedSettingsDto>::sse_encode(self.settings, serializer);

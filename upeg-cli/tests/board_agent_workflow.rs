@@ -66,7 +66,10 @@ mod unix {
             ] {
                 std::fs::create_dir_all(directory).expect("create fixture directory");
             }
-            let manifest = repository.join("upeg.toml");
+            let repository = repository.canonicalize().expect("canonical repository");
+            let manifest = repository.join(".upeg/project.toml");
+            std::fs::create_dir_all(repository.join(".upeg/toolkits"))
+                .expect("project toolkits directory");
             let fixture = Self {
                 _temporary: temporary,
                 repository,
@@ -78,9 +81,10 @@ mod unix {
                 manifest,
             };
             fixture.write_manifest("원본 프로젝트 안내", "원본 지침을 따른다.");
-            let registered = upeg_loader::load_and_register_file_verbose(&fixture.manifest);
+            let registered = upeg_sources::project::activate_project(&fixture.repository)
+                .expect("activate fixture project");
             assert_eq!(
-                registered.loaded.len(),
+                registered.loaded_tool_ids.len(),
                 1,
                 "the test process needs the external Tool metadata to edit presets: {:?}",
                 registered.failed,
@@ -92,14 +96,20 @@ mod unix {
             std::fs::write(
                 &self.manifest,
                 format!(
-                    r#"id = "workflow"
-
+                    r#"schema_version = 1
 [[boards]]
 id = "{PROJECT_BOARD}"
 label = "Workflow project"
 description = {description:?}
 instructions = {instructions:?}
-
+"#,
+                ),
+            )
+            .expect("write project config");
+            std::fs::write(
+                self.repository.join(".upeg/toolkits/workflow.toml"),
+                format!(
+                    r#"id = "workflow"
 [[tools]]
 id = "where"
 display_label = "Working directory echo"
@@ -118,7 +128,7 @@ required = true
 "#,
                 ),
             )
-            .expect("write project manifest");
+            .expect("write project toolkit");
         }
 
         fn command(&self, args: &[&str]) -> Command {
@@ -126,7 +136,8 @@ required = true
             command
                 .current_dir(&self.repository)
                 .env("UPEG_HOME", &self.home)
-                .env("UPEG_PROJECT_MANIFEST_PATH", &self.manifest)
+                .arg("--project")
+                .arg(&self.repository)
                 .env("UPEG_TOOLKITS_DIR", &self.empty_toolkits)
                 .env("UPEG_WASM_DIR", &self.empty_wasm)
                 .env("UPEG_MCP_IMPORTS_DIR", &self.empty_imports)
@@ -342,7 +353,7 @@ required = true
         );
         assert_eq!(
             Path::new(&personal_connection.env["UPEG_PROJECT_MANIFEST_PATH"]),
-            fixture.manifest,
+            fixture.repository,
         );
 
         let mut personal = McpSession::spawn(&personal_connection, &fixture.other_directory);

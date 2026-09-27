@@ -1,8 +1,8 @@
 'use strict';
 
 // upeg in-page detectors — the page-side capability that only a browser
-// extension can offer (docs/ui-ux-surface-contract.md "Chrome extension
-// contract").
+// extension can offer. This table IS the contract; the interface
+// inventory pins it as `ext.content.detectors`.
 //
 // The detector set is DATA, not code: `DETECTORS` is a frozen table and
 // every behaviour below is a total function of a row. Adding a detector
@@ -16,6 +16,15 @@
 // `time.epoch_now`/`time.iso_now`, neither of which takes an epoch), so it
 // renders its offline preview and is deliberately NOT wired to a
 // click affordance — a dead deep link is worse than a plain annotation.
+//
+// Rendering contract: matches are wrapped in a `.upeg-mark` span carrying
+// `data-upeg-detector` and a `data-upeg-tip` tooltip. A row with a host
+// tool is actionable (`role=button`, `tabindex=0`) and resolves lazily on
+// first hover/focus — the tooltip then shows the tool's own result. With
+// no host reachable it falls back to the offline preview plus the Desktop
+// deep link (`upeg://open?surface=ext&board=dev&tool=<tool>&input=<v>`).
+// Overlaps resolve by row order, so `0xDEADBEEF…` is never read as a
+// base64 blob.
 //
 // Dependency-free and chrome-free on purpose: content.js supplies the
 // chrome.i18n lookup and the DOM, this file supplies the decisions, and

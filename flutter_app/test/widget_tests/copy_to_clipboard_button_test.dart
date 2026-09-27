@@ -220,9 +220,10 @@ void main() {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
         _modalHarness(
-          dispatch: ({required toolId, required args}) => _singleOutputSuccess(
-            value: const CanonicalOutputValue.string(value: '255'),
-          ),
+          dispatch: ({pinKey, required toolId, required args}) =>
+              _singleOutputSuccess(
+                value: const CanonicalOutputValue.string(value: '255'),
+              ),
           clipboardWriter: writer,
         ),
       );
@@ -239,7 +240,7 @@ void main() {
         final writer = _RecordingClipboardWriter();
         await tester.pumpWidget(
           _modalHarness(
-            dispatch: ({required toolId, required args}) =>
+            dispatch: ({pinKey, required toolId, required args}) =>
                 _singleOutputSuccess(
                   value: const CanonicalOutputValue.string(value: '255'),
                 ),
@@ -262,7 +263,7 @@ void main() {
         final writer = _RecordingClipboardWriter();
         await tester.pumpWidget(
           _modalHarness(
-            dispatch: ({required toolId, required args}) =>
+            dispatch: ({pinKey, required toolId, required args}) =>
                 _singleOutputSuccess(
                   kind: 'json',
                   value: const CanonicalOutputValue.json(
@@ -306,7 +307,7 @@ void main() {
         await tester.pumpWidget(
           _modalHarness(
             tool: tool,
-            dispatch: ({required toolId, required args}) =>
+            dispatch: ({pinKey, required toolId, required args}) =>
                 _singleOutputSuccess(
                   value: const CanonicalOutputValue.number(value: 255),
                 ),
@@ -346,7 +347,7 @@ void main() {
         await tester.pumpWidget(
           _modalHarness(
             tool: tool,
-            dispatch: ({required toolId, required args}) =>
+            dispatch: ({pinKey, required toolId, required args}) =>
                 _singleOutputSuccess(
                   id: 'choices',
                   label: 'Choices',
@@ -403,31 +404,32 @@ void main() {
         await tester.pumpWidget(
           _modalHarness(
             tool: tool,
-            dispatch: ({required toolId, required args}) => _multiOutputSuccess(
-              primaryOutputId: 'mode',
-              outputs: const [
-                CanonicalOutputEntry(
-                  id: 'mode',
-                  label: 'Mode',
-                  kind: 'options',
-                  value: CanonicalOutputValue.options(value: 'safe'),
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _multiOutputSuccess(
+                  primaryOutputId: 'mode',
+                  outputs: const [
+                    CanonicalOutputEntry(
+                      id: 'mode',
+                      label: 'Mode',
+                      kind: 'options',
+                      value: CanonicalOutputValue.options(value: 'safe'),
+                    ),
+                    CanonicalOutputEntry(
+                      id: 'flags',
+                      label: 'Flags',
+                      kind: 'multi_options',
+                      value: CanonicalOutputValue.multiOptions(
+                        value: <String>['alpha', 'gamma'],
+                      ),
+                    ),
+                    CanonicalOutputEntry(
+                      id: 'ok',
+                      label: 'Accepted',
+                      kind: 'boolean',
+                      value: CanonicalOutputValue.boolean(value: true),
+                    ),
+                  ],
                 ),
-                CanonicalOutputEntry(
-                  id: 'flags',
-                  label: 'Flags',
-                  kind: 'multi_options',
-                  value: CanonicalOutputValue.multiOptions(
-                    value: <String>['alpha', 'gamma'],
-                  ),
-                ),
-                CanonicalOutputEntry(
-                  id: 'ok',
-                  label: 'Accepted',
-                  kind: 'boolean',
-                  value: CanonicalOutputValue.boolean(value: true),
-                ),
-              ],
-            ),
             clipboardWriter: writer,
           ),
         );
@@ -507,48 +509,51 @@ void main() {
         await tester.pumpWidget(
           _modalHarness(
             tool: tool,
-            dispatch: ({required toolId, required args}) => _multiOutputSuccess(
-              primaryOutputId: 'path',
-              outputs: [
-                const CanonicalOutputEntry(
-                  id: 'path',
-                  label: 'Path',
-                  kind: 'file_path',
-                  value: CanonicalOutputValue.filePath(
-                    value: '/tmp/report.txt',
-                  ),
-                ),
-                const CanonicalOutputEntry(
-                  id: 'link',
-                  label: 'Link',
-                  kind: 'url',
-                  value: CanonicalOutputValue.url(
-                    value: 'https://example.com/report',
-                  ),
-                ),
-                CanonicalOutputEntry(
-                  id: 'file',
-                  label: 'File',
-                  kind: 'file',
-                  value: CanonicalOutputValue.file(
-                    value: CanonicalFileValue(
-                      name: 'report.txt',
-                      isDir: false,
-                      mime: 'text/plain',
-                      content: CanonicalFileContent.bytes(bytes: sourceBytes),
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _multiOutputSuccess(
+                  primaryOutputId: 'path',
+                  outputs: [
+                    const CanonicalOutputEntry(
+                      id: 'path',
+                      label: 'Path',
+                      kind: 'file_path',
+                      value: CanonicalOutputValue.filePath(
+                        value: '/tmp/report.txt',
+                      ),
                     ),
-                  ),
+                    const CanonicalOutputEntry(
+                      id: 'link',
+                      label: 'Link',
+                      kind: 'url',
+                      value: CanonicalOutputValue.url(
+                        value: 'https://example.com/report',
+                      ),
+                    ),
+                    CanonicalOutputEntry(
+                      id: 'file',
+                      label: 'File',
+                      kind: 'file',
+                      value: CanonicalOutputValue.file(
+                        value: CanonicalFileValue(
+                          name: 'report.txt',
+                          isDir: false,
+                          mime: 'text/plain',
+                          content: CanonicalFileContent.bytes(
+                            bytes: sourceBytes,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const CanonicalOutputEntry(
+                      id: 'embed',
+                      label: 'Embed',
+                      kind: 'embedded_view',
+                      value: CanonicalOutputValue.embeddedView(
+                        value: 'https://example.com/embed',
+                      ),
+                    ),
+                  ],
                 ),
-                const CanonicalOutputEntry(
-                  id: 'embed',
-                  label: 'Embed',
-                  kind: 'embedded_view',
-                  value: CanonicalOutputValue.embeddedView(
-                    value: 'https://example.com/embed',
-                  ),
-                ),
-              ],
-            ),
             clipboardWriter: writer,
             overrides: [filePickerBridgeProvider.overrideWithValue(bridge)],
           ),
@@ -623,18 +628,19 @@ void main() {
       await tester.pumpWidget(
         _modalHarness(
           tool: tool,
-          dispatch: ({required toolId, required args}) => _singleOutputSuccess(
-            id: 'file',
-            label: 'File',
-            kind: 'file',
-            value: CanonicalOutputValue.file(
-              value: CanonicalFileValue(
-                name: 'bundle',
-                isDir: true,
-                content: CanonicalFileContent.directory(entries: entries),
+          dispatch: ({pinKey, required toolId, required args}) =>
+              _singleOutputSuccess(
+                id: 'file',
+                label: 'File',
+                kind: 'file',
+                value: CanonicalOutputValue.file(
+                  value: CanonicalFileValue(
+                    name: 'bundle',
+                    isDir: true,
+                    content: CanonicalFileContent.directory(entries: entries),
+                  ),
+                ),
               ),
-            ),
-          ),
           clipboardWriter: writer,
         ),
       );
@@ -681,35 +687,36 @@ void main() {
         await tester.pumpWidget(
           _modalHarness(
             tool: tool,
-            dispatch: ({required toolId, required args}) => _multiOutputSuccess(
-              primaryOutputId: 'summary',
-              outputs: const [
-                CanonicalOutputEntry(
-                  id: 'summary',
-                  label: 'Summary',
-                  kind: 'markdown',
-                  value: CanonicalOutputValue.markdown(
-                    value: '# Title\n- one\n```txt\ncode\n```',
-                  ),
+            dispatch: ({pinKey, required toolId, required args}) =>
+                _multiOutputSuccess(
+                  primaryOutputId: 'summary',
+                  outputs: const [
+                    CanonicalOutputEntry(
+                      id: 'summary',
+                      label: 'Summary',
+                      kind: 'markdown',
+                      value: CanonicalOutputValue.markdown(
+                        value: '# Title\n- one\n```txt\ncode\n```',
+                      ),
+                    ),
+                    CanonicalOutputEntry(
+                      id: 'payload',
+                      label: 'Payload',
+                      kind: 'json',
+                      value: CanonicalOutputValue.json(
+                        value: '{"ok":true,"count":2}',
+                      ),
+                    ),
+                    CanonicalOutputEntry(
+                      id: 'when',
+                      label: 'When',
+                      kind: 'date_time',
+                      value: CanonicalOutputValue.dateTime(
+                        value: '2026-05-25T10:30:00.000Z',
+                      ),
+                    ),
+                  ],
                 ),
-                CanonicalOutputEntry(
-                  id: 'payload',
-                  label: 'Payload',
-                  kind: 'json',
-                  value: CanonicalOutputValue.json(
-                    value: '{"ok":true,"count":2}',
-                  ),
-                ),
-                CanonicalOutputEntry(
-                  id: 'when',
-                  label: 'When',
-                  kind: 'date_time',
-                  value: CanonicalOutputValue.dateTime(
-                    value: '2026-05-25T10:30:00.000Z',
-                  ),
-                ),
-              ],
-            ),
             clipboardWriter: writer,
           ),
         );

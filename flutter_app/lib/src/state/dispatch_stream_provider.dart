@@ -13,12 +13,15 @@
 /// run may start at all is `widgets/approval_confirm_dialog.dart`.
 library;
 
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 /// Identity of one streamed dispatch.
@@ -50,14 +53,15 @@ final class DispatchRunId {
 const String dispatchRunIdPrefix = 'desktop-run-';
 
 int _dispatchRunSequence = 0;
+final _dispatchSessionId =
+    '${DateTime.now().microsecondsSinceEpoch}-'
+    '${Random.secure().nextInt(1 << 32).toRadixString(16)}';
 
-/// Next never-reused run id for this process.
-///
-/// Monotonic rather than random: the registry only has to tell live runs
-/// apart within one process lifetime, and a counter makes a stuck id
-/// obvious in a log.
-DispatchRunId nextDispatchRunId() =>
-    DispatchRunId._('$dispatchRunIdPrefix${++_dispatchRunSequence}');
+/// Session identity plus a monotonic sequence keeps persisted reports distinct
+/// across app restarts while preserving an ordered local run number.
+DispatchRunId nextDispatchRunId() => DispatchRunId._(
+  '$dispatchRunIdPrefix$_dispatchSessionId-${++_dispatchRunSequence}',
+);
 
 /// Start a streamed dispatch.
 ///
@@ -66,6 +70,7 @@ DispatchRunId nextDispatchRunId() =>
 /// desktop run lifts a Chain's approval barrier.
 typedef DispatchStreamFn =
     Stream<DispatchStreamEventDto> Function({
+      PinKey? pinKey,
       required ToolId toolId,
       required ToolArgs args,
       required bool approve,
@@ -82,6 +87,7 @@ typedef CancelDispatchFn = bool Function({required DispatchRunId runId});
 final dispatchStreamFnProvider = Provider<DispatchStreamFn>(
   (ref) =>
       ({
+        PinKey? pinKey,
         required ToolId toolId,
         required ToolArgs args,
         required bool approve,
@@ -89,7 +95,8 @@ final dispatchStreamFnProvider = Provider<DispatchStreamFn>(
       }) => dispatchToolStreamed(
         toolId: toolId.value,
         argsJson: args.encodeJson(),
-        boardKey: ref.read(currentBoardKeyProvider)?.value,
+        boardKey: pinKey?.$1.value ?? ref.read(currentBoardKeyProvider)?.value,
+        pinId: pinKey?.$2.value,
         approve: approve,
         runId: runId.value,
       ),

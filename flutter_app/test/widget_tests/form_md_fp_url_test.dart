@@ -25,8 +25,9 @@ import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
 
 class _FakeBridge extends FilePickerBridge {
-  _FakeBridge(this.pathToReturn, {this.fileToReturn});
+  _FakeBridge(this.pathToReturn, {this.directoryToReturn, this.fileToReturn});
   final String? pathToReturn;
+  final String? directoryToReturn;
   final PickedFileData? fileToReturn;
 
   @override
@@ -58,6 +59,11 @@ class _FakeBridge extends FilePickerBridge {
   Future<void> writeBytesTo(String path, Uint8List bytes) async {}
   @override
   Future<String?> pickOpenPath() async => pathToReturn;
+
+  @override
+  Future<String?> pickDirectoryPath({
+    String dialogTitle = 'Pick a folder',
+  }) async => directoryToReturn;
 }
 
 Widget _formHarness({
@@ -182,11 +188,50 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.byIcon(Icons.folder_open));
+        await tester.tap(find.byKey(const Key('field-path-pick-file')));
         await tester.pumpAndSettle();
         final stored = controller.value('path');
         expect(stored, isA<TextValue>());
         expect((stored as TextValue).value, equals(stubPath));
+      },
+    );
+
+    testWidgets(
+      'GenericForm_filepath_folder_picker_reflects_the_picked_folder',
+      (tester) async {
+        final tool = fixtureToolDto(
+          id: 'fixture.fp.folder',
+          inputFields: const [
+            InputFieldDto(
+              key: 'path',
+              label: 'Path',
+              fieldType: InputFieldType_FilePath(),
+              required_: false,
+            ),
+          ],
+        );
+        final controller = GenericFormController();
+        const folder = '/tmp/project-folder';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...i18nTestOverrides,
+              filePickerBridgeProvider.overrideWithValue(
+                _FakeBridge(null, directoryToReturn: folder),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: GenericFormWidget(tool: tool, controller: controller),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byKey(const Key('field-path-pick-directory')));
+        await tester.pumpAndSettle();
+
+        expect((controller.value('path') as TextValue).value, folder);
       },
     );
 

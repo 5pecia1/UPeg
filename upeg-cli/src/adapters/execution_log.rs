@@ -442,14 +442,14 @@ mod tests {
     }
 
     #[test]
-    fn human_output_renders_rfc3339_timestamp_instead_of_epoch_ms() {
+    fn human_output_renders_local_rfc3339_timestamp_instead_of_epoch_ms() {
         // 2026-08-17T09:05:03Z
         let record = test_record("time.check", 1_786_957_503_000);
         let out = format_records(&[record], false);
-        assert!(
-            out.starts_with("2026-08-17T09:05:03Z\t"),
-            "human output must lead with an RFC3339 UTC timestamp; got:\n{out}"
-        );
+        let timestamp = out.split('\t').next().expect("timestamp column");
+        let parsed = chrono::DateTime::parse_from_rfc3339(timestamp)
+            .expect("human output must lead with an RFC3339 local timestamp");
+        assert_eq!(parsed.timestamp_millis(), 1_786_957_503_000);
         assert!(
             !out.contains("1786957503000"),
             "human output must not print the raw epoch-ms number; got:\n{out}"

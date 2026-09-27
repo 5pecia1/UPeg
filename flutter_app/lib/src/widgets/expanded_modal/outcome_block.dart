@@ -26,6 +26,7 @@ class OutcomeBlock extends ConsumerWidget {
     required this.tokens,
     required this.onRowAction,
     required this.onResultAction,
+    required this.onReadRowNavigate,
     super.key,
   });
 
@@ -36,6 +37,8 @@ class OutcomeBlock extends ConsumerWidget {
   final void Function(PresentationActionDto action, PresentationTableRow row)
   onRowAction;
   final void Function(PresentationActionDto action) onResultAction;
+  final void Function(PresentationActionDto action, PresentationTableRow row)
+  onReadRowNavigate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -123,6 +126,7 @@ class OutcomeBlock extends ConsumerWidget {
             tokens: tokens,
             onRowAction: onRowAction,
             onResultAction: onResultAction,
+            onReadRowNavigate: onReadRowNavigate,
           ),
           if (!outcome.hasDisplayContent)
             Text(

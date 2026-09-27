@@ -28,6 +28,7 @@ import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
 import 'package:upeg/src/rust/api/pin_activation.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/pause.dart';
+import 'package:upeg/src/rust/api/palette.dart';
 import 'package:upeg/src/rust/api/status.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
@@ -85,7 +86,9 @@ ToolDto _embedTool(String id) => fixtureToolDto(
 LayoutSnapshotDto _singlePlacement(String toolId) => LayoutSnapshotDto(
   boardKey: _testBoardKey,
   boardCols: _testBoardCols,
-  placements: [PlacementDto(toolId: toolId, x: 0, y: 0, w: 2, h: 1)],
+  placements: [
+    PlacementDto(toolId: toolId, pinId: toolId, x: 0, y: 0, w: 2, h: 1),
+  ],
 );
 
 Widget _boardHarness({
@@ -94,6 +97,7 @@ Widget _boardHarness({
   PinActivationFn? activation,
   InlineDraftStore? inlineDraftStore,
   LiveDispatchFn? liveDispatch,
+  List<PaletteHit> paletteHits = const [],
 }) {
   return ProviderScope(
     overrides: [
@@ -134,6 +138,12 @@ Widget _boardHarness({
             (query) => snapshot,
       ),
       toolsLoaderProvider.overrideWith((ref) => toolsLoader),
+      paletteSearcherProvider.overrideWithValue(
+        (query) => [
+          for (final hit in paletteHits)
+            if (hit.id.contains(query)) hit,
+        ],
+      ),
       pinActivationProvider.overrideWith(
         (ref) =>
             activation ??
@@ -144,7 +154,7 @@ Widget _boardHarness({
         liveDispatchToolFnProvider.overrideWithValue(liveDispatch),
       resolveEmbedFnProvider.overrideWith(
         (ref) =>
-            ({required toolId, required args}) => null,
+            ({pinKey, required toolId, required args}) => null,
       ),
       statusReaderProvider.overrideWith(
         (ref) =>
@@ -291,14 +301,12 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(BoardPage)),
       );
-      expect(container.read(focusedPinProvider), equals(ToolId.parse(tool.id)));
+      expect(container.read(focusedPinProvider), equals(PinId.parse(tool.id)));
     });
 
     testWidgets('an_unpinned_embed_opens_full_screen', (tester) async {
-      // E3: a tool NOT pinned on the visible board (off-board entry) still
-      // opens the full-screen EmbedPage after the catalog loads. The
-      // activation targets the off-board tool regardless of which pin was
-      // tapped, modelling a palette / deep-link hit.
+      // An off-board palette entry opens the full-screen EmbedPage after
+      // the catalog loads.
       _useWideSurface(tester);
       final onBoard = _embedTool('embed.on_board');
       final offBoard = _embedTool('embed.off_board');
@@ -307,8 +315,17 @@ void main() {
         _boardHarness(
           toolsLoader: () => [onBoard, offBoard],
           snapshot: _singlePlacement(onBoard.id),
+          paletteHits: [
+            PaletteHit(
+              id: offBoard.id,
+              label: 'Off-board embed',
+              description: '',
+              score: 1,
+              pinKind: PinKindDto.embed,
+            ),
+          ],
           activation: ({required toolId, required argsJson}) =>
-              PinActivationDto_OpenEmbed(toolId: offBoard.id),
+              PinActivationDto_OpenEmbed(toolId: toolId.value),
         ),
       );
       await tester.pump();
@@ -317,7 +334,9 @@ void main() {
       expect(find.byType(Pin), findsOneWidget);
       expect(find.byType(EmbedPage), findsNothing);
 
-      await tester.tap(find.byType(Pin));
+      await tester.tap(find.byKey(const Key('open-palette-btn')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Off-board embed'));
       await tester.pumpAndSettle();
 
       // Off-board tool → full-screen EmbedPage (catalog-await path intact).
@@ -338,8 +357,17 @@ void main() {
         _boardHarness(
           toolsLoader: () => [onBoard],
           snapshot: _singlePlacement(onBoard.id),
+          paletteHits: const [
+            PaletteHit(
+              id: missingToolId,
+              label: 'Missing tool',
+              description: '',
+              score: 1,
+              pinKind: PinKindDto.embed,
+            ),
+          ],
           activation: ({required toolId, required argsJson}) =>
-              PinActivationDto_OpenEmbed(toolId: missingToolId),
+              PinActivationDto_OpenEmbed(toolId: toolId.value),
         ),
       );
       await tester.pump();
@@ -347,7 +375,9 @@ void main() {
 
       expect(find.byType(Pin), findsOneWidget);
 
-      await tester.tap(find.byType(Pin));
+      await tester.tap(find.byKey(const Key('open-palette-btn')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Missing tool'));
       await tester.pumpAndSettle();
 
       expect(find.byType(EmbedPage), findsNothing);
@@ -374,13 +404,13 @@ void main() {
         final toolId = ToolId.parse(tool.id);
         final drafts = InlineDraftStore()
           ..set(
-            (BoardKey.parse(_testBoardKey), toolId),
+            (BoardKey.parse(_testBoardKey), PinId.parse(toolId.value)),
             ToolArgs.fromJsonObject(const <String, Object?>{
               'value': 'current board value',
             }),
           )
           ..set(
-            (BoardKey.parse('other'), toolId),
+            (BoardKey.parse('other'), PinId.parse(toolId.value)),
             ToolArgs.fromJsonObject(const <String, Object?>{
               'value': 'other board value',
             }),
@@ -433,7 +463,7 @@ void main() {
             snapshot: _singlePlacement(tool.id),
             activation: ({required toolId, required argsJson}) =>
                 PinActivationDto_DispatchImmediate(toolId: toolId.value),
-            liveDispatch: ({required toolId, required args}) {
+            liveDispatch: ({pinKey, required toolId, required args}) {
               throw StateError('synchronous dispatch failure');
             },
           ),

@@ -26,7 +26,6 @@ import 'package:upeg/src/rust/api/palette.dart';
 import 'package:upeg/src/rust/api/tools.dart' show CanonicalToolResult;
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
-import 'package:upeg/src/state/running_tools_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -513,8 +512,10 @@ class PopupHitCell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final toolId = ToolId.parse(hit.id);
-    final running = ref.watch(toolIsRunningProvider(toolId));
     final outcome = ref.watch(popupInlineOutcomeForProvider(toolId));
+    final running = ref.watch(
+      popupRunningToolsProvider.select((tools) => tools.contains(toolId)),
+    );
     final idText = Text(
       hit.id.toUpperCase(),
       style: TextStyle(

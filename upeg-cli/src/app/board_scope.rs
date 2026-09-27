@@ -48,7 +48,7 @@ enum BoardRoute {
     Local,
     /// Dispatch through a reachable host, which answers as the surface
     /// this client declares.
-    Attached(Box<crate::infrastructure::discovery::ServerInfo>),
+    Attached(Box<crate::infrastructure::discovery::DiscoveredHost>),
 }
 
 impl BoardRoute {
@@ -58,7 +58,7 @@ impl BoardRoute {
     ///
     /// The board check mirrors D-1 one level up. A project board exists
     /// only while THIS process detects the Project Manifest that
-    /// declares it (docs/architecture/project-manifest.md); the host is
+    /// declares it (`upeg_sources::project` module docs); the host is
     /// a separate process that resolved its own `upeg.toml`, or none, so
     /// it does not have this board at all. Attaching would send the call
     /// to a host whose `/v1/boards/<b>` is a 404 — a confusing remote
@@ -84,7 +84,7 @@ impl BoardRoute {
         tool_id: &str,
         attach_policy: HostAttachPolicy,
         visibility: pegboard::BoardVisibility,
-        reachable_host: impl FnOnce() -> Option<crate::infrastructure::discovery::ServerInfo>,
+        reachable_host: impl FnOnce() -> Option<crate::infrastructure::discovery::DiscoveredHost>,
     ) -> Self {
         if attach_policy != HostAttachPolicy::Auto
             || visibility.is_project_board(board.as_str())
@@ -346,22 +346,22 @@ mod tests {
     use upeg_sources::pegboard::BoardVisibility;
 
     use super::{BoardRoute, HostAttachPolicy};
-    use crate::infrastructure::discovery::{HostOrigin, ServerInfo};
+    use crate::infrastructure::discovery::{DiscoveredHost, HostOrigin, ServerInfo};
 
     const PROJECT_BOARD_ID: &str = "board-route-proj";
     const GLOBAL_BOARD_ID: &str = "board-route-global";
     const TOOL_ID: &str = "num.hex_to_decimal";
     const TEST_ENDPOINT: &str = "http://127.0.0.1:1";
 
-    fn reachable_host() -> Option<ServerInfo> {
-        Some(ServerInfo {
+    fn reachable_host() -> Option<DiscoveredHost> {
+        Some(DiscoveredHost::for_test(ServerInfo {
             endpoint: TEST_ENDPOINT.to_string(),
             mcp_endpoint: format!("{TEST_ENDPOINT}/mcp"),
             token: "test-token".to_string(),
             pid: std::process::id(),
             started_at_ms: 0,
             origin: HostOrigin::Explicit,
-        })
+        }))
     }
 
     #[test]

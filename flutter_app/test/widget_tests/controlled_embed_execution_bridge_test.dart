@@ -12,6 +12,10 @@ import '../test_helpers/controlled_embed_runner_harness.dart';
 
 const _toolId = 'test.webview.bridge';
 const _url = 'https://example.test/bridge';
+final _bridgeSpec = ControlledEmbedSessionSpec(
+  toolId: ToolId.parse(_toolId),
+  url: _url,
+);
 const _bindings = [
   SelectorBindingDto(
     role: BindingRoleDto.input,
@@ -36,9 +40,13 @@ const _bindings = [
 WebViewExecutionRequestDto _request(
   int id, {
   List<SelectorBindingDto> bindings = _bindings,
+  String? boardKey,
+  String? pinId,
 }) => WebViewExecutionRequestDto(
   requestId: BigInt.from(id),
   toolId: _toolId,
+  boardKey: boardKey,
+  pinId: pinId,
   url: _url,
   bindings: bindings,
   settings: const ControlledEmbedSettingsDto(),
@@ -91,11 +99,81 @@ void main() {
   );
 
   test(
+    'should keep distinct browser sessions for two pins of one tool',
+    () async {
+      api.eventsController.add(const WebViewExecutionEventDto.ready());
+      await bridge.ready;
+      final completed = api.completionController.stream.take(2).toList();
+      api.eventsController.add(
+        WebViewExecutionEventDto.execute(
+          request: _request(41, boardKey: 'board-a', pinId: 'pin-one'),
+        ),
+      );
+      api.eventsController.add(
+        WebViewExecutionEventDto.execute(
+          request: _request(42, boardKey: 'board-a', pinId: 'pin-two'),
+        ),
+      );
+
+      await completed;
+
+      expect(factory.sessions, hasLength(2));
+      expect(
+        service.entryForPin((
+          BoardKey.parse('board-a'),
+          PinId.parse('pin-one'),
+        )),
+        isNotNull,
+      );
+      expect(
+        service.entryForPin((
+          BoardKey.parse('board-a'),
+          PinId.parse('pin-two'),
+        )),
+        isNotNull,
+      );
+      expect(service.entryForTool(ToolId.parse(_toolId)), isNull);
+    },
+  );
+
+  test(
+    'should keep the tool session for a request without pin context',
+    () async {
+      api.eventsController.add(const WebViewExecutionEventDto.ready());
+      await bridge.ready;
+      final completed = api.completionController.stream.first;
+      api.eventsController.add(
+        WebViewExecutionEventDto.execute(request: _request(43)),
+      );
+
+      await completed;
+
+      expect(factory.sessions, hasLength(1));
+      expect(service.entryForTool(ToolId.parse(_toolId)), isNotNull);
+    },
+  );
+
+  test(
+    'should reject incomplete pin context before opening a browser',
+    () async {
+      api.eventsController.add(const WebViewExecutionEventDto.ready());
+      await bridge.ready;
+      final completed = api.completionController.stream.first;
+      api.eventsController.add(
+        WebViewExecutionEventDto.execute(
+          request: _request(44, boardKey: 'board-a'),
+        ),
+      );
+
+      expect(await completed, isA<WebViewExecutionCompletionDto_Failed>());
+      expect(factory.sessions, isEmpty);
+    },
+  );
+
+  test(
     'cancelling_mid_run_blocks_the_next_operation_and_returns_a_cancel_completion',
     () async {
-      await service.ensure(
-        ControlledEmbedSessionSpec(toolId: ToolId.parse(_toolId), url: _url),
-      );
+      await service.ensure(_bridgeSpec);
       final browser = factory.sessions.single;
       final gate = browser.blockNextCommand();
       final completed = api.completionController.stream.first;
@@ -117,9 +195,7 @@ void main() {
   test(
     'a_binding_wait_failure_preserves_role_target_and_timeout_as_typed_fields',
     () async {
-      await service.ensure(
-        ControlledEmbedSessionSpec(toolId: ToolId.parse(_toolId), url: _url),
-      );
+      await service.ensure(_bridgeSpec);
       factory.sessions.single.waitResponses.add(false);
       final completed = api.completionController.stream.first;
       final wait = BindingWaitDto(
@@ -161,9 +237,7 @@ void main() {
   test(
     'disposing_the_provider_drops_the_late_result_of_an_in_flight_call',
     () async {
-      await service.ensure(
-        ControlledEmbedSessionSpec(toolId: ToolId.parse(_toolId), url: _url),
-      );
+      await service.ensure(_bridgeSpec);
       final browser = factory.sessions.single;
       final gate = browser.blockNextCommand();
       api.eventsController.add(

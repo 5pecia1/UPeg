@@ -11,7 +11,7 @@
 use std::collections::BTreeSet;
 
 use upeg_core::{
-    ArgsPreset, ArgsPresetError, ColSpan, PinColorError, PinColorHex, PinSpan, PinSpanError,
+    ArgsPreset, ArgsPresetError, ColSpan, PinColorError, PinColorHex, PinId, PinSpan, PinSpanError,
     Placement, RowSpan, ToolMeta,
 };
 use upeg_pegboard_ui::features::boards::{
@@ -24,8 +24,8 @@ use upeg_pegboard_ui::features::layouts::{
 };
 use upeg_pegboard_ui::platform::storage::{self, PegboardSelectionValue};
 use upeg_runtime::pegboard::{
-    Direction as PlacementDirection, effective_size, move_placement, pin_placement, placement_size,
-    set_pin_color as set_pin_color_in_layout, unpin_placement,
+    Direction as PlacementDirection, add_placement, effective_size, move_placement, pin_placement,
+    remove_placement, set_pin_color as set_pin_color_in_layout, unpin_placement,
 };
 use upeg_runtime::{ToolMetaRuntimeExt, toolbox_tool, toolbox_tools};
 
@@ -66,6 +66,7 @@ impl From<&Board> for BoardDto {
 #[derive(Debug, Clone)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct PlacementDto {
+    pub pin_id: String,
     pub tool_id: String,
     /// Pegboard column.
     pub x: u32,
@@ -108,6 +109,7 @@ fn placement_dto_from(p: &Placement) -> PlacementDto {
         )
     });
     PlacementDto {
+        pin_id: p.pin_id.to_string(),
         tool_id: p.tool_id.clone(),
         x: u32::from(p.x),
         y: u32::from(p.y),
@@ -179,6 +181,7 @@ fn load_boards_and_layouts() -> (Vec<Board>, BoardLayouts) {
 /// pattern from `upeg-pegboard-ui`.
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_boards() -> Vec<BoardDto> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let boards = load_boards().unwrap_or_else(default_boards);
     boards.iter().map(BoardDto::from).collect()
 }
@@ -204,6 +207,7 @@ pub fn load_layout_snapshot_for_filter(
     board_key: String,
     tag: Option<String>,
 ) -> LayoutSnapshotDto {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let tag = tag
         .as_deref()
         .map(str::trim)
@@ -250,6 +254,7 @@ fn placement_matches_tag(placement: &Placement, tag: Option<&str>) -> bool {
 /// pure-Rust source of truth.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tag_options() -> Vec<String> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
     tag_options_inner(&tools)
 }
@@ -263,6 +268,7 @@ pub fn tag_options() -> Vec<String> {
 /// fixed-size integers and the toolbox count never approaches `u32::MAX`.
 #[flutter_rust_bridge::frb(sync)]
 pub fn count_for_tag(tag: String) -> u32 {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let tools: Vec<&'static ToolMeta> = toolbox_tools().collect();
     let n = count_for_tag_inner(&tools, &tag);
     u32::try_from(n).unwrap_or(u32::MAX)
@@ -274,6 +280,7 @@ pub fn count_for_tag(tag: String) -> u32 {
 /// with the `"all"` sentinel and then includes tags from the pinned tools only.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tag_options_for_board(board_key: Option<String>) -> Vec<String> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let (boards, layouts) = load_boards_and_layouts();
     let tools = pinned_tools_for_board_in(&boards, &layouts, board_key.as_deref());
     tag_options_inner(&tools)
@@ -285,6 +292,7 @@ pub fn tag_options_for_board(board_key: Option<String>) -> Vec<String> {
 /// the union of pinned tools across all boards.
 #[flutter_rust_bridge::frb(sync)]
 pub fn count_pinned_for_tag(board_key: Option<String>, tag: String) -> u32 {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let (boards, layouts) = load_boards_and_layouts();
     let tools = pinned_tools_for_board_in(&boards, &layouts, board_key.as_deref());
     let n = count_for_tag_inner(&tools, &tag);
@@ -391,6 +399,42 @@ pub fn pin_tool(board_key: String, tool_id: String) -> Result<(), FrbError> {
     })
 }
 
+/// Add another instance of a tool to one board and return its stable pin id.
+#[flutter_rust_bridge::frb(sync)]
+pub fn add_pin(board_key: String, tool_id: String) -> Result<String, FrbError> {
+    let tool = toolbox_tool(&tool_id).ok_or_else(|| FrbError::Validation {
+        field: "tool_id".to_string(),
+        reason: format!("tool `{tool_id}` is not registered"),
+    })?;
+    let (w, h) = tool.pegboard_units.grid_span();
+    if w == 0 || h == 0 || u32::from(w) > upeg_runtime::pegboard::fixed_board_cols() {
+        return Err(FrbError::Validation {
+            field: "tool_id".to_string(),
+            reason: format!("tool `{tool_id}` does not fit the board"),
+        });
+    }
+    let pin_id =
+        PinId::parse(&uuid::Uuid::now_v7().to_string()).expect("generated UUID is a valid pin id");
+    let mut added = false;
+    mutate_layout(&board_key, |layout| {
+        added = add_placement(layout, &tool_id, pin_id.clone()).changed();
+    })?;
+    if !added {
+        return Err(FrbError::Internal {
+            message: "could not allocate a unique pin id".to_string(),
+        });
+    }
+    Ok(pin_id.to_string())
+}
+
+/// Remove one instance, leaving any other pins of the same tool in place.
+#[flutter_rust_bridge::frb(sync)]
+pub fn remove_pin(board_key: String, pin_id: String) -> Result<(), FrbError> {
+    mutate_layout(&board_key, |layout| {
+        remove_placement(layout, &pin_id);
+    })
+}
+
 /// Remove every placement carrying `tool_id` from `board_key` and
 /// persist. No-op (still `Ok`) if the tool wasn't pinned. Returns
 /// [`FrbError::Validation`] when the board is unknown.
@@ -407,17 +451,11 @@ pub fn unpin_tool(board_key: String, tool_id: String) -> Result<(), FrbError> {
 #[flutter_rust_bridge::frb(sync)]
 pub fn reorder_pin(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     direction: OrderDirectionDto,
 ) -> Result<(), FrbError> {
-    if toolbox_tool(&tool_id).is_none() {
-        return Err(FrbError::Validation {
-            field: "tool_id".to_string(),
-            reason: format!("tool `{tool_id}` is not registered"),
-        });
-    }
     mutate_layout(&board_key, |layout| {
-        let _ = move_placement(layout, &tool_id, placement_direction(direction));
+        let _ = move_placement(layout, &pin_id, placement_direction(direction));
     })
 }
 
@@ -438,7 +476,7 @@ fn pin_color_error_to_frb(err: PinColorError) -> FrbError {
 #[flutter_rust_bridge::frb(sync)]
 pub fn set_pin_color(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     color: Option<String>,
 ) -> Result<(), FrbError> {
     let color = color
@@ -447,7 +485,7 @@ pub fn set_pin_color(
         .transpose()
         .map_err(pin_color_error_to_frb)?;
     mutate_layout(&board_key, |layout| {
-        let _ = set_pin_color_in_layout(layout, &tool_id, color.clone());
+        let _ = set_pin_color_in_layout(layout, &pin_id, color.clone());
     })
 }
 
@@ -481,18 +519,21 @@ fn args_preset_error_to_frb(err: ArgsPresetError) -> FrbError {
 #[flutter_rust_bridge::frb(sync)]
 pub fn set_pin_span(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     cols: u32,
     rows: u32,
 ) -> Result<(), FrbError> {
     let span = validated_pin_span(cols, rows)?;
     mutate_layout(&board_key, |layout| {
-        let anchor = layout.iter_mut().find(|p| p.tool_id == tool_id).map(|p| {
-            p.span = Some(span);
-            (p.x, p.y)
-        });
+        let anchor = layout
+            .iter_mut()
+            .find(|p| p.pin_id.as_str() == pin_id)
+            .map(|p| {
+                p.span = Some(span);
+                (p.x, p.y)
+            });
         if let Some((x, y)) = anchor {
-            let _ = upeg_runtime::pegboard::place_tool_with_push(layout, &tool_id, x, y);
+            let _ = upeg_runtime::pegboard::place_tool_with_push(layout, &pin_id, x, y);
         }
     })
 }
@@ -519,9 +560,9 @@ fn validated_pin_span(cols: u32, rows: u32) -> Result<PinSpan, FrbError> {
 /// Drop the user span override for `tool_id` on `board_key` so the
 /// manifest footprint applies again.
 #[flutter_rust_bridge::frb(sync)]
-pub fn clear_pin_span(board_key: String, tool_id: String) -> Result<(), FrbError> {
+pub fn clear_pin_span(board_key: String, pin_id: String) -> Result<(), FrbError> {
     mutate_layout(&board_key, |layout| {
-        if let Some(placement) = layout.iter_mut().find(|p| p.tool_id == tool_id) {
+        if let Some(placement) = layout.iter_mut().find(|p| p.pin_id.as_str() == pin_id) {
             placement.span = None;
         }
     })
@@ -536,12 +577,12 @@ pub fn clear_pin_span(board_key: String, tool_id: String) -> Result<(), FrbError
 #[flutter_rust_bridge::frb(sync)]
 pub fn set_pin_args_preset(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     preset_json: String,
 ) -> Result<(), FrbError> {
     let preset = ArgsPreset::parse(&preset_json).map_err(args_preset_error_to_frb)?;
     mutate_layout(&board_key, |layout| {
-        if let Some(placement) = layout.iter_mut().find(|p| p.tool_id == tool_id) {
+        if let Some(placement) = layout.iter_mut().find(|p| p.pin_id.as_str() == pin_id) {
             placement.args_preset = Some(preset.clone());
         }
     })
@@ -550,9 +591,9 @@ pub fn set_pin_args_preset(
 /// Remove the saved argument preset from `tool_id`'s placement on
 /// `board_key`.
 #[flutter_rust_bridge::frb(sync)]
-pub fn clear_pin_args_preset(board_key: String, tool_id: String) -> Result<(), FrbError> {
+pub fn clear_pin_args_preset(board_key: String, pin_id: String) -> Result<(), FrbError> {
     mutate_layout(&board_key, |layout| {
-        if let Some(placement) = layout.iter_mut().find(|p| p.tool_id == tool_id) {
+        if let Some(placement) = layout.iter_mut().find(|p| p.pin_id.as_str() == pin_id) {
             placement.args_preset = None;
         }
     })
@@ -689,7 +730,7 @@ pub fn delete_board(board_key: String) -> Result<(), FrbError> {
 #[flutter_rust_bridge::frb(sync)]
 pub fn move_pin(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     anchor_x: u32,
     anchor_y: u32,
 ) -> Result<(), FrbError> {
@@ -701,20 +742,19 @@ pub fn move_pin(
         field: "anchor_y".to_string(),
         reason: format!("anchor_y `{anchor_y}` exceeds u16 range"),
     })?;
-    if toolbox_tool(&tool_id).is_none() {
-        return Err(FrbError::Validation {
-            field: "tool_id".to_string(),
-            reason: format!("tool `{tool_id}` is not registered"),
-        });
-    }
     let (_boards, layouts) = load_boards_and_layouts();
-    let span_w = effective_span_width(&layouts, &board_key, &tool_id);
+    let Some(span_w) = effective_span_width(&layouts, &board_key, &pin_id) else {
+        return Err(FrbError::Validation {
+            field: "pin_id".to_string(),
+            reason: format!("pin `{pin_id}` is not on board `{board_key}`"),
+        });
+    };
     let board_cols = upeg_runtime::pegboard::fixed_board_cols();
     if span_w == 0 || u32::from(span_w) > board_cols {
         return Err(FrbError::Validation {
-            field: "tool_id".to_string(),
+            field: "pin_id".to_string(),
             reason: format!(
-                "tool `{tool_id}` span width {span_w} does not fit fixed board width {board_cols}"
+                "pin `{pin_id}` span width {span_w} does not fit fixed board width {board_cols}"
             ),
         });
     }
@@ -722,18 +762,18 @@ pub fn move_pin(
     let max_start_x = u16::try_from(max_start_x).unwrap_or(u16::MAX);
     let x = x.min(max_start_x);
     mutate_layout(&board_key, |layout| {
-        let _ = upeg_runtime::pegboard::place_tool_with_push(layout, &tool_id, x, y);
+        let _ = upeg_runtime::pegboard::place_tool_with_push(layout, &pin_id, x, y);
     })
 }
 
 /// Effective span width used for horizontal clamping: the pinned
 /// placement's user span override when present, else the manifest
 /// footprint ([`placement_size`]) for tools not (yet) on the board.
-fn effective_span_width(layouts: &BoardLayouts, board_key: &str, tool_id: &str) -> u16 {
+fn effective_span_width(layouts: &BoardLayouts, board_key: &str, pin_id: &str) -> Option<u16> {
     layouts
         .get(board_key)
-        .and_then(|layout| layout.iter().find(|p| p.tool_id == tool_id))
-        .map_or_else(|| placement_size(tool_id).0, |p| effective_size(p).0)
+        .and_then(|layout| layout.iter().find(|p| p.pin_id.as_str() == pin_id))
+        .map(|placement| effective_size(placement).0)
 }
 
 // ─── Push-placement preview (F16) ──────────────────────────────────────
@@ -757,7 +797,7 @@ fn effective_span_width(layouts: &BoardLayouts, board_key: &str, tool_id: &str) 
 #[flutter_rust_bridge::frb(sync)]
 pub fn preview_push(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     anchor_x: u32,
     anchor_y: u32,
 ) -> Vec<PlacementDto> {
@@ -767,11 +807,10 @@ pub fn preview_push(
     let Ok(y) = u16::try_from(anchor_y) else {
         return Vec::new();
     };
-    if toolbox_tool(&tool_id).is_none() {
-        return Vec::new();
-    }
     let (_boards, layouts) = load_boards_and_layouts();
-    let span_w = effective_span_width(&layouts, &board_key, &tool_id);
+    let Some(span_w) = effective_span_width(&layouts, &board_key, &pin_id) else {
+        return Vec::new();
+    };
     let board_cols = upeg_runtime::pegboard::fixed_board_cols();
     if span_w == 0 || u32::from(span_w) > board_cols {
         return Vec::new();
@@ -783,11 +822,8 @@ pub fn preview_push(
     let Some((_, layout)) = layouts.iter().find(|(k, _)| **k == board_key) else {
         return Vec::new();
     };
-    if !layout.iter().any(|p| p.tool_id == tool_id) {
-        return Vec::new();
-    }
     let mut projected = layout.clone();
-    let _ = upeg_runtime::pegboard::place_tool_with_push(&mut projected, &tool_id, x, y);
+    let _ = upeg_runtime::pegboard::place_tool_with_push(&mut projected, &pin_id, x, y);
     projected.iter().map(placement_dto_from).collect()
 }
 
@@ -808,30 +844,27 @@ pub fn preview_push(
 #[flutter_rust_bridge::frb(sync)]
 pub fn preview_resize(
     board_key: String,
-    tool_id: String,
+    pin_id: String,
     cols: u32,
     rows: u32,
 ) -> Vec<PlacementDto> {
     let Ok(span) = validated_pin_span(cols, rows) else {
         return Vec::new();
     };
-    if toolbox_tool(&tool_id).is_none() {
-        return Vec::new();
-    }
     let (_boards, layouts) = load_boards_and_layouts();
     let Some((_, layout)) = layouts.iter().find(|(k, _)| **k == board_key) else {
         return Vec::new();
     };
-    let Some(current) = layout.iter().find(|p| p.tool_id == tool_id) else {
+    let Some(current) = layout.iter().find(|p| p.pin_id.as_str() == pin_id) else {
         return Vec::new();
     };
     let (anchor_x, anchor_y) = (current.x, current.y);
     let mut projected = layout.clone();
-    if let Some(placement) = projected.iter_mut().find(|p| p.tool_id == tool_id) {
+    if let Some(placement) = projected.iter_mut().find(|p| p.pin_id.as_str() == pin_id) {
         placement.span = Some(span);
     }
     let _ =
-        upeg_runtime::pegboard::place_tool_with_push(&mut projected, &tool_id, anchor_x, anchor_y);
+        upeg_runtime::pegboard::place_tool_with_push(&mut projected, &pin_id, anchor_x, anchor_y);
     projected.iter().map(placement_dto_from).collect()
 }
 

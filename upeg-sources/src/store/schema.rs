@@ -16,6 +16,7 @@ pub(crate) const SELECTION_TABLE: &str = "selection";
 pub(crate) const MEMOS_TABLE: &str = "memos";
 pub(crate) const EXECUTION_LOG_TABLE: &str = "execution_log";
 pub(crate) const LAST_OUTCOMES_TABLE: &str = "last_outcomes";
+pub(crate) const DIAGNOSTICS_TABLE: &str = "diagnostics";
 
 /// The selection table holds exactly one row, pinned to this id.
 pub(crate) const SELECTION_ROW_ID: i64 = 1;
@@ -155,6 +156,80 @@ ALTER TABLE boards ADD COLUMN description TEXT NOT NULL DEFAULT '';
 ALTER TABLE boards ADD COLUMN instructions TEXT NOT NULL DEFAULT '';
 ";
 
+/// v6 — local failure reports retain redacted, capped diagnostics separately
+/// from the metadata-only execution log. Rows are bounded at write time.
+const MIGRATION_V6: &str = "\
+CREATE TABLE diagnostics (
+    id            TEXT PRIMARY KEY,
+    run_id        TEXT NOT NULL,
+    occurred_at_ms INTEGER NOT NULL,
+    app_version   TEXT NOT NULL,
+    os            TEXT NOT NULL,
+    tool_id       TEXT,
+    source        TEXT NOT NULL,
+    cwd           TEXT,
+    project       TEXT,
+    error_code    TEXT NOT NULL,
+    error_message TEXT NOT NULL,
+    status        TEXT NOT NULL,
+    stdout        TEXT NOT NULL,
+    stderr        TEXT NOT NULL,
+    debug_context TEXT
+);
+CREATE INDEX diagnostics_occurred_at_ms ON diagnostics (occurred_at_ms DESC);
+";
+
+/// v7 — placement identity is independent from the catalog tool id.
+///
+/// Rebuild the two keyed tables because SQLite cannot change a primary key
+/// in place. Every pre-v7 placement was necessarily unique by tool id, so
+/// its deterministic legacy pin id is that same id. The copies deliberately
+/// include tombstones and all placement/outcome payload columns.
+const MIGRATION_V7: &str = "\
+CREATE TABLE placements_v7 (
+    board_key   TEXT NOT NULL REFERENCES boards(key),
+    pin_id      TEXT NOT NULL,
+    tool_id     TEXT NOT NULL,
+    x           INTEGER NOT NULL,
+    y           INTEGER NOT NULL,
+    color       TEXT,
+    span_cols   INTEGER CHECK (span_cols BETWEEN 1 AND 6),
+    span_rows   INTEGER CHECK (span_rows >= 1),
+    args_preset TEXT,
+    updated_at  INTEGER NOT NULL,
+    device_id   TEXT NOT NULL,
+    deleted     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (board_key, pin_id),
+    CHECK ((span_cols IS NULL) = (span_rows IS NULL))
+);
+INSERT INTO placements_v7 \
+    (board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset, updated_at, device_id, deleted)
+SELECT board_key, tool_id, tool_id, x, y, color, span_cols, span_rows, args_preset, updated_at, device_id, deleted
+FROM placements;
+DROP TABLE placements;
+ALTER TABLE placements_v7 RENAME TO placements;
+CREATE TABLE last_outcomes_v7 (
+    board_key         TEXT NOT NULL,
+    pin_id            TEXT NOT NULL,
+    tool_id           TEXT NOT NULL,
+    ok                INTEGER NOT NULL,
+    primary_output_id TEXT,
+    outputs_json      TEXT NOT NULL,
+    truncated         INTEGER NOT NULL DEFAULT 0,
+    error_code        TEXT,
+    error_message     TEXT,
+    updated_at        INTEGER NOT NULL,
+    device_id         TEXT NOT NULL,
+    PRIMARY KEY (board_key, pin_id)
+);
+INSERT INTO last_outcomes_v7 \
+    (board_key, pin_id, tool_id, ok, primary_output_id, outputs_json, truncated, error_code, error_message, updated_at, device_id)
+SELECT board_key, tool_id, tool_id, ok, primary_output_id, outputs_json, truncated, error_code, error_message, updated_at, device_id
+FROM last_outcomes;
+DROP TABLE last_outcomes;
+ALTER TABLE last_outcomes_v7 RENAME TO last_outcomes;
+";
+
 /// Append-only migration list. `MIGRATIONS.len()` is the current schema
 /// version as recorded in `PRAGMA user_version`.
 pub(crate) const MIGRATIONS: &[&str] = &[
@@ -163,6 +238,8 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     MIGRATION_V3,
     MIGRATION_V4,
     MIGRATION_V5,
+    MIGRATION_V6,
+    MIGRATION_V7,
 ];
 
 /// Bring `conn` up to the latest schema version. Idempotent: already-

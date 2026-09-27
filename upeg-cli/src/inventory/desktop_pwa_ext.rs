@@ -107,7 +107,11 @@ struct SurfaceInventoryDeclaration {
     tests: TestDeclaration,
 }
 
-const UI_SURFACE_DOC: &str = "docs/ui-ux-surface-contract.md";
+/// The one-way doc pointer carried on `owner`/`docs` — the public
+/// big-picture map these contracts summarize (same pattern `upeg-runtime`
+/// uses for LEXICON). Per-contract detail lives in the code the
+/// `schema_ref` locators point at.
+const SURFACE_OVERVIEW_DOC: &str = "docs/architecture.md";
 
 /// This file's own repo-relative path. A declared entry's `tests`
 /// pointer must never equal this — that is the self-pin the honesty
@@ -144,7 +148,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         surface: Surface::Desktop,
         kind: InterfaceKind::DesktopComponent,
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#display-anatomy"),
+            input_schema_ref: Some("upeg-core/src/ux.rs#display_label"),
             command_path: Some("flutter_app/lib/src/pages/board_page.dart#BoardPage"),
             http_method: None,
             http_path: None,
@@ -178,7 +182,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         surface: Surface::Pwa,
         kind: InterfaceKind::PwaComponent,
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#display-anatomy"),
+            input_schema_ref: Some("upeg-core/src/ux.rs#display_label"),
             command_path: Some("flutter_app/lib/src/pages/board_page.dart#BoardPage"),
             http_method: None,
             http_path: None,
@@ -209,7 +213,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         surface: Surface::Ext,
         kind: InterfaceKind::ChromeExtension,
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#chrome-extension-contract"),
+            input_schema_ref: Some("chrome-ext/tool_routing.js#activationRouteFor"),
             command_path: Some("chrome-ext/popup.html#board-tabs"),
             http_method: None,
             http_path: None,
@@ -228,7 +232,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         surface: Surface::Ext,
         kind: InterfaceKind::ChromeExtension,
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#chrome-extension-contract"),
+            input_schema_ref: Some("chrome-ext/detectors.js#DETECTORS"),
             command_path: Some("chrome-ext/detectors.js#DETECTORS"),
             http_method: None,
             http_path: None,
@@ -263,7 +267,7 @@ const DESKTOP_PWA_EXT_DECLARATIONS: &[SurfaceInventoryDeclaration] = &[
         surface: Surface::Ext,
         kind: InterfaceKind::ChromeExtension,
         contract: ContractDeclaration {
-            input_schema_ref: Some("docs/ui-ux-surface-contract.md#chrome-extension-contract"),
+            input_schema_ref: Some("chrome-ext/site_access.js#syncContentScripts"),
             command_path: Some("chrome-ext/site_access.js#syncContentScripts"),
             http_method: None,
             http_path: None,
@@ -302,11 +306,11 @@ impl SurfaceInventoryDeclaration {
             version: "v1".to_string(),
             compatibility: Compatibility::Stable,
             owner: OwnerRef {
-                path: Some(UI_SURFACE_DOC.to_string()),
+                path: Some(SURFACE_OVERVIEW_DOC.to_string()),
                 url: None,
             },
             docs: DocRef {
-                path: Some(UI_SURFACE_DOC.to_string()),
+                path: Some(SURFACE_OVERVIEW_DOC.to_string()),
                 url: None,
             },
             source: SourceRef {

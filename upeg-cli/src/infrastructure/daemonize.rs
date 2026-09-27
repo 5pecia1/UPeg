@@ -76,7 +76,7 @@ pub fn detach_and_exit(
 /// Secrets travel through the environment, never through argv: a command
 /// line is world-readable in `ps` output on every platform upeg targets,
 /// while a process environment is readable only by its own user
-/// (docs/architecture/host-topology.md). The child resolves
+/// (`upeg_cli::infrastructure::auth` module docs). The child resolves
 /// `UPEG_HTTP_TOKEN` exactly as an operator-exported variable, so it
 /// still sees the token as `TokenSource::Provided`.
 fn detached_command(exe: PathBuf, extra_args: &[String], operator_token: Option<&str>) -> Command {

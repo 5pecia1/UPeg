@@ -9,23 +9,24 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
+    final pinKey = (BoardKey.parse('dev'), PinId.parse(toolId.value));
     final runningTools = container.read(runningToolsProvider.notifier);
 
-    final firstLease = runningTools.begin(toolId);
-    final secondLease = runningTools.begin(toolId);
+    final firstLease = runningTools.begin(pinKey);
+    final secondLease = runningTools.begin(pinKey);
     runningTools.end(firstLease);
 
-    expect(container.read(runningToolsProvider), contains(toolId));
+    expect(container.read(runningToolsProvider), contains(pinKey));
 
     runningTools.end(secondLease);
-    expect(container.read(runningToolsProvider), isNot(contains(toolId)));
+    expect(container.read(runningToolsProvider), isNot(contains(pinKey)));
   });
 
   test('run_states_of_different_tools_end_independently', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final firstToolId = ToolId.parse('text.pair');
-    final secondToolId = ToolId.parse('num.sum');
+    final firstToolId = (BoardKey.parse('dev'), PinId.parse('text.pair'));
+    final secondToolId = (BoardKey.parse('dev'), PinId.parse('num.sum'));
     final runningTools = container.read(runningToolsProvider.notifier);
     final firstLease = runningTools.begin(firstToolId);
     final secondLease = runningTools.begin(secondToolId);
@@ -43,14 +44,15 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
+    final pinKey = (BoardKey.parse('dev'), PinId.parse(toolId.value));
     final runningTools = container.read(runningToolsProvider.notifier);
-    final firstLease = runningTools.begin(toolId);
-    final secondLease = runningTools.begin(toolId);
+    final firstLease = runningTools.begin(pinKey);
+    final secondLease = runningTools.begin(pinKey);
 
     runningTools.end(firstLease);
     runningTools.end(firstLease);
 
-    expect(container.read(runningToolsProvider), contains(toolId));
+    expect(container.read(runningToolsProvider), contains(pinKey));
 
     runningTools.end(secondLease);
     expect(container.read(runningToolsProvider), isEmpty);
@@ -60,14 +62,15 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
+    final pinKey = (BoardKey.parse('dev'), PinId.parse(toolId.value));
     final runningTools = container.read(runningToolsProvider.notifier);
-    final staleLease = runningTools.begin(toolId);
+    final staleLease = runningTools.begin(pinKey);
 
     runningTools.clear();
-    final currentLease = runningTools.begin(toolId);
+    final currentLease = runningTools.begin(pinKey);
     runningTools.end(staleLease);
 
-    expect(container.read(runningToolsProvider), contains(toolId));
+    expect(container.read(runningToolsProvider), contains(pinKey));
 
     runningTools.end(currentLease);
     expect(container.read(runningToolsProvider), isEmpty);
@@ -77,13 +80,14 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
+    final pinKey = (BoardKey.parse('dev'), PinId.parse(toolId.value));
     final runningTools = container.read(runningToolsProvider.notifier);
-    final lease = runningTools.begin(toolId);
+    final lease = runningTools.begin(pinKey);
     final exposedState = container.read(runningToolsProvider);
 
-    expect(exposedState, contains(toolId));
+    expect(exposedState, contains(pinKey));
     expect(exposedState.clear, throwsUnsupportedError);
-    expect(container.read(runningToolsProvider), contains(toolId));
+    expect(container.read(runningToolsProvider), contains(pinKey));
 
     runningTools.end(lease);
     expect(container.read(runningToolsProvider), isEmpty);
@@ -93,16 +97,17 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final toolId = ToolId.parse('text.pair');
+    final pinKey = (BoardKey.parse('dev'), PinId.parse(toolId.value));
     final runningTools = container.read(runningToolsProvider.notifier);
-    final staleLease = runningTools.begin(toolId);
+    final staleLease = runningTools.begin(pinKey);
 
     container.invalidate(runningToolsProvider);
     expect(container.read(runningToolsProvider), isEmpty);
     final rebuiltRunningTools = container.read(runningToolsProvider.notifier);
-    final currentLease = rebuiltRunningTools.begin(toolId);
+    final currentLease = rebuiltRunningTools.begin(pinKey);
     runningTools.end(staleLease);
 
-    expect(container.read(runningToolsProvider), contains(toolId));
+    expect(container.read(runningToolsProvider), contains(pinKey));
 
     rebuiltRunningTools.end(currentLease);
     expect(container.read(runningToolsProvider), isEmpty);

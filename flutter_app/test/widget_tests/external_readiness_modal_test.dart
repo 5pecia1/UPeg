@@ -12,12 +12,16 @@ import 'package:upeg/src/features/host_attach/host_attach_dispatch_provider.dart
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/pages/expanded_modal_page.dart';
 import 'package:upeg/src/rust/api/readiness.dart';
+import 'package:upeg/src/rust/api/pegboard.dart'
+    show LayoutSnapshotDto, PlacementDto;
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
+import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/primary_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -46,6 +50,19 @@ const ExternalReadinessDto _unchecked = ExternalReadinessDto(
   platform: 'linux',
   command: 'credential-tool',
   installCommands: [],
+);
+
+CanonicalToolResult _result(String value) => CanonicalToolResult(
+  ok: true,
+  primaryOutputId: 'result',
+  outputs: <CanonicalOutputEntry>[
+    CanonicalOutputEntry(
+      id: 'result',
+      label: 'Result',
+      kind: 'string',
+      value: CanonicalOutputValue.string(value: value),
+    ),
+  ],
 );
 
 final ToolDto _externalTool = fixtureToolDto(
@@ -86,10 +103,12 @@ final class _AttachRecorder implements AttachClient {
     this.dispatchResult = const AttachDispatchOk(
       CanonicalToolResult(ok: true, outputs: []),
     ),
+    this.dispatchResults,
   });
 
   final List<AttachReadinessResult> inspections;
   final AttachDispatchResult dispatchResult;
+  final List<AttachDispatchResult>? dispatchResults;
   int inspectionCalls = 0;
   int dispatchCalls = 0;
   ToolArgs? lastArgs;
@@ -117,9 +136,10 @@ final class _AttachRecorder implements AttachClient {
     required ToolArgs args,
     String? boardKey,
   }) async {
+    final callIndex = dispatchCalls;
     dispatchCalls += 1;
     lastArgs = args;
-    return dispatchResult;
+    return dispatchResults?[callIndex] ?? dispatchResult;
   }
 }
 
@@ -173,7 +193,12 @@ Future<void> _pump(WidgetTester tester, _AttachRecorder client) async {
         currentBoardKeyProvider.overrideWith(_SeededBoard.new),
         lastOutcomeLoadProvider.overrideWithValue((_) => const []),
         lastOutcomePersistProvider.overrideWithValue(
-          ({required boardKey, required toolId, required result}) {},
+          ({
+            required boardKey,
+            required pinId,
+            required toolId,
+            required result,
+          }) {},
         ),
         toolsLoaderProvider.overrideWithValue(() => [_externalTool]),
         dispatchStreamFnProvider.overrideWithValue(
@@ -190,6 +215,102 @@ Future<void> _pump(WidgetTester tester, _AttachRecorder client) async {
     ),
   );
   await tester.pumpAndSettle();
+}
+
+ProviderContainer _duplicatePinContainer(_AttachRecorder client) =>
+    ProviderContainer(
+      overrides: [
+        ...i18nTestOverrides,
+        isWasmRuntimeProvider.overrideWithValue(true),
+        hostAttachStoreProvider.overrideWithValue(_MemoryStore()),
+        attachClientProvider.overrideWithValue(client),
+        currentBoardKeyProvider.overrideWith(_SeededBoard.new),
+        layoutLoaderProvider.overrideWithValue(
+          (_) => const LayoutSnapshotDto(
+            boardKey: 'dev',
+            boardCols: 6,
+            placements: <PlacementDto>[
+              PlacementDto(
+                toolId: 'setup.echo',
+                pinId: 'pin-one',
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+              PlacementDto(
+                toolId: 'setup.echo',
+                pinId: 'pin-two',
+                x: 1,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+            ],
+          ),
+        ),
+        lastOutcomeLoadProvider.overrideWithValue((_) => const []),
+        lastOutcomePersistProvider.overrideWithValue(
+          ({
+            required boardKey,
+            required pinId,
+            required toolId,
+            required result,
+          }) {},
+        ),
+        toolsLoaderProvider.overrideWithValue(() => [_externalTool]),
+        dispatchStreamFnProvider.overrideWithValue(
+          stubDispatchStream(
+            ({required toolId, required args, required approve}) async =>
+                throw StateError('remote External used local dispatch'),
+          ),
+        ),
+      ],
+    );
+
+Future<void> _pumpModalForPin(
+  WidgetTester tester,
+  ProviderContainer container,
+  PinKey pinKey,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: UpegTheme.darkTheme(),
+        home: ExpandedModalPage(tool: _externalTool, pinKey: pinKey),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+final class _ExternalModalPinRobot {
+  const _ExternalModalPinRobot(this.tester);
+
+  final WidgetTester tester;
+
+  Future<void> enterAndRun(String value) async {
+    await tester.enterText(find.byKey(const Key('field-message')), value);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+    await tester.pumpAndSettle();
+  }
+
+  void expectCachedResults({
+    required ProviderContainer container,
+    required PinKey firstPinKey,
+    required PinKey secondPinKey,
+  }) {
+    final outcomes = container.read(lastOutcomeProvider);
+    expect(outcomes.keys, containsAll(<PinKey>[firstPinKey, secondPinKey]));
+    expect(outcomes, hasLength(2));
+    expect(outcomes[firstPinKey]?.result.primaryOutputText, 'first result');
+    expect(outcomes[secondPinKey]?.result.primaryOutputText, 'second result');
+  }
+
+  void expectModalResult(String value) =>
+      expect(find.text(value), findsOneWidget);
 }
 
 void main() {
@@ -273,6 +394,37 @@ void main() {
 
       expect(client.dispatchCalls, 1);
       expect(client.inspectionCalls, 2);
+    },
+  );
+
+  testWidgets(
+    'should cache each remote modal result under its own duplicate pin id',
+    (tester) async {
+      final client = _AttachRecorder(
+        [const AttachReadinessNotApplicable()],
+        dispatchResults: <AttachDispatchResult>[
+          AttachDispatchOk(_result('first result')),
+          AttachDispatchOk(_result('second result')),
+        ],
+      );
+      final firstPinKey = (BoardKey.parse('dev'), PinId.parse('pin-one'));
+      final secondPinKey = (BoardKey.parse('dev'), PinId.parse('pin-two'));
+      final container = _duplicatePinContainer(client);
+      addTearDown(container.dispose);
+      final robot = _ExternalModalPinRobot(tester);
+
+      await _pumpModalForPin(tester, container, firstPinKey);
+      await robot.enterAndRun('first input');
+      robot.expectModalResult('first result');
+      await _pumpModalForPin(tester, container, secondPinKey);
+      await robot.enterAndRun('second input');
+      robot.expectModalResult('second result');
+
+      robot.expectCachedResults(
+        container: container,
+        firstPinKey: firstPinKey,
+        secondPinKey: secondPinKey,
+      );
     },
   );
 }

@@ -209,7 +209,7 @@ controlled_embed = { bindings = [
       result.outputs.last.value,
       const CanonicalOutputValue.integer(value: 1),
     );
-    _initialEntry = _sessions.entryFor(ToolId.parse(_toolId));
+    _initialEntry = _sessions.entryForTool(ToolId.parse(_toolId));
     expect(_initialEntry, isNotNull);
     await _expectPageState(counter: 1, text: _desktopInput);
   }
@@ -227,7 +227,7 @@ controlled_embed = { bindings = [
     expect(outputs.first['value'], _cliInput);
     expect(outputs.last['kind'], 'integer');
     expect(outputs.last['value'], 2);
-    expect(_sessions.entryFor(ToolId.parse(_toolId)), same(_initialEntry));
+    expect(_sessions.entryForTool(ToolId.parse(_toolId)), same(_initialEntry));
     await _expectPageState(counter: 2, text: _cliInput);
   }
 

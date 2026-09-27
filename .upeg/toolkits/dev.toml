@@ -1,0 +1,250 @@
+# UPeg repository maintenance Toolkit. Relative paths run from the project root.
+id = "dev"
+display_label = "upeg dev"
+description = "upeg repo maintenance toolkit (build/test/lint/git/gh/flutter)."
+tags = ["dev", "upeg", "repo"]
+
+# A board private to this repo. It does not mix into the built-in `dev`
+# board and exists only while this manifest is detected — `upeg board list`
+# outside the repo won't show it. Pins are stored on rows namespaced by the
+# manifest path, so a same-named board in another project can't collide.
+# Rules: "Project boards" in `upeg_sources::project`'s module docs.
+# ---------------------------------------------------------------- build/test
+
+[[tools]]
+id = "check"
+display_label = "just check"
+description = "fmt-check + clippy (all targets) + workspace tests + generated-artifact drift checks."
+tags = ["build", "slow"]
+pegboard_units = "U2"
+invoker = "External"
+command = "just"
+args_template = ["check"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "verify"
+display_label = "just verify"
+description = "Release gate: all of check plus actionlint + file-size budget + lexicon."
+tags = ["build", "slow"]
+pegboard_units = "U2"
+invoker = "External"
+command = "just"
+args_template = ["verify"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "test_crate"
+display_label = "cargo test -p"
+description = "Test one workspace member."
+tags = ["test"]
+pegboard_units = "U1"
+invoker = "External"
+command = "cargo"
+args_template = ["test", "-p", "{crate}"]
+boards = ["upeg-dev"]
+
+[[tools.inputs]]
+name = "crate"
+type = "options"
+label = "Crate"
+description = "Workspace member to test."
+required = true
+options = [
+  { value = "upeg-cli", label = "upeg-cli" },
+  { value = "upeg-core", label = "upeg-core" },
+  { value = "upeg-loader", label = "upeg-loader" },
+  { value = "upeg-runtime", label = "upeg-runtime" },
+  { value = "upeg-sources", label = "upeg-sources" },
+  { value = "upeg-tool-grammar", label = "upeg-tool-grammar" },
+  { value = "upeg-tools", label = "upeg-tools" },
+  { value = "upeg-macros", label = "upeg-macros" },
+  { value = "upeg-wasm", label = "upeg-wasm" },
+  { value = "upeg-frb", label = "upeg-frb" },
+  { value = "upeg-pegboard-ui", label = "upeg-pegboard-ui" },
+  { value = "upeg-plugin-api", label = "upeg-plugin-api" },
+  { value = "upeg-plugin-macros", label = "upeg-plugin-macros" },
+]
+
+[[tools]]
+id = "clippy"
+display_label = "cargo clippy"
+description = "Run clippy for the native target with -D warnings."
+tags = ["lint", "slow"]
+pegboard_units = "U2"
+invoker = "External"
+command = "cargo"
+args_template = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "fmt"
+display_label = "cargo fmt --all"
+description = "Format the whole workspace with rustfmt (modifies files)."
+tags = ["lint", "mutating"]
+pegboard_units = "U1"
+invoker = "External"
+command = "cargo"
+args_template = ["fmt", "--all"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "fmt_check"
+display_label = "cargo fmt --check"
+description = "Fails on any rustfmt violation (does not modify files)."
+tags = ["lint"]
+pegboard_units = "U1"
+invoker = "External"
+command = "cargo"
+args_template = ["fmt", "--all", "--check"]
+boards = ["upeg-dev"]
+
+# ------------------------------------------------------------------- git/gh
+
+[[tools]]
+id = "git_status"
+display_label = "git status"
+description = "Show working-tree changed files in short form."
+tags = ["vcs"]
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["status", "--short"]
+boards = ["upeg-dev"]
+primary_output_id = "result"
+
+[[tools.outputs]]
+name = "result"
+type = "string"
+label = "Changed files"
+
+[[tools]]
+id = "git_log"
+display_label = "git log"
+description = "Show recent commits, one per line."
+tags = ["vcs"]
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["log", "--oneline", "-n", "{count}"]
+boards = ["upeg-dev"]
+
+[[tools.inputs]]
+name = "count"
+type = "integer"
+label = "Commit count"
+description = "Number of commits to show."
+required = false
+default = 10
+
+[[tools]]
+id = "pr_list"
+display_label = "gh pr list"
+description = "List open pull requests."
+tags = ["vcs", "github"]
+pegboard_units = "U2"
+invoker = "External"
+command = "gh"
+args_template = ["pr", "list"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "pr_checks"
+display_label = "gh pr checks"
+description = "CI check status of one PR."
+tags = ["vcs", "github"]
+pegboard_units = "U2"
+invoker = "External"
+command = "gh"
+args_template = ["pr", "checks", "{pr}"]
+boards = ["upeg-dev"]
+
+[[tools.inputs]]
+name = "pr"
+type = "integer"
+label = "PR number"
+required = true
+
+# -------------------------------------------------------------- flutter/frb
+
+[[tools]]
+id = "frb_codegen"
+display_label = "just frb-codegen"
+description = "Regenerate flutter_rust_bridge bindings (modifies generated files)."
+tags = ["frb", "codegen", "mutating"]
+pegboard_units = "U2"
+invoker = "External"
+command = "just"
+args_template = ["frb-codegen"]
+boards = ["upeg-dev"]
+
+[[tools]]
+id = "flutter_analyze"
+display_label = "flutter analyze"
+description = "Run the dart analyzer inside flutter_app/."
+tags = ["flutter", "lint"]
+pegboard_units = "U2"
+invoker = "External"
+command = "flutter"
+args_template = ["analyze"]
+# A relative path resolves against the directory holding this manifest, so
+# it runs in the repo's flutter_app/ no matter where it is called from.
+cwd = "flutter_app"
+boards = ["upeg-dev"]
+
+# ---------------------------------------------------------------------- misc
+
+[[tools]]
+id = "target_size"
+display_label = "du -sh target"
+description = "Build artifact directory size (first thing to check when disk is tight)."
+tags = ["disk"]
+pegboard_units = "U1"
+invoker = "External"
+command = "du"
+args_template = ["-sh", "target"]
+boards = ["upeg-dev"]
+
+# --------------------------------------------------------------------- chain
+
+[[tools]]
+id = "precommit"
+display_label = "precommit"
+description = "fmt → fmt --check → git status. The first step modifies files, so it needs approval."
+tags = ["chain", "release"]
+pin = "Chain"
+pegboard_units = "U2"
+invoker = "Chain"
+boards = ["upeg-dev"]
+connections = [
+  { from = "format", to = "gate" },
+  { from = "gate", to = "status" },
+]
+
+[[tools.steps]]
+id = "format"
+tool = "dev.fmt"
+requires_approval = true
+
+[[tools.steps]]
+id = "gate"
+tool = "dev.fmt_check"
+
+[[tools.steps]]
+id = "status"
+tool = "dev.git_status"
+
+[[tools]]
+id = "env_probe"
+display_label = "env probe"
+description = "Check the injected _upeg environment variables."
+tags = ["debug"]
+pegboard_units = "U1"
+invoker = "External"
+command = "sh"
+# The shell's `${VAR:-default}` shares braces with args_template's `{key}`
+# placeholders. Escape them as `{{` / `}}` to pass them to the shell
+# untouched — unescaped, they are parsed as placeholders and rejected at
+# load time.
+args_template = ["-c", 'echo "PWD=$PWD"; echo "UPEG_BOARD=${{UPEG_BOARD:-<unset>}}"; echo "UPEG_PROJECT_MANIFEST=${{UPEG_PROJECT_MANIFEST:-<unset>}}"']
+boards = ["upeg-dev"]

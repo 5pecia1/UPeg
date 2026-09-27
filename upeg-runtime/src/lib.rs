@@ -38,6 +38,7 @@ pub mod pegboard_project;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod persistence;
 pub mod progress;
+pub mod project_scope;
 mod provenance;
 pub mod readiness;
 pub mod search;
@@ -87,8 +88,9 @@ pub use toolbox::{
     toolbox_add_single_text_tool_with_dispatcher_managed, toolbox_add_tool,
     toolbox_add_tool_managed, toolbox_add_tool_with_dispatcher,
     toolbox_add_tool_with_dispatcher_managed, toolbox_add_toolkit, toolbox_has_id,
-    toolbox_has_tool_key, toolbox_tool, toolbox_tool_in_toolkit, toolbox_toolkit, toolbox_toolkits,
-    toolbox_tools, toolkits_for_surface, tools_for_toolkit_on_surface, tools_list_json_for_surface,
+    toolbox_has_tool_key, toolbox_is_builtin, toolbox_registered_tool, toolbox_tool,
+    toolbox_tool_in_toolkit, toolbox_toolkit, toolbox_toolkits, toolbox_tools,
+    toolkits_for_surface, tools_for_toolkit_on_surface, tools_list_json_for_surface,
     tools_on_board_for_surface, tools_with_tag_on_surface, validate_toolbox_addition,
 };
 pub use triggers::{

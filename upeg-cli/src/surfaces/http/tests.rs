@@ -205,84 +205,97 @@ async fn tool_list_baseline_includes_the_builtin_http_tool_shape() {
     );
 }
 
-#[tokio::test]
-async fn toolkit_tag_board_routes_expose_first_class_resources() {
-    let app = router();
+#[test]
+fn toolkit_tag_board_routes_expose_first_class_resources() {
+    crate::test_support::with_seeded_pegboard_home(
+        "http-resources",
+        |_| {},
+        || {
+            let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
+            runtime.block_on(async {
+                let app = router();
 
-    let body = get_ok_json(app.clone(), "/v1/toolkits").await;
-    let toolkits = body["toolkits"].as_array().expect("toolkits array");
-    assert!(toolkits.iter().any(|t| t["id"] == "convert"));
+                let body = get_ok_json(app.clone(), "/v1/toolkits").await;
+                let toolkits = body["toolkits"].as_array().expect("toolkits array");
+                assert!(toolkits.iter().any(|t| t["id"] == "convert"));
 
-    let body = get_ok_json(app.clone(), "/v1/toolkits/convert").await;
-    assert_eq!(body["id"], "convert");
-    assert!(body["toolCount"].as_u64().expect("toolCount number") > 0);
-    assert!(
-        body["tags"]
-            .as_array()
-            .expect("tags")
-            .iter()
-            .any(|tag| tag == "pure")
+                let body = get_ok_json(app.clone(), "/v1/toolkits/convert").await;
+                assert_eq!(body["id"], "convert");
+                assert!(body["toolCount"].as_u64().expect("toolCount number") > 0);
+                assert!(
+                    body["tags"]
+                        .as_array()
+                        .expect("tags")
+                        .iter()
+                        .any(|tag| tag == "pure")
+                );
+
+                let body = get_ok_json(app.clone(), "/v1/toolkits/num/hex_to_decimal").await;
+                assert_eq!(body["name"], "num.hex_to_decimal");
+                assert_eq!(body["toolkit"], "num");
+                assert_eq!(body["tool"], "hex_to_decimal");
+
+                let dotted_id = "github.com.http.admin.tools.list";
+                upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
+                    id: dotted_id,
+                    toolkit: "github.com",
+                    local_id: upeg_core::ToolId::parse_canonical_in_toolkit(
+                        dotted_id,
+                        "github.com",
+                    )
+                    .expect("test ToolMeta id must be canonical")
+                    .local(),
+                    tags: &[],
+                    display_label: "Test tool",
+                    description: "dotted structured key",
+                    input_spec: upeg_core::InputSpec::empty(),
+                    output_spec: upeg_core::OutputSpec::empty(),
+                    primary_output_id: None,
+                    effect: upeg_core::ToolEffect::Unknown,
+                    presentation: None,
+                    source: upeg_core::Source::UserInput,
+                    pin: upeg_core::PinKind::Inline,
+                    pegboard_units: upeg_core::PegboardUnits::U1,
+                    invoker: upeg_core::Invoker::External,
+                    surfaces: &[upeg_core::Surface::Http],
+                    boards: &[],
+                });
+                let body =
+                    get_ok_json(app.clone(), "/v1/toolkits/github.com/http.admin.tools.list").await;
+                assert_eq!(body["name"], dotted_id);
+                assert_eq!(body["toolkit"], "github.com");
+                assert_eq!(body["tool"], "http.admin.tools.list");
+
+                let body = get_ok_json(app.clone(), "/v1/tags/pure").await;
+                assert_eq!(body["tag"], "pure");
+                assert!(
+                    body["tools"]
+                        .as_array()
+                        .expect("tools")
+                        .iter()
+                        .any(|tool| tool["name"] == "num.hex_to_decimal")
+                );
+
+                let body = get_ok_json(app.clone(), "/v1/boards/dev").await;
+                assert_eq!(body["board"], "dev");
+                assert!(
+                    body["tools"]
+                        .as_array()
+                        .expect("tools")
+                        .iter()
+                        .any(|tool| tool["name"] == "num.hex_to_decimal")
+                );
+
+                for (uri, field) in [
+                    ("/v1/credentials", "credentials"),
+                    ("/v1/logs", "events"),
+                    ("/v1/triggers", "triggers"),
+                ] {
+                    assert_get_array_field(app.clone(), uri, field).await;
+                }
+            });
+        },
     );
-
-    let body = get_ok_json(app.clone(), "/v1/toolkits/num/hex_to_decimal").await;
-    assert_eq!(body["name"], "num.hex_to_decimal");
-    assert_eq!(body["toolkit"], "num");
-    assert_eq!(body["tool"], "hex_to_decimal");
-
-    let dotted_id = "github.com.http.admin.tools.list";
-    upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
-        id: dotted_id,
-        toolkit: "github.com",
-        local_id: upeg_core::ToolId::parse_canonical_in_toolkit(dotted_id, "github.com")
-            .expect("test ToolMeta id must be canonical")
-            .local(),
-        tags: &[],
-        display_label: "Test tool",
-        description: "dotted structured key",
-        input_spec: upeg_core::InputSpec::empty(),
-        output_spec: upeg_core::OutputSpec::empty(),
-        primary_output_id: None,
-        effect: upeg_core::ToolEffect::Unknown,
-        presentation: None,
-        source: upeg_core::Source::UserInput,
-        pin: upeg_core::PinKind::Inline,
-        pegboard_units: upeg_core::PegboardUnits::U1,
-        invoker: upeg_core::Invoker::External,
-        surfaces: &[upeg_core::Surface::Http],
-        boards: &[],
-    });
-    let body = get_ok_json(app.clone(), "/v1/toolkits/github.com/http.admin.tools.list").await;
-    assert_eq!(body["name"], dotted_id);
-    assert_eq!(body["toolkit"], "github.com");
-    assert_eq!(body["tool"], "http.admin.tools.list");
-
-    let body = get_ok_json(app.clone(), "/v1/tags/pure").await;
-    assert_eq!(body["tag"], "pure");
-    assert!(
-        body["tools"]
-            .as_array()
-            .expect("tools")
-            .iter()
-            .any(|tool| tool["name"] == "num.hex_to_decimal")
-    );
-
-    let body = get_ok_json(app.clone(), "/v1/boards/dev").await;
-    assert_eq!(body["board"], "dev");
-    assert!(
-        body["tools"]
-            .as_array()
-            .expect("tools")
-            .iter()
-            .any(|tool| tool["name"] == "num.hex_to_decimal")
-    );
-
-    for (uri, field) in [
-        ("/v1/credentials", "credentials"),
-        ("/v1/logs", "events"),
-        ("/v1/triggers", "triggers"),
-    ] {
-        assert_get_array_field(app.clone(), uri, field).await;
-    }
 }
 
 #[test]
@@ -555,7 +568,7 @@ fn unconfigured_board_context_detects_the_nearest_project_manifest() {
     // this fixture tree must itself live under the real `$HOME` — a
     // bare `std::env::temp_dir()` ancestor is exactly the "world-writable
     // /tmp/x/upeg.toml auto-loaded from /tmp/x/anything" case the fix
-    // closes (docs/product/security-absolutes.md).
+    // closes (docs/architecture.md#security-absolutes).
     let home = std::env::var_os("HOME")
         .map(std::path::PathBuf::from)
         .expect("$HOME must be set for this test");
@@ -563,13 +576,8 @@ fn unconfigured_board_context_detects_the_nearest_project_manifest() {
     let nested = root.join("nested/work");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&nested).unwrap();
-    let manifest = root.join("upeg.toml");
-    std::fs::write(
-        &manifest,
-        r#"id = "ctxproj"
-tools = [{ id = "noop" }]"#,
-    )
-    .unwrap();
+    let manifest = root.join(".upeg");
+    std::fs::create_dir_all(&manifest).unwrap();
 
     upeg_runtime::toolbox_add_tool(upeg_core::ToolMeta {
         id: "ctxproj.echo",

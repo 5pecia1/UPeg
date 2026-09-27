@@ -45,7 +45,15 @@ pub fn board_connection_preview(
         PROJECT_MANIFEST_ENV.into(),
         context.project_manifest.as_ref().map_or_else(
             || PROJECT_MANIFEST_OFF.into(),
-            |path| Value::String(path.to_string_lossy().into_owned()),
+            |path| {
+                let marker = if path.is_dir() {
+                    path.as_path()
+                } else {
+                    path.parent().unwrap_or(path)
+                };
+                let root = marker.parent().unwrap_or(marker);
+                Value::String(root.to_string_lossy().into_owned())
+            },
         ),
     );
     if let Some(root) = upeg_core::paths::config_root() {

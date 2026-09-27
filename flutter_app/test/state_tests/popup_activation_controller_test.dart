@@ -15,10 +15,11 @@ import 'package:upeg/src/popup/popup_inline_outcome_provider.dart';
 import 'package:upeg/src/rust/api/pin_activation.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
-import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/pending_activation_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 
@@ -61,7 +62,7 @@ ProviderContainer _container({
             ({required toolId, required argsJson}) => verdict(toolId),
       ),
       liveDispatchToolFnProvider.overrideWith(
-        (ref) => ({required toolId, required args}) {
+        (ref) => ({PinKey? pinKey, required toolId, required args}) {
           dispatched?.add(toolId.value);
           return dispatch(toolId);
         },
@@ -95,11 +96,6 @@ void main() {
         final inline = container.read(popupInlineOutcomeProvider);
         expect(inline.byTool[toolId], outcome);
         expect(inline.lastRun, toolId);
-        // Shared board cache got the same record (return-to-board parity),
-        // marked session-fresh (not restored-from-store).
-        final shared = container.read(lastOutcomeProvider)[toolId];
-        expect(shared, isA<FreshOutcome>());
-        expect(shared?.result, outcome);
         // The popup stayed open: no mode flip, no pending handoff.
         expect(container.read(windowModeProvider), WindowMode.popup);
         expect(container.read(pendingActivationProvider), isNull);
@@ -225,7 +221,7 @@ void main() {
           ),
           liveDispatchToolFnProvider.overrideWith(
             (ref) =>
-                ({required toolId, required args}) async =>
+                ({PinKey? pinKey, required toolId, required args}) async =>
                     _okResult('copied-text'),
           ),
           windowModeProvider.overrideWith(

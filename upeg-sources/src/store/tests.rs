@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use upeg_core::{ArgsPreset, BOARD_COLS, ColSpan, PinColorHex, PinSpan, Placement, RowSpan};
+use upeg_core::{ArgsPreset, BOARD_COLS, ColSpan, PinColorHex, PinId, PinSpan, Placement, RowSpan};
 
 use super::{Store, schema};
 use crate::pegboard::{BoardData, PegboardSelection, PegboardState};
@@ -96,8 +96,8 @@ fn schema_rejects_rows_violating_span_check() {
         .expect("insert board");
     let bad_span = format!(
         "INSERT INTO {placements} \
-           (board_key, tool_id, x, y, span_cols, span_rows, updated_at, device_id) \
-         VALUES ('dev', 't', 0, 0, {over}, 1, 0, 'test')",
+           (board_key, pin_id, tool_id, x, y, span_cols, span_rows, updated_at, device_id) \
+         VALUES ('dev', 't', 't', 0, 0, {over}, 1, 0, 'test')",
         placements = schema::PLACEMENTS_TABLE,
         over = BOARD_COLS + 1,
     );
@@ -380,8 +380,8 @@ impl Store {
             tx.execute(&board_sql, rusqlite::params![prefix, now, device_id])?;
             let placement_sql = format!(
                 "INSERT OR REPLACE INTO {placements} \
-                   (board_key, tool_id, x, y, updated_at, device_id) \
-                 VALUES (?1, ?2, 0, 0, ?3, ?4)",
+                   (board_key, pin_id, tool_id, x, y, updated_at, device_id) \
+                 VALUES (?1, ?2, ?2, 0, 0, ?3, ?4)",
                 placements = schema::PLACEMENTS_TABLE,
             );
             tx.execute(
@@ -700,9 +700,9 @@ fn canonical_export_preserves_board_guidance_and_layout_shape() {
     assert_eq!(
         json,
         concat!(
-            r##"{"alpha":[{"tool_id":"styled.tool","x":0,"y":0,"color":"#AABBCC","##,
+            r##"{"alpha":[{"pin_id":"styled.tool","tool_id":"styled.tool","x":0,"y":0,"color":"#AABBCC","##,
             r#""span":{"cols":2,"rows":1},"args_preset":{"n":1}}],"#,
-            r#""zeta":[{"tool_id":"plain.tool","x":1,"y":0}]}"#,
+            r#""zeta":[{"pin_id":"plain.tool","tool_id":"plain.tool","x":1,"y":0}]}"#,
         ),
         "the canonical form of BTreeMap ordering + None omission must be kept"
     );
@@ -719,12 +719,13 @@ fn canonical_export_preserves_board_guidance_and_layout_shape() {
     );
 }
 
-// ─── last_outcomes (schema v3) ─────────────────────────────────────────
+// ─── last_outcomes (schema v7) ─────────────────────────────────────────
 
 use crate::store::{NewLastOutcome, OUTPUTS_JSON_MAX_BYTES, cap_outputs_json};
 
-fn outcome(tool_id: &str, ok: bool) -> NewLastOutcome {
+fn outcome_for_pin(pin_id: &str, tool_id: &str, ok: bool) -> NewLastOutcome {
     NewLastOutcome {
+        pin_id: pin_id.into(),
         tool_id: tool_id.into(),
         ok,
         primary_output_id: Some("value".into()),
@@ -735,16 +736,16 @@ fn outcome(tool_id: &str, ok: bool) -> NewLastOutcome {
     }
 }
 
+fn outcome(tool_id: &str, ok: bool) -> NewLastOutcome {
+    outcome_for_pin(tool_id, tool_id, ok)
+}
+
 #[test]
-fn v3_schema_creates_last_outcomes_table_keyed_per_placement() {
-    let v3 = schema::MIGRATIONS[2];
+fn v7_schema_keys_placements_and_last_outcomes_by_pin_id() {
+    let v7 = schema::MIGRATIONS[6];
     assert!(
-        v3.contains(&format!("CREATE TABLE {} ", schema::LAST_OUTCOMES_TABLE)),
-        "v3 schema must contain the last_outcomes table"
-    );
-    assert!(
-        v3.contains("PRIMARY KEY (board_key, tool_id)"),
-        "last_outcomes must be keyed per placement by (board_key, tool_id)"
+        v7.contains("PRIMARY KEY (board_key, pin_id)"),
+        "v7 must key copied tables by (board_key, pin_id)"
     );
 }
 
@@ -843,6 +844,34 @@ fn last_outcome_is_isolated_by_board_key() {
 }
 
 #[test]
+fn same_tool_pins_keep_independent_outcomes_and_clear_by_pin_id() {
+    let mut store = Store::open_in_memory().expect("in-memory store");
+    store
+        .record_last_outcome("dev", &outcome_for_pin("pin-a", "num.hex", true))
+        .expect("record first pin");
+    store
+        .record_last_outcome("dev", &outcome_for_pin("pin-b", "num.hex", false))
+        .expect("record second pin");
+
+    let loaded = store.load_last_outcomes("dev").expect("load");
+    assert_eq!(loaded.len(), 2);
+    assert_eq!(loaded[0].pin_id, "pin-a");
+    assert_eq!(loaded[0].tool_id, "num.hex");
+    assert!(loaded[0].ok);
+    assert_eq!(loaded[1].pin_id, "pin-b");
+    assert_eq!(loaded[1].tool_id, "num.hex");
+    assert!(!loaded[1].ok);
+
+    store
+        .clear_last_outcome("dev", "pin-a")
+        .expect("clear first pin only");
+    let remaining = store.load_last_outcomes("dev").expect("reload");
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].pin_id, "pin-b");
+    assert_eq!(remaining[0].tool_id, "num.hex");
+}
+
+#[test]
 fn over_cap_record_is_stored_with_truncated_flag() {
     let mut store = Store::open_in_memory().expect("in-memory store");
     let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES);
@@ -913,3 +942,5 @@ fn pin_unpin_cleans_last_outcome_alongside_tombstone() {
         "unpin via the save_state path must clean the outcome too"
     );
 }
+
+mod pin_instances;

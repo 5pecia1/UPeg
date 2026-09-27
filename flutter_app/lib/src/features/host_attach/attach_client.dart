@@ -41,6 +41,7 @@ const String kHostUnavailableDefaultHint = 'host temporarily unavailable';
 
 const String kAttachResponseTooLargeErrorCode = 'response_too_large';
 const String kAttachMalformedResponseErrorCode = 'malformed_response';
+const String kAttachInvalidPinErrorCode = 'invalid_pin_id';
 
 // ─── healthz ──────────────────────────────────────────────────────────
 

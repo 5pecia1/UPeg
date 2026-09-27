@@ -23,6 +23,44 @@
 //! stdin, one stdout, request/response order matters), so dispatches
 //! against a single server serialize through a Mutex. Different servers
 //! run independently.
+//!
+//! # Load contract
+//!
+//! Imports load only in long-lived server processes, differently per
+//! lane — all funnel through `upeg-cli`'s `infrastructure::mcp_imports`:
+//!
+//! | Lane | When | Exposure while loading |
+//! |---|---|---|
+//! | `upeg host start` (fg/`--daemon`) | synchronous, before the listener opens | requests accepted only after loading finishes |
+//! | desktop embedded host | `Loading` stamped *before* the embed thread spawns; load runs in the background | `/healthz`'s `importsPending` is true until done — counts only, never upstream names |
+//! | in-process `upeg mcp` | conditional + background | `notifications/tools/list_changed` on completion |
+//!
+//! One-shot CLI commands, the TUI, and proxy-mode `upeg mcp` never load
+//! imports — they reach imported tools through the attached host. There
+//! is no mid-run reload: reload = host restart.
+//!
+//! An imported tool is **not** re-exposed on upeg's own `mcp` surface
+//! unless its server's TOML opts in with `reexport = true` — the
+//! default-off blocks proxy chains and self-import loops. A skipped
+//! tool registers on no surface.
+//!
+//! # Subprocess and handshake safety
+//!
+//! Bounded timeouts: `initialize`/`tools/list` 5s, `tools/call` 30s,
+//! shutdown 500ms; a timeout kills the child and waits on it. The first
+//! spawn + handshake retries transient failures (timeout, pipe closing
+//! early) with fixed attempts/backoff (`spawn_retry`); permanent
+//! failures — a bad command, an explicit RPC error — return
+//! immediately.
+//!
+//! Strict JSON-RPC peers (the official SDK) drop malformed frames
+//! silently: a request with no params *omits* the `params` member
+//! (`"params": null` ≠ absent), and `notifications/initialized` goes
+//! out right after the `initialize` response, before any other request
+//! — a best-effort write whose failure surfaces on the next request.
+//!
+//! Self-import recursion (upeg declared as its own upstream) is cut by a
+//! marker env var stamped on every spawned upstream — see `child_env`.
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -898,7 +936,7 @@ pub fn register_dir(dir: &Path) -> Vec<(String, Result<ImportOutcome, ImportErro
 /// load would take tens of seconds. The in-process `upeg mcp` lane uses
 /// it to skip eager import loading entirely when none of the imported
 /// tools could appear on its own surface anyway
-/// (docs/architecture/mcp.md).
+/// (this module's docs, "Load contract").
 ///
 /// An unreadable or unparseable declaration counts as `Blocked`: the
 /// real load reports it as a per-server failure, and a broken file must

@@ -12,12 +12,19 @@ void main() {
 
     focusPlacement(
       container,
-      const PlacementDto(toolId: 'num.hex_to_decimal', x: 0, y: 0, w: 1, h: 1),
+      const PlacementDto(
+        toolId: 'num.hex_to_decimal',
+        pinId: 'num.hex_to_decimal',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+      ),
     );
 
     expect(
       container.read(focusedPinProvider),
-      ToolId.parse('num.hex_to_decimal'),
+      PinId.parse('num.hex_to_decimal'),
     );
   });
 }

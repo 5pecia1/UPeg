@@ -1,10 +1,7 @@
 # Public release build — manual dispatch on main only.
 #
-# Builds unsigned release artifacts from the public checkout and stages them
-# as workflow artifacts plus a checksummed release-manifest.json. Nothing here
-# publishes: the trusted publisher lives in the private repository and consumes
-# a verified run of this workflow (release/verify-build.sh +
-# release/publish-release.sh).
+# `native` builds public source. `mirror` verifies and publishes the exact
+# payload already staged in this repository as a draft release by the bridge.
 #
 # Tag policy: the dispatch `tag` input must equal `v<Cargo workspace version>`
 # (Cargo.toml [workspace.package].version is the version source of truth).
@@ -15,9 +12,27 @@ name: release
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'native builds public source; mirror finalizes a bridge draft'
+        required: false
+        default: native
+        type: choice
+        options: [native, mirror]
       tag:
         description: 'Release tag, must equal v<workspace version> (e.g. v0.1.2)'
         required: true
+        type: string
+      public_sha:
+        description: 'Immutable public commit for mirror mode'
+        required: false
+        type: string
+      draft_id:
+        description: 'Bridge-created public draft release ID for mirror mode'
+        required: false
+        type: string
+      manifest_sha256:
+        description: 'SHA256 of the bridge release-manifest.json for mirror mode'
+        required: false
         type: string
 permissions:
   contents: read
@@ -43,18 +58,39 @@ jobs:
     timeout-minutes: 5
     outputs:
       version: ${{ steps.resolve.outputs.version }}
+      public_sha: ${{ steps.resolve.outputs.public_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ inputs.mode == 'mirror' && inputs.public_sha || github.sha }}
           persist-credentials: false
+      - name: Check native release App configuration
+        if: inputs.mode == 'native'
+        env:
+          APP_ID: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
+          APP_KEY: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          [ -n "$APP_ID" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_ID' >&2; exit 1; }
+          [ -n "$APP_KEY" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_PRIVATE_KEY' >&2; exit 1; }
       - name: Resolve and check the release version
         id: resolve
         env:
           REF: ${{ github.ref }}
+          MODE: ${{ inputs.mode }}
+          PUBLIC_SHA: ${{ inputs.public_sha }}
+          DRAFT_ID: ${{ inputs.draft_id }}
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
         run: |
           set -euo pipefail
           [ "$REF" = "refs/heads/main" ] \
             || { echo "release builds only run on main (got $REF)" >&2; exit 1; }
+          case "$MODE" in native|mirror) ;; *) echo "unknown release mode: $MODE" >&2; exit 1 ;; esac
+          if [ "$MODE" = mirror ]; then
+            [[ "$PUBLIC_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'mirror public_sha must be a SHA' >&2; exit 1; }
+            [[ "$DRAFT_ID" =~ ^[0-9]+$ ]] || { echo 'mirror draft_id must be numeric' >&2; exit 1; }
+            [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo 'mirror manifest_sha256 must be a SHA256' >&2; exit 1; }
+            [ "$(git rev-parse HEAD)" = "$PUBLIC_SHA" ] || { echo 'mirror public_sha is not the checked out public commit' >&2; exit 1; }
+          fi
           version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' \
             Cargo.toml | head -n 1)"
           [ -n "$version" ] || { echo "workspace version not found" >&2; exit 1; }
@@ -64,10 +100,12 @@ jobs:
           [ "$RELEASE_TAG" = "v$version" ] \
             || { echo "tag $RELEASE_TAG must equal v$version" >&2; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "public_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   cli-linux:
     name: cli-linux
     needs: preflight
+    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 60
     env:
@@ -117,6 +155,7 @@ jobs:
   cli-macos:
     name: cli-macos
     needs: preflight
+    if: inputs.mode == 'native'
     runs-on: macos-14
     timeout-minutes: 60
     env:
@@ -161,6 +200,7 @@ jobs:
   cli-windows:
     name: cli-windows
     needs: preflight
+    if: inputs.mode == 'native'
     runs-on: windows-latest
     timeout-minutes: 60
     env:
@@ -218,6 +258,7 @@ jobs:
   flutter-linux:
     name: flutter-linux
     needs: preflight
+    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 120
     env:
@@ -312,11 +353,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Records commit, run identity and a sha256+size entry per release file.
-  # The private publisher refuses anything this manifest does not list.
+  # One v2 manifest covers the native release assets and their source commit.
   manifest:
     name: manifest
     needs: [preflight, cli-linux, cli-macos, cli-windows, flutter-linux]
+    if: inputs.mode == 'native'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
@@ -327,37 +368,143 @@ jobs:
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           path: artifacts
-      - name: Flatten and check against the expected file set
-        env:
-          VERSION: ${{ needs.preflight.outputs.version }}
+      - name: Flatten build artifacts without basename collisions
         run: |
           set -euo pipefail
-          scratch="$(mktemp -d)"
-          mkdir -p dist
-          find artifacts -mindepth 2 -type f -exec cp {} dist/ \;
-          python3 release/artifacts.py expected-files "$VERSION" "$RELEASE_TAG" \
-            | LC_ALL=C sort > "$scratch/expected.txt"
-          ( cd dist && find . -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort ) \
-            > "$scratch/actual.txt"
-          diff -u "$scratch/expected.txt" "$scratch/actual.txt"
+          python3 - <<'PY'
+          from pathlib import Path
+          from shutil import copyfile
+          source, target = Path('artifacts'), Path('dist')
+          target.mkdir()
+          seen = {}
+          for path in sorted(source.rglob('*')):
+              if path.is_symlink():
+                  raise SystemExit(f'symlink in downloaded artifacts: {path}')
+              if path.is_dir():
+                  continue
+              if not path.is_file() or path.name in seen:
+                  raise SystemExit(f'duplicate or non-regular release artifact: {path}')
+              seen[path.name] = path
+              copyfile(path, target / path.name)
+          PY
       - name: Write the release manifest
-        env:
-          UPEG_VERSION: ${{ needs.preflight.outputs.version }}
-          UPEG_TAG: ${{ inputs.tag }}
-          UPEG_COMMIT: ${{ github.sha }}
-          UPEG_RUN_ID: ${{ github.run_id }}
-          UPEG_RUN_ATTEMPT: ${{ github.run_attempt }}
-          UPEG_REPO: ${{ github.repository }}
-          UPEG_WORKFLOW: ${{ github.workflow }}
-          UPEG_EVENT: ${{ github.event_name }}
-          UPEG_REF: ${{ github.ref }}
-          UPEG_FLUTTER_VERSION: ${{ env.FLUTTER_VERSION }}
         run: |
           mkdir -p release-manifest
-          python3 release/artifacts.py manifest dist release-manifest/release-manifest.json
+          python3 release/artifacts.py manifest-v2 dist release-manifest/release-manifest.json \
+            --tag "$RELEASE_TAG" --commit "${{ needs.preflight.outputs.public_sha }}" --profile public
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-manifest
-          path: release-manifest/release-manifest.json
+          path: release-manifest/
           if-no-files-found: error
           retention-days: 7
+
+  release-ci:
+    name: release-${{ inputs.mode }}-${{ matrix.lane }}
+    needs: preflight
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [rust, wasm, flutter, licenses]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/verify
+        with:
+          lane: ${{ matrix.lane }}
+
+  mirror-publish:
+    name: verify and finalize mirror release
+    needs: [preflight, release-ci]
+    if: inputs.mode == 'mirror'
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      PUBLIC_SHA: ${{ needs.preflight.outputs.public_sha }}
+      DRAFT_ID: ${{ inputs.draft_id }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Finalize the verified draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 release/github_release.py finalize --repo "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --release-id "$DRAFT_ID" \
+            --manifest-sha256 "$MANIFEST_SHA256"
+
+  native-publish:
+    name: publish native release
+    needs: [preflight, manifest, release-ci]
+    if: inputs.mode == 'native'
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      PUBLIC_SHA: ${{ needs.preflight.outputs.public_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
+          persist-credentials: false
+      - name: Download the native payload and its manifest
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          path: incoming
+      - name: Verify the native payload and source commit
+        run: |
+          set -euo pipefail
+          mkdir files
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from shutil import copyfile
+          manifest = json.load(open('incoming/release-manifest/release-manifest.json'))
+          if manifest.get('build_commit') != os.environ['PUBLIC_SHA']:
+              raise SystemExit('native manifest build_commit differs from public target')
+          seen = {}
+          for path in sorted(Path('incoming').rglob('*')):
+              if path.is_symlink():
+                  raise SystemExit(f'symlink in downloaded artifacts: {path}')
+              if path.is_dir() or path.parent.name == 'release-manifest':
+                  continue
+              if not path.is_file() or path.name in seen:
+                  raise SystemExit(f'duplicate or non-regular release artifact: {path}')
+              seen[path.name] = path
+              copyfile(path, Path('files') / path.name)
+          PY
+          python3 release/artifacts.py verify-mirror files \
+            incoming/release-manifest/release-manifest.json --tag "$RELEASE_TAG"
+      - name: Mint the public release App token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        id: public-release-token
+        with:
+          app-id: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
+          private-key: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
+          owner: 5pecia1
+          repositories: UPeg
+          permission-contents: write
+      - name: Stage and finalize the native release
+        env:
+          GH_TOKEN: ${{ steps.public-release-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          python3 release/github_release.py stage --repo "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --files files \
+            --manifest incoming/release-manifest/release-manifest.json > staged.json
+          release_id="$(python3 -c 'import json; print(json.load(open("staged.json"))["release_id"])')"
+          manifest_sha256="$(python3 -c 'import json; print(json.load(open("staged.json"))["manifest_sha256"])')"
+          python3 release/github_release.py finalize --repo "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --release-id "$release_id" \
+            --manifest-sha256 "$manifest_sha256"

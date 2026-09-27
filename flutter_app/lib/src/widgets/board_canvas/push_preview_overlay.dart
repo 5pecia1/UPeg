@@ -35,7 +35,7 @@ class PushPreviewOverlay extends StatelessWidget {
   /// from `MoveModeActive` so the SAME overlay serves both the move
   /// push preview (F16) and the resize push preview — no copy-paste
   /// twin.
-  final ToolId activeToolId;
+  final PinId activeToolId;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class PushPreviewOverlay extends StatelessWidget {
           for (final placement in previewPlacements)
             // Skip the moved/resized tool itself — only displaced
             // placements need labels.
-            if (placement.toolId != activeToolId.value)
+            if (placement.pinId != activeToolId.value)
               Positioned(
                 left:
                     BoardGridMetrics.pixelX(placement.x) +

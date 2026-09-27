@@ -1,11 +1,11 @@
 /// Native presentation E2E against the installed my-ecosystem CLI.
 ///
-/// Understood as: this test deliberately avoids Dart resolver/dispatcher
-/// overrides.  It proves the macOS runner inherits the isolated runtime
-/// sources, Rust loads the exported Toolkit, and the production Flutter
-/// identifiers carry one external mode change through to the refreshed read.
+/// This test deliberately avoids Dart resolver/dispatcher overrides. It
+/// proves the macOS runner inherits isolated runtime sources, Rust loads the
+/// exported Toolkit, and production Flutter identifiers carry one external
+/// mode change to the refreshed read.
 ///
-/// Prepare a fresh lab before running (do not reuse a running desktop lab):
+/// Prepare a fresh lab before running; do not reuse a running desktop lab:
 ///
 /// ```sh
 /// lab="$(mktemp -d /private/tmp/ecosystem-upeg-presentation.XXXXXX)"
@@ -19,7 +19,7 @@
 ///   --executable "$lab/prefix/bin/ecosystem"
 /// ```
 ///
-/// Run with the shell environment inherited by the native macOS runner:
+/// Run with the native macOS runner's inherited shell environment:
 /// `UPEG_PRESENTATION_LAB="$lab" ECOSYSTEM_HOME="$lab/ecosystem-home" \
 /// UPEG_HOME="$lab/upeg-home" UPEG_TOOLKITS_DIR="$lab/upeg-home/toolkits" \
 /// UPEG_WASM_DIR="$lab/upeg-home/wasm" \
@@ -199,8 +199,8 @@ final class _PresentationToolkitRobot {
   Future<void> previewAndApplyManualMode() async {
     await tester.tap(find.byKey(const Key('field-mode')).last);
     await tester.pump();
-    // The option menu is Flutter framework chrome without a per-option key;
-    // the declared Toolkit label is its stable public accessibility text.
+    // Flutter's option menu has no per-option key; its declared Toolkit label
+    // is stable public accessibility text.
     await tester.tap(find.text(_modeManualLabel).last);
     await tester.pump();
 
@@ -257,9 +257,8 @@ final class _PresentationToolkitRobot {
   }
 
   Future<void> returnToRefreshedSkillsList() async {
-    // Apply refreshes the read that opened mode-plan (ecosystem.skills).
-    // Close only the apply and plan pages; the remaining skills page must
-    // render the external CLI's new mode rather than its pre-apply output.
+    // Apply refreshes the read that opened mode-plan (ecosystem.skills). Close
+    // only apply and plan so skills renders the CLI's new mode, not pre-apply output.
     await _closeTopModalForField('expected_state');
     await _closeTopModalForField('mode');
     await _waitFor(
@@ -330,8 +329,8 @@ final class _PresentationToolkitRobot {
 
   Future<void> _closeTopModalForField(String field) async {
     // Each live child has a uniquely keyed production form field. Pop through
-    // that field's Navigator context so no obscured ancestor card or OS input
-    // can accidentally target a background presentation route.
+    // its Navigator context so an obscured card or OS input cannot target a
+    // background presentation route.
     final context = tester.element(find.byKey(Key('field-$field')).last);
     Navigator.of(context).pop();
     await tester.pump();

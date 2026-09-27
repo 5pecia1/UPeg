@@ -14,6 +14,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/rust/api/memos.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 
 /// Stable key of the default on-board scratch memo. Editing the notepad
 /// before any explicit `memo.create` lands on this entry, so a fresh
@@ -40,17 +41,31 @@ final memosProvider = NotifierProvider<MemosNotifier, List<MemoEntry>>(
 );
 
 /// Key of the memo the on-board notepad currently shows/edits. Defaults
-/// to [scratchMemoKey]; `memo.create` points it at the freshly-created
-/// memo so the new (empty) memo is what the user types into.
-final activeMemoKeyProvider = NotifierProvider<ActiveMemoKeyNotifier, String>(
-  ActiveMemoKeyNotifier.new,
-);
+/// to the placement's deterministic memo entry; `memo.create` points it
+/// at a freshly-created memo so the user types into that one instead.
+final activeMemoKeyProvider =
+    NotifierProvider.family<ActiveMemoKeyNotifier, String, PinKey>(
+      ActiveMemoKeyNotifier.new,
+    );
 
 class ActiveMemoKeyNotifier extends Notifier<String> {
+  ActiveMemoKeyNotifier(this.pinKey);
+
+  final PinKey pinKey;
+
   @override
-  String build() => scratchMemoKey;
+  String build() => defaultMemoKeyForPin(pinKey);
 
   void setActive(String key) => state = key;
+}
+
+/// The legacy `memo.scratch` placement keeps its original entry so existing
+/// databases restore exactly as before. Every newer placement receives a
+/// deterministic key derived from its board and pin identities, allowing two
+/// memo cards to retain separate bodies across restarts without new storage.
+String defaultMemoKeyForPin(PinKey pinKey) {
+  if (pinKey.$2.value == 'memo.scratch') return scratchMemoKey;
+  return 'pin-memo:${Uri.encodeComponent(pinKey.$1.value)}:${Uri.encodeComponent(pinKey.$2.value)}';
 }
 
 class MemosNotifier extends Notifier<List<MemoEntry>> {

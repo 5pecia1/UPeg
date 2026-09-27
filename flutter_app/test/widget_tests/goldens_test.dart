@@ -44,6 +44,8 @@ import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
+import 'package:upeg/src/state/diagnostics_provider.dart';
+import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
 import 'package:upeg/src/widgets/palette_overlay.dart';
@@ -68,6 +70,44 @@ class _GoldenStatusNotifier extends StatusNotifier {
     mcpImportPhase: McpImportPhaseDto.notStarted,
     buildVersion: '0.0.0',
   );
+}
+
+class _GoldenProjectApi implements ProjectContextApi {
+  const _GoldenProjectApi();
+
+  @override
+  Future<ProjectDefinition?> current() async => null;
+
+  @override
+  Future<ProjectDefinition> validateRoot(String root) =>
+      throw UnimplementedError();
+
+  @override
+  Future<ProjectActivation> activate(String root) => throw UnimplementedError();
+
+  @override
+  Future<ProjectActivation> setToolChoice({
+    required String root,
+    required String toolId,
+    required ProjectToolChoice choice,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> close() => throw UnimplementedError();
+}
+
+class _GoldenDiagnosticsApi implements DiagnosticsApi {
+  const _GoldenDiagnosticsApi();
+
+  @override
+  Future<List<DiagnosticSummary>> list({required int limit}) async => const [];
+
+  @override
+  Future<DiagnosticReport?> show(String id) => throw UnimplementedError();
+
+  @override
+  Future<String> export(String id, {required bool debug}) =>
+      throw UnimplementedError();
 }
 
 /// Fixes the widget viewport to a deterministic size and unsets it on
@@ -172,12 +212,20 @@ void main() {
                 placements: [
                   PlacementDto(
                     toolId: 'num.hex_to_decimal',
+                    pinId: 'num.hex_to_decimal',
                     x: 0,
                     y: 0,
                     w: 1,
                     h: 1,
                   ),
-                  PlacementDto(toolId: 'id.uuid_v7', x: 1, y: 0, w: 1, h: 1),
+                  PlacementDto(
+                    toolId: 'id.uuid_v7',
+                    pinId: 'id.uuid_v7',
+                    x: 1,
+                    y: 0,
+                    w: 1,
+                    h: 1,
+                  ),
                 ],
               ),
               onPinTap: (_) {},
@@ -199,6 +247,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
             paletteSearcherProvider.overrideWith(
               (ref) =>
                   (query) => _fixtureHits,
@@ -221,10 +270,19 @@ void main() {
             i18nTranslateArgsOverride.overrideWithValue(_goldenTranslateArgs),
             keyboardPlatformProvider.overrideWithValue(TargetPlatform.macOS),
           ],
-          child: _themed(PaletteOverlay(onPick: (_) {})),
+          child: _themed(PaletteOverlay(onPick: (_, _) {})),
         ),
       );
       await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(PaletteOverlay)),
+      );
+      await container.read(currentBoardKeyProvider.notifier).restore();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('palette-add-num.hex_to_decimal')),
+        findsOneWidget,
+      );
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/palette_overlay.png'),
@@ -294,6 +352,12 @@ void main() {
             i18nTranslateOverride.overrideWithValue(_goldenTranslate),
             i18nTranslateArgsOverride.overrideWithValue(_goldenTranslateArgs),
             statusSnapshotProvider.overrideWith(_GoldenStatusNotifier.new),
+            projectContextApiProvider.overrideWithValue(
+              const _GoldenProjectApi(),
+            ),
+            diagnosticsApiProvider.overrideWithValue(
+              const _GoldenDiagnosticsApi(),
+            ),
             keyboardPlatformProvider.overrideWithValue(TargetPlatform.macOS),
           ],
           // The expanded section list now overflows the 420x520 golden

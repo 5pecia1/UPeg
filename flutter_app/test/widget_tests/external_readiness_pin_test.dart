@@ -29,7 +29,16 @@ final ToolDto _tool = fixtureToolDto(
 const LayoutSnapshotDto _snapshot = LayoutSnapshotDto(
   boardKey: 'dev',
   boardCols: 4,
-  placements: [PlacementDto(toolId: 'setup.echo', x: 0, y: 0, w: 1, h: 1)],
+  placements: [
+    PlacementDto(
+      toolId: 'setup.echo',
+      pinId: 'setup.echo',
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+    ),
+  ],
 );
 
 final class _PinReadinessRobot {

@@ -7,7 +7,8 @@
 //!
 //! `handle` is a pure function (`Value` in, `Option<Value>` out) so the
 //! protocol can be unit-tested without spinning up stdin/stdout. `serve`
-//! is the I/O wrapper used by the `upeg mcp` subcommand.
+//! is the I/O wrapper used by the `upeg mcp` subcommand. The full serve
+//! contract lives in the [`crate::surfaces`] module docs.
 
 use serde_json::{Value, json};
 use upeg_core::{
@@ -645,7 +646,7 @@ pub fn serve(board: Option<BoardKey>) {
         // In-process lane only: this stdio server is the long-lived
         // process that owns its Toolbox, so it registers MCP imports
         // itself. The proxy lane above skips it — the host already
-        // imported them (docs/architecture/mcp.md).
+        // imported them (`upeg_sources::mcp_import` module docs).
         let gate = std::sync::Arc::new(InitializeGate::default());
         // Dropped on the spot, which detaches the thread. This lane must
         // never join it: a stdio session ends at stdin EOF, which can
@@ -766,7 +767,10 @@ fn write_tools_list_changed<W: std::io::Write>(out: &mut W) {
 /// host's "Connected clients" panel via a periodic heartbeat. 25 s
 /// interval beats the 30 s TTL with margin; once the surface exits
 /// the entry ages out naturally.
-fn spawn_heartbeat_thread(host: crate::infrastructure::discovery::ServerInfo, label: &'static str) {
+fn spawn_heartbeat_thread(
+    host: crate::infrastructure::discovery::DiscoveredHost,
+    label: &'static str,
+) {
     let pid = std::process::id();
     let start_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

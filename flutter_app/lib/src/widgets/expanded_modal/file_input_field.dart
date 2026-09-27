@@ -1,3 +1,24 @@
+// File input field — pick and drop converge on one assembly step.
+//
+//   * `Choose file` opens the platform dialog; the whole field is the
+//     drop zone, which highlights its border and background on drag and resets
+//     them when it leaves. Both
+//     paths feed `file_selection_assembler.dart`, which enforces allowed
+//     extensions, count, and per-file and total size. Reads use a bounded
+//     window and check size before opening.
+//   * The empty state explains both paths together ("choose a file or
+//     drop it here"). A `File` value travels as bytes, not a filesystem
+//     path — the canonical `FileValue` JSON (`upeg_core`'s
+//     `input::file_value`) — so this works unchanged in the browser
+//     build too.
+//   * `max_count > 1` sends picked files as `directory` entries under one
+//     name. Policy, not picked count, decides the shape: with `max_count == 1`
+//     a single file is `bytes`; with `max_count > 1`, even one is a directory.
+//   * Honest gaps: `directory` is a synthetic multi-file container, so
+//     real directory selection and folder drops are refused. `FilePath` is
+//     a path string with a folder button and no drop zone. The Chrome extension
+//     only has native `<input type="file">`; policy checks still apply. The
+//     field shows violations after selection rather than explaining policy first.
 library;
 
 import 'dart:async';
@@ -19,8 +40,8 @@ const Duration _highlightDuration = Duration(milliseconds: 120);
 const double _borderWidth = 2;
 const double _dragHighlightOpacity = 0.12;
 
-/// Catalog keys (upeg-pegboard-ui/src/i18n.rs) — copy renders through
-/// `t()`/`tRead()` so the field follows the active locale.
+/// Catalog keys (upeg-pegboard-ui/src/i18n.rs); `t()`/`tRead()` follow
+/// the active locale.
 const String _emptyPromptKey = 'modal.file.empty_prompt';
 const String _selectedCountKey = 'modal.file.selected_count';
 const String _pickFailureKey = 'modal.file.pick_failed';
@@ -115,7 +136,7 @@ final class _FileInputFieldState extends ConsumerState<FileInputField> {
         if (error is! Error) {
           Error.throwWithStackTrace(error, stackTrace);
         }
-        // Material button callbacks cannot await a Future. Forward programmer
+        // Material button callbacks cannot await a Future. Send programmer
         // Errors unchanged to Flutter's error boundary instead of user feedback.
         FlutterError.reportError(
           FlutterErrorDetails(
@@ -171,8 +192,7 @@ final class _FileInputFieldState extends ConsumerState<FileInputField> {
     setState(() => _errorMessage = message);
   }
 
-  /// Localized presentation of a typed [FileSelectionFailure] — the
-  /// failure carries the code + structured fields, this resolves them
+  /// Resolves a typed [FileSelectionFailure]'s code and structured fields
   /// against the active locale.
   void _showFailure(FileSelectionFailure failure) {
     _showError(tRead(ref, failure.messageKey, failure.messageArgs));
@@ -213,10 +233,9 @@ final class _FileInputFieldState extends ConsumerState<FileInputField> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(widget.label, style: theme.textTheme.labelMedium),
-          // A drop target has no InputDecoration, so the declared
-          // description gets its own line under the label instead of
-          // the helperText slot every other field kind uses. A compact
-          // tile has no room for it (mirrors `_multiOptionsField`).
+          // A drop target has no InputDecoration, so its description sits below
+          // the label instead of the helperText slot other field kinds use.
+          // Compact tiles omit it, like `_multiOptionsField`.
           if (widget.description case final description?
               when !widget.compact && description.isNotEmpty) ...[
             const SizedBox(height: UpegSizing.radius1),

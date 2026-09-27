@@ -7,7 +7,7 @@
 
 use std::collections::BTreeSet;
 
-use upeg_core::{BOARD_COLS, PinColorHex, PinSpan, Placement};
+use upeg_core::{BOARD_COLS, PinColorHex, PinId, PinSpan, Placement};
 
 use crate::toolbox::toolbox_tool;
 
@@ -110,17 +110,17 @@ pub const fn rects_overlap(a: PlacementRect, b: PlacementRect) -> bool {
 
 /// Can a tool of size `(w, h)` sit at `(x, y)` on `board` without
 /// overflowing [`BOARD_COLS`] or overlapping any other placement? The
-/// placement currently identified by `moving_tool_id` is excluded from
+/// placement currently identified by `moving_pin_id` is excluded from
 /// collision checks so a tool can be moved relative to itself.
 pub fn can_place_at(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     x: u16,
     y: u16,
     w: u16,
     h: u16,
 ) -> bool {
-    can_place_at_fixed_width(board, moving_tool_id, x, y, w, h)
+    can_place_at_fixed_width(board, moving_pin_id, x, y, w, h)
 }
 
 fn is_placeable_span(w: u16, h: u16) -> bool {
@@ -129,7 +129,7 @@ fn is_placeable_span(w: u16, h: u16) -> bool {
 
 fn can_place_at_fixed_width(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     x: u16,
     y: u16,
     w: u16,
@@ -140,7 +140,7 @@ fn can_place_at_fixed_width(
     }
     let candidate = PlacementRect { x, y, w, h };
     !board.iter().any(|p| {
-        Some(p.tool_id.as_str()) != moving_tool_id && rects_overlap(candidate, placement_rect(p))
+        Some(p.pin_id.as_str()) != moving_pin_id && rects_overlap(candidate, placement_rect(p))
     })
 }
 
@@ -148,11 +148,11 @@ fn can_place_at_fixed_width(
 /// are unbounded; the function always returns a valid slot.
 pub fn find_first_empty(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     w: u16,
     h: u16,
 ) -> (u16, u16) {
-    find_first_empty_fixed_width(board, moving_tool_id, w, h)
+    find_first_empty_fixed_width(board, moving_pin_id, w, h)
 }
 
 fn max_start_x(w: u16) -> u16 {
@@ -162,7 +162,7 @@ fn max_start_x(w: u16) -> u16 {
 
 fn find_first_empty_fixed_width(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     w: u16,
     h: u16,
 ) -> (u16, u16) {
@@ -172,7 +172,7 @@ fn find_first_empty_fixed_width(
     let max_start_x = max_start_x(w);
     for y in 0..u16::MAX {
         for x in 0..=max_start_x {
-            if can_place_at_fixed_width(board, moving_tool_id, x, y, w, h) {
+            if can_place_at_fixed_width(board, moving_pin_id, x, y, w, h) {
                 return (x, y);
             }
         }
@@ -182,18 +182,18 @@ fn find_first_empty_fixed_width(
 
 fn find_first_empty_from(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     w: u16,
     h: u16,
     min_x: u16,
     min_y: u16,
 ) -> (u16, u16) {
-    find_first_empty_from_fixed_width(board, moving_tool_id, w, h, min_x, min_y)
+    find_first_empty_from_fixed_width(board, moving_pin_id, w, h, min_x, min_y)
 }
 
 fn find_first_empty_from_fixed_width(
     board: &[Placement],
-    moving_tool_id: Option<&str>,
+    moving_pin_id: Option<&str>,
     w: u16,
     h: u16,
     min_x: u16,
@@ -209,7 +209,7 @@ fn find_first_empty_from_fixed_width(
         }
         let start_x = if y == min_y { min_x } else { 0 };
         for x in start_x..=max_start_x {
-            if can_place_at_fixed_width(board, moving_tool_id, x, y, w, h) {
+            if can_place_at_fixed_width(board, moving_pin_id, x, y, w, h) {
                 return (x, y);
             }
         }
@@ -234,8 +234,8 @@ const fn next_anchor_after(x: u16, y: u16) -> (u16, u16) {
     }
 }
 
-/// Drop unknown/duplicate placements and reflow anything that collides. The
-/// first valid occurrence of each tool keeps its coordinate whenever that
+/// Drop unknown tools and duplicate pin ids, and reflow collisions. The
+/// first valid occurrence of each pin keeps its coordinate whenever that
 /// coordinate still satisfies the fixed-width geometry rules.
 pub fn reconcile_placements<I>(raw: I) -> Vec<Placement>
 where
@@ -245,7 +245,7 @@ where
     let mut out = Vec::new();
     for mut placement in raw {
         let id = placement.tool_id.trim().to_string();
-        if id.is_empty() || toolbox_tool(&id).is_none() || !seen.insert(id.clone()) {
+        if id.is_empty() || toolbox_tool(&id).is_none() || !seen.insert(placement.pin_id.clone()) {
             continue;
         }
         placement.tool_id = id;
@@ -277,7 +277,7 @@ where
     let mut min_anchor = (0, 0);
     for mut placement in raw {
         let id = placement.tool_id.trim().to_string();
-        if id.is_empty() || toolbox_tool(&id).is_none() || !seen.insert(id.clone()) {
+        if id.is_empty() || toolbox_tool(&id).is_none() || !seen.insert(placement.pin_id.clone()) {
             continue;
         }
         placement.tool_id = id;
@@ -320,6 +320,43 @@ pub fn pin_placement(layout: &mut Vec<Placement>, tool_id: &str) -> PlacementEdi
     PlacementEdit::Changed
 }
 
+/// Append an additional instance of a registered tool. The caller supplies
+/// an opaque id so retries can be made idempotent without conflating tools.
+pub fn add_placement(layout: &mut Vec<Placement>, tool_id: &str, pin_id: PinId) -> PlacementEdit {
+    let tool_id = tool_id.trim();
+    if toolbox_tool(tool_id).is_none() || layout.iter().any(|placement| placement.pin_id == pin_id)
+    {
+        return PlacementEdit::NoOp;
+    }
+    let (w, h) = placement_size(tool_id);
+    if !is_placeable_span(w, h) {
+        return PlacementEdit::NoOp;
+    }
+    let (x, y) = find_first_empty(layout, None, w, h);
+    layout.push(Placement::new(tool_id, x, y).with_pin_id(pin_id));
+    PlacementEdit::Changed
+}
+
+/// Remove exactly one pin, leaving other instances of its tool intact.
+pub fn remove_placement(layout: &mut Vec<Placement>, pin_id: &str) -> PlacementEdit {
+    let before = layout.len();
+    layout.retain(|placement| placement.pin_id.as_str() != pin_id);
+    if layout.len() < before {
+        PlacementEdit::Changed
+    } else {
+        PlacementEdit::NoOp
+    }
+}
+
+/// Existing tool-oriented callers select the first matching pin; pin-aware
+/// callers select their exact instance before this legacy fallback.
+fn placement_index(layout: &[Placement], id: &str) -> Option<usize> {
+    layout
+        .iter()
+        .position(|placement| placement.pin_id.as_str() == id)
+        .or_else(|| layout.iter().position(|placement| placement.tool_id == id))
+}
+
 pub fn unpin_placement(layout: &mut Vec<Placement>, tool_id: &str) -> PlacementEdit {
     let before = layout.len();
     layout.retain(|p| p.tool_id != tool_id);
@@ -331,14 +368,14 @@ pub fn unpin_placement(layout: &mut Vec<Placement>, tool_id: &str) -> PlacementE
 }
 
 pub fn place_tool_at(layout: &mut [Placement], tool_id: &str, x: u16, y: u16) -> PlacementEdit {
-    if toolbox_tool(tool_id).is_none() {
-        return PlacementEdit::NoOp;
-    }
-    let Some(index) = layout.iter().position(|p| p.tool_id == tool_id) else {
+    let Some(index) = placement_index(layout, tool_id) else {
         return PlacementEdit::NoOp;
     };
+    if toolbox_tool(&layout[index].tool_id).is_none() {
+        return PlacementEdit::NoOp;
+    }
     let (w, h) = effective_size(&layout[index]);
-    if !can_place_at(layout, Some(tool_id), x, y, w, h) {
+    if !can_place_at(layout, Some(layout[index].pin_id.as_str()), x, y, w, h) {
         return PlacementEdit::NoOp;
     }
     layout[index].x = x;
@@ -351,9 +388,10 @@ pub fn set_pin_color(
     tool_id: &str,
     color: Option<PinColorHex>,
 ) -> PlacementEdit {
-    let Some(target) = layout.iter_mut().find(|p| p.tool_id == tool_id) else {
+    let Some(index) = placement_index(layout, tool_id) else {
         return PlacementEdit::NoOp;
     };
+    let target = &mut layout[index];
     if target.color == color {
         return PlacementEdit::NoOp;
     }
@@ -375,12 +413,14 @@ pub fn place_tool_with_push(
     x: u16,
     y: u16,
 ) -> PlacementEdit {
-    if toolbox_tool(tool_id).is_none() {
-        return PlacementEdit::NoOp;
-    }
-    let Some(mut moving) = layout.iter().find(|p| p.tool_id == tool_id).cloned() else {
+    let Some(index) = placement_index(layout, tool_id) else {
         return PlacementEdit::NoOp;
     };
+    if toolbox_tool(&layout[index].tool_id).is_none() {
+        return PlacementEdit::NoOp;
+    }
+    let mut moving = layout[index].clone();
+    let moving_pin_id = moving.pin_id.clone();
     let (w, h) = effective_size(&moving);
     if !is_placeable_span(w, h) {
         return PlacementEdit::NoOp;
@@ -392,12 +432,12 @@ pub fn place_tool_with_push(
     let mut seen = BTreeSet::new();
     let mut existing: Vec<Placement> = layout
         .iter()
-        .filter(|p| p.tool_id != tool_id)
+        .filter(|p| p.pin_id != moving_pin_id)
         .filter(|p| toolbox_tool(&p.tool_id).is_some())
-        .filter(|p| seen.insert(p.tool_id.clone()))
+        .filter(|p| seen.insert(p.pin_id.clone()))
         .cloned()
         .collect();
-    existing.sort_by(|a, b| (a.y, a.x, a.tool_id.as_str()).cmp(&(b.y, b.x, b.tool_id.as_str())));
+    existing.sort_by(|a, b| (a.y, a.x, a.pin_id.as_str()).cmp(&(b.y, b.x, b.pin_id.as_str())));
 
     let mut next = vec![moving];
     for mut item in existing {
@@ -417,7 +457,7 @@ pub fn place_tool_with_push(
         item.y = placed_y;
         next.push(item);
     }
-    next.sort_by(|a, b| (a.y, a.x, a.tool_id.as_str()).cmp(&(b.y, b.x, b.tool_id.as_str())));
+    next.sort_by(|a, b| (a.y, a.x, a.pin_id.as_str()).cmp(&(b.y, b.x, b.pin_id.as_str())));
     if next == before {
         PlacementEdit::NoOp
     } else {
@@ -434,20 +474,20 @@ pub fn swap_placement_pair(
     if source == target {
         return PlacementEdit::NoOp;
     }
-    let source_idx = layout.iter().position(|p| p.tool_id == source);
-    let target_idx = layout.iter().position(|p| p.tool_id == target);
+    let source_idx = placement_index(layout, source);
+    let target_idx = placement_index(layout, target);
     let (Some(source_idx), Some(target_idx)) = (source_idx, target_idx) else {
         return PlacementEdit::NoOp;
     };
-    let source_id = layout[source_idx].tool_id.clone();
-    let target_id = layout[target_idx].tool_id.clone();
+    let source_id = layout[source_idx].pin_id.clone();
+    let target_id = layout[target_idx].pin_id.clone();
     let mut ordered = layout.clone();
     ordered.sort_by_key(|p| (p.y, p.x));
     let slots: Vec<(u16, u16)> = ordered.iter().map(|p| (p.x, p.y)).collect();
-    let Some(source_pos) = ordered.iter().position(|p| p.tool_id == source_id) else {
+    let Some(source_pos) = ordered.iter().position(|p| p.pin_id == source_id) else {
         return PlacementEdit::NoOp;
     };
-    let Some(target_pos) = ordered.iter().position(|p| p.tool_id == target_id) else {
+    let Some(target_pos) = ordered.iter().position(|p| p.pin_id == target_id) else {
         return PlacementEdit::NoOp;
     };
     ordered.swap(source_pos, target_pos);
@@ -469,7 +509,10 @@ pub fn move_placement(
         let p = &layout[idx];
         (p.y, p.x)
     });
-    let Some(pos) = order.iter().position(|&idx| layout[idx].tool_id == tool_id) else {
+    let Some(selected_index) = placement_index(layout, tool_id) else {
+        return PlacementEdit::NoOp;
+    };
+    let Some(pos) = order.iter().position(|&idx| idx == selected_index) else {
         return PlacementEdit::NoOp;
     };
     let target_pos = match direction {
@@ -478,8 +521,9 @@ pub fn move_placement(
         Direction::Next if pos + 1 >= order.len() => return PlacementEdit::NoOp,
         Direction::Next => pos + 1,
     };
-    let target_id = layout[order[target_pos]].tool_id.clone();
-    swap_placement_pair(layout, tool_id, &target_id)
+    let target_id = layout[order[target_pos]].pin_id.clone();
+    let source_id = layout[selected_index].pin_id.clone();
+    swap_placement_pair(layout, source_id.as_str(), target_id.as_str())
 }
 
 /// Build a coordinate-laid-out placement list from an ordered tool-id list.
@@ -498,475 +542,5 @@ pub fn placements_from_ordered_ids<'a, I: IntoIterator<Item = &'a str>>(ids: I) 
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::toolbox_add_tool;
-    use upeg_core::{
-        ALL_SURFACES, ColSpan, InputSpec, Invoker, PegboardUnits, PinKind, RowSpan, ToolId,
-        ToolMeta,
-    };
-
-    const U1_TOOL: &str = "pegboard_test.u1";
-    const U2_TOOL: &str = "pegboard_test.u2";
-    const U1_B: &str = "pegboard_test.b";
-    const U1_C: &str = "pegboard_test.c";
-    const U1_D: &str = "pegboard_test.d";
-    const U1_E: &str = "pegboard_test.e";
-    const U1_F: &str = "pegboard_test.f";
-    const U1_G: &str = "pegboard_test.g";
-
-    fn local_id_for(id: &'static str) -> &'static str {
-        ToolId::parse_canonical_in_toolkit(id, "pegboard_test")
-            .expect("test ToolMeta id must be in canonical form")
-            .local()
-    }
-
-    fn meta(id: &'static str, pegboard_units: PegboardUnits) -> ToolMeta {
-        ToolMeta {
-            id,
-            toolkit: "pegboard_test",
-            local_id: local_id_for(id),
-            tags: &[],
-            display_label: "Pegboard test tool",
-            description: "",
-            input_spec: InputSpec::empty(),
-            output_spec: upeg_core::OutputSpec::empty(),
-            primary_output_id: None,
-            effect: upeg_core::ToolEffect::Unknown,
-            presentation: None,
-            source: upeg_core::Source::UserInput,
-            pin: PinKind::Inline,
-            pegboard_units,
-            invoker: Invoker::Function,
-            surfaces: ALL_SURFACES,
-            boards: &[],
-        }
-    }
-
-    fn register_test_tools() {
-        toolbox_add_tool(meta(U1_TOOL, PegboardUnits::U1));
-        toolbox_add_tool(meta(U2_TOOL, PegboardUnits::U2));
-        toolbox_add_tool(meta(U1_B, PegboardUnits::U1));
-        toolbox_add_tool(meta(U1_C, PegboardUnits::U1));
-        toolbox_add_tool(meta(U1_D, PegboardUnits::U1));
-        toolbox_add_tool(meta(U1_E, PegboardUnits::U1));
-        toolbox_add_tool(meta(U1_F, PegboardUnits::U1));
-        toolbox_add_tool(meta(U1_G, PegboardUnits::U1));
-    }
-
-    fn ids_by_position(layout: &[Placement]) -> Vec<String> {
-        let mut placements = layout.to_vec();
-        placements.sort_by_key(|p| (p.y, p.x));
-        placements.into_iter().map(|p| p.tool_id).collect()
-    }
-
-    fn has_no_overlap(layout: &[Placement]) -> bool {
-        for (idx, left) in layout.iter().enumerate() {
-            let left_rect = placement_rect(left);
-            if left_rect.x.saturating_add(left_rect.w) > BOARD_COLS {
-                return false;
-            }
-            for right in layout.iter().skip(idx + 1) {
-                if rects_overlap(left_rect, placement_rect(right)) {
-                    return false;
-                }
-            }
-        }
-        true
-    }
-
-    fn position_of(layout: &[Placement], tool_id: &str) -> Option<(u16, u16)> {
-        layout
-            .iter()
-            .find(|placement| placement.tool_id == tool_id)
-            .map(|placement| (placement.x, placement.y))
-    }
-
-    #[test]
-    fn board_width_always_stays_six_columns() {
-        register_test_tools();
-        let board = vec![Placement::new(U1_TOOL, BOARD_COLS + 4, 0)];
-
-        assert_eq!(fixed_board_cols(), u32::from(BOARD_COLS));
-        assert!(!can_place_at(&board, None, BOARD_COLS + 4, 0, 1, 1));
-    }
-
-    #[test]
-    fn overlapped_pin_shifts_right_in_same_row_and_wraps_to_next_row_at_end() {
-        register_test_tools();
-        let mut layout = placements_from_ordered_ids([U1_TOOL, U1_B, U1_C, U1_D, U1_E, U1_F, U1_G]);
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_G, 2, 0),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(position_of(&layout, U1_TOOL), Some((0, 0)));
-        assert_eq!(position_of(&layout, U1_B), Some((1, 0)));
-        assert_eq!(position_of(&layout, U1_G), Some((2, 0)));
-        assert_eq!(position_of(&layout, U1_C), Some((3, 0)));
-        assert_eq!(position_of(&layout, U1_D), Some((4, 0)));
-        assert_eq!(position_of(&layout, U1_E), Some((5, 0)));
-        assert_eq!(position_of(&layout, U1_F), Some((0, 1)));
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn saved_placement_beyond_six_columns_is_reconciled_into_lower_row() {
-        register_test_tools();
-        let raw = vec![
-            Placement::new(U1_TOOL, 0, 0),
-            Placement::new(U1_B, 1, 0),
-            Placement::new(U1_C, 2, 0),
-            Placement::new(U1_D, 3, 0),
-            Placement::new(U1_E, 4, 0),
-            Placement::new(U1_F, 5, 0),
-            Placement::new(U1_G, BOARD_COLS + 3, 0),
-        ];
-
-        let out = reconcile_placements(raw);
-
-        assert_eq!(position_of(&out, U1_G), Some((0, 1)));
-        assert!(has_no_overlap(&out));
-    }
-
-    #[test]
-    fn tool_wider_than_six_columns_is_not_placed() {
-        let oversized_w = BOARD_COLS + 1;
-
-        assert!(!can_place_at(&[], None, 0, 0, oversized_w, 1));
-        assert_eq!(find_first_empty(&[], None, oversized_w, 1), (0, 0));
-    }
-
-    #[test]
-    fn rect_overlap_detects_partial_overlap_and_separation() {
-        let a = PlacementRect {
-            x: 0,
-            y: 0,
-            w: 2,
-            h: 1,
-        };
-        let b = PlacementRect {
-            x: 1,
-            y: 0,
-            w: 1,
-            h: 1,
-        };
-        let c = PlacementRect {
-            x: 2,
-            y: 0,
-            w: 1,
-            h: 1,
-        };
-        assert!(rects_overlap(a, b));
-        assert!(!rects_overlap(a, c));
-    }
-
-    #[test]
-    fn find_first_empty_fills_row_major() {
-        let board = vec![Placement::new("num.hex_to_decimal", 0, 0)];
-        let (x, y) = find_first_empty(&board, None, 1, 1);
-        assert_eq!((x, y), (1, 0));
-    }
-
-    #[test]
-    fn can_place_at_rejects_overflow() {
-        let board = Vec::new();
-        assert!(!can_place_at(&board, None, BOARD_COLS, 0, 1, 1));
-        assert!(can_place_at(&board, None, BOARD_COLS - 1, 0, 1, 1));
-    }
-
-    #[test]
-    fn reconcile_placements_reflows_collisions() {
-        register_test_tools();
-        let raw = vec![Placement::new(U2_TOOL, 0, 0), Placement::new(U1_TOOL, 0, 0)];
-        let out = reconcile_placements(raw);
-        assert_eq!(out.len(), 2);
-        assert!(!rects_overlap(
-            placement_rect(&out[0]),
-            placement_rect(&out[1])
-        ));
-    }
-
-    #[test]
-    fn swap_placement_pair_reconciles_mixed_sizes() {
-        register_test_tools();
-        let mut layout = vec![
-            Placement::new(U1_TOOL, BOARD_COLS - 1, 0),
-            Placement::new(U2_TOOL, 0, 0),
-        ];
-
-        assert_eq!(
-            swap_placement_pair(&mut layout, U2_TOOL, U1_TOOL),
-            PlacementEdit::Changed
-        );
-
-        assert!(
-            layout
-                .iter()
-                .all(|placement| placement.x + placement_size(&placement.tool_id).0 <= BOARD_COLS)
-        );
-        assert_eq!(ids_by_position(&layout), vec![U1_TOOL, U2_TOOL]);
-        assert!(!rects_overlap(
-            placement_rect(&layout[0]),
-            placement_rect(&layout[1])
-        ));
-    }
-
-    #[test]
-    fn place_tool_with_push_moves_to_empty_cell_without_moving_other_tools() {
-        register_test_tools();
-        let mut layout = vec![
-            Placement::new(U1_TOOL, 0, 0),
-            Placement::new(U1_B, 1, 0),
-            Placement::new(U1_C, 2, 0),
-        ];
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_TOOL, 4, 0),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_TOOL)
-                .map(|p| (p.x, p.y)),
-            Some((4, 0))
-        );
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_B)
-                .map(|p| (p.x, p.y)),
-            Some((1, 0))
-        );
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn place_tool_with_push_pushes_colliding_tool_forward() {
-        register_test_tools();
-        let mut layout = vec![
-            Placement::new(U1_TOOL, 0, 0),
-            Placement::new(U1_B, 1, 0),
-            Placement::new(U1_C, 2, 0),
-            Placement::new(U1_D, 3, 0),
-        ];
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_D, 1, 0),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_D)
-                .map(|p| (p.x, p.y)),
-            Some((1, 0))
-        );
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_B)
-                .map(|p| (p.x, p.y)),
-            Some((2, 0))
-        );
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_C)
-                .map(|p| (p.x, p.y)),
-            Some((3, 0))
-        );
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn place_tool_with_push_spills_chained_moves_into_next_row() {
-        register_test_tools();
-        let mut layout = placements_from_ordered_ids([U1_TOOL, U1_B, U1_C, U1_D, U1_E, U1_F, U1_G]);
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_G, 0, 0),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(ids_by_position(&layout)[0], U1_G);
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_TOOL)
-                .map(|p| (p.x, p.y)),
-            Some((1, 0))
-        );
-        assert!(
-            layout
-                .iter()
-                .any(|p| p.tool_id == U1_F && p.x == 0 && p.y == 1),
-            "the last pushed item must spill into the next row"
-        );
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn place_tool_with_push_fits_wide_tool_within_board_width() {
-        register_test_tools();
-        let mut layout = vec![Placement::new(U2_TOOL, 0, 0), Placement::new(U1_TOOL, 2, 0)];
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U2_TOOL, BOARD_COLS - 1, 2),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U2_TOOL)
-                .map(|p| (p.x, p.y)),
-            Some((BOARD_COLS - 2, 2))
-        );
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn move_placement_swaps_with_row_major_neighbor() {
-        register_test_tools();
-        let mut layout = vec![Placement::new(U1_TOOL, 0, 0), Placement::new(U2_TOOL, 1, 0)];
-
-        assert_eq!(
-            move_placement(&mut layout, U2_TOOL, Direction::Prev),
-            PlacementEdit::Changed
-        );
-        assert_eq!(ids_by_position(&layout), vec![U2_TOOL, U1_TOOL]);
-
-        assert_eq!(
-            move_placement(&mut layout, U2_TOOL, Direction::Prev),
-            PlacementEdit::NoOp
-        );
-    }
-
-    #[test]
-    fn slugify_normalizes_board_titles() {
-        assert_eq!(slugify("Trading Desk"), "trading-desk");
-        assert_eq!(slugify("  !!!  "), "board");
-        assert_eq!(slugify("Dev / Ops"), "dev-ops");
-    }
-
-    fn span_of(cols: u16, rows: u16) -> PinSpan {
-        PinSpan::new(
-            ColSpan::new(cols).expect("test span cols"),
-            RowSpan::new(rows).expect("test span rows"),
-        )
-    }
-
-    #[test]
-    fn effective_size_prefers_span_override_over_manifest_default() {
-        register_test_tools();
-        let plain = Placement::new(U1_TOOL, 0, 0);
-
-        assert_eq!(effective_size(&plain), placement_size(U1_TOOL));
-
-        let overridden = plain.with_span(Some(span_of(2, 3)));
-        assert_eq!(effective_size(&overridden), (2, 3));
-    }
-
-    #[test]
-    fn pin_with_span_uses_expanded_size_for_collision_checks() {
-        register_test_tools();
-        let board = vec![Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 2)))];
-
-        // The manifest says U1(1×1) but the 2×2 span occupies (1,0)/(0,1)/(1,1).
-        assert!(!can_place_at(&board, None, 1, 0, 1, 1));
-        assert!(!can_place_at(&board, None, 0, 1, 1, 1));
-        assert!(!can_place_at(&board, None, 1, 1, 1, 1));
-        assert!(can_place_at(&board, None, 2, 0, 1, 1));
-    }
-
-    #[test]
-    fn push_on_pin_with_span_keeps_expanded_size_and_span() {
-        register_test_tools();
-        let mut layout = vec![
-            Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1))),
-            Placement::new(U1_B, 2, 0),
-        ];
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_B, 0, 0),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(position_of(&layout, U1_B), Some((0, 0)));
-        assert_eq!(position_of(&layout, U1_TOOL), Some((1, 0)));
-        assert_eq!(
-            layout
-                .iter()
-                .find(|p| p.tool_id == U1_TOOL)
-                .and_then(|p| p.span),
-            Some(span_of(2, 1)),
-            "the span override must be preserved after being pushed"
-        );
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn drop_with_span_wider_than_board_normalizes_start_column() {
-        register_test_tools();
-        let mut layout = vec![Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1)))];
-
-        assert_eq!(
-            place_tool_with_push(&mut layout, U1_TOOL, BOARD_COLS - 1, 1),
-            PlacementEdit::Changed
-        );
-
-        assert_eq!(position_of(&layout, U1_TOOL), Some((BOARD_COLS - 2, 1)));
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn coordinate_placement_judges_placeability_by_span_size() {
-        register_test_tools();
-        let mut layout = vec![
-            Placement::new(U1_TOOL, 0, 0).with_span(Some(span_of(2, 1))),
-            Placement::new(U1_B, 3, 0),
-        ];
-
-        // Placing the 2-cell span tool at (2,0) collides with U1_B at (3,0).
-        assert_eq!(
-            place_tool_at(&mut layout, U1_TOOL, 2, 0),
-            PlacementEdit::NoOp
-        );
-        assert_eq!(
-            place_tool_at(&mut layout, U1_TOOL, 4, 0),
-            PlacementEdit::Changed
-        );
-        assert_eq!(position_of(&layout, U1_TOOL), Some((4, 0)));
-        assert!(has_no_overlap(&layout));
-    }
-
-    #[test]
-    fn reconcile_placements_preserves_span_and_args_preset_and_clears_collisions_by_expanded_size()
-    {
-        register_test_tools();
-        let preset = upeg_core::ArgsPreset::parse(r#"{"unit":"c"}"#).expect("test preset");
-        let raw = vec![
-            Placement::new(U1_TOOL, 0, 0)
-                .with_span(Some(span_of(2, 1)))
-                .with_args_preset(Some(preset.clone())),
-            Placement::new(U1_B, 1, 0),
-        ];
-
-        let out = reconcile_placements(raw);
-
-        // U1_B's (1,0) is occupied by the span, so it is pushed to the next empty cell.
-        assert_eq!(position_of(&out, U1_B), Some((2, 0)));
-        let kept = out
-            .iter()
-            .find(|p| p.tool_id == U1_TOOL)
-            .expect("span tool must remain");
-        assert_eq!(kept.span, Some(span_of(2, 1)));
-        assert_eq!(kept.args_preset, Some(preset));
-        assert!(has_no_overlap(&out));
-    }
-}
+#[path = "pegboard_tests.rs"]
+mod tests;

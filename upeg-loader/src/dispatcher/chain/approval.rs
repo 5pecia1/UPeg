@@ -28,6 +28,14 @@
 //! person — that would need real user accounts, which upeg does not have
 //! (docs/rules/decisions.md). This module states exactly what it can
 //! prove and no more.
+//!
+//! Nested chains are judged by the *outer* caller: a `_upeg` block in
+//! step args is caller-written data, so the engine discards it and hands
+//! the call's own block down unchanged
+//! (`upeg_runtime::inherit_call_context`) — no step can fabricate a
+//! surface or principal to open a barrier. The per-Tool policy a UI
+//! reads *before* dispatch (`requires_approval` + `approval_surfaces`)
+//! is registered through [`upeg_runtime::ToolApprovalPolicy`].
 
 use serde_json::Value;
 use upeg_core::{
@@ -52,17 +60,19 @@ use upeg_runtime::ToolApprovalPolicy;
 /// ever auto-approved on the person's behalf. [`ToolApprovalPolicy`] is
 /// what lets those UIs know a confirmation is needed *before* they
 /// dispatch (`upeg-runtime/src/approval.rs`); the per-surface gestures
-/// are tabulated in docs/ui-ux-surface-contract.md.
+/// are tabulated in that module's docs.
 ///
 /// Everything else stays out: `mcp` and `http` are programmatic callers
 /// that fill the envelope themselves, and `pwa` / `ext` reach the runtime
 /// over the pairing-token HTTP surface rather than from the machine the
-/// person is sitting at. A chain that wants any of them names it in
-/// `approval_surfaces`.
+/// person is sitting at. A chain that wants MCP, HTTP, or PWA approval names
+/// it in `approval_surfaces`. The browser extension is never an approver: it has
+/// no approval gesture, so a declaration naming `ext` is rejected at load
+/// time and the runtime guard below also denies hand-built policies.
 ///
 /// A terminal attached to a running host still counts as `cli`: the host
 /// stamps the surface the request declares in its origin-surface header
-/// (`docs/architecture/http-api.md`), so `upeg call` behaves the same
+/// (`upeg_cli::surfaces::http` module docs), so `upeg call` behaves the same
 /// whether or not a host is up.
 pub(crate) const DEFAULT_APPROVAL_SURFACES: &[Surface] =
     &[Surface::Cli, Surface::Tui, Surface::Desktop];
@@ -92,6 +102,8 @@ pub(crate) enum ApprovalSurfacesError {
     EmptyEntry { position: usize },
     /// Entry at `position` is not a surface label.
     Unknown { position: usize, surface: String },
+    /// The browser extension cannot provide an approval gesture.
+    ExtensionUnsupported { position: usize },
 }
 
 impl ApprovalSurfacesError {
@@ -111,6 +123,9 @@ impl ApprovalSurfacesError {
             Self::Unknown { position, surface } => format!(
                 "`approval_surfaces[{position}] = \"{surface}\"` is not a surface ({valid})",
                 valid = surface_label_list(upeg_core::ALL_SURFACES)
+            ),
+            Self::ExtensionUnsupported { position } => format!(
+                "`approval_surfaces[{position}] = \"ext\"` is unsupported because the browser extension has no approval gesture"
             ),
         }
     }
@@ -152,10 +167,16 @@ impl ApprovalSurfaces {
                 if raw.trim().is_empty() {
                     return Err(ApprovalSurfacesError::EmptyEntry { position });
                 }
-                Surface::parse(raw).ok_or_else(|| ApprovalSurfacesError::Unknown {
-                    position,
-                    surface: raw.clone(),
-                })
+                match Surface::parse(raw) {
+                    Some(Surface::Ext) => {
+                        Err(ApprovalSurfacesError::ExtensionUnsupported { position })
+                    }
+                    Some(surface) => Ok(surface),
+                    None => Err(ApprovalSurfacesError::Unknown {
+                        position,
+                        surface: raw.clone(),
+                    }),
+                }
             })
             .collect::<Result<Vec<_>, _>>()
             .map(|surfaces| Self {
@@ -213,6 +234,11 @@ impl ApprovalSurfaces {
             };
         }
         match calling_surface(args) {
+            CallingSurface::Known(Surface::Ext) => StepApproval::DeniedForSurface {
+                caller: CallingSurface::Known(Surface::Ext),
+                allowed: self.labels(),
+                hint: self.hint(),
+            },
             CallingSurface::Known(surface) if self.honors(surface) => {
                 if approval_requested(args, step_key, tool) {
                     StepApproval::Approved
@@ -581,6 +607,28 @@ mod tests {
         let rejection = verdict(&args)
             .rejection(STEP_KEY)
             .expect("a denial carries a message");
+
+        assert_eq!(rejection.code, APPROVAL_DENIED_FOR_SURFACE_ERROR_CODE);
+    }
+
+    #[test]
+    fn extension_surface_never_approves_even_when_a_hand_built_policy_names_it() {
+        let ext_only = ApprovalSurfaces {
+            chain: CHAIN_ID.to_string(),
+            surfaces: vec![Surface::Ext],
+        };
+        let args = json!({
+            "approve": true,
+            "_upeg": {
+                "surface": "ext",
+                "principal": { "role": "operator", "surface": "ext" },
+            },
+        });
+
+        let rejection = ext_only
+            .authorize(&args, STEP_KEY, STEP_TOOL)
+            .rejection(STEP_KEY)
+            .expect("the extension has no approval gesture");
 
         assert_eq!(rejection.code, APPROVAL_DENIED_FOR_SURFACE_ERROR_CODE);
     }

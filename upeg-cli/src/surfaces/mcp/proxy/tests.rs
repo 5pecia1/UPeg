@@ -12,6 +12,138 @@ use super::*;
 use serde_json::json;
 use upeg_core::EXECUTION_CONTEXT_CWD;
 
+#[test]
+fn changed_discovery_returns_mcp_error_without_local_fallback() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let info = crate::infrastructure::discovery::ServerInfo::new(endpoint, "old-token");
+    let host = crate::infrastructure::discovery::DiscoveredHost::for_test(info.clone());
+    let mut replacement = info;
+    replacement.token = "new-token".into();
+    host.replace_for_test(&replacement);
+    let input = b"{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/list\"}\n";
+    let mut output = Vec::new();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_millis(500)))
+                .unwrap();
+            let mut request = [0_u8; 512];
+            assert_eq!(
+                std::io::Read::read(&mut stream, &mut request).unwrap_or(0),
+                0
+            );
+        });
+        proxy_loop(&mut std::io::Cursor::new(input), &mut output, &host, None);
+    });
+
+    let response: Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(response["id"], 7);
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("discovery changed")
+    );
+    assert!(response.get("result").is_none());
+}
+
+#[test]
+fn changed_discovery_notification_sends_no_reply() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let info = crate::infrastructure::discovery::ServerInfo::new(
+        format!("http://{}", listener.local_addr().unwrap()),
+        "old-token",
+    );
+    let host = crate::infrastructure::discovery::DiscoveredHost::for_test(info.clone());
+    let mut replacement = info;
+    replacement.token = "new-token".into();
+    host.replace_for_test(&replacement);
+    let input = b"{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n";
+    let mut output = Vec::new();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 512];
+            assert_eq!(
+                std::io::Read::read(&mut stream, &mut request).unwrap_or(0),
+                0
+            );
+        });
+        proxy_loop(&mut std::io::Cursor::new(input), &mut output, &host, None);
+    });
+
+    assert!(output.is_empty(), "notifications have no response frame");
+}
+
+#[test]
+fn lost_host_response_never_replays_a_tool_call_locally() {
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    register_tool(AMBIGUOUS_CALL_ID);
+    let observed = std::sync::Arc::clone(&calls);
+    upeg_runtime::register_single_text_runtime_dispatcher(AMBIGUOUS_CALL_ID, move |_| {
+        observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok("ran locally".to_string())
+    });
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let info = crate::infrastructure::discovery::ServerInfo::new(
+        format!("http://{}", listener.local_addr().unwrap()),
+        "test-token",
+    );
+    let host = crate::infrastructure::discovery::DiscoveredHost::for_test(info);
+    let input = format!(
+        "{{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tools/call\",\"params\":{{\"name\":\"{AMBIGUOUS_CALL_ID}\",\"arguments\":{{}}}}}}\n"
+    );
+    let mut output = Vec::new();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = std::io::Read::read(&mut stream, &mut request).unwrap();
+            // The host disappears without a response after receiving the call.
+        });
+        proxy_loop(&mut std::io::Cursor::new(input), &mut output, &host, None);
+    });
+
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    let response: Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(response["id"], 11);
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("may have run")
+    );
+}
+
+#[test]
+fn lost_host_response_tool_notification_sends_no_reply() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let info = crate::infrastructure::discovery::ServerInfo::new(
+        format!("http://{}", listener.local_addr().unwrap()),
+        "test-token",
+    );
+    let host = crate::infrastructure::discovery::DiscoveredHost::for_test(info);
+    let input = b"{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"test.mcp_proxy.unknown\",\"arguments\":{}}}\n";
+    let mut output = Vec::new();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 512];
+            let _ = std::io::Read::read(&mut stream, &mut request).unwrap();
+        });
+        proxy_loop(&mut std::io::Cursor::new(input), &mut output, &host, None);
+    });
+
+    assert!(output.is_empty(), "notifications have no response frame");
+}
+
 /// One Project Manifest fixture id per test. The provenance map is
 /// process-global and cargo runs these tests in parallel, so a shared id
 /// would let one test's teardown clear the provenance another test is
@@ -20,6 +152,7 @@ const PROJECT_TOOL_ROUTE_ID: &str = "test.mcp_proxy.project_route";
 const PROJECT_TOOL_DISPATCH_ID: &str = "test.mcp_proxy.project_dispatch";
 const PROJECT_TOOL_LIST_ID: &str = "test.mcp_proxy.project_list";
 const HOST_TOOL_ID: &str = "test.mcp_proxy.host_owned";
+const AMBIGUOUS_CALL_ID: &str = "test.mcp_proxy.ambiguous_call";
 const PROJECT_MANIFEST_PATH: &str = "/workspaces/upeg/upeg.toml";
 const PROJECT_TOOL_OUTPUT: &str = "dispatched in-process";
 

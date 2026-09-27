@@ -1,24 +1,9 @@
 /// Cmd/Ctrl-K command palette.
 ///
-/// Layout contract:
-///   * Top-anchored modal card (520px wide, max 480 tall) with a
-///     `›` chevron, a borderless input, and an `esc` kbd chip on the
-///     right of the header,
-///   * Result rows are compact: a 14x14 chip placeholder, the
-///     display label, the dotted id in fg-4 monospace, a
-///     kind-coloured pill, and a `+ pin` ghost button when not
-///     already pinned,
-///   * Footer with ↑↓ / ↵ / ⌘↵ kbd chips and a tool-count summary.
-///
-/// Plain Enter closes the overlay before forwarding the selected hit to
-/// the caller; Cmd/Ctrl+Enter first pins the hit to the active board and
-/// then forwards it through the same route-order-safe path.
-///
-/// Palette ↔ board integration: before closing, both commit paths (and
-/// row taps) reveal the tool's pin — switch to the board chosen by
-/// [resolvePaletteJumpBoard] and set `focusedPinProvider`, which
-/// BoardCanvas answers with a scroll-into-view. Filled board chips are
-/// jump buttons: they reveal the pin on their board without running.
+/// Results expose one current-board add button. Every activation of it makes
+/// a new placement, even when the same catalogue tool is already present.
+/// Plain Enter opens/runs a tool without manufacturing a placement; primary
+/// Enter adds one placement, focuses that exact instance, then activates it.
 library;
 
 import 'dart:async';
@@ -31,24 +16,17 @@ import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/platform/keyboard_label.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/palette.dart';
-import 'package:upeg/src/rust/api/pegboard.dart' show BoardDto;
 import 'package:upeg/src/rust/api/tools.dart' show ToolDto;
 import 'package:upeg/src/widgets/expanded_modal/kind_badge.dart';
-import 'package:upeg/src/widgets/palette/board_pin_cluster.dart';
 import 'package:upeg/src/widgets/no_transition_dialog.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/focused_pin_provider.dart';
-import 'package:upeg/src/state/palette_jump.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 
-typedef PaletteHitCallback = void Function(PaletteHit hit);
-
-/// Board-chip jump: reveal `toolId`'s pin on `boardKey` without running
-/// the tool.
-typedef PaletteJumpCallback = void Function(BoardKey boardKey, ToolId toolId);
+typedef PaletteHitCallback = void Function(PaletteHit hit, PinKey? pinKey);
 
 const double _paletteFooterGroupGap = 12;
 const double _paletteFooterRunGap = 6;
@@ -105,16 +83,15 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   void _commit(List<PaletteHit> hits) {
     if (hits.isEmpty) return;
     final i = _highlighted.clamp(0, hits.length - 1);
-    _pickHit(hits[i]);
+    _pickHit(hits[i], null);
   }
 
   /// Shared Enter / row-tap path: reveal the tool's pinned board (if
   /// any), close the palette, then forward the hit to the caller so the
   /// activation lands on the already-visible pin.
-  void _pickHit(PaletteHit hit) {
-    _revealPin(ToolId.parse(hit.id));
+  void _pickHit(PaletteHit hit, PinKey? _) {
     Navigator.of(context).pop();
-    widget.onPick(hit);
+    widget.onPick(hit, null);
   }
 
   /// Cmd/Ctrl+Enter — open the selected hit AND pin it onto the
@@ -123,60 +100,25 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   /// pin write is fire-and-forget; failures are logged by
   /// `pegboardMutationsProvider`.
   /// Inventory row H06.
-  void _commitWithPin(List<PaletteHit> hits) {
+  Future<void> _commitWithPin(List<PaletteHit> hits) async {
     if (hits.isEmpty) return;
     final i = _highlighted.clamp(0, hits.length - 1);
     final hit = hits[i];
     final toolId = ToolId.parse(hit.id);
     final boardKey = ref.read(currentBoardKeyProvider);
-    if (boardKey != null) {
-      unawaited(ref.read(pegboardMutationsProvider).pin(boardKey, toolId));
-    }
-    // The pin write above is still in flight, so the pinned-boards
-    // snapshot cannot include it yet — pass the board explicitly.
-    _revealPin(toolId, justPinnedBoard: boardKey);
+    final pinId = boardKey == null
+        ? null
+        : await ref.read(pegboardMutationsProvider).add(boardKey, toolId);
+    if (pinId == null || boardKey == null || !mounted) return;
+    final pinKey = (boardKey, pinId);
+    ref.read(focusedPinProvider.notifier).focus(pinId);
     Navigator.of(context).pop();
-    widget.onPick(hit);
-  }
-
-  /// Palette ↔ board integration: switch to the board that hosts the
-  /// tool's pin and hand keyboard focus to that pin, so BoardCanvas
-  /// scrolls it into view (`focusedPinProvider` listener). No-op for
-  /// tools without a pin anywhere — those keep the plain run behaviour
-  /// (result feedback stays on the caller's snackbar path).
-  void _revealPin(ToolId toolId, {BoardKey? justPinnedBoard}) {
-    final boards = ref.read(boardsProvider).value ?? const <BoardDto>[];
-    final target = resolvePaletteJumpBoard(
-      currentBoardKey: ref.read(currentBoardKeyProvider),
-      boardOrder: [for (final board in boards) ?BoardKey.tryParse(board.key)],
-      pinnedBoards: {
-        ...ref.read(pinnedBoardsForToolProvider(toolId)),
-        ?justPinnedBoard,
-      },
-    );
-    if (target == null) return;
-    _jumpToBoardPin(target, toolId);
-  }
-
-  /// Switch to [boardKey] (no-op when already current) and focus the
-  /// tool's pin.
-  void _jumpToBoardPin(BoardKey boardKey, ToolId toolId) {
-    if (ref.read(currentBoardKeyProvider) != boardKey) {
-      ref.read(currentBoardKeyProvider.notifier).select(boardKey);
-    }
-    ref.read(focusedPinProvider.notifier).focus(toolId);
-  }
-
-  /// Board-chip jump (no run): reveal the pin, then just close the
-  /// palette — `onPick` is intentionally not called.
-  void _jumpFromChip(BoardKey boardKey, ToolId toolId) {
-    _jumpToBoardPin(boardKey, toolId);
-    Navigator.of(context).pop();
+    widget.onPick(hit, pinKey);
   }
 
   KeyEventResult _handlePaletteKey(KeyEvent event, List<PaletteHit> hits) {
     if (_isPrimaryCommitWithPin(event)) {
-      _commitWithPin(hits);
+      unawaited(_commitWithPin(hits));
       return KeyEventResult.handled;
     }
     final cmd = resolveKeyboardCommand(
@@ -294,7 +236,6 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
                   scrollController: _scrollController,
                   onHover: (i) => setState(() => _highlighted = i),
                   onPick: _pickHit,
-                  onJumpToBoard: _jumpFromChip,
                 ),
               ),
               _PaletteFooter(tokens: tokens, count: hits.length),
@@ -383,7 +324,6 @@ class _PaletteBody extends ConsumerWidget {
     required this.scrollController,
     required this.onHover,
     required this.onPick,
-    required this.onJumpToBoard,
   });
 
   final UpegTokens tokens;
@@ -391,7 +331,7 @@ class _PaletteBody extends ConsumerWidget {
   final AsyncValue<List<PaletteHit>> results;
   final int highlighted;
 
-  /// Active board key — drives the pinned-pill / `+ pin` button on
+  /// Active board key — enables the current-board add button on
   /// each row. `null` while the BoardPage hasn't seeded the selection
   /// yet; the row hides the pin affordance in that case so we never
   /// dispatch a pin against an unknown board.
@@ -401,7 +341,6 @@ class _PaletteBody extends ConsumerWidget {
 
   final ValueChanged<int> onHover;
   final PaletteHitCallback onPick;
-  final PaletteJumpCallback onJumpToBoard;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -467,8 +406,7 @@ class _PaletteBody extends ConsumerWidget {
               highlighted: highlighted,
               currentBoardKey: currentBoardKey,
               onHover: () => onHover(i),
-              onTap: () => onPick(hit),
-              onJumpToBoard: onJumpToBoard,
+              onTap: () => onPick(hit, null),
             );
           },
         );
@@ -485,7 +423,6 @@ class _PaletteRow extends ConsumerWidget {
     required this.currentBoardKey,
     required this.onHover,
     required this.onTap,
-    required this.onJumpToBoard,
     super.key,
   });
 
@@ -495,14 +432,11 @@ class _PaletteRow extends ConsumerWidget {
   final BoardKey? currentBoardKey;
   final VoidCallback onHover;
   final VoidCallback onTap;
-  final PaletteJumpCallback onJumpToBoard;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bg = highlighted ? tokens.surface2 : Colors.transparent;
-    final boards = ref.watch(boardsProvider).value ?? const <BoardDto>[];
     final toolId = ToolId.parse(hit.id);
-    final pinnedBoards = ref.watch(pinnedBoardsForToolProvider(toolId));
     return MouseRegion(
       onEnter: (_) => onHover(),
       child: InkWell(
@@ -576,22 +510,24 @@ class _PaletteRow extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              // H11 — kind badge between label and per-board chip
-              // cluster.
+              // H11 — kind badge precedes the current-board add button.
               KindBadge(
                 key: Key('palette-kind-badge-${hit.id}'),
                 pinKind: hit.pinKind,
               ),
               const SizedBox(width: 8),
-              if (boards.isNotEmpty)
-                BoardPinChipCluster(
-                  key: Key('palette-board-chips-${hit.id}'),
-                  tokens: tokens,
-                  toolId: toolId,
-                  boards: boards,
-                  pinnedBoards: pinnedBoards,
-                  currentBoardKey: currentBoardKey,
-                  onJump: (boardKey) => onJumpToBoard(boardKey, toolId),
+              if (currentBoardKey != null)
+                TextButton(
+                  key: Key('palette-add-${hit.id}'),
+                  onPressed: () async {
+                    final pinId = await ref
+                        .read(pegboardMutationsProvider)
+                        .add(currentBoardKey!, toolId);
+                    if (pinId != null) {
+                      ref.read(focusedPinProvider.notifier).focus(pinId);
+                    }
+                  },
+                  child: Text(t(ref, 'desktop.tab.add_tool')),
                 ),
             ],
           ),

@@ -8,13 +8,12 @@ use crate::manifest_origin::ManifestOrigin;
 use crate::parse::controlled_embed::{binding_wait_from_toml, parse_selector_binding_action};
 #[cfg(test)]
 use crate::parse::parse_toolkit_full;
-use crate::parse::{ParsedManifest, SkippedTool, parse_manifest};
+use crate::parse::{SkippedTool, parse_manifest};
 use std::path::Path;
 use upeg_core::{
     ControlledEmbedSettings, ControlledEmbedUserAgent, ControlledEmbedViewport,
     ControlledEmbedViewportPreset, ToolMeta, ToolkitMeta,
 };
-use upeg_runtime::pegboard_project::ProjectBoardScope;
 use upeg_runtime::{
     SelectorBinding, TriggerBinding, clear_embed_url, register_embed_url,
     set_controlled_embed_settings, set_selector_bindings, set_tool_credential_names,
@@ -61,15 +60,23 @@ pub struct LoadOutcome {
     pub skipped: Vec<SkippedTool>,
 }
 
-fn register_parsed_toolkit(
+fn register_parsed_toolkit<S: std::hash::BuildHasher>(
     out: &mut LoadOutcome,
     toolkit: ToolkitMeta,
     tools: Vec<(ToolMeta, ToolToml)>,
     origin: Option<&ManifestOrigin>,
+    selected_ids: Option<&std::collections::HashSet<String, S>>,
 ) -> Result<(), LoadError> {
-    toolbox_add_toolkit(toolkit);
+    if origin.is_some_and(ManifestOrigin::is_project) {
+        upeg_runtime::project_scope::set_project_toolkit_meta(toolkit);
+    } else {
+        toolbox_add_toolkit(toolkit);
+    }
 
     for (meta, parsed) in tools {
+        if selected_ids.is_some_and(|ids| !ids.contains(meta.id)) {
+            continue;
+        }
         // Register runtime metadata and dispatcher from the same id source.
         // Pre-cleanup this moved `meta` into the registry first and only
         // registered a dispatcher if one of the builders matched, which could
@@ -210,7 +217,9 @@ pub(crate) fn register_parsed_toolkit_for_tests(
     tools: Vec<(ToolMeta, ToolToml)>,
 ) -> Result<LoadOutcome, LoadError> {
     let mut out = LoadOutcome::default();
-    register_parsed_toolkit(&mut out, toolkit, tools, None)?;
+    register_parsed_toolkit::<std::collections::hash_map::RandomState>(
+        &mut out, toolkit, tools, None, None,
+    )?;
     Ok(out)
 }
 
@@ -282,63 +291,6 @@ fn controlled_embed_viewport_from_toml(
     Ok(Some(ControlledEmbedViewport::Preset(preset)))
 }
 
-/// Parse and register one Toolkit manifest file. This is the Project
-/// Manifest path (`upeg.toml`) companion to the directory loader used for
-/// `~/.upeg/toolkits/*.toml`: same validation, same dispatcher/sidecar
-/// registration, but the caller already knows the exact file to merge.
-pub fn load_and_register_file_verbose(path: &Path) -> LoadOutcome {
-    let mut out = LoadOutcome::default();
-    let content = match std::fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(e) => {
-            out.failed.push((path.to_path_buf(), LoadError::Io(e)));
-            return out;
-        }
-    };
-    let origin = ManifestOrigin::project_manifest(path);
-    match parse_manifest(&content) {
-        Ok(ParsedManifest {
-            toolkit,
-            tools,
-            boards,
-            skipped,
-        }) => {
-            out.skipped.extend(skipped);
-            // Boards are registered BEFORE the tools so a tool's
-            // `boards = ["<project board>"]` is already meaningful by
-            // the time any surface reads the toolbox. Registration is
-            // unconditional: an empty `[[boards]]` still replaces a
-            // previous manifest's scope, so a process that switched
-            // manifests never keeps stale project boards.
-            upeg_runtime::pegboard_project::set_project_board_scope(
-                ProjectBoardScope::for_manifest(&absolute_manifest_path(path), boards)
-                    .with_loaded_content(content),
-            );
-            if let Err(e) = register_parsed_toolkit(&mut out, toolkit, tools, origin.as_ref()) {
-                out.failed.push((path.to_path_buf(), e));
-            }
-        }
-        Err(e) => out.failed.push((path.to_path_buf(), e)),
-    }
-    out
-}
-
-/// The path a project board namespace is digested from.
-///
-/// Absolute, because the namespace must be identical no matter which
-/// directory the process was started in — `upeg.toml` and
-/// `/home/u/proj/upeg.toml` are the same manifest and must not produce
-/// two disjoint sets of pins. Resolution happens once, at load time, for
-/// the same reason `ManifestOrigin` resolves its directory there.
-fn absolute_manifest_path(path: &Path) -> std::path::PathBuf {
-    if path.is_absolute() {
-        return path.to_path_buf();
-    }
-    std::env::current_dir()
-        .map(|cwd| cwd.join(path))
-        .unwrap_or_else(|_| path.to_path_buf())
-}
-
 /// Verbose variant of `load_and_register_dir` that surfaces which files
 /// failed and why. Reading the directory itself failing returns an empty
 /// outcome (best-effort, matches the count-only variant).
@@ -366,17 +318,75 @@ pub fn load_and_register_dir_verbose(dir: &Path) -> LoadOutcome {
                 continue;
             }
         };
-        if !parsed.boards.is_empty() {
-            out.failed
-                .push((path, LoadError::BoardsOutsideProjectManifest));
-            continue;
-        }
         out.skipped.extend(parsed.skipped);
         let (toolkit, tools) = (parsed.toolkit, parsed.tools);
         let origin = ManifestOrigin::toolkit_file(&path);
-        if let Err(e) = register_parsed_toolkit(&mut out, toolkit, tools, origin.as_ref()) {
+        if let Err(e) = register_parsed_toolkit::<std::collections::hash_map::RandomState>(
+            &mut out,
+            toolkit,
+            tools,
+            origin.as_ref(),
+            None,
+        ) {
             out.failed.push((path, e));
         }
+    }
+    out
+}
+
+/// Inspect one project Toolkit without changing the runtime registry.
+pub struct ProjectToolkitInspection {
+    pub toolkit_id: String,
+    pub tool_ids: Vec<String>,
+    pub skipped: Vec<SkippedTool>,
+}
+
+pub fn inspect_project_toolkit(path: &Path) -> Result<ProjectToolkitInspection, LoadError> {
+    let content = std::fs::read_to_string(path)?;
+    let parsed = parse_manifest(&content)?;
+    Ok(ProjectToolkitInspection {
+        toolkit_id: parsed.toolkit.id.to_string(),
+        tool_ids: parsed
+            .tools
+            .into_iter()
+            .map(|(meta, _)| meta.id.to_string())
+            .collect(),
+        skipped: parsed.skipped,
+    })
+}
+
+/// Register only the selected tools from a project Toolkit. Relative runtime
+/// paths use the project root, not the `.upeg/toolkits` source directory.
+pub fn load_project_toolkit_file_verbose<S: std::hash::BuildHasher>(
+    path: &Path,
+    root: &Path,
+    selected_ids: &std::collections::HashSet<String, S>,
+) -> LoadOutcome {
+    let mut out = LoadOutcome::default();
+    let content = match std::fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            out.failed.push((path.to_path_buf(), LoadError::Io(error)));
+            return out;
+        }
+    };
+    let parsed = match parse_manifest(&content) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            out.failed.push((path.to_path_buf(), error));
+            return out;
+        }
+    };
+    out.skipped = parsed.skipped;
+    let origin = ManifestOrigin::project_root(root);
+    if let Err(error) = register_parsed_toolkit(
+        &mut out,
+        parsed.toolkit,
+        parsed.tools,
+        origin.as_ref(),
+        Some(selected_ids),
+    ) {
+        out.failed.push((path.to_path_buf(), error));
     }
     out
 }

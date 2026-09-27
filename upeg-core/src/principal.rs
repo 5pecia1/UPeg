@@ -2,7 +2,8 @@
 //!
 //! [`Surface`] answers "which door did this call come through". It is
 //! stamped by the surface and unspoofable, which is why Chain-step
-//! approval has been keyed on it (`docs/architecture/chain.md`). But a
+//! approval has been keyed on it (`upeg_loader::dispatcher::chain` module
+//! docs). But a
 //! surface is a door, not a person: two callers arriving through the same
 //! HTTP listener with two different bearer tokens are indistinguishable
 //! to it, and one of them may be a person while the other is an agent
@@ -49,7 +50,7 @@ pub enum PrincipalRole {
     /// *barred* from approving. What governs it is the surface gate: a
     /// chain must name `mcp` in `approval_surfaces` before an MCP client
     /// can approve anything, and no default does
-    /// (`docs/architecture/chain.md`).
+    /// (`upeg_loader::dispatcher::chain::approval` module docs).
     Local,
 }
 

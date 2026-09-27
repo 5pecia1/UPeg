@@ -57,7 +57,11 @@ rust.ToolDto _pairTool({
 /// Fake dispatcher that joins the two inputs, recording each dispatched
 /// (left, right) pair for assertions.
 LiveDispatchFn _joinDispatch(List<String> calls) {
-  return ({required ToolId toolId, required ToolArgs args}) async {
+  return ({
+    PinKey? pinKey,
+    required ToolId toolId,
+    required ToolArgs args,
+  }) async {
     final map = args.toJsonObject();
     final joined = '${map['left']}|${map['right']}';
     calls.add(joined);
@@ -84,7 +88,7 @@ Widget _harness(
   double height = 200,
   ThemeData? theme,
 }) {
-  final pinKey = (boardKey ?? BoardKey.parse('dev'), ToolId.parse(tool.id));
+  final pinKey = (boardKey ?? BoardKey.parse('dev'), PinId.parse(tool.id));
   return ProviderScope(
     overrides: [
       // The in-flight strip labels its Cancel affordance through `t()`,
@@ -125,6 +129,7 @@ final class _DeferredDispatch {
       <Completer<rust.CanonicalToolResult>>[];
 
   Future<rust.CanonicalToolResult> call({
+    PinKey? pinKey,
     required ToolId toolId,
     required ToolArgs args,
   }) {
@@ -194,13 +199,10 @@ final class _InlineBodyRobot {
   void expectRunningState({required bool running}) {
     final element = tester.element(find.byType(GenericInlinePinBody));
     final container = ProviderScope.containerOf(element);
-    final toolId = ToolId.parse(
-      tester
-          .widget<GenericInlinePinBody>(find.byType(GenericInlinePinBody))
-          .tool
-          .id,
-    );
-    expect(container.read(runningToolsProvider).contains(toolId), running);
+    final pinKey = tester
+        .widget<GenericInlinePinBody>(find.byType(GenericInlinePinBody))
+        .pinKey;
+    expect(container.read(runningToolsProvider).contains(pinKey), running);
   }
 }
 
@@ -365,7 +367,7 @@ void main() {
       tester,
     ) async {
       final store = InlineDraftStore();
-      final PinKey pinKey = (BoardKey.parse('dev'), ToolId.parse('text.pair'));
+      final PinKey pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
       await tester.pumpWidget(
         _harness(
           _pairTool(),
@@ -386,7 +388,7 @@ void main() {
     });
 
     testWidgets('an_existing_draft_restores_the_fields', (tester) async {
-      final PinKey pinKey = (BoardKey.parse('dev'), ToolId.parse('text.pair'));
+      final PinKey pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
       final store = InlineDraftStore()
         ..set(
           pinKey,
@@ -477,7 +479,7 @@ void main() {
       tester,
     ) async {
       final store = InlineDraftStore();
-      final PinKey pinKey = (BoardKey.parse('dev'), ToolId.parse('text.pair'));
+      final PinKey pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
       final robot = _InlineBodyRobot(tester);
       await tester.pumpWidget(
         _harness(
@@ -684,7 +686,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             _pairTool(),
-            dispatch: ({required toolId, required args}) async {
+            dispatch: ({pinKey, required toolId, required args}) async {
               throw Exception('/home/user/secret.txt');
             },
           ),
@@ -708,7 +710,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             _pairTool(),
-            dispatch: ({required toolId, required args}) async =>
+            dispatch: ({pinKey, required toolId, required args}) async =>
                 const rust.CanonicalToolResult(
                   ok: false,
                   outputs: <rust.CanonicalOutputEntry>[],
@@ -800,11 +802,12 @@ void main() {
       await tester.pumpWidget(
         _harness(
           zeroInputTool(),
-          dispatch: ({required ToolId toolId, required ToolArgs args}) async {
-            calls += 1;
-            expect(args.isEmpty, isTrue);
-            return _success(generated);
-          },
+          dispatch:
+              ({pinKey, required ToolId toolId, required ToolArgs args}) async {
+                calls += 1;
+                expect(args.isEmpty, isTrue);
+                return _success(generated);
+              },
         ),
       );
       await tester.pump();
@@ -827,8 +830,12 @@ void main() {
       await tester.pumpWidget(
         _harness(
           zeroInputTool(),
-          dispatch: ({required ToolId toolId, required ToolArgs args}) async =>
-              _success('x'),
+          dispatch:
+              ({
+                pinKey,
+                required ToolId toolId,
+                required ToolArgs args,
+              }) async => _success('x'),
         ),
       );
       await tester.pump();

@@ -55,7 +55,7 @@ final class MoveModeActive extends MoveModeState {
   });
 
   final BoardKey boardKey;
-  final ToolId toolId;
+  final PinId toolId;
   final int originX;
   final int originY;
   final int currentX;
@@ -71,7 +71,7 @@ class MoveModeNotifier extends Notifier<MoveModeState> {
   /// Transition Idle → Active, snapshotting the pin's origin.
   void start({
     required BoardKey boardKey,
-    required ToolId toolId,
+    required PinId toolId,
     required int originX,
     required int originY,
     required int maxX,
@@ -206,7 +206,7 @@ bool handleMoveModeCommand(
 
 ({BoardKey boardKey, int x, int y, int maxX})? _focusedPlacementOrigin(
   ProviderContainer container,
-  ToolId toolId,
+  PinId toolId,
 ) {
   final boardKey = container.read(currentBoardKeyProvider);
   if (boardKey == null) return null;
@@ -234,9 +234,9 @@ int _clampX(int x, int maxX) {
   return x;
 }
 
-PlacementDto? _placementFor(List<PlacementDto> placements, ToolId toolId) {
+PlacementDto? _placementFor(List<PlacementDto> placements, PinId toolId) {
   for (final placement in placements) {
-    if (placement.toolId == toolId.value) return placement;
+    if (placement.pinId == toolId.value) return placement;
   }
   return null;
 }

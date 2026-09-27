@@ -21,6 +21,23 @@
 //!   services (raw sockets / filesystem / SQLite), e.g. `net.status` on
 //!   wasm32. That last case can only be seen with a per-tool dispatcher
 //!   probe, so it is layered on by [`dispatch_capability_for_tool`].
+//!
+//! Rendering contract for surfaces:
+//! - The verdict is a closed enum, never a string — `Supported` or
+//!   `Unsupported(UnsupportedReason)` with exactly four reasons
+//!   (`NoProcessSpawn` / `NoLoaderRuntime` / `NoWasmHost` /
+//!   `NativeOnlyTool`).
+//! - `Unsupported` renders as an honest notice, never a runnable
+//!   affordance: `SurfaceUnsupportedBody` replaces only the pin's
+//!   rendered body — the pin's declaration stays visible and
+//!   tappable-to-inspect, never hidden and never wired to dispatch. The
+//!   same pattern backs `ProviderNotConfiguredBody` and the
+//!   controlled-embed inline notice.
+//! - `gui_meta` / built-in `surfaces` declarations are audited against
+//!   this table, so a tool never claims a surface it cannot run on
+//!   without explanation. Browser surfaces (PWA, ext) pair with a native
+//!   host to run what they cannot — see the host-attach module in
+//!   `flutter_app`.
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

@@ -12,7 +12,7 @@ import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/features/controlled_embed/providers.dart';
 import 'package:upeg/src/features/controlled_embed/session_service.dart';
-import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
@@ -60,12 +60,14 @@ const Key kControlledEmbedOpenExternallyKey = Key(
 
 class ControlledEmbedTile extends ConsumerStatefulWidget {
   const ControlledEmbedTile({
+    this.pinKey,
     required this.tool,
     required this.resolution,
     this.outputFields,
     super.key,
   });
 
+  final PinKey? pinKey;
   final ToolDto tool;
   final EmbedResolutionDto resolution;
   final List<OutputFieldDto>? outputFields;
@@ -85,12 +87,21 @@ class _ControlledEmbedTileState extends ConsumerState<ControlledEmbedTile> {
   List<SelectorBindingDto> _bindings = const [];
   ResolvedBrowserSettings? _resolvedSettings;
 
+  PinKey? get _pinKey => widget.pinKey;
+
+  ControlledEmbedSessionEntry? get _sessionEntry {
+    final pinKey = _pinKey;
+    return pinKey == null
+        ? _sessions.entryForTool(ToolId.parse(widget.tool.id))
+        : _sessions.entryForPin(pinKey);
+  }
+
   @override
   void initState() {
     super.initState();
     _sessions = ref.read(controlledEmbedSessionsProvider);
     _sessions.addListener(_onSessionChanged);
-    _lastResult = _sessions.entryFor(ToolId.parse(widget.tool.id))?.lastResult;
+    _lastResult = _sessionEntry?.lastResult;
     _observedSessionResult = _lastResult;
     // Selector bindings are manifest-time data — load once when the
     // tile mounts. Re-loading the manifest will rebuild the pin
@@ -107,7 +118,7 @@ class _ControlledEmbedTileState extends ConsumerState<ControlledEmbedTile> {
   }
 
   void _onSessionChanged() {
-    final result = _sessions.entryFor(ToolId.parse(widget.tool.id))?.lastResult;
+    final result = _sessionEntry?.lastResult;
     if (!mounted ||
         result == null ||
         identical(result, _observedSessionResult)) {
@@ -265,7 +276,8 @@ class _ControlledEmbedTileState extends ConsumerState<ControlledEmbedTile> {
       nextResult = await ref.read(controlledEmbedToolExecutorProvider)(
         toolId: ToolId.parse(widget.tool.id),
         args: _formController.snapshot(),
-        boardKey: ref.read(currentBoardKeyProvider)?.value,
+        boardKey: _pinKey?.$1.value,
+        pinId: _pinKey?.$2.value,
       );
     } catch (error) {
       nextResult = _executionErrorResult(error);
@@ -301,7 +313,7 @@ class _ControlledEmbedTileState extends ConsumerState<ControlledEmbedTile> {
         resolution: widget.resolution,
         bindings: _bindings,
         initialInputs: inputs,
-        boardKey: ref.read(currentBoardKeyProvider)?.value,
+        pinKey: _pinKey,
         resolvedSettings: _resolvedSettings,
       ),
     );

@@ -1,61 +1,46 @@
-/// Unit tests for the write-through + hydrating [`lastOutcomeProvider`].
-///
-/// Covers the persistence contract added with store schema v3:
-/// `record()` writes through to the FRB `recordLastOutcome` seam exactly
-/// once per call (ok and error results alike), and board selection
-/// hydrates persisted rows back as [RestoredOutcome] without ever
-/// overwriting a session-fresh entry.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:upeg/src/identity.dart';
-import 'package:upeg/src/rust/api/last_outcomes.dart' show LastOutcomeDto;
-import 'package:upeg/src/rust/api/tools.dart' as rust_tools;
+import 'package:upeg/src/rust/api/last_outcomes.dart';
+import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/last_outcome_provider.dart';
-
 import '../test_helpers/pegboard_selection_overrides.dart';
 
-const _okResult = rust_tools.CanonicalToolResult(
-  ok: true,
-  primaryOutputId: 'value',
-  outputs: [
-    rust_tools.CanonicalOutputEntry(
-      id: 'value',
-      label: 'Value',
-      kind: 'string',
-      value: rust_tools.CanonicalOutputValue.string(value: '42'),
-    ),
-  ],
-);
+const _ok = CanonicalToolResult(ok: true, outputs: []);
+const _failure = CanonicalToolResult(ok: false, outputs: []);
+final _board = BoardKey.parse('dev');
+final _first = (_board, PinId.parse('pin-a'));
+final _second = (_board, PinId.parse('pin-b'));
+final _otherBoard = BoardKey.parse('other');
+final _otherPin = (_otherBoard, PinId.parse('pin-c'));
+final _tool = ToolId.parse('text.pair');
 
-const _errorResult = rust_tools.CanonicalToolResult(
-  ok: false,
-  outputs: [],
-  error: rust_tools.CanonicalToolError(code: 'E_FAIL', message: 'boom'),
-);
+LastOutcomeDto _row(String pinId, CanonicalToolResult result, {int at = 7}) =>
+    LastOutcomeDto(
+      pinId: pinId,
+      toolId: _tool.value,
+      result: result,
+      truncated: true,
+      updatedAtMs: at,
+    );
 
-final class _PersistCall {
-  const _PersistCall(this.boardKey, this.toolId, this.result);
-  final String boardKey;
-  final String toolId;
-  final rust_tools.CanonicalToolResult result;
-}
-
-ProviderContainer _makeContainer({
-  List<_PersistCall>? persistCalls,
-  List<LastOutcomeDto> Function(String boardKey)? load,
+ProviderContainer makeContainer({
+  List<LastOutcomeDto> Function(String)? load,
+  void Function(String, String, String, CanonicalToolResult)? persist,
 }) {
   final container = ProviderContainer(
     overrides: [
       ...pegboardSelectionOverrides(),
-      lastOutcomePersistProvider.overrideWithValue(
-        ({required boardKey, required toolId, required result}) =>
-            persistCalls?.add(_PersistCall(boardKey, toolId, result)),
-      ),
       lastOutcomeLoadProvider.overrideWithValue(load ?? (_) => const []),
+      lastOutcomePersistProvider.overrideWithValue(
+        ({
+          required boardKey,
+          required pinId,
+          required toolId,
+          required result,
+        }) => persist?.call(boardKey, pinId, toolId, result),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -63,178 +48,170 @@ ProviderContainer _makeContainer({
 }
 
 void main() {
-  final toolId = ToolId.parse('num.hex_to_decimal');
-
-  group('lastOutcomeProvider write-through', () {
-    test('record_stores_fresh_state_and_calls_write_through_exactly_once', () {
-      final calls = <_PersistCall>[];
-      final container = _makeContainer(persistCalls: calls);
-      container
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-
-      container.read(lastOutcomeProvider.notifier).record(toolId, _okResult);
-
-      final cached = container.read(lastOutcomeProvider)[toolId];
-      expect(cached, isA<FreshOutcome>());
-      expect(cached?.result, _okResult);
-      expect(calls, hasLength(1));
-      expect(calls.single.boardKey, 'dev');
-      expect(calls.single.toolId, toolId.value);
-      expect(calls.single.result, _okResult);
-    });
-
-    test('error_results_are_written_through_to_the_store_too', () {
-      final calls = <_PersistCall>[];
-      final container = _makeContainer(persistCalls: calls);
-      container
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-
-      container.read(lastOutcomeProvider.notifier).record(toolId, _errorResult);
-
-      expect(calls, hasLength(1));
-      expect(calls.single.result.ok, isFalse);
-      // The cache keeps the error too — rendering policy (ok-only
-      // inline) belongs to consumers, not the cache.
-      expect(container.read(lastOutcomeProvider)[toolId]?.result.ok, isFalse);
-    });
-
-    test('without_selected_board_updates_cache_only_and_skips_persistence', () {
-      final calls = <_PersistCall>[];
-      final container = _makeContainer(persistCalls: calls);
-
-      container.read(lastOutcomeProvider.notifier).record(toolId, _okResult);
-
-      expect(container.read(lastOutcomeProvider)[toolId], isA<FreshOutcome>());
-      expect(calls, isEmpty);
-    });
-
-    test('write_through_failure_keeps_cache_without_throwing', () {
-      final container = ProviderContainer(
-        overrides: [
-          ...pegboardSelectionOverrides(),
-          lastOutcomePersistProvider.overrideWithValue(
-            ({required boardKey, required toolId, required result}) =>
-                throw StateError('store unavailable'),
-          ),
-          lastOutcomeLoadProvider.overrideWithValue((_) => const []),
-        ],
-      );
-      addTearDown(container.dispose);
-      container
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-
-      container.read(lastOutcomeProvider.notifier).record(toolId, _okResult);
-
-      expect(container.read(lastOutcomeProvider)[toolId], isA<FreshOutcome>());
-    });
+  test('record persists both duplicate pins and clear isolates a sibling', () {
+    final writes = <(String, CanonicalToolResult)>[];
+    final container = makeContainer(
+      persist: (b, p, t, result) => writes.add(('$b/$p/$t', result)),
+    );
+    final notifier = container.read(lastOutcomeProvider.notifier)
+      ..record(_first, _tool, _ok)
+      ..record(_second, _tool, _failure);
+    expect(container.read(pinLastOutcomeProvider(_first)), isA<FreshOutcome>());
+    expect(container.read(pinLastOutcomeProvider(_second))!.result, _failure);
+    notifier.clear(_first);
+    expect(container.read(pinLastOutcomeProvider(_first)), isNull);
+    expect(
+      container.read(pinLastOutcomeProvider(_second)),
+      isA<FreshOutcome>(),
+    );
+    expect(writes, [
+      ('dev/pin-a/text.pair', _ok),
+      ('dev/pin-b/text.pair', _failure),
+    ]);
   });
 
-  group('lastOutcomeProvider hydration', () {
-    final storedRow = LastOutcomeDto(
-      toolId: toolId.value,
-      result: _okResult,
-      truncated: true,
-      updatedAtMs: DateTime.utc(2026, 7, 17).millisecondsSinceEpoch,
+  test('record replaces only its own pin and persists failure outcomes', () {
+    final writes = <(String, CanonicalToolResult)>[];
+    final container = makeContainer(
+      persist: (b, p, t, result) => writes.add(('$b/$p/$t', result)),
     );
+    container.read(lastOutcomeProvider.notifier)
+      ..record(_first, _tool, _ok)
+      ..record(_second, _tool, _ok)
+      ..record(_first, _tool, _failure);
 
-    test('board_switch_restores_stored_results_as_restored_state', () {
-      final container = _makeContainer(
-        load: (boardKey) => boardKey == 'dev' ? [storedRow] : const [],
+    expect(container.read(pinLastOutcomeProvider(_first))!.result, _failure);
+    expect(container.read(pinLastOutcomeProvider(_second))!.result, _ok);
+    expect(writes, [
+      ('dev/pin-a/text.pair', _ok),
+      ('dev/pin-b/text.pair', _ok),
+      ('dev/pin-a/text.pair', _failure),
+    ]);
+  });
+
+  test('persistence failure leaves the fresh result in memory', () {
+    final container = makeContainer(
+      persist: (_, _, _, _) => throw StateError('store unavailable'),
+    );
+    container.read(lastOutcomeProvider.notifier).record(_first, _tool, _ok);
+    expect(container.read(pinLastOutcomeProvider(_first)), isA<FreshOutcome>());
+  });
+
+  test('hydrates valid board rows as restored while fresh entries win', () {
+    final row = _row('pin-a', _ok);
+    final container = makeContainer(load: (_) => [row]);
+    container.read(lastOutcomeProvider.notifier).hydrateForBoard(_board);
+    final restored =
+        container.read(pinLastOutcomeProvider(_first)) as RestoredOutcome;
+    expect(restored.result, _ok);
+    expect(restored.truncated, isTrue);
+    expect(restored.updatedAt.millisecondsSinceEpoch, 7);
+    container
+        .read(lastOutcomeProvider.notifier)
+        .record(_first, _tool, _failure);
+    container.read(lastOutcomeProvider.notifier).hydrateForBoard(_board);
+    expect(container.read(pinLastOutcomeProvider(_first))!.result, _failure);
+  });
+
+  test(
+    'board hydration skips malformed rows and preserves other-board state',
+    () {
+      final good = _row('pin-b', _ok);
+      final bad = _row(' padded ', _ok);
+      final container = makeContainer(
+        load: (board) => switch (board) {
+          'dev' => [good, bad],
+          'other' => [_row('pin-c', _failure)],
+          _ => const [],
+        },
       );
-      // Scenario: the board changes while the provider is alive.
-      container.read(lastOutcomeProvider);
-      container
-          .read(currentBoardKeyProvider.notifier)
-          .select(BoardKey.parse('dev'));
-
-      final restored = container.read(lastOutcomeProvider)[toolId];
-      expect(restored, isA<RestoredOutcome>());
-      final outcome = restored! as RestoredOutcome;
-      expect(outcome.result, _okResult);
-      expect(outcome.truncated, isTrue);
+      container.read(lastOutcomeProvider.notifier).hydrateForBoard(_board);
       expect(
-        outcome.updatedAt.toUtc(),
-        DateTime.utc(2026, 7, 17),
-        reason: 'updated_at timestamp must be preserved for badge rendering',
+        container.read(pinLastOutcomeProvider(_second)),
+        isA<RestoredOutcome>(),
       );
-    });
+      expect(container.read(lastOutcomeProvider).length, 1);
+      container.read(lastOutcomeProvider.notifier).hydrateForBoard(_otherBoard);
+      expect(
+        container.read(pinLastOutcomeProvider(_second)),
+        isA<RestoredOutcome>(),
+      );
+      expect(
+        container.read(pinLastOutcomeProvider(_otherPin))!.result,
+        _failure,
+      );
+    },
+  );
 
-    test(
-      'restart_simulation_restores_as_restored_after_provider_recreate_load',
-      () async {
-        // Session 1: record results → persisted to the "store".
-        final store = <String, List<LastOutcomeDto>>{};
-        final session1 = _makeContainer(
-          persistCalls: null,
-          load: (boardKey) => store[boardKey] ?? const [],
-        );
-        session1
-            .read(currentBoardKeyProvider.notifier)
-            .select(BoardKey.parse('dev'));
-        store['dev'] = [storedRow];
-
-        // Session 2 (restart): the provider is created for the first time
-        // while a board is already selected — the microtask initial
-        // hydration path in build.
-        final session2 = _makeContainer(
-          load: (boardKey) => store[boardKey] ?? const [],
-        );
-        session2
-            .read(currentBoardKeyProvider.notifier)
-            .select(BoardKey.parse('dev'));
-        session2.read(lastOutcomeProvider);
-        await Future<void>.delayed(Duration.zero);
-
-        expect(
-          session2.read(lastOutcomeProvider)[toolId],
-          isA<RestoredOutcome>(),
-        );
-      },
+  test('board switching keeps session-fresh outcomes on both boards', () {
+    final container = makeContainer(
+      load: (board) => board == 'dev'
+          ? [_row('pin-a', _failure)]
+          : [_row('pin-c', _failure)],
     );
-
-    test('hydration_does_not_overwrite_session_fresh_results', () {
-      final container = _makeContainer(load: (_) => [storedRow]);
-      container.read(lastOutcomeProvider.notifier).record(toolId, _errorResult);
-
-      container
-          .read(lastOutcomeProvider.notifier)
-          .hydrateForBoard(BoardKey.parse('dev'));
-
-      final cached = container.read(lastOutcomeProvider)[toolId];
-      expect(cached, isA<FreshOutcome>());
-      expect(cached?.result, _errorResult);
-    });
-
-    test('hydration_load_failure_leaves_existing_cache_untouched', () {
-      final container = _makeContainer(
-        load: (_) => throw StateError('store unavailable'),
-      );
-      container.read(lastOutcomeProvider.notifier).record(toolId, _okResult);
-
-      container
-          .read(lastOutcomeProvider.notifier)
-          .hydrateForBoard(BoardKey.parse('dev'));
-
-      expect(container.read(lastOutcomeProvider)[toolId], isA<FreshOutcome>());
-    });
+    final notifier = container.read(lastOutcomeProvider.notifier)
+      ..record(_first, _tool, _ok)
+      ..record(_otherPin, _tool, _ok);
+    notifier.hydrateForBoard(_board);
+    notifier.hydrateForBoard(_otherBoard);
+    expect(container.read(pinLastOutcomeProvider(_first))!.result, _ok);
+    expect(container.read(pinLastOutcomeProvider(_otherPin))!.result, _ok);
   });
 
-  group('lastOutcomeProvider clear', () {
-    test('clear_removes_only_the_given_tool_cache', () {
-      final other = ToolId.parse('id.uuid_v7');
-      final container = _makeContainer();
-      final notifier = container.read(lastOutcomeProvider.notifier)
-        ..record(toolId, _okResult)
-        ..record(other, _okResult);
+  test('an empty complete snapshot removes only that board restored rows', () {
+    var rows = <LastOutcomeDto>[_row('pin-a', _ok)];
+    final container = makeContainer(load: (_) => rows);
+    final notifier = container.read(lastOutcomeProvider.notifier);
+    notifier.hydrateForBoard(_board);
+    notifier.record(_second, _tool, _failure);
+    notifier.record(_otherPin, _tool, _ok);
+    rows = [];
+    notifier.hydrateForBoard(_board);
+    expect(container.read(pinLastOutcomeProvider(_first)), isNull);
+    expect(
+      container.read(pinLastOutcomeProvider(_second)),
+      isA<FreshOutcome>(),
+    );
+    expect(
+      container.read(pinLastOutcomeProvider(_otherPin)),
+      isA<FreshOutcome>(),
+    );
+  });
 
-      notifier.clear(toolId);
+  test('load failure preserves cached outcomes', () {
+    var fail = false;
+    final container = makeContainer(
+      load: (_) =>
+          fail ? throw StateError('store unavailable') : [_row('pin-a', _ok)],
+    );
+    final notifier = container.read(lastOutcomeProvider.notifier);
+    notifier.hydrateForBoard(_board);
+    fail = true;
+    notifier.hydrateForBoard(_board);
+    expect(
+      container.read(pinLastOutcomeProvider(_first)),
+      isA<RestoredOutcome>(),
+    );
+  });
 
-      final state = container.read(lastOutcomeProvider);
-      expect(state.containsKey(toolId), isFalse);
-      expect(state.containsKey(other), isTrue);
-    });
+  test('selected board hydrates when the notifier is first built', () async {
+    final container = makeContainer(load: (_) => [_row('pin-a', _ok)]);
+    container.read(currentBoardKeyProvider.notifier).select(_board);
+    container.read(lastOutcomeProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      container.read(pinLastOutcomeProvider(_first)),
+      isA<RestoredOutcome>(),
+    );
+  });
+
+  test('a board selection hydrates while the notifier is alive', () {
+    final container = makeContainer(load: (_) => [_row('pin-a', _ok)]);
+    container.read(lastOutcomeProvider);
+    container.read(currentBoardKeyProvider.notifier).select(_board);
+    expect(
+      container.read(pinLastOutcomeProvider(_first)),
+      isA<RestoredOutcome>(),
+    );
   });
 }

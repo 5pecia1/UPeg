@@ -90,14 +90,18 @@ class BoardCanvas extends ConsumerWidget {
         onMovePin:
             ({
               required boardKey,
-              required toolId,
+              required pinId,
               required anchorX,
               required anchorY,
             }) {
               unawaited(
                 ref
                     .read(pegboardMutationsProvider)
-                    .move(boardKey, toolId, anchorX: anchorX, anchorY: anchorY),
+                    .move(
+                      (boardKey, pinId),
+                      anchorX: anchorX,
+                      anchorY: anchorY,
+                    ),
               );
             },
       ),
@@ -187,7 +191,7 @@ class _BoardCanvasGridState extends ConsumerState<_BoardCanvasGrid> {
     if (focused == null) return;
     PlacementDto? placement;
     for (final candidate in widget.snapshot.placements) {
-      if (candidate.toolId == focused.value) {
+      if (candidate.pinId == focused.value) {
         placement = candidate;
         break;
       }
@@ -229,7 +233,7 @@ class _BoardCanvasGridState extends ConsumerState<_BoardCanvasGrid> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<ToolId?>(focusedPinProvider, (previous, next) {
+    ref.listen<PinId?>(focusedPinProvider, (previous, next) {
       if (next != null && next != previous) _scheduleRevealFocusedPin();
     });
     final tokens = context.upeg;

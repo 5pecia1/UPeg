@@ -2,7 +2,7 @@
 //!
 //! The proxy is not a dumb pipe. It applies the same two Project
 //! Manifest rules the CLI and TUI apply on their own attach paths
-//! (docs/architecture/project-manifest.md):
+//! (`upeg_sources::project` module docs):
 //!
 //!   - **Local dispatch** — a tool whose provenance is
 //!     `project-manifest:*` exists only in *this* process's Toolbox
@@ -18,14 +18,14 @@
 //! rewriting and merging can be tested against a scripted host without
 //! binding a socket or publishing a `server.json`.
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use upeg_core::{BoardKey, Surface};
 
 use super::{
     FIELD_METHOD, FIELD_PARAMS, FIELD_RESULT, FIELD_TOOLS, LineReadOutcome, MAX_LINE_BYTES,
-    METHOD_TOOLS_CALL, METHOD_TOOLS_LIST, PARAMS_ARGUMENTS, PARAMS_NAME, handle_with_board,
-    parse_error_response, read_line_capped, serve_loop_once, serve_loop_with_board,
-    tools_list_result,
+    METHOD_TOOLS_CALL, METHOD_TOOLS_LIST, PARAMS_ARGUMENTS, PARAMS_NAME, expects_response,
+    handle_with_board, parse_error_response, read_line_capped, serve_loop_once,
+    serve_loop_with_board, tools_list_result,
 };
 use crate::domain::execution::context;
 
@@ -49,20 +49,21 @@ enum ProxyRoute {
 }
 
 /// Whether the host is still usable for the rest of the session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum LineOutcome {
     Proxied,
     HostGone,
+    DiscoveryRefused(String),
 }
 
-/// stdio JSON-RPC ↔ host's HTTP `/mcp` proxy. Any HTTP
-/// failure falls through to in-process dispatch for the offending
-/// request and every request after it, so a flaky host doesn't break
-/// the stdio session.
+/// stdio JSON-RPC ↔ host's HTTP `/mcp` proxy. Network failures on
+/// non-executing requests fall through to the in-process lane. A
+/// forwarded `tools/call` is never replayed after an ambiguous failure:
+/// the host may already have executed it before losing its response.
 pub(super) fn proxy_loop<R: std::io::BufRead, W: std::io::Write>(
     reader: &mut R,
     out: &mut W,
-    host: &crate::infrastructure::discovery::ServerInfo,
+    host: &crate::infrastructure::discovery::DiscoveredHost,
     board: Option<&BoardKey>,
 ) {
     let mut line = String::new();
@@ -89,16 +90,57 @@ pub(super) fn proxy_loop<R: std::io::BufRead, W: std::io::Write>(
         let outcome = proxy_line(&trimmed, out, board, |body| {
             crate::infrastructure::attach::post_mcp_with_board(host, body, board)
         });
-        if outcome == LineOutcome::HostGone {
-            // Host went away mid-session. Handle the offending request
-            // in-process and stay in-process for the rest of the
-            // session — one process, no reconnect storm, and the
-            // operator sees consistent behaviour.
-            serve_loop_once(trimmed, out, board);
-            serve_loop_with_board(reader, out, board);
-            return;
+        match outcome {
+            LineOutcome::Proxied => {}
+            LineOutcome::HostGone => {
+                if serde_json::from_str::<Value>(&trimmed)
+                    .ok()
+                    .as_ref()
+                    .is_some_and(|request| {
+                        request.get(FIELD_METHOD).and_then(Value::as_str) == Some(METHOD_TOOLS_CALL)
+                    })
+                {
+                    write_attach_error(
+                        out,
+                        &trimmed,
+                        "host response was lost; the tool call may have run, so reconnect before retrying",
+                    );
+                    return;
+                }
+                // Host went away mid-session. Preserve the existing
+                // network-failure fallback for non-executing requests.
+                serve_loop_once(trimmed, out, board);
+                serve_loop_with_board(reader, out, board);
+                return;
+            }
+            LineOutcome::DiscoveryRefused(message) => {
+                write_attach_error(out, &trimmed, &message);
+                return;
+            }
         }
     }
+}
+
+fn write_attach_error(out: &mut impl std::io::Write, request: &str, detail: &str) {
+    let parsed = serde_json::from_str::<Value>(request).ok();
+    if parsed
+        .as_ref()
+        .is_some_and(|request| !expects_response(request))
+    {
+        return;
+    }
+    let id = parsed
+        .and_then(|request| request.get("id").cloned())
+        .unwrap_or(Value::Null);
+    write_frame(
+        out,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": { "code": -32000, "message": format!("attach: {detail}") }
+        })
+        .to_string(),
+    );
 }
 
 /// Route, rewrite, forward and merge one already-trimmed JSON-RPC line.
@@ -138,6 +180,9 @@ where
             let response = response.trim_end_matches(['\r', '\n']);
             write_frame(out, &merged_or_verbatim(route, response, board));
             LineOutcome::Proxied
+        }
+        Err(error) if crate::infrastructure::discovery::is_discovery_refusal(&error) => {
+            LineOutcome::DiscoveryRefused(error.to_string())
         }
         Err(_) => LineOutcome::HostGone,
     }

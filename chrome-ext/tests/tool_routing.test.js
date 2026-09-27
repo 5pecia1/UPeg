@@ -16,6 +16,7 @@ const {
   toolLabel,
   toolRequiredFields,
   toolSelectorBindings,
+  toolRequiresApproval,
 } = require('../tool_routing.js');
 
 const tool = (overrides) => ({
@@ -48,6 +49,15 @@ test('a_static_invoker_keeps_the_deep_link_even_on_an_enabled_site', () => {
   // nothing to fill in.
   assert.equal(
     activationRouteFor(tool({ [TOOL_FIELD.INVOKER]: 'static' }), { inPageAvailable: true }),
+    ACTIVATION_ROUTE.DEEP_LINK,
+  );
+});
+
+test('a_tool_requiring_approval_is_handed_to_desktop_without_dispatch', () => {
+  const gated = tool({ [TOOL_FIELD.REQUIRES_APPROVAL]: true });
+  assert.equal(toolRequiresApproval(gated), true);
+  assert.equal(
+    activationRouteFor(gated, { inPageAvailable: true }),
     ACTIVATION_ROUTE.DEEP_LINK,
   );
 });
