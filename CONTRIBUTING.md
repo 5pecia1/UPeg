@@ -79,15 +79,10 @@ from the selected public commit after all four public verification lanes pass.
 It requires `PUBLIC_RELEASE_APP_ID` and `PUBLIC_RELEASE_APP_PRIVATE_KEY` for
 an App installed only on this repository with `contents: write`; the default
 workflow token cannot create protected tags. That designated App must also be
-an allowed bypass actor for the `oss-tags-app-only` tag ruleset. `native` is
-started manually with `workflow_dispatch`. `mirror` starts automatically from
-the `repository_dispatch` event `upeg_release_mirror` and can also be started
-manually with `workflow_dispatch`. It verifies the exact bytes and manifest
-already attached to a public draft release, runs the same four lanes against
-`public_sha`, and only then publishes that draft. It has no
-credential for, or dependency on, the private source repository. The bridge
-uses an App with Contents, Workflows, and Pull requests write permissions;
-it does not require Actions write permission.
+an allowed bypass actor for the `oss-tags-app-only` tag ruleset. `mirror` verifies the exact bytes
+and manifest already attached to a public draft release, runs the same four
+lanes against `public_sha`, and only then publishes that draft. It has no
+credential for, or dependency on, the private source repository.
 
 ## Conventions
 
