@@ -7,7 +7,7 @@
 //! single rule: **only the operator token is believed.** An agent token
 //! authenticates a program; a program does not get to say which human
 //! surface it is sitting at. The header contract is documented for
-//! clients in `docs/architecture/http-api.md`.
+//! clients in `surfaces::http`'s module docs.
 
 use axum::http::HeaderMap;
 use upeg_core::{Principal, PrincipalRole, Surface};
@@ -21,7 +21,8 @@ use super::{HttpState, bearer_role};
 /// person's own terminal a stranger the moment a host came up: `upeg call
 /// <chain> -a approve=true` was refused because `http` is not an approval
 /// surface, and the TUI had no `--local` escape at all
-/// (`docs/architecture/chain.md`). The surface a call *arrives on* is not
+/// (`upeg_loader::dispatcher::chain::approval` module docs). The surface a call
+/// *arrives on* is not
 /// the same question as the surface a person is *sitting at*, and this
 /// header is how a local client answers the second one.
 ///
@@ -100,7 +101,7 @@ pub(super) fn principal_from_headers(state: &HttpState, headers: &HeaderMap) -> 
 ///
 /// The `/mcp` lane is the case that needs it: its surface is
 /// [`Surface::Mcp`] by construction — an MCP client is a program, and no
-/// header moves it (`docs/architecture/http-api.md`) — but the role is
+/// header moves it (`surfaces::http` module docs) — but the role is
 /// still a question only the bearer can answer. Without this the lane
 /// fell back to [`Principal::for_surface`], which reads `mcp` as the
 /// in-process stdio lane and hands every caller

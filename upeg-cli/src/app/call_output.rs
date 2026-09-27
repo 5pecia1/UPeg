@@ -1,3 +1,25 @@
+//! Output representations for a dispatched call — shared by `upeg call`
+//! and the dynamic route.
+//!
+//! | Flag | Output |
+//! |---|---|
+//! | (none) | The primary output value |
+//! | `--json` | The canonical success/error JSON envelope |
+//! | `--field <ID>` | One output field's value |
+//! | `--pretty` | All labeled output rows |
+//! | `--out <PATH>` | Where a `File` output is written — no overwrite without `--force` |
+//! | `--local` | Dispatch in-process even when a host is running |
+//!
+//! In-progress output never touches the envelope or stdout. Where it
+//! goes splits by mode: human modes ((none), `--pretty`) mirror the
+//! child's stdout/stderr verbatim to the terminal's *stderr*; machine
+//! modes (`--json`, `--field`) emit nothing — their stdout exists to be
+//! parsed. The criterion is machine vs human, not verbosity, and it is
+//! not TTY-gated: piping progress into a file or log collector is
+//! legitimate. A call attached to a host is the exception — the host
+//! returns one final envelope over HTTP, so there is nothing to mirror
+//! (the host's `/stream` route carries live output there).
+
 use crate::domain::execution::dispatch;
 use crate::domain::execution::dispatch::LiveOutput;
 use crate::error::CliError;

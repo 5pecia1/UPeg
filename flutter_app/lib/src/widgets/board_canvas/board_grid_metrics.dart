@@ -64,12 +64,12 @@ int maxPlacementRow(List<PlacementDto> placements) {
 }
 
 /// dragged tool isn't currently placed on this board.
-PlacementDto? findPlacementByToolId(
+PlacementDto? findPlacementByPinId(
   List<PlacementDto> placements,
-  ToolId toolId,
+  PinId toolId,
 ) {
   for (final p in placements) {
-    if (p.toolId == toolId.value) return p;
+    if (p.pinId == toolId.value) return p;
   }
   return null;
 }

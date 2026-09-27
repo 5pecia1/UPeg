@@ -1,0 +1,38 @@
+# Demo project Toolkit. Run commands from the project root.
+id = "demo"
+display_label = "Demo app"
+description = "A Project Manifest example that declares a project-only board."
+tags = ["demo", "project"]
+
+[[tools]]
+id = "test"
+display_label = "npm test"
+description = "Run this project's tests."
+tags = ["test"]
+pegboard_units = "U2"
+invoker = "External"
+command = "npm"
+args_template = ["test"]
+boards = ["demo-app"]
+
+[[tools]]
+id = "dev_server"
+display_label = "npm run dev"
+description = "Start the dev server."
+tags = ["serve"]
+pegboard_units = "U1"
+invoker = "External"
+command = "npm"
+args_template = ["run", "dev"]
+boards = ["demo-app"]
+
+[[tools]]
+id = "changed_files"
+display_label = "git status"
+description = "Changed files in the working tree."
+tags = ["vcs"]
+pegboard_units = "U1"
+invoker = "External"
+command = "git"
+args_template = ["status", "--short"]
+boards = ["demo-app"]

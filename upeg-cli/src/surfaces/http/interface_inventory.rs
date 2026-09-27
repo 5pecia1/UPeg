@@ -26,6 +26,7 @@ const HTTP_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
 
 struct HttpRouteDeclaration {
     id: &'static str,
+    surface: Surface,
     method: &'static str,
     path: &'static str,
 }
@@ -33,23 +34,45 @@ struct HttpRouteDeclaration {
 const HTTP_ROUTES: &[HttpRouteDeclaration] = &[
     HttpRouteDeclaration {
         id: "http.v1.tools.list",
+        surface: Surface::Http,
         method: "GET",
         path: "/v1/tools",
     },
     HttpRouteDeclaration {
         id: "http.v1.tools.readiness",
+        surface: Surface::Http,
         method: "GET",
         path: "/v1/tools/{id}/readiness",
     },
     HttpRouteDeclaration {
         id: "http.v1.tools.call",
+        surface: Surface::Http,
         method: "POST",
         path: "/v1/tools/{id}",
     },
     HttpRouteDeclaration {
         id: "http.v1.tools.call.stream",
+        surface: Surface::Http,
         method: "POST",
         path: "/v1/tools/{id}/stream",
+    },
+    HttpRouteDeclaration {
+        id: "http.v1.ext.boards.list",
+        surface: Surface::Ext,
+        method: "GET",
+        path: "/v1/ext/boards",
+    },
+    HttpRouteDeclaration {
+        id: "http.v1.ext.boards.show",
+        surface: Surface::Ext,
+        method: "GET",
+        path: "/v1/ext/boards/{board}",
+    },
+    HttpRouteDeclaration {
+        id: "http.v1.ext.boards.tools.call",
+        surface: Surface::Ext,
+        method: "POST",
+        path: "/v1/ext/boards/{board}/tools/{id}",
     },
 ];
 
@@ -64,7 +87,7 @@ impl HttpRouteDeclaration {
     fn interface_entry(&self) -> InterfaceEntry {
         InterfaceEntry {
             id: self.id.to_string(),
-            surfaces: SurfaceSet::single(Surface::Http),
+            surfaces: SurfaceSet::single(self.surface),
             kind: InterfaceKind::HttpRoute,
             contract: ContractShape::new(
                 ContractLocator::http(self.method, self.path),

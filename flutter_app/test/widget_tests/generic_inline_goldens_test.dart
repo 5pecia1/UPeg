@@ -20,6 +20,7 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart' show LiveDispatchFn;
@@ -175,7 +176,14 @@ Widget _harness({
     boardKey: _boardId,
     boardCols: 2,
     placements: <PlacementDto>[
-      PlacementDto(toolId: tool.id, x: 0, y: 0, w: widthUnits, h: heightUnits),
+      PlacementDto(
+        toolId: tool.id,
+        pinId: tool.id,
+        x: 0,
+        y: 0,
+        w: widthUnits,
+        h: heightUnits,
+      ),
     ],
   );
   return ProviderScope(
@@ -208,6 +216,7 @@ final class _DeferredDispatch {
   int callCount = 0;
 
   Future<CanonicalToolResult> call({
+    PinKey? pinKey,
     required ToolId toolId,
     required ToolArgs args,
   }) {
@@ -346,7 +355,7 @@ void main() {
         await robot.pumpSurface(
           tool: _manualTextTool(pegboardUnits: PegboardUnitsDto.u1),
           theme: UpegTheme.darkTheme(),
-          dispatch: ({required toolId, required args}) async =>
+          dispatch: ({pinKey, required toolId, required args}) async =>
               _successResult('unused'),
           widthUnits: 1,
           heightUnits: 1,
@@ -400,7 +409,7 @@ void main() {
         await robot.pumpSurface(
           tool: _manualTextTool(pegboardUnits: PegboardUnitsDto.u1),
           theme: UpegTheme.darkTheme(),
-          dispatch: ({required toolId, required args}) async =>
+          dispatch: ({pinKey, required toolId, required args}) async =>
               _successResult(_u1KoreanResult),
           widthUnits: 1,
           heightUnits: 1,
@@ -426,7 +435,7 @@ void main() {
         await robot.pumpSurface(
           tool: _manualTextTool(pegboardUnits: PegboardUnitsDto.u2),
           theme: UpegTheme.lightTheme(),
-          dispatch: ({required toolId, required args}) async =>
+          dispatch: ({pinKey, required toolId, required args}) async =>
               _successResult(_longKoreanResult),
           widthUnits: 2,
           heightUnits: 1,
@@ -452,7 +461,7 @@ void main() {
         await robot.pumpSurface(
           tool: _compactFieldsTool,
           theme: UpegTheme.lightTheme(),
-          dispatch: ({required toolId, required args}) async =>
+          dispatch: ({pinKey, required toolId, required args}) async =>
               _successResult('unused'),
           widthUnits: 2,
           heightUnits: 1,

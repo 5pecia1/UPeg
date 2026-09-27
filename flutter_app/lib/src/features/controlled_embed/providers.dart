@@ -51,6 +51,7 @@ typedef ControlledEmbedToolExecutor =
       required ToolId toolId,
       required ToolArgs args,
       String? boardKey,
+      String? pinId,
     });
 
 /// Async is required: the Rust worker waits for this Dart isolate's WebView.
@@ -58,12 +59,13 @@ typedef ControlledEmbedToolExecutor =
 /// raw browser values according to the tool's canonical output declaration.
 final controlledEmbedToolExecutorProvider =
     Provider<ControlledEmbedToolExecutor>(
-      (ref) => ({required toolId, required args, boardKey}) async {
+      (ref) => ({required toolId, required args, boardKey, pinId}) async {
         await ref.read(controlledEmbedBridgeProvider).ready;
         return dispatchToolAsync(
           toolId: toolId.value,
           argsJson: args.encodeJson(),
           boardKey: boardKey,
+          pinId: pinId,
           approve: false,
         );
       },

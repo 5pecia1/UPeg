@@ -8,6 +8,7 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 import '../test_helpers/tool_fixture.dart';
@@ -34,9 +35,15 @@ CanonicalToolResult _err(String message) => CanonicalToolResult(
   error: CanonicalToolError(code: 'dispatch_failed', message: message),
 );
 
+LivePinKey _livePin(ToolDto tool, {String pinId = 'pin'}) => (
+  pinKey: (BoardKey.parse('test-board'), PinId.parse(pinId)),
+  toolId: ToolId.parse(tool.id),
+);
+
 ProviderContainer _container({
   required ToolDto tool,
   required FutureOr<CanonicalToolResult> Function({
+    PinKey? pinKey,
     required ToolId toolId,
     required ToolArgs args,
   })
@@ -46,10 +53,11 @@ ProviderContainer _container({
     overrides: [
       toolByIdProvider(ToolId.parse(tool.id)).overrideWith((ref) => tool),
       liveDispatchToolFnProvider.overrideWithValue(({
+        PinKey? pinKey,
         required toolId,
         required args,
       }) async {
-        return dispatch(toolId: toolId, args: args);
+        return dispatch(pinKey: pinKey, toolId: toolId, args: args);
       }),
     ],
   );
@@ -63,13 +71,13 @@ void main() {
     final tool = fixtureToolDto(id: 'test.userinput', pinKind: PinKindDto.live);
     final container = _container(
       tool: tool,
-      dispatch: ({required toolId, required args}) {
+      dispatch: ({pinKey, required toolId, required args}) {
         calls.add(toolId.value);
         return _ok('never');
       },
     );
 
-    final state = container.read(liveOutcomeProvider(ToolId.parse(tool.id)));
+    final state = container.read(liveOutcomeProvider(_livePin(tool)));
     expect(state, isA<LiveOutcomePending>());
     expect(calls, isEmpty);
   });
@@ -84,22 +92,25 @@ void main() {
       );
       final container = _container(
         tool: tool,
-        dispatch: ({required toolId, required args}) {
+        dispatch: ({pinKey, required toolId, required args}) {
           counter++;
           return _ok('$counter', structured: '{"v":$counter}');
         },
       );
 
-      final id = ToolId.parse(tool.id);
-      container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      container.listen(liveOutcomeProvider(livePin), (_, _) {});
       expect(
-        container.read(liveOutcomeProvider(id)),
+        container.read(liveOutcomeProvider(livePin)),
         isA<LiveOutcomePending>(),
       );
 
       async.elapse(Duration.zero);
       async.flushMicrotasks();
-      expect(container.read(liveOutcomeProvider(id)), isA<LiveOutcomeFresh>());
+      expect(
+        container.read(liveOutcomeProvider(livePin)),
+        isA<LiveOutcomeFresh>(),
+      );
       expect(counter, 1);
 
       async.elapse(const Duration(milliseconds: 350));
@@ -124,12 +135,12 @@ void main() {
       );
       final container = _container(
         tool: tool,
-        dispatch: ({required toolId, required args}) =>
+        dispatch: ({pinKey, required toolId, required args}) =>
             outcomes[idx < outcomes.length ? idx++ : outcomes.length - 1],
       );
 
-      final id = ToolId.parse(tool.id);
-      container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      container.listen(liveOutcomeProvider(livePin), (_, _) {});
 
       async.elapse(Duration.zero); // cold: v1
       async.flushMicrotasks();
@@ -138,7 +149,7 @@ void main() {
       async.elapse(const Duration(milliseconds: 100)); // err → stale(v2)
       async.flushMicrotasks();
 
-      final state = container.read(liveOutcomeProvider(id));
+      final state = container.read(liveOutcomeProvider(livePin));
       expect(state, isA<LiveOutcomeStale>());
       final stale = state as LiveOutcomeStale;
       expect(stale.lastOutcome.primaryOutputText, '{"v":2}');
@@ -155,15 +166,16 @@ void main() {
       );
       final container = _container(
         tool: tool,
-        dispatch: ({required toolId, required args}) => _err('cold boom'),
+        dispatch: ({pinKey, required toolId, required args}) =>
+            _err('cold boom'),
       );
 
-      final id = ToolId.parse(tool.id);
-      container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      container.listen(liveOutcomeProvider(livePin), (_, _) {});
       async.elapse(Duration.zero);
       async.flushMicrotasks();
       expect(
-        container.read(liveOutcomeProvider(id)),
+        container.read(liveOutcomeProvider(livePin)),
         isA<LiveOutcomePending>(),
       );
     });
@@ -181,6 +193,7 @@ void main() {
         overrides: [
           toolByIdProvider(ToolId.parse(tool.id)).overrideWith((ref) => tool),
           liveDispatchToolFnProvider.overrideWithValue(({
+            PinKey? pinKey,
             required toolId,
             required args,
           }) async {
@@ -190,8 +203,8 @@ void main() {
         ],
       );
 
-      final id = ToolId.parse(tool.id);
-      final sub = container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      final sub = container.listen(liveOutcomeProvider(livePin), (_, _) {});
       async.elapse(Duration.zero);
       async.flushMicrotasks();
       async.elapse(const Duration(milliseconds: 100));
@@ -220,6 +233,7 @@ void main() {
         overrides: [
           toolByIdProvider(ToolId.parse(tool.id)).overrideWith((ref) => tool),
           liveDispatchToolFnProvider.overrideWithValue(({
+            PinKey? pinKey,
             required toolId,
             required args,
           }) async {
@@ -229,8 +243,8 @@ void main() {
         ],
       );
 
-      final id = ToolId.parse(tool.id);
-      container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      container.listen(liveOutcomeProvider(livePin), (_, _) {});
       container.dispose();
       async.elapse(Duration.zero);
       async.flushMicrotasks();
@@ -251,14 +265,14 @@ void main() {
       );
       final container = _container(
         tool: tool,
-        dispatch: ({required toolId, required args}) {
+        dispatch: ({pinKey, required toolId, required args}) {
           calls++;
           return completer.future;
         },
       );
 
-      final id = ToolId.parse(tool.id);
-      final sub = container.listen(liveOutcomeProvider(id), (_, next) {
+      final livePin = _livePin(tool);
+      final sub = container.listen(liveOutcomeProvider(livePin), (_, next) {
         observed.add(next);
       });
       async.elapse(Duration.zero);
@@ -284,15 +298,15 @@ void main() {
       );
       final container = _container(
         tool: tool,
-        dispatch: ({required toolId, required args}) {
+        dispatch: ({pinKey, required toolId, required args}) {
           final completer = Completer<CanonicalToolResult>();
           completers.add(completer);
           return completer.future;
         },
       );
 
-      final id = ToolId.parse(tool.id);
-      container.listen(liveOutcomeProvider(id), (_, _) {});
+      final livePin = _livePin(tool);
+      container.listen(liveOutcomeProvider(livePin), (_, _) {});
       async.elapse(Duration.zero);
       async.elapse(const Duration(milliseconds: 350));
       expect(completers, hasLength(1));
@@ -303,5 +317,45 @@ void main() {
 
       expect(completers, hasLength(2));
     });
+  });
+
+  test('timer dispatches are keyed by placement, even for one tool', () async {
+    final toolId = ToolId.parse('clock.now');
+    final first = (BoardKey.parse('dev'), PinId.parse('pin-a'));
+    final second = (BoardKey.parse('dev'), PinId.parse('pin-b'));
+    final calls = <PinKey>[];
+    final tool = fixtureToolDto(
+      id: toolId.value,
+      pinKind: PinKindDto.live,
+      source: SourceDto.timer(intervalMs: BigInt.from(10000)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        toolsLoaderProvider.overrideWith(
+          (_) =>
+              () => [tool],
+        ),
+        liveDispatchToolFnProvider.overrideWithValue(({
+          PinKey? pinKey,
+          required toolId,
+          required ToolArgs args,
+        }) async {
+          calls.add(pinKey!);
+          return CanonicalToolResult(ok: true, outputs: const []);
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(toolsProvider.future);
+    container.listen(
+      liveOutcomeProvider((pinKey: first, toolId: toolId)),
+      (_, _) {},
+    );
+    container.listen(
+      liveOutcomeProvider((pinKey: second, toolId: toolId)),
+      (_, _) {},
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(calls, containsAll(<PinKey>[first, second]));
   });
 }

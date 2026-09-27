@@ -18,7 +18,7 @@ void main() {
     testWidgets('BoardCanvas_moves_a_pin_with_an_immediate_drag', (
       tester,
     ) async {
-      ToolId? gotTool;
+      PinId? gotTool;
       int? gotX;
       int? gotY;
       await tester.pumpWidget(
@@ -45,6 +45,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'num.hex_to_decimal',
+                        pinId: 'num.hex_to_decimal',
                         x: 0,
                         y: 0,
                         w: 1,
@@ -56,11 +57,11 @@ void main() {
                   onMovePin:
                       ({
                         required boardKey,
-                        required toolId,
+                        required pinId,
                         required anchorX,
                         required anchorY,
                       }) {
-                        gotTool = toolId;
+                        gotTool = pinId;
                         gotX = anchorX;
                         gotY = anchorY;
                       },
@@ -86,7 +87,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(gotTool, ToolId.parse('num.hex_to_decimal'));
+      expect(gotTool, PinId.parse('num.hex_to_decimal'));
       // Column 1 is the drop target the cursor landed in. `anchorY`
       // stays 0 since no vertical drag.
       expect(gotX, 1);
@@ -129,6 +130,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -198,7 +200,7 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        ToolId? gotTool;
+        PinId? gotTool;
         int? gotX;
         int? gotY;
         await tester.pumpWidget(
@@ -225,6 +227,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -236,11 +239,11 @@ void main() {
                     onMovePin:
                         ({
                           required boardKey,
-                          required toolId,
+                          required pinId,
                           required anchorX,
                           required anchorY,
                         }) {
-                          gotTool = toolId;
+                          gotTool = pinId;
                           gotX = anchorX;
                           gotY = anchorY;
                         },
@@ -286,7 +289,7 @@ void main() {
         await gesture.up();
         await tester.pump(const Duration(milliseconds: 16));
 
-        expect(gotTool, ToolId.parse('num.hex_to_decimal'));
+        expect(gotTool, PinId.parse('num.hex_to_decimal'));
         expect(gotX, 0);
         expect(gotY, targetRow);
       },
@@ -329,6 +332,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -452,6 +456,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -541,7 +546,7 @@ void main() {
         const cellH = boardCanvasPinCellHeight;
         const gap = UpegSizing.pinGap;
 
-        ToolId? gotTool;
+        PinId? gotTool;
         int? gotX;
         int? gotY;
 
@@ -569,6 +574,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -580,11 +586,11 @@ void main() {
                     onMovePin:
                         ({
                           required boardKey,
-                          required toolId,
+                          required pinId,
                           required anchorX,
                           required anchorY,
                         }) {
-                          gotTool = toolId;
+                          gotTool = pinId;
                           gotX = anchorX;
                           gotY = anchorY;
                         },
@@ -650,6 +656,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -676,6 +683,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -702,6 +710,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -712,7 +721,7 @@ void main() {
           onMovePin:
               ({
                 required boardKey,
-                required toolId,
+                required pinId,
                 required anchorX,
                 required anchorY,
               }) {
@@ -745,6 +754,7 @@ void main() {
             placements: [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -789,6 +799,7 @@ void main() {
                   placements: [
                     PlacementDto(
                       toolId: 'num.hex_to_decimal',
+                      pinId: 'num.hex_to_decimal',
                       x: 0,
                       y: 0,
                       w: 1,

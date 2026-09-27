@@ -20,7 +20,7 @@
 //! `notifications/initialized`; every fake stdio server in the suite
 //! answered anyway, while the official `@modelcontextprotocol`
 //! TypeScript SDK silently dropped the request and the import looked
-//! like a timeout (docs/architecture/mcp.md, "handshake spec compliance").
+//! like a timeout (`upeg_sources::mcp_import` module docs).
 //!
 //! So this file talks to a server nobody here wrote:
 //! `@modelcontextprotocol/server-filesystem`, fetched through `npx`.
@@ -338,7 +338,7 @@ const UPEG_HOME_ENV: &str = "UPEG_HOME";
 /// unrelated tools into every assertion's blast radius.
 const UPEG_PROJECT_MANIFEST_ENV: &str = "UPEG_PROJECT_MANIFEST_PATH";
 const UPEG_PROJECT_MANIFEST_OFF: &str = "off";
-/// Declaration stem = import namespace (docs/architecture/mcp.md).
+/// Declaration stem = import namespace (`upeg_sources::mcp_import` module docs).
 const HOST_IMPORT_NAMESPACE: &str = "fsdemo";
 const MCP_IMPORTS_DIR_NAME: &str = "mcp-imports";
 const DECLARATION_EXTENSION: &str = "toml";
@@ -433,7 +433,7 @@ impl Drop for ScratchHost {
 ///
 /// It also pins the imports-pending signal end to end — `upeg host
 /// status --json` reports the HOST's live phase, read back off its
-/// `/healthz` (docs/architecture/mcp.md, "importsPending").
+/// `/healthz` (`upeg_cli::infrastructure::mcp_imports` module docs).
 #[test]
 #[ignore = "needs `npx` + network; run via `just mcp-import-real-smoke`"]
 fn a_real_server_import_is_called_from_another_process_via_the_host() {

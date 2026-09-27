@@ -102,8 +102,17 @@ final class ControlledEmbedExecutionBridge {
   ) async {
     frb.WebViewExecutionCompletionDto completion;
     try {
+      final pinKey = switch ((request.boardKey, request.pinId)) {
+        (null, null) => null,
+        (final String boardKey, final String pinId) => (
+          BoardKey.parse(boardKey),
+          PinId.parse(pinId),
+        ),
+        _ => throw StateError('WebView request has incomplete pin context.'),
+      };
       final outcome = await _sessions.execute(
         spec: ControlledEmbedSessionSpec(
+          pinKey: pinKey,
           toolId: ToolId.parse(request.toolId),
           url: request.url,
           settings: resolveBrowserSettings(request.settings),

@@ -104,6 +104,9 @@
   "noBoardsFound": {
     "message": "No boards found — pin a tool to a board first."
   },
+  "extensionAdapterUpgradeRequired": {
+    "message": "This upeg host does not support the extension Board adapter. Upgrade upeg, then reconnect."
+  },
 
   "toolListLoading": {
     "message": "Loading pinned tools…"
@@ -130,6 +133,15 @@
   },
   "jsonFieldNote": {
     "message": "No dedicated control for this field — enter a JSON value."
+  },
+  "presetFileStored": {
+    "message": "A saved File preset stays on the host unless you choose a replacement."
+  },
+  "inPagePresetFileUnsupported": {
+    "message": "This in-page tool has a saved File preset that the browser cannot represent. Open it in Desktop upeg."
+  },
+  "approvalUnsupported": {
+    "message": "This tool requires approval, which the browser extension cannot provide. Open it in Desktop upeg."
   },
   "fieldRequired": {
     "message": "\"$FIELD$\" is required.",

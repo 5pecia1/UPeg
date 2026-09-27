@@ -1,14 +1,11 @@
-//! The Project Manifest's board declarations, for this process.
+//! The active project's board declarations, for this process.
 //!
-//! A Project Manifest may declare `[[boards]]`; those boards exist only
-//! while that manifest is detected. "Detected" is a *process* fact — the
-//! loader resolves exactly one `upeg.toml` at startup — so the declared
-//! boards live in one process-global slot here, next to the other
-//! registries the loader fills (`board_context`, trigger bindings,
-//! provenance).
+//! `.upeg/project.toml` may declare `[[boards]]`. Those boards are visible
+//! only while their project is active. One process-global slot holds their
+//! scope alongside runtime Tool registration.
 //!
 //! This module deliberately holds no policy beyond "what did the
-//! manifest declare, and under which namespace". Merging the
+//! project declare, and under which namespace". Merging the
 //! declarations into the user's pegboard state, hiding other projects'
 //! boards, and mapping visible ids onto store keys all belong to
 //! `upeg_sources::pegboard`, which is the layer that owns the store.
@@ -29,7 +26,7 @@ fn active_lock() -> &'static Mutex<Option<ProjectBoardScope>> {
     ACTIVE_PROJECT_BOARDS.get_or_init(|| Mutex::new(None))
 }
 
-/// One `[[boards]]` entry from a Project Manifest, already validated.
+/// One `[[boards]]` entry from a project config, already validated.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectBoardDecl {
     /// Visible board id — what a user types (`upeg board upeg-dev list`)
@@ -37,7 +34,7 @@ pub struct ProjectBoardDecl {
     pub id: BoardKey,
     /// Tab title shown by GUI surfaces.
     pub label: String,
-    /// Guidance owned by the declaring Project Manifest.
+    /// Guidance owned by the declaring project config.
     pub guidance: BoardGuidance,
 }
 
@@ -58,7 +55,7 @@ impl ProjectBoardDecl {
     }
 }
 
-/// The boards the currently-detected Project Manifest declares, plus the
+/// The boards the active project declares, plus the
 /// namespace their store rows are keyed under.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectBoardScope {
@@ -69,15 +66,23 @@ pub struct ProjectBoardScope {
 }
 
 impl ProjectBoardScope {
-    /// Build a scope for the manifest at `manifest_path`. The path is
-    /// the identity: it is what [`ProjectBoardNamespace`] digests, so
-    /// two projects never share placements.
+    #[must_use]
+    pub fn for_project(root: &Path, config_path: &Path, boards: Vec<ProjectBoardDecl>) -> Self {
+        Self {
+            manifest_path: config_path.to_path_buf(),
+            loaded_content: None,
+            namespace: ProjectBoardNamespace::for_project_root(root),
+            boards,
+        }
+    }
+    /// Build an in-memory scope with `manifest_path` as its identity.
+    /// Production activation uses [`Self::for_project`] with the root.
     #[must_use]
     pub fn for_manifest(manifest_path: &Path, boards: Vec<ProjectBoardDecl>) -> Self {
         Self {
             manifest_path: manifest_path.to_path_buf(),
             loaded_content: None,
-            namespace: ProjectBoardNamespace::for_manifest_path(manifest_path),
+            namespace: ProjectBoardNamespace::for_project_root(manifest_path),
             boards,
         }
     }
@@ -141,7 +146,7 @@ impl ProjectBoardScope {
 }
 
 /// Replace this process's project board scope. Called once, by the
-/// loader, when a Project Manifest is registered.
+/// project loader, when a project is activated.
 pub fn set_project_board_scope(scope: ProjectBoardScope) {
     *active_lock().lock().expect("project board scope poisoned") = Some(scope);
 }
@@ -155,6 +160,7 @@ pub fn clear_project_board_scope() {
 /// The active scope, or `None` when no Project Manifest declared boards.
 #[must_use]
 pub fn project_board_scope() -> Option<ProjectBoardScope> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     active_lock()
         .lock()
         .expect("project board scope poisoned")

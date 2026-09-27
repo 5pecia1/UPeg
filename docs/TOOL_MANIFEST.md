@@ -58,7 +58,7 @@ upeg call demo.echo_bracketed -a tag=hi
 
 ## Where upeg loads external manifests from
 
-Toolkit TOML files load from `~/.upeg/toolkits/{toolkit_id}.toml` unless `UPEG_TOOLKITS_DIR` points elsewhere. WASM plugin binaries load from `~/.upeg/wasm/*.wasm` unless `UPEG_WASM_DIR` is set. MCP upstream configs load from `~/.upeg/mcp-imports/*.toml` unless `UPEG_MCP_IMPORTS_DIR` is set. The `examples/` tree contains copyable fixtures for each source type, including `examples/tools/http-mock-echo.toml`, `examples/tools/llm-echo.toml`, `examples/tools/embed-mdn.toml`, and `examples/tools/chain-md5-then-uppercase.toml`.
+Toolkit TOML files load from `~/.upeg/toolkits/{toolkit_id}.toml` unless `UPEG_TOOLKITS_DIR` points elsewhere. WASM plugin binaries load from `~/.upeg/wasm/*.wasm` unless `UPEG_WASM_DIR` is set. MCP upstream configs load from `~/.upeg/mcp-imports/*.toml` unless `UPEG_MCP_IMPORTS_DIR` is set. Project Toolkits load from `.upeg/toolkits/*.toml` after the nearest `.upeg/` marker is selected; `.upeg/project.toml` holds boards and explicit duplicate-tool choices. The `examples/` tree contains copyable fixtures for each source type, including `examples/tools/http-mock-echo.toml`, `examples/tools/llm-echo.toml`, `examples/tools/embed-mdn.toml`, and `examples/tools/chain-md5-then-uppercase.toml`.
 
 ## Toolkit TOML structure
 
@@ -115,7 +115,6 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `display_label` | no | string or null | Human-readable toolkit label for UI surfaces. |
 | `description` | no | string or null | Human-readable toolkit description. |
 | `tools` | yes | array<ToolEntryToml> | Tools declared inside this toolkit manifest. |
-| `boards` | no | array<BoardEntryToml> | Boards this manifest declares. Project Manifests (`upeg.toml`)<br>only — the loader rejects the field on a toolkits-directory<br>manifest, which has no project to scope a board to. |
 
 ### ToolEntryToml
 
@@ -138,14 +137,14 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `command` | no | string or null | External-invoker support: program to spawn (e.g. `"git"`).<br>Honored only when `invoker = "External"`. |
 | `setup` | no | ToolSetupToml or null | Optional display-only setup guidance. Honored only by `External`. |
 | `args_template` | no | array<string> or null | Arg list template for the spawned command. `{key}` placeholders<br>are substituted anywhere inside a token (`--manifest-path={path}`);<br>`{{` / `}}` escape a literal brace. Every `key` must name a<br>declared `inputs` field (or `input`, which the `Chain` invoker<br>supplies to every step) — a placeholder naming nothing else is a<br>load error rather than a silently empty argument. A token that is<br>nothing but `{key}` for an optional input with neither a value<br>nor a `default` is dropped from the arg list; every other token<br>keeps its position and renders the absent placeholder as `""`. |
-| `cwd` | no | string or null | Working directory for the spawned command. A relative path<br>resolves against the directory holding this manifest file.<br>Honored only when `invoker = "External"`. When omitted, a<br>Project Manifest (`upeg.toml`) tool runs in the manifest's own<br>directory and a caller-supplied working directory is honored<br>only if it sits inside that directory. |
+| `cwd` | no | string or null | Working directory for the spawned command. A relative path<br>resolves against the project root for a project Toolkit, or<br>the manifest directory for a global Toolkit. Honored only when<br>`invoker = "External"`. When omitted, a project Toolkit runs in<br>the project root and a caller-supplied working directory is honored<br>only if it sits inside that directory. |
 | `env` | no | array<KeyValueToml> or null | Plain (non-secret) environment variables handed to the spawned<br>command. Secrets belong in `credentials`, which is applied after<br>this list and therefore wins on a name collision. |
 | `timeout_ms` | no | integer or null | Wall-clock budget for the spawned command, in milliseconds. When<br>it elapses upeg terminates the child's whole process group and<br>fails with `details.timed_out = true`. Omit for no limit. |
 | `color` | no | string or null | Whether the spawned command is told color is supported.<br>`"inherit"` (the default) leaves it seeing a captured pipe and<br>turning color off; `"force"` sets `CLICOLOR_FORCE`/`FORCE_COLOR`,<br>unsets `NO_COLOR` (and sets `TERM` when the host has none). It is<br>the environment convention, not a pty: a program that decides on<br>`isatty(3)` alone needs its own flag. Honored only when<br>`invoker = "External"`. |
 | `pty` | no | boolean or null | Whether the spawned command gets a real terminal instead of two<br>pipes. `true` opens a pseudoterminal on Unix and connects the<br>child's stdout and stderr to it, so `isatty(3)` is true and a<br>program that decides on it alone — `git`, `ls`, `grep` — emits<br>its terminal output. The two streams arrive **merged** in one<br>captured `stdout`, since a terminal has only one buffer, and<br>`pty = true` implies `color = "force"` unless `color` is declared<br>explicitly. stdin stays `/dev/null`. Rejected at load time on a<br>host with no pty (Windows, wasm). Honored only when<br>`invoker = "External"`. |
 | `steps` | no | array<ChainStepToml> or null | Chain steps. This is the single PRD v2.1 manifest shape for<br>expression flow, branching, approvals, and connected node execution. |
 | `connections` | no | array<ChainConnectionToml> or null | Directed edges between chain steps. Steps without incoming connections<br>receive the chain input; connected steps receive upstream outputs. |
-| `approval_surfaces` | no | array<string> or null | Surface labels allowed to satisfy this chain's `requires_approval`<br>steps. An approval (`approve = true` / `_upeg.approvedSteps`) is<br>honored only when the call's `_upeg.surface` is in this list;<br>every other surface is refused with `approval_denied_for_surface`.<br>Defaults to the three surfaces a person is sitting at — `cli`,<br>`tui`, `desktop` — each of which ships a real approval gesture<br>(`upeg call <chain> -a approve=true`, the TUI's confirm dialog,<br>the desktop's confirm dialog). Every other surface must be named<br>explicitly. Must overlap this tool's `surfaces`, or the gated<br>step could never be approved by anyone who can reach it. |
+| `approval_surfaces` | no | array<string> or null | Surfaces permitted to satisfy this chain's `requires_approval` steps.<br>Defaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an<br>explicit entry. `ext` is unsupported because the browser extension has<br>no approval gesture. The list must overlap this tool's `surfaces`. |
 | `output` | no | string or null | Optional final output expression for Chain tools. |
 | `url` | no | string or null | HTTP invoker URL template. |
 | `method` | no | string or null | HTTP method (`GET`/`POST`/...). Defaults to POST when a body is present,<br>GET otherwise. |
@@ -294,15 +293,6 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `settle_ms` | no | integer or null | Fixed delay in milliseconds after the condition matches. Defaults to 0.<br>This is not a network-idle or DOM-stability detector. |
 | `on_timeout` | no | string or null | Timeout behavior. Supported values are `"fail"` and `"continue"`.<br>Defaults to `"fail"`. |
 
-### BoardEntryToml
-
-| Field | Required | Type | Description |
-| --- | --- | --- | --- |
-| `id` | yes | string | Board id, as typed on every surface (`upeg board <id> list`) and<br>as named by a tool's `boards = [...]` array. Must be canonical<br>(unpadded), must not contain `:`, and must not shadow a built-in<br>board. |
-| `label` | no | string or null | Tab title for GUI surfaces. Defaults to `id` when omitted. |
-| `description` | no | string | Short description of the board's purpose. Empty when omitted. |
-| `instructions` | no | string | Markdown guidance for people and agents using this board. |
-
 ### PresentationToml
 
 | Field | Required | Type | Description |
@@ -354,7 +344,7 @@ A canonical failure is `ok=false` plus an `error` object with `code`, `message`,
 
 The loader preserves the TOML shape, infers `Chain` only when `steps` is present, then validates each runtime invoker's required fields before registering dispatchers.
 
-The `External` invoker also controls how the child process runs. `cwd` sets its working directory; a relative value resolves against the directory holding the manifest. With no declared `cwd`, a Project Manifest (`upeg.toml`) tool runs in the manifest's own directory, and a caller-supplied working directory is honored only when it sits inside that directory — a toolkit-directory tool has no project to belong to, so there the caller's directory wins outright. `env` lists plain, non-secret environment variables and is applied before `credentials`, so a credential wins on a name collision. `timeout_ms` is a wall-clock budget after which upeg terminates the child's whole process group; there is no default, because a long build or test run must stay legal. stdin is always `/dev/null`, so an interactive prompt fails fast instead of hanging the calling surface. `color` decides what the child is told about color support: the default (`"inherit"`) leaves it looking at a captured pipe, so it turns color off by itself, while `color = "force"` sets `CLICOLOR_FORCE` and `FORCE_COLOR`, unsets an inherited `NO_COLOR` (which the same convention ranks above both), and sets `TERM` only when upeg's own environment has none. That is pure environment — no pty, identical on Unix and Windows — and it applies before `env`, so an explicit variable overrides it. It is the convention rather than a terminal: a program that decides on `isatty(3)` alone, like `git` or `ls`, ignores all of it and needs its own flag (`git -c color.ui=always`). An unknown value is rejected at load time rather than silently ignored at dispatch time.
+The `External` invoker also controls how the child process runs. `cwd` sets its working directory; a relative value resolves against the project root for project Toolkits, or against the manifest directory for global Toolkits. With no declared `cwd`, a project Toolkit runs in the project root, and a caller-supplied working directory is honored only when it sits inside that root — a toolkit-directory tool has no project to belong to, so there the caller's directory wins outright. `env` lists plain, non-secret environment variables and is applied before `credentials`, so a credential wins on a name collision. `timeout_ms` is a wall-clock budget after which upeg terminates the child's whole process group; there is no default, because a long build or test run must stay legal. stdin is always `/dev/null`, so an interactive prompt fails fast instead of hanging the calling surface. `color` decides what the child is told about color support: the default (`"inherit"`) leaves it looking at a captured pipe, so it turns color off by itself, while `color = "force"` sets `CLICOLOR_FORCE` and `FORCE_COLOR`, unsets an inherited `NO_COLOR` (which the same convention ranks above both), and sets `TERM` only when upeg's own environment has none. That is pure environment — no pty, identical on Unix and Windows — and it applies before `env`, so an explicit variable overrides it. It is the convention rather than a terminal: a program that decides on `isatty(3)` alone, like `git` or `ls`, ignores all of it and needs its own flag (`git -c color.ui=always`). An unknown value is rejected at load time rather than silently ignored at dispatch time.
 
 `pty = true` is the other answer to that same question: it opens a real pseudoterminal on Unix and connects the child's stdout and stderr to it, so `isatty(3)` is true and no flag is needed, and it implies `color = "force"` as well unless the tool declares `color` itself, in which case the declaration wins. A terminal has one buffer, so both streams come back merged in `stdout` and `stderr` is empty; stdin stays `/dev/null` because upeg is never the human on the other side. Timeouts and escaped-descendant cleanup are unchanged. A host with no pty (Windows, wasm) skips that one tool at load time — recorded with its reason, never silently downgraded to pipes — and every other tool in the same manifest still loads.
 
@@ -599,7 +589,7 @@ credentials = [
 
 `fixtures/toolkit.schema.json` is generated from the same Rust Toolkit TOML structs that serde deserializes. Use it for editor validation of the TOML-to-JSON shape. `upeg tool validate` is authoritative for semantic validation such as required runtime fields, invoker compatibility, chain acyclicity, and typed input rules. The JSON Schema does not prove absence of chain cycles, credential existence, executable availability, or URL reachability.
 
-Generated schema title: `ToolkitToml`. Top-level schema fields: `id`, `tags`, `display_label`, `description`, `tools`, `boards`.
+Generated schema title: `ToolkitToml`. Top-level schema fields: `id`, `tags`, `display_label`, `description`, `tools`.
 
 ## WASM plugin manifests
 

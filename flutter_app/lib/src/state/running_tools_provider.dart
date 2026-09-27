@@ -15,19 +15,19 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 
-/// Central set of tool ids with a dispatch in flight.
+/// Central set of pin placements with a dispatch in flight.
 final runningToolsProvider =
-    NotifierProvider<RunningToolsNotifier, Set<ToolId>>(
+    NotifierProvider<RunningToolsNotifier, Set<PinKey>>(
       RunningToolsNotifier.new,
     );
 
 /// Convenience selector: `true` while [toolId] has a dispatch in flight.
 /// Lets a Pin watch a single boolean instead of the whole set so it only
 /// rebuilds when its own running state flips.
-final toolIsRunningProvider = Provider.family<bool, ToolId>(
-  (ref, toolId) => ref.watch(runningToolsProvider).contains(toolId),
+final pinIsRunningProvider = Provider.family<bool, PinKey>(
+  (ref, pinKey) => ref.watch(runningToolsProvider).contains(pinKey),
 );
 
 /// Opaque ownership token for one in-flight dispatch.
@@ -36,32 +36,32 @@ final toolIsRunningProvider = Provider.family<bool, ToolId>(
 /// overlapping dispatches of the same tool settle independently without one
 /// caller clearing another caller's running state.
 final class RunningToolLease {
-  RunningToolLease._(this._toolId);
+  RunningToolLease._(this._pinKey);
 
-  final ToolId _toolId;
+  final PinKey _pinKey;
 }
 
-class RunningToolsNotifier extends Notifier<Set<ToolId>> {
-  final Map<ToolId, Set<RunningToolLease>> _activeLeasesByTool =
-      <ToolId, Set<RunningToolLease>>{};
+class RunningToolsNotifier extends Notifier<Set<PinKey>> {
+  final Map<PinKey, Set<RunningToolLease>> _activeLeasesByPin =
+      <PinKey, Set<RunningToolLease>>{};
 
   @override
-  Set<ToolId> build() {
-    _activeLeasesByTool.clear();
-    return const <ToolId>{};
+  Set<PinKey> build() {
+    _activeLeasesByPin.clear();
+    return const <PinKey>{};
   }
 
   /// Starts one dispatch and returns the lease that owns its running state.
-  RunningToolLease begin(ToolId toolId) {
-    final lease = RunningToolLease._(toolId);
-    final activeLeases = _activeLeasesByTool.putIfAbsent(
-      toolId,
+  RunningToolLease begin(PinKey pinKey) {
+    final lease = RunningToolLease._(pinKey);
+    final activeLeases = _activeLeasesByPin.putIfAbsent(
+      pinKey,
       () => <RunningToolLease>{},
     );
     final wasIdle = activeLeases.isEmpty;
     activeLeases.add(lease);
     if (wasIdle) {
-      state = Set<ToolId>.unmodifiable(<ToolId>{...state, toolId});
+      state = Set<PinKey>.unmodifiable(<PinKey>{...state, pinKey});
     }
     return lease;
   }
@@ -71,12 +71,12 @@ class RunningToolsNotifier extends Notifier<Set<ToolId>> {
   /// An already-ended lease, or a stale lease invalidated by [clear], is an
   /// unmatched end and intentionally does nothing.
   void end(RunningToolLease lease) {
-    final activeLeases = _activeLeasesByTool[lease._toolId];
+    final activeLeases = _activeLeasesByPin[lease._pinKey];
     if (activeLeases == null || !activeLeases.remove(lease)) return;
     if (activeLeases.isNotEmpty) return;
-    _activeLeasesByTool.remove(lease._toolId);
-    final nextState = <ToolId>{...state}..remove(lease._toolId);
-    state = Set<ToolId>.unmodifiable(nextState);
+    _activeLeasesByPin.remove(lease._pinKey);
+    final nextState = <PinKey>{...state}..remove(lease._pinKey);
+    state = Set<PinKey>.unmodifiable(nextState);
   }
 
   /// Clears every running tool and invalidates all outstanding leases.
@@ -84,7 +84,7 @@ class RunningToolsNotifier extends Notifier<Set<ToolId>> {
   /// A late [end] for an invalidated lease cannot affect a dispatch started
   /// after this reset.
   void clear() {
-    _activeLeasesByTool.clear();
-    state = const <ToolId>{};
+    _activeLeasesByPin.clear();
+    state = const <PinKey>{};
   }
 }

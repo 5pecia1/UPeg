@@ -14,6 +14,7 @@
 //! mtime does not reliably change on commit, so file-mtime polling would be
 //! a silent regression.
 
+mod diagnostics;
 mod execution_log;
 pub mod export;
 mod last_outcomes;
@@ -24,6 +25,7 @@ mod schema;
 #[cfg(test)]
 mod tests;
 
+pub use diagnostics::{DIAGNOSTIC_RETENTION, DiagnosticRecord};
 pub use execution_log::{ExecutionLogFilter, ExecutionLogRecord};
 pub use last_outcomes::{
     CappedOutputsJson, LastOutcomeRecord, NewLastOutcome, OUTPUTS_JSON_MAX_BYTES, cap_outputs_json,

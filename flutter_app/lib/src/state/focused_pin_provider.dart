@@ -16,13 +16,13 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 
 /// Notifier for [`focusedPinProvider`].
-class FocusedPinNotifier extends Notifier<ToolId?> {
+class FocusedPinNotifier extends Notifier<PinId?> {
   @override
-  ToolId? build() => null;
+  PinId? build() => null;
 
   /// Set the focused pin to [toolId].
-  void focus(ToolId toolId) {
-    state = toolId;
+  void focus(PinId pinId) {
+    state = pinId;
   }
 
   /// Drop focus (e.g. modal closed, BoardPage replaced).
@@ -31,7 +31,7 @@ class FocusedPinNotifier extends Notifier<ToolId?> {
   }
 }
 
-final focusedPinProvider = NotifierProvider<FocusedPinNotifier, ToolId?>(
+final focusedPinProvider = NotifierProvider<FocusedPinNotifier, PinId?>(
   FocusedPinNotifier.new,
 );
 
@@ -41,5 +41,5 @@ final focusedPinProvider = NotifierProvider<FocusedPinNotifier, ToolId?>(
 void focusPlacement(ProviderContainer container, PlacementDto placement) {
   container
       .read(focusedPinProvider.notifier)
-      .focus(ToolId.parse(placement.toolId));
+      .focus(PinId.parse(placement.pinId));
 }

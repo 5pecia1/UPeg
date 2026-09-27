@@ -61,6 +61,38 @@ fn queued_requests_for_same_tool_gain_prior_run_time() {
 }
 
 #[test]
+fn same_tool_on_distinct_pins_keeps_exact_request_identity_and_queue() {
+    let (bridge, id, events) = connected_bridge();
+    let mut runs = Vec::new();
+    for pin_id in ["pin-one", "pin-one", "pin-two"] {
+        let worker = Arc::clone(&bridge);
+        let handle = thread::spawn(move || {
+            let mut call = request("test.shared");
+            call.placement = Some(upeg_runtime::controlled_embed::ControlledEmbedPlacement {
+                board_key: "board-a",
+                pin_id,
+            });
+            worker.run_with_timeout(call, TEST_TIMEOUT)
+        });
+        let run = next_request(&events);
+        assert_eq!(run.board_key.as_deref(), Some("board-a"));
+        assert_eq!(run.pin_id.as_deref(), Some(pin_id));
+        runs.push((run, handle));
+    }
+    {
+        let state = bridge.state().unwrap();
+        let pending = &state.as_ref().unwrap().pending;
+        let deadline = |index: usize| pending[&RequestId(runs[index].0.request_id)].deadline;
+        assert_eq!(deadline(1).duration_since(deadline(0)), TEST_TIMEOUT);
+        assert!(deadline(2) < deadline(1));
+    }
+    for (run, handle) in runs {
+        assert!(bridge.complete(id, run.request_id, success("ok")));
+        assert!(handle.join().unwrap().is_ok());
+    }
+}
+
+#[test]
 fn unrepresentable_response_deadline_is_rejected_without_panic_or_execution() {
     let (bridge, _, events) = connected_bridge();
     assert!(matches!(
@@ -74,6 +106,7 @@ fn unrepresentable_response_deadline_is_rejected_without_panic_or_execution() {
 fn request(tool_id: &str) -> ControlledEmbedRequest<'_> {
     ControlledEmbedRequest {
         tool_id,
+        placement: None,
         url: TEST_URL,
         bindings: &[],
         inputs: &[("query", "upeg")],
@@ -128,6 +161,8 @@ fn concurrent_requests_receive_own_results_even_when_completed_in_reverse() {
     let second = next_request(&events);
     assert_ne!(first.request_id, second.request_id);
     assert_eq!(first.url, TEST_URL);
+    assert_eq!(first.board_key, None);
+    assert_eq!(first.pin_id, None);
     assert_eq!(
         first.inputs,
         vec![("query".to_string(), "upeg".to_string())]

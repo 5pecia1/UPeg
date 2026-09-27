@@ -28,6 +28,7 @@ import 'package:upeg/src/rust/api/status.dart'
     show McpImportPhaseDto, NetworkReachabilityDto;
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/status_provider.dart';
+import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 
 class StatusBar extends ConsumerWidget {
@@ -97,7 +98,8 @@ class StatusBar extends ConsumerWidget {
             const SizedBox(width: 14),
             Text(importsLabel, style: _baseTextStyle(tokens)),
           ],
-          Expanded(child: Container()),
+          const SizedBox(width: 14),
+          const Expanded(child: _ProjectContextStatus()),
           Text('v${status.buildVersion}', style: _baseTextStyle(tokens)),
         ],
       ),
@@ -112,7 +114,7 @@ class StatusBar extends ConsumerWidget {
   ///
   /// `loading` wins over the count because during the embedded host's
   /// async import window the count is not "0 imports" — it is "not in
-  /// yet" (docs/architecture/mcp.md).
+  /// yet" (`upeg_cli::infrastructure::mcp_imports` module docs).
   String? _importsLabel(WidgetRef ref, StatusSnapshotDto status) {
     switch (status.mcpImportPhase) {
       case McpImportPhaseDto.loading:
@@ -152,6 +154,48 @@ class StatusBar extends ConsumerWidget {
   /// the WCAG large-text/non-text 3:1 floor — while fg3 clears it in
   /// both themes (pinned by the upeg_theme contrast tests).
   TextStyle _baseTextStyle(UpegTokens tokens) => TextStyle(
+    fontFamily: upegMonoFontFamily,
+    fontFamilyFallback: upegMonoFontFamilyFallback,
+    fontSize: 10,
+    color: tokens.fg3,
+    height: 1.0,
+  );
+}
+
+/// Compact, always-visible context indicator. The visible label deliberately
+/// uses only the configured project name; the complete root remains available
+/// via tooltip so a long filesystem path cannot crowd a narrow status bar.
+class _ProjectContextStatus extends ConsumerWidget {
+  const _ProjectContextStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.upeg;
+    final project = switch (ref.watch(projectContextProvider)) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    if (project == null) {
+      return Text(
+        t(ref, 'desktop.status.project_global'),
+        key: const Key('status-project-context'),
+        overflow: TextOverflow.ellipsis,
+        style: _statusStyle(tokens),
+      );
+    }
+    final label = t(ref, 'desktop.status.project', {'name': project.name});
+    return Tooltip(
+      message: project.root,
+      child: Text(
+        label,
+        key: const Key('status-project-context'),
+        overflow: TextOverflow.ellipsis,
+        style: _statusStyle(tokens),
+      ),
+    );
+  }
+
+  TextStyle _statusStyle(UpegTokens tokens) => TextStyle(
     fontFamily: upegMonoFontFamily,
     fontFamilyFallback: upegMonoFontFamilyFallback,
     fontSize: 10,

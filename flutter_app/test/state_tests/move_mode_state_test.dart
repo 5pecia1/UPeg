@@ -37,7 +37,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('num.hex_to_decimal'),
+            toolId: PinId.parse('num.hex_to_decimal'),
             originX: 3,
             originY: 2,
             maxX: _u1MaxStartX,
@@ -47,7 +47,7 @@ void main() {
       expect(state, isA<MoveModeActive>());
       final active = state as MoveModeActive;
       expect(active.boardKey, _devBoardKey);
-      expect(active.toolId, ToolId.parse('num.hex_to_decimal'));
+      expect(active.toolId, PinId.parse('num.hex_to_decimal'));
       expect(active.originX, 3);
       expect(active.originY, 2);
       expect(active.currentX, 3);
@@ -62,7 +62,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('id.uuid_v7'),
+            toolId: PinId.parse('id.uuid_v7'),
             originX: 4,
             originY: 1,
             maxX: _u1MaxStartX,
@@ -70,7 +70,7 @@ void main() {
       c.read(moveModeProvider.notifier).nudge(dx: 1, dy: -1);
 
       final state = c.read(moveModeProvider) as MoveModeActive;
-      expect(state.toolId, ToolId.parse('id.uuid_v7'));
+      expect(state.toolId, PinId.parse('id.uuid_v7'));
       expect(state.originX, 4);
       expect(state.originY, 1);
       expect(state.currentX, 5);
@@ -94,7 +94,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('memo.scratch'),
+            toolId: PinId.parse('memo.scratch'),
             originX: 0,
             originY: 0,
             maxX: _u1MaxStartX,
@@ -113,7 +113,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.echo'),
+            toolId: PinId.parse('fixture.echo'),
             originX: 1,
             originY: 1,
             maxX: _u1MaxStartX,
@@ -122,7 +122,7 @@ void main() {
 
       final committed = c.read(moveModeProvider.notifier).commit();
       expect(committed, isNotNull);
-      expect(committed!.toolId, ToolId.parse('fixture.echo'));
+      expect(committed!.toolId, PinId.parse('fixture.echo'));
       expect(committed.currentX, 3);
       expect(committed.currentY, 1);
       expect(c.read(moveModeProvider), isA<MoveModeIdle>());
@@ -144,7 +144,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.echo'),
+            toolId: PinId.parse('fixture.echo'),
             originX: 0,
             originY: 0,
             maxX: _u1MaxStartX,

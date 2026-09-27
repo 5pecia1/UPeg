@@ -40,11 +40,6 @@ pub struct ToolkitToml {
     #[serde(default)]
     #[schemars(length(min = 1), required)]
     pub tools: Vec<ToolEntryToml>,
-    /// Boards this manifest declares. Project Manifests (`upeg.toml`)
-    /// only — the loader rejects the field on a toolkits-directory
-    /// manifest, which has no project to scope a board to.
-    #[serde(default)]
-    pub boards: Vec<BoardEntryToml>,
 }
 /// One tool entry inside a toolkit manifest's `[[tools]]` array.
 ///
@@ -124,10 +119,10 @@ pub struct ToolEntryToml {
     #[serde(default)]
     pub args_template: Option<Vec<String>>,
     /// Working directory for the spawned command. A relative path
-    /// resolves against the directory holding this manifest file.
-    /// Honored only when `invoker = "External"`. When omitted, a
-    /// Project Manifest (`upeg.toml`) tool runs in the manifest's own
-    /// directory and a caller-supplied working directory is honored
+    /// resolves against the project root for a project Toolkit, or
+    /// the manifest directory for a global Toolkit. Honored only when
+    /// `invoker = "External"`. When omitted, a project Toolkit runs in
+    /// the project root and a caller-supplied working directory is honored
     /// only if it sits inside that directory.
     #[serde(default)]
     pub cwd: Option<String>,
@@ -170,16 +165,10 @@ pub struct ToolEntryToml {
     /// receive the chain input; connected steps receive upstream outputs.
     #[serde(default)]
     pub connections: Option<Vec<ChainConnectionToml>>,
-    /// Surface labels allowed to satisfy this chain's `requires_approval`
-    /// steps. An approval (`approve = true` / `_upeg.approvedSteps`) is
-    /// honored only when the call's `_upeg.surface` is in this list;
-    /// every other surface is refused with `approval_denied_for_surface`.
-    /// Defaults to the three surfaces a person is sitting at — `cli`,
-    /// `tui`, `desktop` — each of which ships a real approval gesture
-    /// (`upeg call <chain> -a approve=true`, the TUI's confirm dialog,
-    /// the desktop's confirm dialog). Every other surface must be named
-    /// explicitly. Must overlap this tool's `surfaces`, or the gated
-    /// step could never be approved by anyone who can reach it.
+    /// Surfaces permitted to satisfy this chain's `requires_approval` steps.
+    /// Defaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an
+    /// explicit entry. `ext` is unsupported because the browser extension has
+    /// no approval gesture. The list must overlap this tool's `surfaces`.
     #[serde(default)]
     pub approval_surfaces: Option<Vec<String>>,
     /// Optional final output expression for Chain tools.
@@ -307,10 +296,10 @@ pub struct ToolToml {
     #[serde(default)]
     pub args_template: Option<Vec<String>>,
     /// Working directory for the spawned command. A relative path
-    /// resolves against the directory holding this manifest file.
-    /// Honored only when `invoker = "External"`. When omitted, a
-    /// Project Manifest (`upeg.toml`) tool runs in the manifest's own
-    /// directory and a caller-supplied working directory is honored
+    /// resolves against the project root for a project Toolkit, or
+    /// the manifest directory for a global Toolkit. Honored only when
+    /// `invoker = "External"`. When omitted, a project Toolkit runs in
+    /// the project root and a caller-supplied working directory is honored
     /// only if it sits inside that directory.
     #[serde(default)]
     pub cwd: Option<String>,
@@ -353,16 +342,10 @@ pub struct ToolToml {
     /// receive the chain input; connected steps receive upstream outputs.
     #[serde(default)]
     pub connections: Option<Vec<ChainConnectionToml>>,
-    /// Surface labels allowed to satisfy this chain's `requires_approval`
-    /// steps. An approval (`approve = true` / `_upeg.approvedSteps`) is
-    /// honored only when the call's `_upeg.surface` is in this list;
-    /// every other surface is refused with `approval_denied_for_surface`.
-    /// Defaults to the three surfaces a person is sitting at — `cli`,
-    /// `tui`, `desktop` — each of which ships a real approval gesture
-    /// (`upeg call <chain> -a approve=true`, the TUI's confirm dialog,
-    /// the desktop's confirm dialog). Every other surface must be named
-    /// explicitly. Must overlap this tool's `surfaces`, or the gated
-    /// step could never be approved by anyone who can reach it.
+    /// Surfaces permitted to satisfy this chain's `requires_approval` steps.
+    /// Defaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an
+    /// explicit entry. `ext` is unsupported because the browser extension has
+    /// no approval gesture. The list must overlap this tool's `surfaces`.
     #[serde(default)]
     pub approval_surfaces: Option<Vec<String>>,
     /// Optional final output expression for Chain tools.

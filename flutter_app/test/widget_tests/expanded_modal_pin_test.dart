@@ -45,7 +45,7 @@ class _SeededCurrentBoardNotifier extends CurrentBoardNotifier {
 }
 
 Widget _harness({
-  required PinMutator pinFn,
+  required AddPinMutator pinFn,
   String boardKey = 'dev',
   ToolDto? tool,
 }) {
@@ -55,7 +55,7 @@ Widget _harness({
       currentBoardKeyProvider.overrideWith(
         () => _SeededCurrentBoardNotifier(boardKey),
       ),
-      pinToolMutatorProvider.overrideWithValue(pinFn),
+      addPinMutatorProvider.overrideWithValue(pinFn),
       dispatchStreamFnProvider.overrideWithValue(
         stubDispatchStream(
           ({required toolId, required args, required approve}) async =>
@@ -75,7 +75,7 @@ void main() {
     testWidgets('ExpandedModalPage_footer_exposes_the_pin_button', (
       tester,
     ) async {
-      await tester.pumpWidget(_harness(pinFn: (_, _) {}));
+      await tester.pumpWidget(_harness(pinFn: (_, _) => 'pin'));
       expect(find.widgetWithText(TextButton, '+ pin'), findsOneWidget);
     });
 
@@ -90,6 +90,7 @@ void main() {
             pinFn: (board, tool) {
               observedBoard = board;
               observedTool = tool;
+              return 'pin';
             },
           ),
         );
@@ -103,7 +104,7 @@ void main() {
     testWidgets('ExpandedModalPage_pin_success_notifies_via_a_SnackBar', (
       tester,
     ) async {
-      await tester.pumpWidget(_harness(pinFn: (_, _) {}));
+      await tester.pumpWidget(_harness(pinFn: (_, _) => 'pin'));
       await tester.tap(find.widgetWithText(TextButton, '+ pin'));
       await tester.pump();
       expect(find.byType(SnackBar), findsOneWidget);

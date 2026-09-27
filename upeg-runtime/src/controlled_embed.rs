@@ -65,10 +65,19 @@ pub trait ControlledEmbedBackend: Send + Sync {
 pub struct ControlledEmbedRequest<'a> {
     /// Canonical tool identity used by a backend that retains sessions.
     pub tool_id: &'a str,
+    /// Exact board placement for GUI pin calls. `None` keeps the backend's
+    /// tool-level session for calls made without a pin (for example CLI).
+    pub placement: Option<ControlledEmbedPlacement<'a>>,
     pub url: &'a str,
     pub bindings: &'a [upeg_core::SelectorBinding],
     pub inputs: &'a [(&'a str, &'a str)],
     pub settings: upeg_core::ControlledEmbedSettings,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ControlledEmbedPlacement<'a> {
+    pub board_key: &'a str,
+    pub pin_id: &'a str,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -368,6 +377,7 @@ mod tests {
         let inputs: &[(&str, &str)] = &[];
         let result = backend.run(ControlledEmbedRequest {
             tool_id: "test.noop",
+            placement: None,
             url: "https://example.com/",
             bindings,
             inputs,
@@ -391,6 +401,7 @@ mod tests {
 
         let request = ControlledEmbedRequest {
             tool_id: "test.settings",
+            placement: None,
             url: "https://example.com/",
             bindings,
             inputs,

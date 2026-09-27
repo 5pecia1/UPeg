@@ -1,6 +1,115 @@
 use super::*;
 use crate::surfaces::tui::model::{PresentationFrame, PresentationOrigin};
+use std::collections::BTreeMap;
+use upeg_core::{ActionBinding, ActionScope, PresentationAction, ToolEffect, ToolPresentation};
 use upeg_core::{InputSpec, OutputEntry, OutputKind, OutputValue};
+
+fn follow_up_state(
+    target_id: &'static str,
+    target_local_id: &'static str,
+    effect: ToolEffect,
+    input: serde_json::Value,
+) -> State {
+    let source_id: &'static str =
+        Box::leak(format!("test.source_{target_local_id}").into_boxed_str());
+    let source_local_id: &'static str =
+        Box::leak(format!("source_{target_local_id}").into_boxed_str());
+    let mut source = fixture_tools()[0].clone();
+    source.id = source_id;
+    source.local_id = source_local_id;
+    source.presentation = Some(ToolPresentation {
+        version: upeg_core::PRESENTATION_VERSION_V1,
+        output: None,
+        rows: None,
+        row_key: None,
+        columns: Vec::new(),
+        actions: vec![PresentationAction {
+            id: "follow".into(),
+            scope: ActionScope::Result,
+            label: "Follow".into(),
+            target_tool: target_id.into(),
+            on_success: None,
+            bindings: BTreeMap::from([(
+                "project".into(),
+                ActionBinding::Input {
+                    pointer: "/project".into(),
+                },
+            )]),
+        }],
+    });
+    upeg_runtime::toolbox_add_tool(source);
+    let mut target = fixture_tools()[0].clone();
+    target.id = target_id;
+    target.local_id = target_local_id;
+    target.effect = effect;
+    target.input_spec =
+        InputSpec::new(vec![string_field("project", true)]).expect("required project input");
+    upeg_runtime::toolbox_add_tool(target);
+    State {
+        view: View::Result {
+            tool_id: source_id,
+            outputs: Vec::new(),
+            text: "result".into(),
+            is_error: false,
+        },
+        result_inputs: input,
+        ..fresh()
+    }
+}
+
+#[test]
+fn complete_read_follow_up_dispatches_without_opening_form() {
+    let mut state = follow_up_state(
+        "test.follow_read_complete",
+        "follow_read_complete",
+        ToolEffect::Read,
+        json!({"project":"alpha"}),
+    );
+    match handle_key(&mut state, Key::Char('a'), &fixture_tools()) {
+        Action::Dispatch { tool_id, args, .. } => {
+            assert_eq!(tool_id, "test.follow_read_complete");
+            assert_eq!(args, json!({"project":"alpha"}));
+        }
+        other => panic!("complete read must dispatch, got {other:?}"),
+    }
+    assert!(matches!(state.view, View::Running { .. }));
+}
+
+#[test]
+fn incomplete_read_follow_up_opens_prefilled_form() {
+    let mut state = follow_up_state(
+        "test.follow_read_incomplete",
+        "follow_read_incomplete",
+        ToolEffect::Read,
+        json!({"project":null}),
+    );
+    assert_eq!(
+        handle_key(&mut state, Key::Char('a'), &fixture_tools()),
+        Action::None
+    );
+    assert!(matches!(
+        state.view,
+        View::Form {
+            tool_id: "test.follow_read_incomplete",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn write_and_unknown_follow_ups_keep_explicit_form() {
+    for (id, local_id, effect) in [
+        ("test.follow_write", "follow_write", ToolEffect::Write),
+        ("test.follow_unknown", "follow_unknown", ToolEffect::Unknown),
+    ] {
+        let mut state = follow_up_state(id, local_id, effect, json!({"project":"alpha"}));
+        assert_eq!(
+            handle_key(&mut state, Key::Char('a'), &fixture_tools()),
+            Action::None
+        );
+        assert!(matches!(state.view, View::Form { tool_id, .. } if tool_id == id));
+    }
+}
 
 // ─── Result view semantics: rerun / close / keep, F2 copy ───
 

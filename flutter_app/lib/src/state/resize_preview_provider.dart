@@ -20,7 +20,7 @@ import 'package:upeg/src/rust/api/pegboard.dart' as frb;
 typedef ResizePreviewLoader =
     List<frb.PlacementDto> Function(
       BoardKey boardKey,
-      ToolId toolId,
+      PinId toolId,
       int cols,
       int rows,
     );
@@ -31,7 +31,7 @@ final resizePreviewLoaderProvider = Provider<ResizePreviewLoader>(
   (ref) =>
       (boardKey, toolId, cols, rows) => frb.previewResize(
         boardKey: boardKey.value,
-        toolId: toolId.value,
+        pinId: toolId.value,
         cols: cols,
         rows: rows,
       ),

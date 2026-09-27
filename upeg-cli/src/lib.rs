@@ -51,8 +51,8 @@ pub use infrastructure::process::pid_alive;
 #[cfg(feature = "wasm-plugin")]
 pub use surfaces::cli::WasmAction;
 pub use surfaces::cli::{
-    BoardAction, Cli, Command, CredentialAction, HostAction, HttpAction, TagAction, ToolAction,
-    ToolkitAction, TriggerAction,
+    BoardAction, Cli, Command, CredentialAction, DiagnosticAction, HostAction, HttpAction,
+    ProjectAction, ProjectChoiceArg, TagAction, ToolAction, ToolkitAction, TriggerAction,
 };
 pub use surfaces::http::router as http_router;
 pub use surfaces::mcp::handle as handle_mcp_message;
@@ -124,8 +124,9 @@ pub fn embedded_http_with_ready(
 /// delay its splash by an unreachable upstream's bounded retries,
 /// which is why this is a separate public entry point instead of being
 /// folded into [`embedded_http_with_ready`] — see
-/// `docs/architecture/mcp.md`. The resulting "host is serving but the
-/// imports are not in yet" window is observable: the load phase moves
+/// `infrastructure::mcp_imports`'s module docs. The resulting "host is
+/// serving but the imports are not in yet" window is observable: the
+/// load phase moves
 /// to [`McpImportPhase::Loading`] before this call returns, and the
 /// host publishes it as `importsPending` on `/healthz`.
 pub fn spawn_mcp_imports_for_host() {

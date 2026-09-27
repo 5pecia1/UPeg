@@ -27,7 +27,7 @@ import 'package:upeg/src/state/layout_provider.dart';
 import 'package:upeg/src/state/move_pin_commit_provider.dart';
 
 /// `(toolId, delta)` — delta is `-1` for prev, `+1` for next.
-typedef MovePinSlotFn = Future<void> Function(ToolId toolId, int delta);
+typedef MovePinSlotFn = Future<void> Function(PinId toolId, int delta);
 
 /// Production binding. Reads the active board + current layout snapshot,
 /// moves the focused pin one valid row-major anchor earlier/later, and
@@ -50,9 +50,9 @@ final movePinSlotFnProvider = Provider<MovePinSlotFn>((ref) {
   };
 });
 
-PlacementDto? _placementFor(List<PlacementDto> placements, ToolId toolId) {
+PlacementDto? _placementFor(List<PlacementDto> placements, PinId toolId) {
   for (final placement in placements) {
-    if (placement.toolId == toolId.value) return placement;
+    if (placement.pinId == toolId.value) return placement;
   }
   return null;
 }

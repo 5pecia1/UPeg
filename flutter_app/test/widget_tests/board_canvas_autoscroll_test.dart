@@ -49,6 +49,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'num.hex_to_decimal',
+                        pinId: 'num.hex_to_decimal',
                         x: 0,
                         y: 0,
                         w: 1,
@@ -129,7 +130,7 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        ToolId? gotTool;
+        PinId? gotTool;
         int? gotY;
         await tester.pumpWidget(
           ProviderScope(
@@ -152,6 +153,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'num.hex_to_decimal',
+                        pinId: 'num.hex_to_decimal',
                         x: 0,
                         y: 8,
                         w: 1,
@@ -163,11 +165,11 @@ void main() {
                   onMovePin:
                       ({
                         required boardKey,
-                        required toolId,
+                        required pinId,
                         required anchorX,
                         required anchorY,
                       }) {
-                        gotTool = toolId;
+                        gotTool = pinId;
                         gotY = anchorY;
                       },
                 ),
@@ -231,7 +233,7 @@ void main() {
         await gesture.up();
         await tester.pumpAndSettle();
 
-        expect(gotTool, ToolId.parse('num.hex_to_decimal'));
+        expect(gotTool, PinId.parse('num.hex_to_decimal'));
         expect(
           gotY,
           lessThan(8),
@@ -272,6 +274,7 @@ void main() {
                       placements: [
                         PlacementDto(
                           toolId: 'num.hex_to_decimal',
+                          pinId: 'num.hex_to_decimal',
                           x: 0,
                           y: 0,
                           w: 1,

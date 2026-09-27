@@ -13,6 +13,7 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/external_readiness_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/host_attach_notice_body.dart';
 
@@ -39,11 +40,12 @@ final class ExternalRunController {
 
   Future<CanonicalToolResult> dispatchRemote(
     ToolDto tool,
-    ToolArgs args,
-  ) async {
+    ToolArgs args, {
+    PinKey? pinKey,
+  }) async {
     final result = await ref
         .read(hostAttachDispatchProvider.notifier)
-        .run(ToolId.parse(tool.id), args);
+        .run(ToolId.parse(tool.id), args, pinKey: pinKey);
     final outcome = switch (result) {
       AttachDispatchOk(:final result) => result,
       AttachDispatchToolError(:final error) => CanonicalToolResult(

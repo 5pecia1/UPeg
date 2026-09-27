@@ -117,7 +117,7 @@ final class _VisualQaApp extends StatelessWidget {
     final tool = _toolFor(scenario);
     final boardKey = BoardKey.parse(_boardId);
     final toolId = ToolId.parse(tool.id);
-    final pinKey = (boardKey, toolId);
+    final pinKey = (boardKey, PinId.parse(toolId.value));
     final draftStore = InlineDraftStore();
     final initialArgs = _initialArgsFor(scenario);
     if (initialArgs != null) draftStore.set(pinKey, initialArgs);
@@ -161,6 +161,7 @@ final class _VisualQaApp extends StatelessWidget {
                       placements: <PlacementDto>[
                         PlacementDto(
                           toolId: tool.id,
+                          pinId: tool.id,
                           x: 0,
                           y: 0,
                           w: scenario.widthUnits,
@@ -321,19 +322,20 @@ ToolArgs? _initialArgsFor(_VisualScenario scenario) => switch (scenario) {
 LiveDispatchFn _dispatchFor(_VisualScenario scenario, ToolDto tool) {
   if (scenario.keepsDispatchPending) {
     final pending = Completer<CanonicalToolResult>();
-    return ({required toolId, required args}) => pending.future;
+    return ({pinKey, required toolId, required args}) => pending.future;
   }
   final value = scenario == _VisualScenario.u2Success ? _u2Result : _u1Result;
-  return ({required toolId, required args}) async => CanonicalToolResult(
-    ok: true,
-    primaryOutputId: _resultId,
-    outputs: <CanonicalOutputEntry>[
-      CanonicalOutputEntry(
-        id: _resultId,
-        label: tool.outputFields.first.label,
-        kind: 'string',
-        value: CanonicalOutputValue.string(value: value),
-      ),
-    ],
-  );
+  return ({pinKey, required toolId, required args}) async =>
+      CanonicalToolResult(
+        ok: true,
+        primaryOutputId: _resultId,
+        outputs: <CanonicalOutputEntry>[
+          CanonicalOutputEntry(
+            id: _resultId,
+            label: tool.outputFields.first.label,
+            kind: 'string',
+            value: CanonicalOutputValue.string(value: value),
+          ),
+        ],
+      );
 }

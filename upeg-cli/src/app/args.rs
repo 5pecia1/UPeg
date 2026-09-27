@@ -1,10 +1,35 @@
 //! Argument-building for the CLI dynamic dispatch route.
 //!
-//! `upeg {toolkit} {tool} <pos1> <pos2> ...` is the single dynamic CLI
-//! entry point. This module turns the positional tokens after
-//! `{toolkit} {tool}` into the `{tool_id, args}` envelope that
-//! `dispatch_tool` consumes. See `docs/architecture/call-envelope.md` for
-//! the positional-to-schema binding contract.
+//! `upeg {toolkit} {tool} <pos1> <pos2> ...` is the only dynamic route —
+//! there is no hardcoded per-Toolkit subcommand enum. This module turns
+//! the positional tokens after `{toolkit} {tool}` into the
+//! `{tool_id, args}` envelope that `dispatch_tool` consumes.
+//! `upeg call <id> <json>` and `upeg call <id> -a key=value` stay
+//! schema-agnostic; positional binding applies to this route only.
+//!
+//! Positional-binding contract:
+//!
+//! 1. List `input_spec.fields` in declaration order (`InputSpec`
+//!    preserves author declaration order) and bind positionals 1:1.
+//! 2. Coerce each value to the field's `InputKind`:
+//!    `string`/`markdown`/`file_path`/`url`/`datetime` pass as-is;
+//!    `number`/`integer` parse (failure is a Tool error); `boolean`
+//!    takes case-insensitive `true`/`false`; `json` parses as JSON;
+//!    `options` validates against the choices; `multi_options` splits
+//!    on commas then validates each.
+//! 3. An empty input spec falls back to `{ "input": "<joined>" }`, so a
+//!    single-input Tool like `upeg num hex-to-decimal 0xff` still works.
+//!    The fallback covers positional arguments only — a Tool that
+//!    declared no fields has nowhere for stdin to land, so the stdin
+//!    rule below does not apply to it (an inherited pipe never sees
+//!    EOF; no-input Tools would hang forever).
+//! 4. Positional arguments beyond the field count are a Tool error —
+//!    extras are never silently dropped.
+//! 5. When stdin is a pipe (non-TTY) and there are no positional
+//!    arguments, stdin is read as the first *required* input field's
+//!    value. It does not apply to a Tool with no required input field.
+//! 6. `-` is the positional placeholder meaning "read this slot from
+//!    stdin".
 
 use std::io::IsTerminal;
 
@@ -20,7 +45,7 @@ mod file_input;
 use file_input::file_value_from_cli_path;
 
 /// CLI-reserved input name for chain-step approval
-/// (docs/architecture/chain.md, E-3/B-2). Never part of a Tool's
+/// (`upeg_loader::dispatcher::chain` module docs). Never part of a Tool's
 /// declared [`InputSpec`]; only accepted for `Invoker::Chain` tools —
 /// see [`ReservedInputs`].
 pub(crate) const APPROVE_RESERVED_INPUT_NAME: &str = "approve";
@@ -70,8 +95,8 @@ fn read_stdin() -> Result<String, CliError> {
 /// Args for a Tool whose `input_spec` declares no fields: positional
 /// tokens fold into the legacy `{ "input": ... }` shape.
 ///
-/// Deliberately does NOT read stdin. The auto-stdin rule
-/// (docs/architecture/call-envelope.md, positional binding rule 6) binds
+/// Deliberately does NOT read stdin. The auto-stdin rule (this module's
+/// docs, positional-binding rule 5) binds
 /// stdin to *the first required input field*, and a Tool that declares
 /// no field has none — there is nothing for stdin to become, so the
 /// bytes would be read only to be thrown away. Reading them anyway hung
@@ -94,8 +119,8 @@ fn dynamic_args_from_cli(rest: Vec<String>) -> serde_json::Value {
 
 /// Build a JSON args object from positional CLI tokens by binding them
 /// one-to-one to the Tool's typed input fields in declaration order
-/// (preserved workspace-wide via `serde_json/preserve_order`). See
-/// `docs/architecture/call-envelope.md` for the rules.
+/// (preserved workspace-wide via `serde_json/preserve_order`). The
+/// binding rules are this module's docs.
 ///
 /// Falls back to [`dynamic_args_from_cli`] when the Tool declares no
 /// schema fields, so single-input pure functions keep their compact UX.

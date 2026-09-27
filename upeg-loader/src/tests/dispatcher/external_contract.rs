@@ -379,8 +379,7 @@ fn relative_cwd_resolves_against_manifest_dir() {
     let nested = root.join("nested");
     std::fs::create_dir_all(&nested).expect("create the subdirectory");
     std::fs::write(nested.join("nested-marker.txt"), "x").expect("write the marker file");
-    let origin =
-        ManifestOrigin::project_manifest(&root.join("upeg.toml")).expect("the origin is built");
+    let origin = ManifestOrigin::project_root(&root).expect("the origin is built");
 
     let result = run_with_origin(
         r#"id = "y.x"
@@ -400,8 +399,7 @@ cwd = "nested""#,
 fn project_manifest_tool_runs_in_manifest_dir() {
     let root = temp_dir("project_default_cwd");
     std::fs::write(root.join("project-marker.txt"), "x").expect("write the marker file");
-    let origin =
-        ManifestOrigin::project_manifest(&root.join("upeg.toml")).expect("the origin is built");
+    let origin = ManifestOrigin::project_root(&root).expect("the origin is built");
 
     let result = run_with_origin(
         r#"id = "y.x"
@@ -414,6 +412,20 @@ command = "ls""#,
 
     assert!(primary_output(&result).contains("project-marker.txt"));
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn external_child_receives_valid_surface_and_no_inherited_project_root() {
+    let result = run_with_origin(
+        r#"id = "y.x"
+toolkit = "y"
+invoker = "External"
+command = "sh"
+args_template = ["-c", "printf '%s|' \"$UPEG_SURFACE\"; if test -z \"$UPEG_PROJECT_ROOT\"; then printf unset; else printf set; fi"]"#,
+        json!({"_upeg": {"surface": "desktop"}}),
+        None,
+    );
+    assert_eq!(primary_output(&result), "desktop|unset");
 }
 
 #[test]
@@ -623,8 +635,7 @@ fn caller_cwd_inside_project_is_respected() {
     std::fs::create_dir_all(&nested).expect("create the subdirectory");
     std::fs::write(root.join("root-marker.txt"), "x").expect("write the marker file");
     std::fs::write(nested.join("member-marker.txt"), "x").expect("write the marker file");
-    let origin =
-        ManifestOrigin::project_manifest(&root.join("upeg.toml")).expect("the origin is built");
+    let origin = ManifestOrigin::project_root(&root).expect("the origin is built");
 
     let result = run_with_origin(
         LIST_COMMAND,
@@ -644,8 +655,7 @@ fn caller_cwd_outside_project_is_ignored_for_manifest_dir() {
     let outside = temp_dir("outside_caller_cwd");
     std::fs::write(root.join("root-marker.txt"), "x").expect("write the marker file");
     std::fs::write(outside.join("outside-marker.txt"), "x").expect("write the marker file");
-    let origin =
-        ManifestOrigin::project_manifest(&root.join("upeg.toml")).expect("the origin is built");
+    let origin = ManifestOrigin::project_root(&root).expect("the origin is built");
 
     let result = run_with_origin(
         LIST_COMMAND,

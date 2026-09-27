@@ -126,6 +126,7 @@ fn capture(config: &RuntimeSourceConfig) -> Result<Snapshot, FailedRead> {
         .project_manifest
         .as_ref()
         .map(|lookup| lookup.path.as_path());
+    let project_toolkits = project.map(|marker| marker.join(upeg_core::PROJECT_TOOLKITS_DIR));
     let mut directories = vec![
         (
             config.toolkits_dir.as_deref(),
@@ -134,6 +135,10 @@ fn capture(config: &RuntimeSourceConfig) -> Result<Snapshot, FailedRead> {
         (
             config.mcp_import_dir.as_deref(),
             crate::sources::MCP_IMPORT_FILE_EXTENSION,
+        ),
+        (
+            project_toolkits.as_deref(),
+            crate::sources::TOOLKIT_FILE_EXTENSION,
         ),
     ];
     if cfg!(feature = "wasm-plugin") {
@@ -150,8 +155,15 @@ fn capture(config: &RuntimeSourceConfig) -> Result<Snapshot, FailedRead> {
         })
         .collect::<Result<Vec<_>, _>>()?;
     let mut files = BTreeMap::new();
-    if let Some(path) = project {
-        read_fingerprint(path, &mut files)?;
+    if let Some(marker) = project {
+        let marker = std::path::absolute(marker).map_err(|error| FailedRead::at(marker, error))?;
+        if marker.is_dir() {
+            files.insert(marker.clone(), 0);
+        }
+        let config = marker.join(upeg_core::PROJECT_CONFIG_FILE);
+        if config.exists() {
+            read_fingerprint(&config, &mut files)?;
+        }
     }
     for (directory, extension) in directories {
         let Some(directory) = directory else {

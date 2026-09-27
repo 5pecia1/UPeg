@@ -5,6 +5,7 @@
 //! whose manifest (`ToolMeta`) any surface (CLI/TUI/Desktop/PWA/Ext/MCP/HTTP)
 //! consumes uniformly. This crate holds only the pure-data layer — UI
 //! rendering, IPC, and runtime registries live in surface-specific crates.
+//! The closed I/O type set lives in [`input`] module docs.
 
 #![cfg_attr(
     test,
@@ -27,6 +28,7 @@ mod board_guidance;
 mod board_key;
 mod builtin_boards;
 pub mod capability;
+pub mod diagnostics;
 pub mod i18n;
 mod identity;
 pub mod input;
@@ -37,10 +39,13 @@ mod manifest;
 mod manifest_validate;
 pub mod output;
 pub mod paths;
+mod pin_id;
 mod pin_span;
+mod placement;
 pub mod prefs;
 pub mod presentation;
 mod principal;
+mod project;
 mod project_board;
 pub mod search;
 pub mod source;
@@ -82,9 +87,9 @@ pub use keyboard_catalog::{
 };
 pub use manifest::{
     ALL_SURFACES_EXCEPT_MCP, BoardExecutionContext, EXECUTION_CONTEXT_APPROVED_STEPS,
-    EXECUTION_CONTEXT_ARG, EXECUTION_CONTEXT_CWD, EXECUTION_CONTEXT_PRINCIPAL,
-    EXECUTION_CONTEXT_SURFACE, PrimaryOutputIdError, StaticToolMeta, ToolMeta, ToolkitMeta,
-    validate_primary_output_id,
+    EXECUTION_CONTEXT_ARG, EXECUTION_CONTEXT_CWD, EXECUTION_CONTEXT_PIN_ID,
+    EXECUTION_CONTEXT_PIN_TOOL_ID, EXECUTION_CONTEXT_PRINCIPAL, EXECUTION_CONTEXT_SURFACE,
+    PrimaryOutputIdError, StaticToolMeta, ToolMeta, ToolkitMeta, validate_primary_output_id,
 };
 pub use manifest_validate::{
     EmbedPairingError, validate_embed_binding_shape, validate_embed_pairing,
@@ -96,7 +101,9 @@ pub use output::{
     StaticOutputKind, StaticOutputSpec, ToolError, ToolFailure, ToolResult, ToolResultError,
     ToolSuccess,
 };
+pub use pin_id::{PinId, PinIdError};
 pub use pin_span::{ColSpan, PinSpan, PinSpanError, RowSpan};
+pub use placement::Placement;
 pub use presentation::{
     ActionBinding, ActionScope, ActionSuccess, BindingResolution, PRESENTATION_VERSION_V1,
     PresentationAction, PresentationColumn, PresentationRow, RowsResolution, ToolEffect,
@@ -104,6 +111,9 @@ pub use presentation::{
 };
 pub use principal::{
     ALL_PRINCIPAL_ROLES, PRINCIPAL_ROLE_KEY, PRINCIPAL_SURFACE_KEY, Principal, PrincipalRole,
+};
+pub use project::{
+    PROJECT_CONFIG_FILE, PROJECT_MARKER_DIR, PROJECT_TOOLKITS_DIR, ProjectRoot, ProjectToolChoice,
 };
 pub use project_board::{
     BoardStoreKey, PROJECT_BOARD_KEY_PREFIX, ProjectBoardNamespace, StoredBoardKey,
@@ -122,7 +132,7 @@ pub use types::{
     ControlledEmbedViewport, ControlledEmbedViewportPreset, DEFAULT_CONTROLLED_EMBED_WAIT_POLL_MS,
     DEFAULT_CONTROLLED_EMBED_WAIT_SETTLE_MS, DEFAULT_CONTROLLED_EMBED_WAIT_TIMEOUT_MS,
     EMBED_SURFACES, GUI_SURFACES, IO_TYPE_LIST, Invoker, IoType, MAX_CONTROLLED_EMBED_WAIT_MS,
-    PegboardUnits, PinColorError, PinColorHex, PinKind, Placement, SelectorBinding, Surface,
+    PegboardUnits, PinColorError, PinColorHex, PinKind, SelectorBinding, Surface,
 };
 
 pub use capability::{

@@ -41,22 +41,22 @@ final class ResizeCommitClearSpan extends ResizeCommitAction {
 /// Commit a resize decision for `toolId` on the current board.
 /// `Future<void>` so callers can await the write before refreshing.
 typedef ResizePinCommitFn =
-    Future<void> Function(ToolId toolId, ResizeCommitAction action);
+    Future<void> Function(PinId pinId, ResizeCommitAction action);
 
 /// Production binding. Reads `currentBoardKeyProvider` and forwards the
 /// decision through [pegboardMutationsProvider] so a successful commit
 /// refreshes the current board layout. Mutation errors are logged by the
 /// controller and do not invalidate the stale-but-known layout.
 final resizePinCommitFnProvider = Provider<ResizePinCommitFn>((ref) {
-  return (toolId, action) async {
+  return (pinId, action) async {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return;
     final mutations = ref.read(pegboardMutationsProvider);
     switch (action) {
       case ResizeCommitSetSpan(:final cols, :final rows):
-        await mutations.setSpan(boardKey, toolId, cols: cols, rows: rows);
+        await mutations.setSpan((boardKey, pinId), cols: cols, rows: rows);
       case ResizeCommitClearSpan():
-        await mutations.clearSpan(boardKey, toolId);
+        await mutations.clearSpan((boardKey, pinId));
     }
   };
 });

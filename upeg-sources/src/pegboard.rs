@@ -616,15 +616,19 @@ pub fn placements_for_board_and_tag_in(
 /// [`board_placement_on_surface_in`]) so the *set of listed ids* can't
 /// diverge by surface again — only the JSON shape each surface wraps
 /// it in does.
+/// Repeated placements of one tool collapse to the row-major first pin so
+/// catalog consumers expose one callable schema; [`placement_in`] uses that
+/// same representative for its preset.
 pub fn board_entries_on_surface_in(
     state: &PegboardState,
     board: &str,
     tag: Option<&str>,
     surface: Surface,
 ) -> Vec<(Placement, &'static ToolMeta)> {
+    let mut listed_tool_ids = BTreeSet::new();
     placements_for_board_and_tag_in(state, Some(board), tag)
         .into_iter()
-        .filter(|(_, tool)| tool.is_on_surface(surface))
+        .filter(|(_, tool)| tool.is_on_surface(surface) && listed_tool_ids.insert(tool.id))
         .collect()
 }
 
@@ -655,7 +659,8 @@ pub fn placement_in<'a>(
         .layouts
         .get(board)?
         .iter()
-        .find(|placement| placement.tool_id == tool_id)
+        .filter(|placement| placement.tool_id == tool_id)
+        .min_by_key(|placement| (placement.y, placement.x))
 }
 
 /// Single-tool sibling of [`board_entries_on_surface_in`]: `Some` iff

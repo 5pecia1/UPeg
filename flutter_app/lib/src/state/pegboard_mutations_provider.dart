@@ -17,20 +17,18 @@ import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 
 typedef MovePinMutator =
-    void Function(BoardKey boardKey, ToolId toolId, int anchorX, int anchorY);
+    void Function(BoardKey boardKey, PinId pinId, int anchorX, int anchorY);
 
 typedef ReorderPinMutator =
-    void Function(
-      BoardKey boardKey,
-      ToolId toolId,
-      OrderDirectionDto direction,
-    );
+    void Function(BoardKey boardKey, PinId pinId, OrderDirectionDto direction);
+
+typedef RemovePinMutator = void Function(BoardKey boardKey, PinId pinId);
 
 final movePinMutatorProvider = Provider<MovePinMutator>(
-  (ref) => (boardKey, toolId, anchorX, anchorY) {
+  (ref) => (boardKey, pinId, anchorX, anchorY) {
     frb.movePin(
       boardKey: boardKey.value,
-      toolId: toolId.value,
+      pinId: pinId.value,
       anchorX: anchorX,
       anchorY: anchorY,
     );
@@ -38,25 +36,31 @@ final movePinMutatorProvider = Provider<MovePinMutator>(
 );
 
 final reorderPinMutatorProvider = Provider<ReorderPinMutator>(
-  (ref) => (boardKey, toolId, direction) {
+  (ref) => (boardKey, pinId, direction) {
     frb.reorderPin(
       boardKey: boardKey.value,
-      toolId: toolId.value,
+      pinId: pinId.value,
       direction: direction,
     );
   },
 );
 
-typedef SetPinSpanMutator =
-    void Function(BoardKey boardKey, ToolId toolId, int cols, int rows);
+final removePinMutatorProvider = Provider<RemovePinMutator>(
+  (ref) =>
+      (boardKey, pinId) =>
+          frb.removePin(boardKey: boardKey.value, pinId: pinId.value),
+);
 
-typedef ClearPinSpanMutator = void Function(BoardKey boardKey, ToolId toolId);
+typedef SetPinSpanMutator =
+    void Function(BoardKey boardKey, PinId pinId, int cols, int rows);
+
+typedef ClearPinSpanMutator = void Function(BoardKey boardKey, PinId pinId);
 
 final setPinSpanMutatorProvider = Provider<SetPinSpanMutator>(
-  (ref) => (boardKey, toolId, cols, rows) {
+  (ref) => (boardKey, pinId, cols, rows) {
     frb.setPinSpan(
       boardKey: boardKey.value,
-      toolId: toolId.value,
+      pinId: pinId.value,
       cols: cols,
       rows: rows,
     );
@@ -64,8 +68,8 @@ final setPinSpanMutatorProvider = Provider<SetPinSpanMutator>(
 );
 
 final clearPinSpanMutatorProvider = Provider<ClearPinSpanMutator>(
-  (ref) => (boardKey, toolId) {
-    frb.clearPinSpan(boardKey: boardKey.value, toolId: toolId.value);
+  (ref) => (boardKey, pinId) {
+    frb.clearPinSpan(boardKey: boardKey.value, pinId: pinId.value);
   },
 );
 
@@ -74,67 +78,80 @@ class PegboardMutations {
 
   final Ref ref;
 
-  Future<void> pin(BoardKey boardKey, ToolId toolId) async {
-    final mutate = ref.read(pinToolMutatorProvider);
-    if (_runMutation(
-      'pinTool',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId),
-    )) {
-      _refreshPin(boardKey, toolId);
+  Future<PinId?> add(BoardKey boardKey, ToolId toolId) async {
+    try {
+      final pinId = PinId.parse(
+        ref.read(addPinMutatorProvider)(boardKey, toolId),
+      );
+      _refreshBoard(boardKey);
+      return pinId;
+    } on Object catch (err, stack) {
+      debugPrint('upeg: addPin failed for $toolId on $boardKey: $err');
+      debugPrint(stack.toString());
+      return null;
     }
   }
 
+  Future<void> pin(BoardKey boardKey, ToolId toolId) async {
+    await add(boardKey, toolId);
+  }
+
+  /// Legacy tool-wide removal is retained only for obsolete callers. Pin
+  /// surfaces use [remove], which targets exactly one placement.
   Future<void> unpin(BoardKey boardKey, ToolId toolId) async {
-    final mutate = ref.read(unpinToolMutatorProvider);
+    try {
+      frb.unpinTool(boardKey: boardKey.value, toolId: toolId.value);
+      _refreshBoard(boardKey);
+    } on Object catch (err, stack) {
+      debugPrint('upeg: unpinTool failed for $toolId on $boardKey: $err');
+      debugPrint(stack.toString());
+    }
+  }
+
+  Future<void> remove(PinKey pinKey) async {
+    final mutate = ref.read(removePinMutatorProvider);
     if (_runMutation(
-      'unpinTool',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId),
+      'removePin',
+      pinKey.$1,
+      pinKey.$2,
+      () => mutate(pinKey.$1, pinKey.$2),
     )) {
       // The store deletes the persisted last outcome inside the unpin
       // tombstone transaction; drop the in-memory cache entry too so a
       // re-pin never resurrects a result the store no longer has. A
       // board switch re-hydrates any outcome still persisted elsewhere.
-      ref.read(lastOutcomeProvider.notifier).clear(toolId);
-      _refreshPin(boardKey, toolId);
+      ref.read(lastOutcomeProvider.notifier).clear(pinKey);
+      _refreshBoard(pinKey.$1);
     }
   }
 
   Future<void> move(
-    BoardKey boardKey,
-    ToolId toolId, {
+    PinKey pinKey, {
     required int anchorX,
     required int anchorY,
   }) async {
     final mutate = ref.read(movePinMutatorProvider);
     final ok = _runMutation(
       'movePin',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId, anchorX, anchorY),
+      pinKey.$1,
+      pinKey.$2,
+      () => mutate(pinKey.$1, pinKey.$2, anchorX, anchorY),
     );
     if (ok) {
-      bumpLayoutRevisionRef(ref, boardKey);
+      _refreshBoard(pinKey.$1);
     }
   }
 
-  Future<void> reorder(
-    BoardKey boardKey,
-    ToolId toolId,
-    OrderDirectionDto direction,
-  ) async {
+  Future<void> reorder(PinKey pinKey, OrderDirectionDto direction) async {
     final mutate = ref.read(reorderPinMutatorProvider);
     final ok = _runMutation(
       'reorderPin',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId, direction),
+      pinKey.$1,
+      pinKey.$2,
+      () => mutate(pinKey.$1, pinKey.$2, direction),
     );
     if (ok) {
-      bumpLayoutRevisionRef(ref, boardKey);
+      _refreshBoard(pinKey.$1);
     }
   }
 
@@ -142,50 +159,45 @@ class PegboardMutations {
   /// The caller (resize state machine) has already clamped `(cols,
   /// rows)` to the legal `ColSpan`/`RowSpan` range.
   Future<void> setSpan(
-    BoardKey boardKey,
-    ToolId toolId, {
+    PinKey pinKey, {
     required int cols,
     required int rows,
   }) async {
     final mutate = ref.read(setPinSpanMutatorProvider);
     if (_runMutation(
       'setPinSpan',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId, cols, rows),
+      pinKey.$1,
+      pinKey.$2,
+      () => mutate(pinKey.$1, pinKey.$2, cols, rows),
     )) {
-      _refreshPin(boardKey, toolId);
+      _refreshBoard(pinKey.$1);
     }
   }
 
   /// Drop the span override so the manifest footprint applies again
   /// (context-menu "reset size" + resize commit at manifest size).
-  Future<void> clearSpan(BoardKey boardKey, ToolId toolId) async {
+  Future<void> clearSpan(PinKey pinKey) async {
     final mutate = ref.read(clearPinSpanMutatorProvider);
     if (_runMutation(
       'clearPinSpan',
-      boardKey,
-      toolId,
-      () => mutate(boardKey, toolId),
+      pinKey.$1,
+      pinKey.$2,
+      () => mutate(pinKey.$1, pinKey.$2),
     )) {
-      _refreshPin(boardKey, toolId);
+      _refreshBoard(pinKey.$1);
     }
   }
 
-  Future<void> setPinColor(
-    BoardKey boardKey,
-    ToolId toolId, {
-    String? color,
-  }) async {
+  Future<void> setPinColor(PinKey pinKey, {String? color}) async {
     try {
       frb.setPinColor(
-        boardKey: boardKey.value,
-        toolId: toolId.value,
+        boardKey: pinKey.$1.value,
+        pinId: pinKey.$2.value,
         color: color,
       );
-      _refreshPin(boardKey, toolId);
+      _refreshBoard(pinKey.$1);
     } on Object catch (err, stack) {
-      debugPrint('upeg: setPinColor failed for $toolId on $boardKey: $err');
+      debugPrint('upeg: setPinColor failed for $pinKey: $err');
       debugPrint(stack.toString());
     }
   }
@@ -197,24 +209,21 @@ class PegboardMutations {
   bool _runMutation(
     String op,
     BoardKey boardKey,
-    ToolId toolId,
+    PinId pinId,
     VoidCallback mutate,
   ) {
     try {
       mutate();
       return true;
     } on Object catch (err, stack) {
-      debugPrint('upeg: $op failed for $toolId on $boardKey: $err');
+      debugPrint('upeg: $op failed for $pinId on $boardKey: $err');
       debugPrint(stack.toString());
       return false;
     }
   }
 
-  void _refreshPin(BoardKey boardKey, ToolId toolId) {
-    ref
-      ..invalidate(pinnedProvider((boardKey, toolId)))
-      ..invalidate(pinnedBoardsForToolProvider(toolId))
-      ..invalidate(tagOptionsForBoardProvider(boardKey));
+  void _refreshBoard(BoardKey boardKey) {
+    ref.invalidate(tagOptionsForBoardProvider(boardKey));
     bumpLayoutRevisionRef(ref, boardKey);
   }
 }

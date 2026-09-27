@@ -11,6 +11,8 @@ const TRIGGER_SOURCE_SEPARATOR: &str = "/";
 
 #[derive(Debug, Error)]
 pub enum LoadError {
+    #[error("project context: {0}")]
+    Project(String),
     #[error("invalid result presentation: {0}")]
     InvalidPresentation(String),
     #[error("TOML parse error: {0}")]
@@ -108,6 +110,11 @@ pub enum LoadError {
     UnknownApprovalSurface { position: usize, surface: String },
 
     #[error(
+        "`approval_surfaces[{position}] = \"ext\"` is unsupported because the browser extension has no approval gesture"
+    )]
+    ExtensionApprovalUnsupported { position: usize },
+
+    #[error(
         "`approval_surfaces` only means something for `invoker = \"Chain\"` — it authorizes the surfaces that may satisfy a chain step's `requires_approval` barrier"
     )]
     ApprovalSurfacesWithoutChain,
@@ -161,9 +168,7 @@ pub enum LoadError {
     #[error("`boards[{position}].id = \"{board}\"` is declared twice")]
     DuplicateProjectBoardId { position: usize, board: String },
 
-    #[error(
-        "top-level `[[boards]]` is only accepted in a Project Manifest (`upeg.toml`); a toolkits-directory manifest has no project to scope a board to"
-    )]
+    #[error("top-level `[[boards]]` belongs in `.upeg/project.toml`, not a Toolkit manifest")]
     BoardsOutsideProjectManifest,
 
     #[error("`tags[{position}]` is empty — every tag must be a non-empty discovery key")]

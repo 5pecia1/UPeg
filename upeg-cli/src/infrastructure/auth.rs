@@ -23,6 +23,26 @@
 //! its own to put flags on — it inherits an environment. The operator
 //! token already has the same escape hatch (`UPEG_HTTP_TOKEN` /
 //! `--token-file`) for the same reason.
+//!
+//! # Token contract
+//!
+//! A host accepts **one** operator token and **several** agent tokens —
+//! same shape, different authority; which one was carried becomes the
+//! call's `_upeg.principal.role` (`upeg_runtime::execution`).
+//!
+//! | Token | Source | Can |
+//! |---|---|---|
+//! | operator | generated at host start, published in `server.json`; explicit injection via `UPEG_HTTP_TOKEN` / `--token-file`; rotates only on restart | everything — the request is treated as the person who started the host: `X-Upeg-Origin-Surface` is honored and a Chain approval barrier can be crossed |
+//! | agent | `UPEG_HTTP_AGENT_TOKENS`, comma-separated (empty entries ignored, duplicates merged; unset = no agent access; `upeg` never mints them) | every route except `/healthz` needs auth and agent tokens pass it — but they cannot declare an origin surface (always stamped `http`) and cannot approve a Chain (`approval_denied_for_principal`); logged as `agent` — which token is never recorded |
+//!
+//! Same-OS-user verification is delegated to `server.json`'s filesystem
+//! permissions (`0600` / current-user ACL) — the user never copies the
+//! token.
+//!
+//! Non-loopback bind (`UPEG_HTTP_ALLOW_NON_LOOPBACK=1` + `--addr`): the
+//! token **must** be injected — auto-generation is forbidden — and
+//! `server.json` publication is opt-in so server environments do not
+//! discover the host unintentionally.
 
 use std::path::Path;
 

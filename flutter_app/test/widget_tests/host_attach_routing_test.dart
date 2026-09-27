@@ -20,8 +20,10 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/capability.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/host_attach_notice_body.dart';
@@ -53,7 +55,16 @@ ToolDto _remoteTool() => ToolDto(
 const LayoutSnapshotDto _snapshot = LayoutSnapshotDto(
   boardKey: 'dev',
   boardCols: 6,
-  placements: [PlacementDto(toolId: 'net.fetch', x: 0, y: 0, w: 1, h: 1)],
+  placements: [
+    PlacementDto(
+      toolId: 'net.fetch',
+      pinId: 'net.fetch',
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+    ),
+  ],
 );
 
 class _FakeStore implements HostAttachStore {
@@ -66,10 +77,15 @@ class _FakeStore implements HostAttachStore {
 }
 
 class _FakeAttachClient implements AttachClient {
-  _FakeAttachClient({this.dispatchResult = const AttachDispatchUnreachable()});
+  _FakeAttachClient({
+    this.dispatchResult = const AttachDispatchUnreachable(),
+    this.resultForArgs,
+  });
 
   final AttachDispatchResult dispatchResult;
+  final AttachDispatchResult Function(ToolArgs)? resultForArgs;
   int dispatchCalls = 0;
+  final List<ToolArgs> dispatchedArgs = [];
 
   @override
   Future<HealthzResult> checkHealth() async => const HealthzUnreachable();
@@ -90,7 +106,8 @@ class _FakeAttachClient implements AttachClient {
     String? boardKey,
   }) async {
     dispatchCalls += 1;
-    return dispatchResult;
+    dispatchedArgs.add(args);
+    return resultForArgs?.call(args) ?? dispatchResult;
   }
 }
 
@@ -120,6 +137,7 @@ Future<void> _pump(
           (ref) =>
               () => [_remoteTool()],
         ),
+        layoutLoaderProvider.overrideWithValue((query) => _snapshot),
         ...overrides,
       ],
       child: MaterialApp(
@@ -136,6 +154,127 @@ Future<void> _pump(
 }
 
 void main() {
+  test(
+    'pinned host dispatch uses each placement preset and caller overrides',
+    () async {
+      final client = _FakeAttachClient(
+        resultForArgs: (args) =>
+            AttachDispatchOk(_okResult(args['input'] as String)),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          attachClientProvider.overrideWithValue(client),
+          layoutLoaderProvider.overrideWithValue(
+            (_) => const LayoutSnapshotDto(
+              boardKey: 'dev',
+              boardCols: 6,
+              placements: [
+                PlacementDto(
+                  toolId: 'net.fetch',
+                  pinId: 'pin-a',
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                  argsPresetJson: '{"input":"0x10"}',
+                ),
+                PlacementDto(
+                  toolId: 'net.fetch',
+                  pinId: 'pin-b',
+                  x: 1,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                  argsPresetJson: '{"input":"0x20"}',
+                ),
+              ],
+            ),
+          ),
+          lastOutcomePersistProvider.overrideWithValue(
+            ({
+              required boardKey,
+              required pinId,
+              required toolId,
+              required result,
+            }) {},
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final board = BoardKey.parse('dev');
+      final pinA = (board, PinId.parse('pin-a'));
+      final pinB = (board, PinId.parse('pin-b'));
+      final tool = ToolId.parse('net.fetch');
+      final dispatch = container.read(hostAttachDispatchProvider.notifier);
+
+      await dispatch.run(tool, ToolArgs.empty, pinKey: pinA);
+      await dispatch.run(tool, ToolArgs.empty, pinKey: pinB);
+
+      expect(client.dispatchedArgs.map((args) => args['input']), [
+        '0x10',
+        '0x20',
+      ]);
+      expect(
+        container.read(pinLastOutcomeProvider(pinA))?.result.primaryOutputText,
+        '0x10',
+      );
+      expect(
+        container.read(pinLastOutcomeProvider(pinB))?.result.primaryOutputText,
+        '0x20',
+      );
+      expect(
+        container.read(hostAttachDispatchProvider).keys,
+        containsAll([pinA, pinB]),
+      );
+
+      await dispatch.run(
+        tool,
+        ToolArgs.fromJsonObject(const {'input': '0x30'}),
+        pinKey: pinB,
+      );
+
+      expect(client.dispatchedArgs.last['input'], '0x30');
+      expect(
+        container.read(pinLastOutcomeProvider(pinA))?.result.primaryOutputText,
+        '0x10',
+      );
+      expect(
+        container.read(pinLastOutcomeProvider(pinB))?.result.primaryOutputText,
+        '0x30',
+      );
+      expect(client.dispatchCalls, 3);
+
+      final missingPin = await dispatch.run(
+        tool,
+        ToolArgs.empty,
+        pinKey: (board, PinId.parse('missing-pin')),
+      );
+      final wrongTool = await dispatch.run(
+        ToolId.parse('net.other'),
+        ToolArgs.empty,
+        pinKey: pinA,
+      );
+
+      expect(
+        missingPin,
+        isA<AttachDispatchToolError>().having(
+          (result) => result.error.code,
+          'code',
+          kAttachInvalidPinErrorCode,
+        ),
+      );
+      expect(
+        wrongTool,
+        isA<AttachDispatchToolError>().having(
+          (result) => result.error.code,
+          'code',
+          kAttachInvalidPinErrorCode,
+        ),
+      );
+      expect(client.dispatchCalls, 3);
+    },
+  );
+
   group('host attach routing', () {
     testWidgets(
       'an_unsupported_tool_runs_remotely_against_the_configured_host',
@@ -381,7 +520,8 @@ void main() {
           // live dispatcher needs a fake too — same "off the native dylib"
           // guarantee this file promises, just reached via a different seam.
           ...dispatchOverrides(
-            ({required toolId, required args}) async => _okResult('local'),
+            ({pinKey, required toolId, required args}) async =>
+                _okResult('local'),
           ),
         ],
       );

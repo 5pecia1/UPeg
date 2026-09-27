@@ -1,29 +1,33 @@
-//! Project Manifest support (`upeg.toml`).
+//! Directory project discovery and activation.
 //!
-//! PRD v2.1 makes project-local tools first-class: every CLI/HTTP run should
-//! walk from the current directory upward, find the nearest `upeg.toml`, and
-//! merge that Toolkit manifest into the same runtime registry as
-//! `~/.upeg/toolkits/*.toml`.
+//! `.upeg/` is the marker. `.upeg/project.toml` is optional and holds
+//! schema version 1, a display name, boards, and explicit Tool conflict
+//! choices. Each `.upeg/toolkits/*.toml` is one Toolkit. A root `upeg.toml`
+//! has no project meaning and is never discovered or loaded.
 //!
-//! This module owns the shared I/O parts (`detect_*`, `load_*`,
-//! `board_context_with_project`) so CLI, Desktop, and future surfaces do not
-//! duplicate project lookup policy.
+//! Auto-discovery chooses the nearest marker. It walks ancestors only while
+//! the starting directory remains inside `$HOME`; outside `$HOME` it checks
+//! the starting directory itself. The global config root (`~/.upeg` or
+//! `UPEG_HOME`) is excluded from project discovery. An explicit absolute
+//! project root selects a project across that boundary.
 //!
-//! # Security: the upward walk is bounded by `$HOME`
-//!
-//! A project manifest can declare `invoker = "External"` tools that run
-//! arbitrary commands with no consent prompt (docs/product/security-absolutes.md).
-//! Detection therefore never walks above `$HOME`: an ancestor `upeg.toml`
-//! outside the user's home directory (e.g. a world-writable `/tmp/x/upeg.toml`
-//! picked up just because the user `cd`ed into `/tmp/x/anything`) must never
-//! be auto-loaded. See [`SearchScope`] and [`detect_project_manifest_from`].
+//! Global Tools remain available. A duplicate full Tool id requires a
+//! `global` or `project` choice in `[tool_choices]`; without a choice, both
+//! definitions of that id are hidden and dispatch returns a conflict error.
+//! Built-in Tools cannot be overridden. Activation and closing restore
+//! runtime metadata, dispatchers, sidecars, and the project board scope.
+//! Project boards persist in the global database under a namespace based
+//! on the canonical project root, so two project roots do not share pins.
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-use upeg_core::BoardExecutionContext;
+use upeg_core::{BoardExecutionContext, ProjectRoot, ProjectToolChoice};
 use upeg_runtime::board_context;
 
-pub const PROJECT_MANIFEST_FILE: &str = "upeg.toml";
+pub const PROJECT_MANIFEST_FILE: &str = upeg_core::PROJECT_MARKER_DIR;
 
 /// Input env var that steers project-manifest detection. Parsed into
 /// [`ProjectManifestOverride`] by [`ProjectManifestOverride::from_env`].
@@ -122,7 +126,7 @@ pub fn project_manifest_override_relative_path_warning(raw: Option<&str>) -> Opt
 }
 
 /// Where a resolved [`ProjectManifestLookup`] came from. Deliberately
-/// collapses "found at cwd" and "found via $HOME fallback" into one
+/// collapses "found at cwd" and "found via ancestor walk" into one
 /// `Detected` bucket — callers that care about the consent notice only
 /// need to distinguish "detection found this" from "the user pointed
 /// us at this explicitly via `UPEG_PROJECT_MANIFEST_PATH`".
@@ -149,9 +153,8 @@ enum SearchScope {
     /// scope while they remain inside `home`, `home` itself included.
     WithinHome { home: PathBuf },
     /// `start` sits outside `home`, or there is no `home` at all: the
-    /// upward walk never leaves `start`. `home` (if any) is checked
-    /// once, separately, as a fallback — never as part of the walk.
-    OutsideHome { home_fallback: Option<PathBuf> },
+    /// upward walk never leaves `start`.
+    OutsideHome,
 }
 
 /// A `$HOME` value is only usable as a search boundary when it is an
@@ -164,7 +167,7 @@ enum SearchScope {
 /// A relative `HOME` is equally unusable (nothing meaningful to bound
 /// against). All three degrade to "no home at all", which
 /// [`SearchScope::classify`] already handles safely: no ancestor walk,
-/// no fallback.
+/// no ancestor walk.
 fn usable_home(home: Option<&Path>) -> Option<&Path> {
     home.filter(|home| home.is_absolute() && home.parent().is_some())
 }
@@ -172,15 +175,13 @@ fn usable_home(home: Option<&Path>) -> Option<&Path> {
 impl SearchScope {
     /// `home` is normalized through [`usable_home`] here — the single
     /// choke point every `home` value flows through, so a degenerate
-    /// `$HOME` cannot reach the walk or the fallback.
+    /// `$HOME` cannot unlock the walk.
     fn classify(start: &Path, home: Option<&Path>) -> Self {
         match usable_home(home) {
             Some(home) if start.starts_with(home) => Self::WithinHome {
                 home: home.to_path_buf(),
             },
-            other => Self::OutsideHome {
-                home_fallback: other.map(Path::to_path_buf),
-            },
+            _ => Self::OutsideHome,
         }
     }
 
@@ -190,25 +191,29 @@ impl SearchScope {
     fn in_walk(&self, dir: &Path) -> bool {
         match self {
             Self::WithinHome { home } => dir.starts_with(home),
-            Self::OutsideHome { .. } => false,
-        }
-    }
-
-    fn home_fallback(&self) -> Option<&Path> {
-        match self {
-            Self::WithinHome { home } => Some(home.as_path()),
-            Self::OutsideHome { home_fallback } => home_fallback.as_deref(),
+            Self::OutsideHome => false,
         }
     }
 }
 
 fn manifest_candidate(dir: &Path) -> Option<PathBuf> {
-    let candidate = dir.join(PROJECT_MANIFEST_FILE);
-    candidate.is_file().then_some(candidate)
+    let candidate = if dir
+        .file_name()
+        .is_some_and(|name| name == PROJECT_MANIFEST_FILE)
+    {
+        dir.to_path_buf()
+    } else {
+        dir.join(PROJECT_MANIFEST_FILE)
+    };
+    let global = upeg_core::paths::config_root();
+    let is_global = global
+        .as_ref()
+        .is_some_and(|global| candidate.canonicalize().ok() == global.canonicalize().ok());
+    (candidate.is_dir() && !is_global).then_some(candidate)
 }
 
 /// Walk `start → $HOME-bounded parents → $HOME` and return the first
-/// `upeg.toml`. Pure and env-free (`home` is an explicit parameter) so
+/// `.upeg`. Pure and env-free (`home` is an explicit parameter) so
 /// it stays trivially testable — the process-level env reads live in
 /// [`detect_project_manifest_lookup`].
 ///
@@ -245,7 +250,7 @@ pub fn detect_project_manifest_from(start: &Path, home: Option<&Path>) -> Option
         return None;
     }
 
-    scope.home_fallback().and_then(manifest_candidate)
+    None
 }
 
 /// Resolve a project manifest given an already-parsed override — pure
@@ -259,10 +264,20 @@ pub fn resolve_project_manifest(
 ) -> Option<ProjectManifestLookup> {
     match over {
         ProjectManifestOverride::Disabled => None,
-        ProjectManifestOverride::Explicit(path) => path.is_file().then(|| ProjectManifestLookup {
-            path: path.clone(),
-            origin: ProjectManifestOrigin::EnvOverride,
-        }),
+        ProjectManifestOverride::Explicit(path) => {
+            let marker = if path
+                .file_name()
+                .is_some_and(|name| name == PROJECT_MANIFEST_FILE)
+            {
+                path.clone()
+            } else {
+                path.join(PROJECT_MANIFEST_FILE)
+            };
+            marker.is_dir().then_some(ProjectManifestLookup {
+                path: marker,
+                origin: ProjectManifestOrigin::EnvOverride,
+            })
+        }
         ProjectManifestOverride::Detect => {
             detect_project_manifest_from(start, home).map(|path| ProjectManifestLookup {
                 path,
@@ -276,6 +291,9 @@ pub fn resolve_project_manifest(
 /// [`PROJECT_MANIFEST_PATH_ENV`] — the process-level entry point.
 /// Returns both the resolved path and how it was resolved.
 pub fn detect_project_manifest_lookup() -> Option<ProjectManifestLookup> {
+    if explicit_global() {
+        return None;
+    }
     let cwd = std::env::current_dir().ok()?;
     let home = std::env::var_os("HOME").map(PathBuf::from);
     resolve_project_manifest(&ProjectManifestOverride::from_env(), &cwd, home.as_deref())
@@ -294,14 +312,568 @@ pub fn detect_project_manifest() -> Option<PathBuf> {
 /// present; `None` means no project manifest was found.
 pub fn load_detected_project_manifest() -> Option<(PathBuf, upeg_loader::LoadOutcome)> {
     let path = detect_project_manifest()?;
-    let outcome = upeg_loader::load_and_register_file_verbose(&path);
+    let root = path.parent()?;
+    let activation = activate_project(root).ok()?;
+    let outcome = upeg_loader::LoadOutcome {
+        loaded: activation.loaded_tool_ids,
+        ..Default::default()
+    };
     Some((path, outcome))
+}
+
+#[derive(Clone, Debug)]
+pub struct ProjectToolkitDefinition {
+    pub path: PathBuf,
+    pub id: String,
+    pub tool_ids: Vec<String>,
+    pub skipped: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProjectConflict {
+    pub tool_id: String,
+    pub global_source: String,
+    pub project_source: PathBuf,
+    pub choice: Option<ProjectToolChoice>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProjectDefinition {
+    pub root: PathBuf,
+    pub name: String,
+    pub boards: Vec<upeg_runtime::pegboard_project::ProjectBoardDecl>,
+    pub toolkits: Vec<ProjectToolkitDefinition>,
+    pub conflicts: Vec<ProjectConflict>,
+    pub tool_choices: std::collections::BTreeMap<String, ProjectToolChoice>,
+}
+
+#[derive(Debug)]
+pub struct ProjectActivation {
+    pub root: PathBuf,
+    pub name: String,
+    pub loaded_tool_ids: Vec<&'static str>,
+    pub failed: Vec<(PathBuf, String)>,
+    pub conflicts: Vec<ProjectConflict>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProjectError {
+    #[error("not a UPeg project: `{}` has no .upeg directory", .0.display())]
+    MissingMarker(PathBuf),
+    #[error("project I/O failed at {}: {source}", path.display())]
+    Io {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("invalid project declaration at {}: {reason}", path.display())]
+    Config { path: PathBuf, reason: String },
+    #[error("invalid project Toolkit at {}: {reason}", path.display())]
+    Toolkit { path: PathBuf, reason: String },
+    #[error("project Toolkit tool `{0}` is declared more than once")]
+    DuplicateTool(String),
+    #[error("project Toolkit `{0}` is declared more than once")]
+    DuplicateToolkit(String),
+    #[error("project Tool `{0}` cannot override a built-in Tool")]
+    BuiltinTool(String),
+    #[error("tool choice `{0}` does not name a project Tool")]
+    UnknownChoice(String),
+    #[error("tool choice `{0}` requires a duplicate global Tool id")]
+    NotAConflict(String),
+    #[error("project registration failed: {0}")]
+    Activation(String),
+    #[error("{0}")]
+    Transition(&'static str),
+}
+
+#[derive(Clone)]
+struct ActiveProject {
+    definition: ProjectDefinition,
+    tool_snapshots: Vec<upeg_runtime::project_scope::ProjectToolSnapshot>,
+    global_sources: HashMap<String, String>,
+}
+
+struct RollbackCatalog {
+    previous: Option<ActiveProject>,
+    current_tools: Vec<upeg_runtime::project_scope::ProjectToolSnapshot>,
+    project_toolkits: HashMap<String, &'static upeg_core::ToolkitMeta>,
+    scope: Option<upeg_runtime::pegboard_project::ProjectBoardScope>,
+    blocked: HashSet<String>,
+    root: Option<PathBuf>,
+    explicit_global: bool,
+}
+
+impl RollbackCatalog {
+    fn capture(previous: Option<ActiveProject>) -> Self {
+        let current_tools = previous.as_ref().map_or_else(Vec::new, |active| {
+            active
+                .tool_snapshots
+                .iter()
+                .map(|snapshot| {
+                    upeg_runtime::project_scope::ProjectToolSnapshot::take(snapshot.id())
+                })
+                .collect()
+        });
+        let project_toolkits = upeg_runtime::project_scope::take_project_toolkits();
+        let scope = upeg_runtime::pegboard_project::project_board_scope();
+        let blocked = upeg_runtime::project_scope::blocked_project_tools();
+        let root = upeg_runtime::project_scope::active_project_root();
+        let explicit_global = explicit_global();
+        if let Some(active) = previous.clone() {
+            restore_project(active);
+        }
+        Self {
+            previous,
+            current_tools,
+            project_toolkits,
+            scope,
+            blocked,
+            root,
+            explicit_global,
+        }
+    }
+
+    fn restore(self, slot: &mut Option<ActiveProject>) {
+        for snapshot in self.current_tools.into_iter().rev() {
+            snapshot.restore();
+        }
+        upeg_runtime::project_scope::restore_project_toolkits(self.project_toolkits);
+        if let Some(scope) = self.scope {
+            upeg_runtime::pegboard_project::set_project_board_scope(scope);
+        }
+        upeg_runtime::project_scope::set_blocked_project_tools(self.blocked);
+        upeg_runtime::project_scope::set_active_project_root(self.root);
+        EXPLICIT_GLOBAL.store(self.explicit_global, Ordering::Release);
+        *slot = self.previous;
+    }
+}
+
+static ACTIVE_PROJECT: OnceLock<Mutex<Option<ActiveProject>>> = OnceLock::new();
+static EXPLICIT_GLOBAL: AtomicBool = AtomicBool::new(false);
+
+fn explicit_global() -> bool {
+    EXPLICIT_GLOBAL.load(Ordering::Acquire)
+}
+
+fn active_project() -> &'static Mutex<Option<ActiveProject>> {
+    ACTIVE_PROJECT.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(test)]
+pub(crate) fn project_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    static GUARD: Mutex<()> = Mutex::new(());
+    let guard = GUARD
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    EXPLICIT_GLOBAL.store(false, Ordering::Release);
+    guard
+}
+
+pub fn current_project_root() -> Option<PathBuf> {
+    active_project()
+        .lock()
+        .ok()?
+        .as_ref()
+        .map(|active| active.definition.root.clone())
+}
+
+pub fn current_project_definition() -> Option<ProjectDefinition> {
+    active_project()
+        .lock()
+        .ok()?
+        .as_ref()
+        .map(|active| active.definition.clone())
+}
+
+pub fn validate_project_root(root: &Path) -> Result<ProjectDefinition, ProjectError> {
+    let project =
+        ProjectRoot::new(root).ok_or_else(|| ProjectError::MissingMarker(root.to_path_buf()))?;
+    let config_path = project.config_path();
+    let config = if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).map_err(|source| ProjectError::Io {
+            path: config_path.clone(),
+            source,
+        })?;
+        upeg_loader::parse_project_config(&content).map_err(|error| ProjectError::Config {
+            path: config_path.clone(),
+            reason: error.to_string(),
+        })?
+    } else {
+        upeg_loader::ProjectConfig::default()
+    };
+    let mut files = Vec::new();
+    let toolkits_dir = project.toolkits_dir();
+    if toolkits_dir.exists() {
+        let entries = std::fs::read_dir(&toolkits_dir).map_err(|source| ProjectError::Io {
+            path: toolkits_dir.clone(),
+            source,
+        })?;
+        for entry in entries {
+            let entry = entry.map_err(|source| ProjectError::Io {
+                path: toolkits_dir.clone(),
+                source,
+            })?;
+            let path = entry.path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "toml")
+            {
+                files.push(path);
+            }
+        }
+    }
+    files.sort();
+    let mut toolkits = Vec::new();
+    let mut toolkit_ids = HashSet::new();
+    let mut tool_ids = HashSet::new();
+    for path in files {
+        let inspected =
+            upeg_loader::inspect_project_toolkit(&path).map_err(|error| ProjectError::Toolkit {
+                path: path.clone(),
+                reason: error.to_string(),
+            })?;
+        if !toolkit_ids.insert(inspected.toolkit_id.clone()) {
+            return Err(ProjectError::DuplicateToolkit(inspected.toolkit_id));
+        }
+        for id in &inspected.tool_ids {
+            if !tool_ids.insert(id.clone()) {
+                return Err(ProjectError::DuplicateTool(id.clone()));
+            }
+            if upeg_runtime::toolbox_is_builtin(id) {
+                return Err(ProjectError::BuiltinTool(id.clone()));
+            }
+        }
+        toolkits.push(ProjectToolkitDefinition {
+            path,
+            id: inspected.toolkit_id,
+            tool_ids: inspected.tool_ids,
+            skipped: inspected
+                .skipped
+                .into_iter()
+                .map(|entry| format!("{}: {}", entry.id, entry.reason))
+                .collect(),
+        });
+    }
+    for id in config.tool_choices.keys() {
+        if !tool_ids.contains(id) {
+            return Err(ProjectError::UnknownChoice(id.clone()));
+        }
+    }
+    let active_global_sources = active_project()
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref().map(|active| active.global_sources.clone()))
+        .unwrap_or_default();
+    let mut conflicts = Vec::new();
+    for toolkit in &toolkits {
+        for id in &toolkit.tool_ids {
+            let provenance = upeg_runtime::tool_provenance(id);
+            let is_global = active_global_sources.contains_key(id)
+                || (upeg_runtime::toolbox_registered_tool(id).is_some()
+                    && !provenance.is_project_manifest());
+            if is_global {
+                conflicts.push(ProjectConflict {
+                    tool_id: id.clone(),
+                    global_source: active_global_sources
+                        .get(id)
+                        .cloned()
+                        .unwrap_or_else(|| provenance.label()),
+                    project_source: toolkit.path.clone(),
+                    choice: config.tool_choices.get(id).copied(),
+                });
+            }
+        }
+    }
+    let name = config.name.unwrap_or_else(|| {
+        project
+            .as_path()
+            .file_name()
+            .map(|part| part.to_string_lossy().into_owned())
+            .unwrap_or_else(|| project.as_path().display().to_string())
+    });
+    Ok(ProjectDefinition {
+        root: project.as_path().to_path_buf(),
+        name,
+        boards: config.boards,
+        toolkits,
+        conflicts,
+        tool_choices: config.tool_choices,
+    })
+}
+
+pub fn activate_project(root: &Path) -> Result<ProjectActivation, ProjectError> {
+    let definition = validate_project_root(root)?;
+    let _transition = upeg_runtime::project_scope::begin_project_transition()
+        .map_err(ProjectError::Transition)?;
+    activate_project_under_transition(definition)
+}
+
+fn activate_project_under_transition(
+    definition: ProjectDefinition,
+) -> Result<ProjectActivation, ProjectError> {
+    let mut active = active_project()
+        .lock()
+        .map_err(|_| ProjectError::Transition("project context poisoned"))?;
+    let rollback = RollbackCatalog::capture(active.take());
+    let conflict_ids: HashSet<&str> = definition
+        .conflicts
+        .iter()
+        .map(|conflict| conflict.tool_id.as_str())
+        .collect();
+    let mut blocked = HashSet::new();
+    let mut selections: HashMap<PathBuf, HashSet<String>> = HashMap::new();
+    for toolkit in &definition.toolkits {
+        for id in &toolkit.tool_ids {
+            let choice = definition.tool_choices.get(id).copied();
+            if conflict_ids.contains(id.as_str()) && choice.is_none() {
+                blocked.insert(id.clone());
+                continue;
+            }
+            if choice == Some(ProjectToolChoice::Global) && conflict_ids.contains(id.as_str()) {
+                continue;
+            }
+            selections
+                .entry(toolkit.path.clone())
+                .or_default()
+                .insert(id.clone());
+        }
+    }
+    let mut tool_snapshots = Vec::new();
+    let mut global_sources = HashMap::new();
+    let mut loaded_tool_ids = Vec::new();
+    let mut failed = Vec::new();
+    for toolkit in &definition.toolkits {
+        failed.extend(
+            toolkit
+                .skipped
+                .iter()
+                .map(|reason| (toolkit.path.clone(), reason.clone())),
+        );
+    }
+    if !failed.is_empty() {
+        let reason = failed
+            .iter()
+            .map(|(path, reason)| format!("{}: {reason}", path.display()))
+            .collect::<Vec<_>>()
+            .join("; ");
+        rollback.restore(&mut active);
+        return Err(ProjectError::Activation(reason));
+    }
+    for toolkit in &definition.toolkits {
+        let Some(ids) = selections.get(&toolkit.path) else {
+            continue;
+        };
+        if ids.is_empty() {
+            continue;
+        }
+        let mut sorted_ids: Vec<_> = ids.iter().collect();
+        sorted_ids.sort();
+        for id in sorted_ids {
+            let static_id: &'static str = Box::leak(id.clone().into_boxed_str());
+            let snapshot = upeg_runtime::project_scope::ProjectToolSnapshot::take(static_id);
+            if let Some(source) = snapshot.previous_source_label() {
+                global_sources.insert(id.clone(), source);
+            }
+            tool_snapshots.push(snapshot);
+        }
+        let outcome =
+            upeg_loader::load_project_toolkit_file_verbose(&toolkit.path, &definition.root, ids);
+        let loaded_count = outcome.loaded.len();
+        for id in outcome.loaded {
+            upeg_runtime::register_tool_provenance(
+                id,
+                upeg_runtime::ToolProvenance::ProjectManifest {
+                    path: toolkit.path.display().to_string(),
+                },
+            );
+            loaded_tool_ids.push(id);
+        }
+        failed.extend(
+            outcome
+                .failed
+                .into_iter()
+                .map(|(path, error)| (path, error.to_string())),
+        );
+        failed.extend(outcome.skipped.into_iter().map(|skipped| {
+            (
+                toolkit.path.clone(),
+                format!("{}: {}", skipped.id, skipped.reason),
+            )
+        }));
+        if loaded_count != ids.len() {
+            failed.push((toolkit.path.clone(), format!("expected {} selected Tool(s), registered {loaded_count}; source changed during activation", ids.len())));
+        }
+    }
+    if !failed.is_empty() {
+        let reason = failed
+            .iter()
+            .map(|(path, message)| format!("{}: {message}", path.display()))
+            .collect::<Vec<_>>()
+            .join("; ");
+        restore_project(ActiveProject {
+            definition,
+            tool_snapshots,
+            global_sources,
+        });
+        rollback.restore(&mut active);
+        return Err(ProjectError::Activation(reason));
+    }
+    upeg_runtime::project_scope::set_blocked_project_tools(blocked);
+    let config_path = definition.root.join(".upeg/project.toml");
+    let mut scope = upeg_runtime::pegboard_project::ProjectBoardScope::for_project(
+        &definition.root,
+        &config_path,
+        definition.boards.clone(),
+    );
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        scope = scope.with_loaded_content(content);
+    }
+    upeg_runtime::pegboard_project::set_project_board_scope(scope);
+    upeg_runtime::project_scope::set_active_project_root(Some(definition.root.clone()));
+    let result = ProjectActivation {
+        root: definition.root.clone(),
+        name: definition.name.clone(),
+        loaded_tool_ids,
+        failed,
+        conflicts: definition.conflicts.clone(),
+    };
+    *active = Some(ActiveProject {
+        definition,
+        tool_snapshots,
+        global_sources,
+    });
+    EXPLICIT_GLOBAL.store(false, Ordering::Release);
+    drop(active);
+    crate::source_freshness::record_loaded_sources(&crate::RuntimeSourceConfig::from_env());
+    Ok(result)
+}
+
+fn restore_project(previous: ActiveProject) {
+    upeg_runtime::project_scope::set_blocked_project_tools(HashSet::new());
+    upeg_runtime::project_scope::set_active_project_root(None);
+    upeg_runtime::pegboard_project::clear_project_board_scope();
+    upeg_runtime::project_scope::take_project_toolkits();
+    for snapshot in previous.tool_snapshots.into_iter().rev() {
+        snapshot.restore();
+    }
+}
+
+pub fn close_project() -> Result<(), ProjectError> {
+    let _transition = upeg_runtime::project_scope::begin_project_transition()
+        .map_err(ProjectError::Transition)?;
+    let mut active = active_project()
+        .lock()
+        .map_err(|_| ProjectError::Transition("project context poisoned"))?;
+    if let Some(previous) = active.take() {
+        restore_project(previous);
+    }
+    EXPLICIT_GLOBAL.store(true, Ordering::Release);
+    drop(active);
+    crate::source_freshness::record_loaded_sources(&crate::RuntimeSourceConfig::from_env());
+    Ok(())
+}
+
+pub fn set_project_tool_choice(
+    root: &Path,
+    id: &str,
+    choice: ProjectToolChoice,
+) -> Result<ProjectActivation, ProjectError> {
+    let definition = validate_project_root(root)?;
+    if !definition
+        .toolkits
+        .iter()
+        .any(|toolkit| toolkit.tool_ids.iter().any(|candidate| candidate == id))
+    {
+        return Err(ProjectError::UnknownChoice(id.to_string()));
+    }
+    if !definition
+        .conflicts
+        .iter()
+        .any(|conflict| conflict.tool_id == id)
+    {
+        return Err(ProjectError::NotAConflict(id.to_string()));
+    }
+    let _transition = upeg_runtime::project_scope::begin_project_transition()
+        .map_err(ProjectError::Transition)?;
+    let path = definition.root.join(".upeg/project.toml");
+    let original = if path.is_file() {
+        Some(std::fs::read(&path).map_err(|source| ProjectError::Io {
+            path: path.clone(),
+            source,
+        })?)
+    } else {
+        None
+    };
+    let mut value: toml::Value = if let Some(content) = &original {
+        let content = std::str::from_utf8(content).map_err(|error| ProjectError::Config {
+            path: path.clone(),
+            reason: error.to_string(),
+        })?;
+        toml::from_str(content).map_err(|error| ProjectError::Config {
+            path: path.clone(),
+            reason: error.to_string(),
+        })?
+    } else {
+        toml::Value::Table(toml::map::Map::new())
+    };
+    let table = value.as_table_mut().ok_or_else(|| ProjectError::Config {
+        path: path.clone(),
+        reason: "expected a TOML table".into(),
+    })?;
+    table.insert("schema_version".into(), toml::Value::Integer(1));
+    let choices = table
+        .entry("tool_choices")
+        .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
+    let choices = choices.as_table_mut().ok_or_else(|| ProjectError::Config {
+        path: path.clone(),
+        reason: "tool_choices must be a table".into(),
+    })?;
+    choices.insert(
+        id.to_string(),
+        toml::Value::String(
+            match choice {
+                ProjectToolChoice::Global => "global",
+                ProjectToolChoice::Project => "project",
+            }
+            .into(),
+        ),
+    );
+    let serialized = toml::to_string_pretty(&value).map_err(|error| ProjectError::Config {
+        path: path.clone(),
+        reason: error.to_string(),
+    })?;
+    let temporary = path.with_extension(format!("toml.{}.tmp", std::process::id()));
+    std::fs::write(&temporary, serialized).map_err(|source| ProjectError::Io {
+        path: temporary.clone(),
+        source,
+    })?;
+    std::fs::rename(&temporary, &path).map_err(|source| ProjectError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    let result =
+        validate_project_root(&definition.root).and_then(activate_project_under_transition);
+    if result.is_err() {
+        match original {
+            Some(bytes) => std::fs::write(&path, bytes),
+            None => std::fs::remove_file(&path),
+        }
+        .map_err(|source| ProjectError::Io { path, source })?;
+    }
+    result
 }
 
 pub fn board_context_with_project(board: &str) -> BoardExecutionContext {
     let mut context = board_context(board);
     if context.project_manifest.is_none() {
-        context.project_manifest = detect_project_manifest().map(|p| p.display().to_string());
+        context.project_manifest = current_project_root()
+            .map(|root| root.join(PROJECT_MANIFEST_FILE))
+            .or_else(detect_project_manifest)
+            .map(|marker| {
+                let config = marker.join(upeg_core::PROJECT_CONFIG_FILE);
+                if config.is_file() { config } else { marker }
+            })
+            .map(|path| path.display().to_string());
     }
     context
 }
@@ -321,6 +893,12 @@ pub struct ProjectManifestStatus {
 /// additionally keeps the override state so a report can say *why*
 /// there is (or isn't) a manifest.
 pub fn project_manifest_status() -> ProjectManifestStatus {
+    if explicit_global() {
+        return ProjectManifestStatus {
+            lookup: None,
+            override_state: ProjectManifestOverride::Disabled,
+        };
+    }
     let over = ProjectManifestOverride::from_env();
     let cwd = std::env::current_dir().ok();
     let home = std::env::var_os("HOME").map(PathBuf::from);
@@ -344,7 +922,7 @@ pub const fn project_manifest_override_label(over: &ProjectManifestOverride) -> 
 
 /// Filesystem-backed implementation of the runtime's
 /// [`upeg_runtime::ProjectContext`] port: registry board context plus
-/// `upeg.toml` project discovery. Shared by every native surface (CLI,
+/// `.upeg` project discovery. Shared by every native surface (CLI,
 /// FRB desktop) so board-context resolution cannot drift per surface.
 #[derive(Default, Clone, Copy, Debug)]
 pub struct FilesystemProjectContext;
@@ -356,326 +934,7 @@ impl upeg_runtime::ProjectContext for FilesystemProjectContext {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod project_context_tests;
 
-    /// Builds `root/home` (a stand-in `$HOME`) and returns `(root, home)`
-    /// after clearing any leftovers from a previous run.
-    fn temp_home_tree(name: &str) -> (PathBuf, PathBuf) {
-        let root = std::env::temp_dir().join(name);
-        let home = root.join("home");
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&home).unwrap();
-        (root, home)
-    }
-
-    fn write_manifest(dir: &Path, id: &str) {
-        std::fs::create_dir_all(dir).unwrap();
-        std::fs::write(
-            dir.join(PROJECT_MANIFEST_FILE),
-            format!(
-                r#"id = "{id}"
-tools = [{{ id = "echo" }}]"#
-            ),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn project_manifest_detection_walks_up_to_nearest_ancestor() {
-        let (root, home) = temp_home_tree("upeg_project_detect_parent");
-        let nested = home.join("a/b/c");
-        std::fs::create_dir_all(&nested).unwrap();
-        write_manifest(&home, "project");
-
-        let got = detect_project_manifest_from(&nested, Some(&home)).expect("manifest");
-        assert_eq!(got, home.join(PROJECT_MANIFEST_FILE));
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn project_manifest_detection_falls_back_to_home() {
-        let root = std::env::temp_dir().join("upeg_project_detect_home_root");
-        let cwd = root.join("work/outside");
-        let home = root.join("home");
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&cwd).unwrap();
-        write_manifest(&home, "home");
-
-        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("manifest");
-        assert_eq!(got, home.join(PROJECT_MANIFEST_FILE));
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    /// B-4 repro: an ancestor `upeg.toml` sitting OUTSIDE `$HOME` must
-    /// never be auto-loaded just because cwd is a descendant of it —
-    /// e.g. `cd /tmp/evilroot/sub` must not pick up
-    /// `/tmp/evilroot/upeg.toml` when `$HOME` is somewhere else
-    /// entirely.
-    #[test]
-    fn cwd_outside_home_does_not_load_ancestor_manifest() {
-        let (root, home) = temp_home_tree("upeg_project_detect_outside_home");
-        let evil_root = root.join("evilroot");
-        let cwd = evil_root.join("sub");
-        std::fs::create_dir_all(&cwd).unwrap();
-        write_manifest(&evil_root, "evil"); // ancestor of cwd, outside $HOME
-        // $HOME has no manifest of its own.
-
-        let got = detect_project_manifest_from(&cwd, Some(&home));
-        assert_eq!(
-            got, None,
-            "upeg.toml in an ancestor directory outside home must be ignored"
-        );
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    /// Sibling to the outside-$HOME case: cwd itself is still always
-    /// checked even when it sits outside $HOME.
-    #[test]
-    fn cwd_manifest_is_loaded_even_outside_home() {
-        let (root, home) = temp_home_tree("upeg_project_detect_outside_home_cwd_itself");
-        let cwd = root.join("elsewhere");
-        write_manifest(&cwd, "elsewhere");
-
-        let got = detect_project_manifest_from(&cwd, Some(&home)).expect("manifest");
-        assert_eq!(got, cwd.join(PROJECT_MANIFEST_FILE));
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    /// B-4 hole at the env boundary: `HOME=""` (what `var_os` returns
-    /// for an exported-but-empty `HOME`) and `HOME=/` both make
-    /// `starts_with` true for every path, which would turn the whole
-    /// filesystem into "inside $HOME" and re-open the outside-$HOME
-    /// ancestor walk. A relative `HOME` is unusable for the same
-    /// reason. All three must behave exactly like "no home".
-    #[test]
-    fn degenerate_home_value_is_treated_as_no_home() {
-        let (root, _home) = temp_home_tree("upeg_project_detect_degenerate_home");
-        let evil_root = root.join("evilroot");
-        let cwd = evil_root.join("sub");
-        std::fs::create_dir_all(&cwd).unwrap();
-        write_manifest(&evil_root, "evil"); // ancestor of cwd
-
-        for degenerate in ["", "/", "relative/home"] {
-            let got = detect_project_manifest_from(&cwd, Some(Path::new(degenerate)));
-            assert_eq!(
-                got, None,
-                "degenerate HOME ({degenerate:?}) must not unlock the ancestor walk"
-            );
-        }
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn degenerate_home_value_does_not_get_home_fallback_either() {
-        let (root, _home) = temp_home_tree("upeg_project_detect_degenerate_home_fallback");
-        let cwd = root.join("elsewhere");
-        std::fs::create_dir_all(&cwd).unwrap();
-
-        for degenerate in ["", "/", "relative/home"] {
-            let scope = SearchScope::classify(&cwd, Some(Path::new(degenerate)));
-            assert_eq!(
-                scope.home_fallback(),
-                None,
-                "degenerate HOME ({degenerate:?}) cannot be a fallback candidate"
-            );
-            assert!(
-                !scope.in_walk(&cwd),
-                "degenerate HOME must not unlock walking"
-            );
-        }
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn normal_absolute_home_is_used_verbatim() {
-        let (root, home) = temp_home_tree("upeg_project_usable_home");
-        assert_eq!(usable_home(Some(&home)), Some(home.as_path()));
-        assert_eq!(usable_home(None), None);
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn without_home_does_not_walk_ancestors() {
-        let root = std::env::temp_dir().join("upeg_project_detect_no_home");
-        let nested = root.join("a/b");
-        let _ = std::fs::remove_dir_all(&root);
-        write_manifest(&root, "root_only");
-        std::fs::create_dir_all(&nested).unwrap();
-
-        let got = detect_project_manifest_from(&nested, None);
-        assert_eq!(
-            got, None,
-            "without home it must not walk ancestor directories at all"
-        );
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn override_parsing_treats_empty_as_detect() {
-        assert_eq!(
-            parse_project_manifest_override(None),
-            ProjectManifestOverride::Detect
-        );
-        assert_eq!(
-            parse_project_manifest_override(Some("")),
-            ProjectManifestOverride::Detect
-        );
-        assert_eq!(
-            parse_project_manifest_override(Some("   ")),
-            ProjectManifestOverride::Detect
-        );
-    }
-
-    #[test]
-    fn override_parsing_treats_off_case_insensitively_as_disabled() {
-        assert_eq!(
-            parse_project_manifest_override(Some("off")),
-            ProjectManifestOverride::Disabled
-        );
-        assert_eq!(
-            parse_project_manifest_override(Some("OFF")),
-            ProjectManifestOverride::Disabled
-        );
-        assert_eq!(
-            parse_project_manifest_override(Some(" Off ")),
-            ProjectManifestOverride::Disabled
-        );
-    }
-
-    #[test]
-    fn override_parsing_treats_absolute_path_as_explicit() {
-        let absolute = if cfg!(windows) {
-            "C:\\proj\\upeg.toml"
-        } else {
-            "/proj/upeg.toml"
-        };
-        assert_eq!(
-            parse_project_manifest_override(Some(absolute)),
-            ProjectManifestOverride::Explicit(PathBuf::from(absolute))
-        );
-    }
-
-    #[test]
-    fn override_parsing_falls_back_to_detect_for_relative_path_and_returns_warning() {
-        assert_eq!(
-            parse_project_manifest_override(Some("relative/upeg.toml")),
-            ProjectManifestOverride::Detect
-        );
-        let warning = project_manifest_override_relative_path_warning(Some("relative/upeg.toml"));
-        assert!(warning.is_some());
-        assert!(warning.unwrap().contains(PROJECT_MANIFEST_PATH_ENV));
-    }
-
-    #[test]
-    fn no_warning_for_non_relative_path() {
-        assert_eq!(project_manifest_override_relative_path_warning(None), None);
-        assert_eq!(
-            project_manifest_override_relative_path_warning(Some("off")),
-            None
-        );
-        let absolute = if cfg!(windows) {
-            "C:\\proj\\upeg.toml"
-        } else {
-            "/proj/upeg.toml"
-        };
-        assert_eq!(
-            project_manifest_override_relative_path_warning(Some(absolute)),
-            None
-        );
-    }
-
-    #[test]
-    fn explicit_absolute_path_wins_over_detectable_manifest() {
-        let (root, home) = temp_home_tree("upeg_project_resolve_explicit_wins");
-        let cwd = home.join("proj");
-        write_manifest(&cwd, "detectable");
-        let explicit_dir = root.join("explicit");
-        write_manifest(&explicit_dir, "explicit");
-        let explicit_path = explicit_dir.join(PROJECT_MANIFEST_FILE);
-
-        let over = ProjectManifestOverride::Explicit(explicit_path.clone());
-        let got = resolve_project_manifest(&over, &cwd, Some(&home)).expect("manifest");
-
-        assert_eq!(
-            got.path, explicit_path,
-            "must be the explicit path, not the detected one"
-        );
-        assert_eq!(got.origin, ProjectManifestOrigin::EnvOverride);
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn missing_explicit_path_is_not_replaced_by_detection() {
-        let (root, home) = temp_home_tree("upeg_project_resolve_explicit_missing");
-        let cwd = home.join("proj");
-        write_manifest(&cwd, "detectable");
-        let missing = root.join("missing").join(PROJECT_MANIFEST_FILE);
-
-        let over = ProjectManifestOverride::Explicit(missing);
-        let got = resolve_project_manifest(&over, &cwd, Some(&home));
-
-        assert_eq!(
-            got, None,
-            "missing explicit file must yield no manifest instead of falling back to detection"
-        );
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn off_disables_even_when_manifest_is_detectable() {
-        let (root, home) = temp_home_tree("upeg_project_resolve_disabled");
-        let cwd = home.join("proj");
-        write_manifest(&cwd, "detectable");
-
-        let got = resolve_project_manifest(&ProjectManifestOverride::Disabled, &cwd, Some(&home));
-
-        assert_eq!(got, None);
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn detect_override_behaves_like_default_detection() {
-        let (root, home) = temp_home_tree("upeg_project_resolve_detect");
-        let cwd = home.join("proj");
-        write_manifest(&home, "home_level");
-        std::fs::create_dir_all(&cwd).unwrap();
-
-        let got = resolve_project_manifest(&ProjectManifestOverride::Detect, &cwd, Some(&home))
-            .expect("manifest");
-
-        assert_eq!(got.path, home.join(PROJECT_MANIFEST_FILE));
-        assert_eq!(got.origin, ProjectManifestOrigin::Detected);
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn override_labels_distinguish_all_three_states() {
-        assert_eq!(
-            project_manifest_override_label(&ProjectManifestOverride::Detect),
-            "detect"
-        );
-        assert_eq!(
-            project_manifest_override_label(&ProjectManifestOverride::Disabled),
-            "off"
-        );
-        assert_eq!(
-            project_manifest_override_label(&ProjectManifestOverride::Explicit(PathBuf::from(
-                "/x"
-            ))),
-            "explicit"
-        );
-    }
-}
+#[cfg(test)]
+mod discovery_tests;

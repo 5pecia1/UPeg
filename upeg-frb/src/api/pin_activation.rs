@@ -12,7 +12,9 @@
 //!   canonical result renders INLINE in the pin body (inline-first
 //!   activation, issue 7); the expanded modal stays reachable only via
 //!   an explicit gesture (keyboard `o` / pin context menu).
-//! - `OpenModal { tool_id }` — `Chain`, `Llm`, `ControlledEmbed`, any
+//! - `OpenModal { tool_id }` — a declared `read` tool with presentation
+//!   metadata (the generic modal performs one automatic query only when no
+//!   required input is missing), `Chain`, `Llm`, `ControlledEmbed`, any
 //!   `Inline`/`Action`/`Live`/`Launcher` with required inputs, and Embed
 //!   without a URL. Dart pushes the standard `ExpandedModalPage`.
 //! - `OpenEmbed { tool_id }` — `PinKind::Embed` (Passive) with a
@@ -22,6 +24,24 @@
 //! anymore — its pin tile is rendered inline (`bodyOverride` slot) and
 //! never requires a click/page navigation. The Rust dispatcher handles
 //! headless invocations through `ControlledEmbedBackend`.
+//!
+//! Result presentation follows the same inline-first rule: a successful
+//! run of a pin already on the visible board renders its canonical result
+//! in the pin body — no toast. Snackbars are reserved for run failures
+//! and for activated tools with no on-board placement to render into
+//! (palette hits, deep links, off-board tools). A passive `Embed` already
+//! pinned on the visible board focuses its inline body on activation
+//! instead of navigating to `EmbedPage`.
+//!
+//! Honest provider state: a `Live` pin whose `Http` invoker has a
+//! `Static` source and no configured provider shows a "setup required"
+//! badge instead of a runnable affordance, and activating it explains the
+//! missing provider rather than failing generically. The rule keys off
+//! invoker/source metadata, so any future same-shaped tool is honest by
+//! construction. (`memo.create` is a metadata-declared `Shortcut` action
+//! — chord `Cmd+Shift+N` — that creates a memo and focuses the on-board
+//! notepad; `memo.scratch` is a `Live` pin whose inline notepad is backed
+//! by the same store.)
 
 use upeg_core::PinKind;
 use upeg_runtime::{embed_url_for, toolbox_tool};
@@ -72,6 +92,12 @@ pub fn pin_activation_for(tool_id: String, args_json: String) -> PinActivationDt
         // user can fill them. Launcher keeps this same rule (its prior
         // behaviour).
         PinKind::Launcher | PinKind::Inline | PinKind::Action | PinKind::Live => {
+            // Read presentations need their result surface. Opening the modal
+            // lets Flutter use the same generic one-shot auto-query rule for
+            // every toolkit; it avoids a domain-specific launcher path.
+            if meta.effect == upeg_core::ToolEffect::Read && meta.presentation.is_some() {
+                return PinActivationDto::OpenModal { tool_id };
+            }
             let needs_input = meta.input_spec.fields.iter().any(|field| field.required);
             if needs_input {
                 PinActivationDto::OpenModal { tool_id }
@@ -95,7 +121,7 @@ mod tests {
     use super::*;
     use upeg_core::{
         ALL_SURFACES, InputFieldSpec, InputKind, InputName, InputSpec, Invoker, OutputSpec,
-        PegboardUnits, PinKind, Source, ToolMeta,
+        PegboardUnits, PinKind, Source, ToolEffect, ToolMeta, ToolPresentation,
     };
     use upeg_runtime::{register_embed_url, toolbox_add_tool_managed};
 
@@ -184,6 +210,31 @@ mod tests {
             result,
             PinActivationDto::DispatchImmediate {
                 tool_id: "frb_pin_activation_test.launcher_empty".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn pin_activation_for_routes_read_presentation_to_modal() {
+        let mut meta = fixture_meta("read_presentation", PinKind::Launcher, false);
+        meta.effect = ToolEffect::Read;
+        meta.presentation = Some(ToolPresentation {
+            version: 1,
+            output: None,
+            rows: None,
+            row_key: None,
+            columns: Vec::new(),
+            actions: Vec::new(),
+        });
+        let _guard = toolbox_add_tool_managed(meta);
+        let result = pin_activation_for(
+            "frb_pin_activation_test.read_presentation".to_string(),
+            "{}".into(),
+        );
+        assert_eq!(
+            result,
+            PinActivationDto::OpenModal {
+                tool_id: "frb_pin_activation_test.read_presentation".to_string(),
             }
         );
     }

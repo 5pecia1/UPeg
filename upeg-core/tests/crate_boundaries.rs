@@ -10,7 +10,33 @@
     reason = "integration tests use unwrap/expect/panic idiomatically and need not satisfy production restriction lints"
 )]
 
-//! Workspace layering gate — `docs/architecture/crate-boundaries.md`.
+//! Workspace layering gate.
+//!
+//! Dependencies always point inward: `surface → adapter → runtime →
+//! domain`. The layers and their owned scopes:
+//!
+//! | Crate | Layer | Owns | Does not own |
+//! |---|---|---|---|
+//! | `upeg-core` | domain | Toolkit/Tool/Chain/Board value types, schema contracts, pure validation, pure positional binding, capability verdicts | runtime toolbox, dispatch, host I/O, UX labels |
+//! | `upeg-runtime` | runtime | toolbox overlay, dispatch, trigger binding/execution, embed binding, manifest lowering, conflict policy | source-format parsing, surface UI flow |
+//! | `upeg-loader` | adapter | parses `upeg.toml`-style sources, calls runtime lowering | its own toolbox/dispatch semantics |
+//! | `upeg-wasm` | adapter | parses/hosts WASM sources, calls runtime lowering | its own toolbox/conflict policy |
+//! | `upeg-sources` | source boundary | runtime source discovery/registration: user Toolkits, project manifest, WASM plugins, upstream MCP servers | surface UI flow, parser internals |
+//! | `upeg-cli` | surface + host | CLI/TUI/HTTP/MCP entry points and user I/O; the host runtime: `server.json` discovery, bearer auth, daemon supervision, embedded HTTP, pause state, MCP-import loading, `pid_alive` | domain policy duplicated from core/runtime, pure path resolution (`upeg_core::paths`) |
+//! | `upeg-pegboard-ui` | UI state | framework-independent pegboard state, deep-link contract, pin chrome, i18n catalog | rendering, widget code, grid geometry (Dart), placement algorithm (`upeg-runtime`) |
+//! | `upeg-frb` | surface boundary | the Rust↔Dart FRB surface, host bootstrap, instance lock | domain/runtime policy |
+//! | `flutter_app/` | surface | Flutter desktop/PWA UI flow | toolbox semantics, domain validation |
+//!
+//! The one allowed surface→surface edge is `upeg-frb → upeg-cli`: the
+//! desktop shell embeds the host instead of spawning a separate process,
+//! so the host runtime (`embedded_http_with_ready`, `ServerInfo`,
+//! pause, `load_mcp_imports_for_host`, `pid_alive`) lives in `upeg-cli`.
+//! `upeg-frb → upeg-loader` exists only under dev-dependencies — the
+//! shipped graph never sees it. The loader never creates runtime truth:
+//! overlay precedence, static-id protection, duplicate replacement,
+//! trigger registration, embed-binding normalization, and
+//! manifest→toolbox conversion are applied only in `upeg-runtime`
+//! lowering.
 //!
 //! Reads every workspace member's `Cargo.toml` and reconstructs the
 //! `upeg-*` → `upeg-*` edge set, then holds it against three rules:
@@ -466,7 +492,7 @@ fn crate_dependency_graph_matches_the_allowed_table_exactly() {
          vanished (still listed) edges:\n{}\
          how to fix: revert the dependency, or if layering really changed, \
          update ALLOWED_EDGES in upeg-core/tests/crate_boundaries.rs \
-         together with docs/architecture/crate-boundaries.md.",
+         together with this file's module docs.",
         render(&unexpected),
         render(&stale),
     );

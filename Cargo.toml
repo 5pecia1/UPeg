@@ -29,7 +29,7 @@ lto = "thin"
 # Single source of truth for workspace member versions. Each member opts in
 # via `version.workspace = true` in its own [package] block. Bump here for
 # any release — do not edit the seven member Cargo.toml files individually.
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.92"
 authors = ["upeg contributors"]
@@ -167,19 +167,19 @@ zune-jpeg = "0.5"
 # `hayro` resolves, rather than adding a second copy of the same decoder.
 # Its API takes PDF's `/DecodeParms` almost verbatim (see media/pdf_extract).
 hayro-ccitt = "0.3"
-upeg-cli = { path = "upeg-cli", version = "0.4" }
-upeg-core = { path = "upeg-core", version = "0.4" }
-upeg_frb = { path = "upeg-frb", version = "0.4" }
-upeg-loader = { path = "upeg-loader", version = "0.4" }
-upeg-macros = { path = "upeg-macros", version = "0.4" }
-upeg-pegboard-ui = { path = "upeg-pegboard-ui", version = "0.4" }
-upeg-plugin-api = { path = "upeg-plugin-api", version = "0.4" }
-upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.4" }
-upeg-runtime = { path = "upeg-runtime", version = "0.4" }
-upeg-sources = { path = "upeg-sources", version = "0.4" }
-upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.4" }
-upeg-tools = { path = "upeg-tools", version = "0.4" }
-upeg-wasm = { path = "upeg-wasm", version = "0.4" }
+upeg-cli = { path = "upeg-cli", version = "0.5" }
+upeg-core = { path = "upeg-core", version = "0.5" }
+upeg_frb = { path = "upeg-frb", version = "0.5" }
+upeg-loader = { path = "upeg-loader", version = "0.5" }
+upeg-macros = { path = "upeg-macros", version = "0.5" }
+upeg-pegboard-ui = { path = "upeg-pegboard-ui", version = "0.5" }
+upeg-plugin-api = { path = "upeg-plugin-api", version = "0.5" }
+upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.5" }
+upeg-runtime = { path = "upeg-runtime", version = "0.5" }
+upeg-sources = { path = "upeg-sources", version = "0.5" }
+upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.5" }
+upeg-tools = { path = "upeg-tools", version = "0.5" }
+upeg-wasm = { path = "upeg-wasm", version = "0.5" }
 
 [workspace.lints.rust]
 # >>> sol-platform workspace.lints.rust sha256=33c3f5358c6318ee3b880d075d72b0400a37676a0cb5b4cb5ef9f616aba9fb0a

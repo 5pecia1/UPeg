@@ -131,15 +131,11 @@ impl Store {
         self.write_tx(|tx| upsert_placement_tx(tx, board_key, placement, now, &device_id))
     }
 
-    /// Tombstone a single placement row (no-op when the row is absent).
-    pub fn tombstone_placement(
-        &mut self,
-        board_key: &str,
-        tool_id: &str,
-    ) -> Result<(), StoreError> {
+    /// Tombstone a single placement row by pin id (no-op when absent).
+    pub fn tombstone_placement(&mut self, board_key: &str, pin_id: &str) -> Result<(), StoreError> {
         let device_id = self.device_id()?;
         let now = epoch_millis_now();
-        self.write_tx(|tx| tombstone_placement_tx(tx, board_key, tool_id, now, &device_id))
+        self.write_tx(|tx| tombstone_placement_tx(tx, board_key, pin_id, now, &device_id))
     }
 
     /// [`Self::load_state`] with no project in scope. Test-only sugar:
@@ -197,20 +193,21 @@ impl Store {
 
     fn load_live_placements(&self) -> Result<Vec<(String, Placement)>, StoreError> {
         let sql = format!(
-            "SELECT board_key, tool_id, x, y, color, span_cols, span_rows, args_preset \
-             FROM {PLACEMENTS_TABLE} WHERE deleted = ?1 ORDER BY board_key, y, x, tool_id"
+            "SELECT board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset \
+             FROM {PLACEMENTS_TABLE} WHERE deleted = ?1 ORDER BY board_key, y, x, pin_id"
         );
         let mut stmt = self.connection().prepare(&sql)?;
         let rows = stmt.query_map([LIVE], |row| {
             Ok(RawPlacementRow {
                 board_key: row.get(0)?,
-                tool_id: row.get(1)?,
-                x: row.get(2)?,
-                y: row.get(3)?,
-                color: row.get(4)?,
-                span_cols: row.get(5)?,
-                span_rows: row.get(6)?,
-                args_preset: row.get(7)?,
+                pin_id: row.get(1)?,
+                tool_id: row.get(2)?,
+                x: row.get(3)?,
+                y: row.get(4)?,
+                color: row.get(5)?,
+                span_cols: row.get(6)?,
+                span_rows: row.get(7)?,
+                args_preset: row.get(8)?,
             })
         })?;
         let mut out = Vec::new();
@@ -242,6 +239,7 @@ impl Store {
 /// silently-invalid [`Placement`].
 struct RawPlacementRow {
     board_key: String,
+    pin_id: String,
     tool_id: String,
     x: u16,
     y: u16,
@@ -278,7 +276,10 @@ impl RawPlacementRow {
             .map(ArgsPreset::parse)
             .transpose()
             .map_err(|err| corrupt("placements.args_preset", &err))?;
+        let pin_id = upeg_core::PinId::parse(&self.pin_id)
+            .map_err(|err| corrupt("placements.pin_id", &err))?;
         let placement = Placement::new(self.tool_id, self.x, self.y)
+            .with_pin_id(pin_id)
             .with_color(color)
             .with_span(span)
             .with_args_preset(args_preset);
@@ -396,11 +397,12 @@ fn save_layouts_tx(
     device_id: &str,
 ) -> Result<(), StoreError> {
     let select = format!(
-        "SELECT board_key, tool_id, x, y, color, span_cols, span_rows, args_preset, deleted \
+        "SELECT board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset, deleted \
          FROM {PLACEMENTS_TABLE}"
     );
     let mut stmt = tx.prepare(&select)?;
     type PlacementImage = (
+        String,
         u16,
         u16,
         Option<String>,
@@ -421,6 +423,7 @@ fn save_layouts_tx(
                     row.get(6)?,
                     row.get(7)?,
                     row.get(8)?,
+                    row.get(9)?,
                 ),
             ))
         })?
@@ -431,11 +434,18 @@ fn save_layouts_tx(
         for placement in placements {
             let image = placement_image(placement);
             let unchanged = existing
-                .get(&(store_key.clone(), placement.tool_id.clone()))
-                .is_some_and(|(x, y, color, cols, rows, preset, deleted)| {
-                    (*x, *y, color, cols, rows, preset, *deleted)
+                .get(&(store_key.clone(), placement.pin_id.as_str().to_string()))
+                .is_some_and(|(tool_id, x, y, color, cols, rows, preset, deleted)| {
+                    (tool_id, *x, *y, color, cols, rows, preset, *deleted)
                         == (
-                            image.0, image.1, &image.2, &image.3, &image.4, &image.5, LIVE,
+                            &placement.tool_id,
+                            image.0,
+                            image.1,
+                            &image.2,
+                            &image.3,
+                            &image.4,
+                            &image.5,
+                            LIVE,
                         )
                 });
             if unchanged {
@@ -445,22 +455,22 @@ fn save_layouts_tx(
         }
     }
 
-    let is_live_in = |visible_key: &str, tool_id: &str| {
+    let is_live_in = |visible_key: &str, pin_id: &str| {
         layouts.get(visible_key).is_some_and(|placements| {
             placements
                 .iter()
-                .any(|placement| placement.tool_id == tool_id)
+                .any(|placement| placement.pin_id.as_str() == pin_id)
         })
     };
-    for ((store_key, tool_id), (.., deleted)) in &existing {
+    for ((store_key, pin_id), (.., deleted)) in &existing {
         if *deleted != LIVE {
             continue;
         }
         let Some(visible_key) = visibility.owns(store_key) else {
             continue;
         };
-        if !is_live_in(&visible_key, tool_id) {
-            tombstone_placement_tx(tx, store_key, tool_id, now, device_id)?;
+        if !is_live_in(&visible_key, pin_id) {
+            tombstone_placement_tx(tx, store_key, pin_id, now, device_id)?;
         }
     }
     Ok(())
@@ -507,11 +517,11 @@ fn upsert_placement_tx(
     let (x, y, color, span_cols, span_rows, args_preset) = placement_image(placement);
     let sql = format!(
         "INSERT INTO {PLACEMENTS_TABLE} \
-           (board_key, tool_id, x, y, color, span_cols, span_rows, args_preset, \
+           (board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset, \
             updated_at, device_id, deleted) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, {LIVE}) \
-         ON CONFLICT(board_key, tool_id) DO UPDATE SET \
-           x = excluded.x, y = excluded.y, color = excluded.color, \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, {LIVE}) \
+         ON CONFLICT(board_key, pin_id) DO UPDATE SET \
+           tool_id = excluded.tool_id, x = excluded.x, y = excluded.y, color = excluded.color, \
            span_cols = excluded.span_cols, span_rows = excluded.span_rows, \
            args_preset = excluded.args_preset, updated_at = excluded.updated_at, \
            device_id = excluded.device_id, deleted = {LIVE}"
@@ -520,6 +530,7 @@ fn upsert_placement_tx(
         &sql,
         params![
             board_key,
+            placement.pin_id.as_str(),
             placement.tool_id,
             x,
             y,
@@ -537,19 +548,19 @@ fn upsert_placement_tx(
 fn tombstone_placement_tx(
     tx: &Transaction<'_>,
     board_key: &str,
-    tool_id: &str,
+    pin_id: &str,
     now: i64,
     device_id: &str,
 ) -> Result<(), StoreError> {
     let sql = format!(
         "UPDATE {PLACEMENTS_TABLE} SET deleted = {TOMBSTONED}, updated_at = ?1, device_id = ?2 \
-         WHERE board_key = ?3 AND tool_id = ?4"
+         WHERE board_key = ?3 AND pin_id = ?4"
     );
-    tx.execute(&sql, params![now, device_id, board_key, tool_id])?;
-    // An unpinned tool's cached last outcome is stale UI state, not
+    tx.execute(&sql, params![now, device_id, board_key, pin_id])?;
+    // An unpinned placement's cached last outcome is stale UI state, not
     // user data — drop it in the same transaction so re-pinning never
     // resurrects a result from a previous pin lifetime.
-    super::last_outcomes::clear_last_outcome_tx(tx, board_key, tool_id)?;
+    super::last_outcomes::clear_last_outcome_tx(tx, board_key, pin_id)?;
     Ok(())
 }
 

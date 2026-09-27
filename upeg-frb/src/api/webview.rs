@@ -4,6 +4,38 @@
 //! Dart service before its stream attaches cannot resurrect that service.
 //! Execution waits only on a Rust worker; never call synchronous tool dispatch
 //! from the Dart isolate that services this stream.
+//!
+//! Session contract — the app-level WebView service owns one page per board
+//! pin, or per Tool id for calls without a pin. Cards and debug modals never
+//! own browser lifetimes:
+//! - Normal Run and debug Run/Re-run take the same Rust dispatcher path;
+//!   the resolved inputs/bindings/settings arrive over this request
+//!   stream, and a CLI attached to the app's embedded HTTP host uses the
+//!   same path. Debug additionally observes the step events and selector
+//!   checks of that same run.
+//! - Raw DOM strings are normalized in Rust to the declared output type,
+//!   label, and primary output; debug's final result gets the same
+//!   normalization and errors.
+//! - Opening Debug alone never runs the Tool or reloads the page, and
+//!   closing the debug screen does not end the session. One controller
+//!   attaches to at most one WebViewWidget at a time.
+//! - The hidden host keeps the configured viewport — a debug window's
+//!   size never changes the run viewport (large pages scroll into view).
+//! - Requests for the same session run in order. Cancellation blocks
+//!   follow-up operations that have not started; it cannot undo a click
+//!   that already ran, and a call is never re-run in another browser when
+//!   the provider exits.
+//! - Sessions live for the app process and are recreated when the URL or
+//!   browser settings change; a settings change never swaps a page while
+//!   a run or debug is in flight. Pages are not cookie/account
+//!   isolation.
+//! - Requires the Flutter engine and a native platform host — no WebView
+//!   inside a PWA, no display-less server. The native-CLI headless path
+//!   stays separate: a Trigger navigation is never replayed there, and
+//!   only an idempotent first Output read retries inside the Trigger's
+//!   existing settle budget when it lands in Chrome's destroyed-context
+//!   window; other CDP failures return immediately and a context that
+//!   stays stale past the bound fails the run.
 
 use crate::frb_generated::StreamSink;
 
@@ -20,6 +52,9 @@ use upeg_runtime::controlled_embed::{ControlledEmbedError, ControlledEmbedRespon
 pub struct WebViewExecutionRequestDto {
     pub request_id: u64,
     pub tool_id: String,
+    /// Present only when this call came from an actual board placement.
+    pub board_key: Option<String>,
+    pub pin_id: Option<String>,
     pub url: String,
     pub bindings: Vec<SelectorBindingDto>,
     pub settings: ControlledEmbedSettingsDto,

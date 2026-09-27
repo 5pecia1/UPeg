@@ -92,13 +92,13 @@ enum DropVerdict { accept, push, reject }
 
 DropVerdict dropVerdict(
   List<PlacementDto> preview,
-  ToolId draggedToolId,
+  PinId draggedToolId,
   List<PlacementDto> current,
 ) {
   if (preview.isEmpty) return DropVerdict.reject;
-  final currentByToolId = {for (final p in current) p.toolId: p};
+  final currentByToolId = {for (final p in current) p.pinId: p};
   for (final previewPlacement in preview) {
-    if (previewPlacement.toolId == draggedToolId.value) continue;
+    if (previewPlacement.pinId == draggedToolId.value) continue;
     final original = currentByToolId[previewPlacement.toolId];
     if (original == null ||
         original.x != previewPlacement.x ||
@@ -150,11 +150,11 @@ class DropHighlightLayerState extends ConsumerState<DropHighlightLayer> {
   void updateHover(int col, int row, PinDragPayload data) {
     if (_hoverCol == col &&
         _hoverRow == row &&
-        _hoverData?.toolId == data.toolId) {
+        _hoverData?.pinKey == data.pinKey) {
       return;
     }
     final load = ref.read(pushPreviewLoaderProvider);
-    final preview = load(widget.boardKey, data.toolId, col, row);
+    final preview = load(widget.boardKey, data.pinKey.$2, col, row);
     setState(() {
       _hoverCol = col;
       _hoverRow = row;
@@ -202,14 +202,14 @@ class DropHighlightLayerState extends ConsumerState<DropHighlightLayer> {
       return const SizedBox.shrink();
     }
     final tokens = context.upeg;
-    final draggedPlacement = findPlacementByToolId(
+    final draggedPlacement = findPlacementByPinId(
       widget.placements,
-      hoverData.toolId,
+      hoverData.pinKey.$2,
     );
     final span = _dropHighlightSpan(draggedPlacement);
     final verdict = dropVerdict(
       hoverPreview,
-      hoverData.toolId,
+      hoverData.pinKey.$2,
       widget.placements,
     );
     final color = verdict == DropVerdict.accept ? tokens.accent : tokens.warn;
@@ -296,12 +296,12 @@ class _DropCellState extends State<DropCell> {
           // feedback_dragend_race.md — the original payload reference can
           // be torn down by the Draggable host as soon as the gesture
           // arena resolves.
-          final toolId = data.toolId;
+          final pinId = data.pinKey.$2;
           final movePin = widget.onMovePin;
           if (movePin != null) {
             movePin(
               boardKey: widget.boardKey,
-              toolId: toolId,
+              pinId: pinId,
               anchorX: widget.col,
               anchorY: widget.row,
             );

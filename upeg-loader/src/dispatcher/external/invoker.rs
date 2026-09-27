@@ -33,7 +33,10 @@ use super::{CaptureCompletion, run_command};
 use crate::ToolToml;
 use crate::dispatcher::chain::OutputAdapter;
 use crate::dispatcher::credentials;
-use crate::dispatcher::{BOARD_ENV, CANCELLED_ERROR_CODE, PROJECT_MANIFEST_ENV, TOOL_ERROR_CODE};
+use crate::dispatcher::{
+    BOARD_ENV, CANCELLED_ERROR_CODE, PROJECT_MANIFEST_ENV, PROJECT_ROOT_ENV, SURFACE_ENV,
+    TOOL_ERROR_CODE,
+};
 use crate::execution_requirements::external_execution_requirements;
 use crate::manifest_origin::ManifestOrigin;
 use crate::model::{CredentialRefToml, KeyValueToml, format_number_default};
@@ -255,6 +258,12 @@ impl ExternalInvocation {
         {
             process.env(target, value);
         }
+        process.env_remove(PROJECT_ROOT_ENV);
+        if let Some(root) = upeg_runtime::project_scope::active_project_root()
+            .or_else(|| self.working_directory.project_root.clone())
+        {
+            process.env(PROJECT_ROOT_ENV, root);
+        }
 
         // Both ambient capabilities are captured on the dispatching
         // thread: each lives in a thread-local installed by whichever
@@ -369,9 +378,17 @@ impl ExternalInvocation {
 /// envelope. These stay separate from the declared `env` list: they are
 /// surface-supplied context, not manifest content.
 fn apply_execution_context(process: &mut Command, args: &DispatchArgs<'_>) {
+    process.env_remove(SURFACE_ENV);
     let Some(context) = args.get(EXECUTION_CONTEXT_ARG) else {
         return;
     };
+    if let Some(surface) = context
+        .get(upeg_core::EXECUTION_CONTEXT_SURFACE)
+        .and_then(Value::as_str)
+        .and_then(upeg_core::Surface::parse)
+    {
+        process.env(SURFACE_ENV, surface.label());
+    }
     if let Some(board) = context.get(CONTEXT_BOARD_KEY).and_then(Value::as_str) {
         process.env(BOARD_ENV, board);
     }

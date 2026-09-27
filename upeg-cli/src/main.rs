@@ -6,7 +6,7 @@
 //!     `~/.upeg/toolkits/`.
 //!   - **Project Manifest** (`upeg.toml`, PRD §5.8) from cwd → `$HOME`-bounded
 //!     parents → `$HOME`, unless `$UPEG_PROJECT_MANIFEST_PATH` overrides or
-//!     disables detection (docs/architecture/project-manifest.md).
+//!     disables detection (`upeg_sources::project` module docs).
 //!   - **WASM Toolkits** from `$UPEG_WASM_DIR` or `~/.upeg/wasm/`
 //!     (only with `--features wasm-plugin`).
 //!
@@ -14,7 +14,7 @@
 //! one-shot commands from spawning subprocesses. Only long-lived server
 //! processes (`upeg host start`, the desktop-embedded host, the
 //! in-process `upeg mcp` server) import them, at their own startup
-//! (docs/architecture/mcp.md).
+//! (`upeg_sources::mcp_import` module docs).
 
 // Tests routinely use unwrap/expect/panic — restriction lints configured
 // for prod code at workspace level are noise in tests. Same header as
@@ -52,7 +52,19 @@ fn main() -> ExitCode {
     // "feature disabled" error otherwise.
     install_controlled_embed_backend();
 
-    let report = upeg_sources::load_local_runtime_sources(&RuntimeSourceConfig::from_env());
+    let mut config = RuntimeSourceConfig::from_env();
+    if let Some(root) = cli.project.as_deref() {
+        let Some(project) = upeg_core::ProjectRoot::new(root) else {
+            eprintln!("--project: {} has no .upeg directory", root.display());
+            return ExitCode::FAILURE;
+        };
+        config.project_manifest = Some(upeg_sources::project::ProjectManifestLookup {
+            path: project.marker_dir(),
+            origin: upeg_sources::project::ProjectManifestOrigin::EnvOverride,
+        });
+    }
+    let report = upeg_sources::load_local_runtime_sources(&config);
+    upeg_sources::diagnostics::record_runtime_source_failures(&report);
     emit_runtime_source_report(&report, quiet);
 
     match run(cli) {
@@ -222,7 +234,7 @@ fn skipped_tool_lines(skipped: &[upeg_loader::SkippedTool]) -> Vec<String> {
 /// named through `UPEG_PROJECT_MANIFEST_PATH` needs no consent notice,
 /// and with zero tools there is nothing else to report either. `-q`
 /// suppresses the whole report, this line included
-/// (docs/architecture/project-manifest.md, "consent notice").
+/// (`upeg_sources::project` module docs, "consent notice").
 fn project_manifest_summary_line(
     origin: upeg_sources::project::ProjectManifestOrigin,
     path: &std::path::Path,

@@ -24,6 +24,7 @@ import '../test_helpers/i18n_test_catalog.dart';
 
 const _placement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 0,
   y: 0,
   w: 1,

@@ -1,6 +1,8 @@
 ---
 title: Installation
 description: "Build upeg from source — the CLI, the desktop app, the PWA, and the Chrome extension."
+type: Guide
+tags: [installation]
 ---
 
 # Installation
@@ -17,7 +19,9 @@ need:
 - **Git**
 - **A C toolchain** for the linker — `build-essential` on Debian/Ubuntu,
   Xcode Command Line Tools on macOS, MSVC Build Tools on Windows
-- **Rust 1.92+** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- **Rust 1.92+** — install with the OS-specific instructions at
+  <https://rustup.rs/>. On macOS/Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`;
+  on Windows, run `rustup-init.exe` from that site.
 
 Clone the repository and install the binary from the repo root:
 
@@ -28,8 +32,8 @@ cargo install --locked --path upeg-cli   # installs `upeg` into ~/.cargo/bin
 upeg doctor
 ```
 
-`cargo install` puts `upeg` on your `PATH` (rustup already adds
-`~/.cargo/bin`). To build without installing, run
+`cargo install` places `upeg` in `~/.cargo/bin`; ensure that directory is on
+your `PATH` (rustup normally adds it). To build without installing, run
 `cargo build --release -p upeg-cli` and call the binary as
 `./target/release/upeg`.
 
@@ -57,21 +61,20 @@ The Desktop and PWA surfaces are Flutter apps over a Rust bridge
   `flutter-build-linux`: `libgtk-3-dev`, `pkg-config`,
   `libayatana-appindicator3-dev`, `libkeybinder-3.0-dev` (runtime:
   `libkeybinder-3.0-0`)
-- **FRB codegen** when regenerating bindings:
-  `cargo install flutter_rust_bridge_codegen --locked --version 2.12.0`
 
 ```bash
 cd flutter_app
 flutter pub get
-flutter run -d linux            # or: -d chrome, -d web-server
+flutter run -d linux
 ```
 
 CMake invokes the Rust build for `upeg_frb` itself — no separate
-`cargo build` step. For the web/PWA build the `wasm32` bridge must be built
-first; the `just` recipes handle it:
+`cargo build` step. From the repository root, the web/PWA recipes build the
+`wasm32` bridge first:
 
 ```bash
 just flutter-run-web            # FRB wasm + flutter run -d chrome
+just flutter-run-web-server     # FRB wasm + flutter run -d web-server
 just package-web                # static PWA bundle → target/packages/web/
 ```
 
@@ -92,7 +95,8 @@ not application hosting and does not provide this PWA deployment contract.
 
 ## Chrome extension
 
-No toolchain at all — the extension is dependency-free MV3 JavaScript:
+The extension is dependency-free MV3 JavaScript: it needs no compiler or npm
+dependencies, but its staging script needs Bash (Git Bash or WSL on Windows).
 
 ```bash
 ./chrome-ext/build.sh           # stages chrome-ext/dist/
@@ -100,25 +104,27 @@ No toolchain at all — the extension is dependency-free MV3 JavaScript:
 
 Then `chrome://extensions` → enable "Developer mode" → "Load unpacked" →
 select `chrome-ext/dist/`. The extension talks to a local upeg HTTP host for
-real tool results.
+real tool results. Reuse a running host or start one with
+`upeg http --addr 127.0.0.1:7173`, then run `upeg http status --pairing`.
+Open the popup, save its endpoint and token in the gear menu, then return to
+the Board list; see the
+[extension guide](https://github.com/5pecia1/UPeg/blob/main/chrome-ext/README.md)
+for the full pairing and manual test flow.
 
 ## WASM plugins
 
-- **`wasm32-unknown-unknown` target** —
-  `rustup target add wasm32-unknown-unknown`
-- **`wasm-pack`** — `cargo install wasm-pack --locked`
-- Plugin commands (`upeg plugin install` / `upeg plugin list` /
-  `upeg wasm`) need the `wasm-plugin` cargo feature, which is on by
-  default — only a `--no-default-features` build lacks them.
-  `upeg doctor` lists enabled features.
-
-Scaffold a guest crate with `upeg plugin new <name>`; see
-`examples/plugins/greet/` for a complete example.
+Plugin commands (`upeg plugin install` / `upeg plugin list` /
+`upeg wasm`) need the `wasm-plugin` cargo feature, which is on by
+default — only a `--no-default-features` build lacks them.
+`upeg doctor` lists enabled features. Building your own plugin needs the
+`wasm32-unknown-unknown` target and `wasm-pack`; see the
+[tool author guide](tool-author.md#wasm-plugins-and-mcp-imports) and
+[Development](development.md) for the toolchain.
 
 ## Packaging (installable artifacts)
 
 ```bash
-just package                    # everything the host OS can produce
+just package                    # Linux desktop packages + web bundle (Linux host)
 just package-linux-deb          # → target/packages/linux/upeg_<ver>_amd64.deb
 just package-linux-appimage     # → target/packages/linux/upeg-<ver>-x86_64.AppImage
 just package-macos-dmg          # → target/packages/macos/upeg-<ver>.dmg      (macOS only)
@@ -135,7 +141,11 @@ just package-web                # → target/packages/web/ (PWA bundle, pre-gzip
 | `package-web` | `gzip` |
 
 All artifacts land in `target/packages/<platform>/`
-(`UPEG_PACKAGE_OUT=<dir>` redirects that root for a fresh staging run).
+(`UPEG_PACKAGE_OUT=<dir>` redirects that root). `just package` builds the
+Linux desktop packages and web bundle; use the explicit macOS or Windows
+recipe on those hosts. The MSIX recipe requires exactly one new package from
+the current run and refuses an existing destination filename. Remove or move
+that specific prior file before rebuilding the same version.
 Every package embeds the full notice set — `LICENSE`, `NOTICE`, the OFL
 font licenses, and `BUILD-INFO` — via `packaging/release-files.sh`.
 Signing and notarization are intentionally out of scope — artifacts are

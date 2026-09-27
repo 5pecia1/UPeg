@@ -57,12 +57,21 @@ void main() {
         initializeRustLib: () async {
           steps.add('rust');
         },
+        installInternalErrorReporter: () {
+          steps.add('error reporter');
+        },
         runAppFn: (_) {
           steps.add('runApp');
         },
       );
 
-      expect(steps, const <String>['flutter', 'window', 'rust', 'runApp']);
+      expect(steps, const <String>[
+        'flutter',
+        'window',
+        'rust',
+        'error reporter',
+        'runApp',
+      ]);
     });
   });
 }

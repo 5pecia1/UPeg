@@ -24,18 +24,18 @@ import 'package:upeg/src/state/pegboard_mutations_provider.dart';
 /// returned even though `move_pin` is sync FRB so callers can await
 /// the commit before refreshing the canvas snapshot.
 typedef MovePinCommitFn =
-    Future<void> Function(ToolId toolId, int anchorX, int anchorY);
+    Future<void> Function(PinId pinId, int anchorX, int anchorY);
 
 /// Production binding. Reads `currentBoardKeyProvider` and forwards the anchor
 /// pair through [pegboardMutationsProvider] so a successful commit refreshes the
 /// current board layout. Mutation errors are logged by the controller and do
 /// not invalidate the stale-but-known layout.
 final movePinCommitFnProvider = Provider<MovePinCommitFn>((ref) {
-  return (toolId, anchorX, anchorY) async {
+  return (pinId, anchorX, anchorY) async {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return;
     await ref
         .read(pegboardMutationsProvider)
-        .move(boardKey, toolId, anchorX: anchorX, anchorY: anchorY);
+        .move((boardKey, pinId), anchorX: anchorX, anchorY: anchorY);
   };
 });

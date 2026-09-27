@@ -23,7 +23,7 @@ import 'package:upeg/src/rust/api/pegboard.dart' as frb;
 typedef PushPreviewLoader =
     List<frb.PlacementDto> Function(
       BoardKey boardKey,
-      ToolId toolId,
+      PinId toolId,
       int anchorX,
       int anchorY,
     );
@@ -34,7 +34,7 @@ final pushPreviewLoaderProvider = Provider<PushPreviewLoader>(
   (ref) =>
       (boardKey, toolId, anchorX, anchorY) => frb.previewPush(
         boardKey: boardKey.value,
-        toolId: toolId.value,
+        pinId: toolId.value,
         anchorX: anchorX,
         anchorY: anchorY,
       ),

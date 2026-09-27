@@ -10,6 +10,39 @@
 //! structure only; the En/Ko text lives in each surface's catalog
 //! (`upeg-pegboard-ui/src/i18n.rs` for the Flutter surface).
 //!
+//! # Canonical key contract
+//!
+//! Lifecycle verbs (the catalog data below is the table): Open/Inspect
+//! `o`; Run `Enter`/`Space` (`F1` in every confirming scope); Copy `F2`;
+//! Pin `p` (`F3` in modals); Back/Close `Esc`; Search `/` or
+//! Cmd/Ctrl+`K`; Clear input `Ctrl`+`U`. `Enter` always means Run, never
+//! Open — the two intents cannot collide.
+//!
+//! Modeless invariants:
+//! - No "edit mode": board-management keys (`n`/`R`/`D`/`a`) are always
+//!   live in board scope; per-pin keys (`p`/`c`/`m`/`e`/`[`/`]`) gate on
+//!   a focused pin only — the single contextual gate.
+//! - Drag is always available from the move handle; Embed and
+//!   ControlledEmbed pins drag only by the handle so the live body keeps
+//!   pointer events. Tap = Run; inspecting is the explicit `o` path.
+//! - Embed bodies are always live — no static-chip resting state.
+//! - Destructive/terminal actions sit behind confirm dialogs (`D`, `q`),
+//!   never a mode; `Esc` at the board root is a no-op.
+//! - `?` renders this catalog (Desktop overlay; the TUI keeps its hint
+//!   bar), so rendered help cannot drift from the resolver.
+//!
+//! Headless counterpart: `upeg board <b> pin|unpin|move` share the same
+//! store, reconcile, and push-out rules as GUI gestures
+//! (`upeg_sources::pegboard`) — a CLI pin and a dragged pin are
+//! indistinguishable afterwards. `--at` takes `<row>,<col>`; the stored
+//! coordinate is `(col, row)`.
+//!
+//! Implementation boundary: GUI key policy resolves through this shared
+//! scope contract wherever a command exists; Flutter-local shortcuts are
+//! reserved for platform/widget surfaces with no shared command yet, and
+//! widget tests share one fake resolver so fixtures grow no private
+//! shortcut tables.
+//!
 //! [`resolve_key`]: crate::keyboard::resolve_key
 
 use crate::keyboard::{

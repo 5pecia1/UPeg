@@ -63,7 +63,7 @@ const ALLOWED_METHODS: [Method; 2] = [Method::GET, Method::POST];
 ///     `initialize` and reads it back on later requests. Omitting it
 ///     failed the preflight, so a browser MCP client could hold a
 ///     session id it was never allowed to send
-///     (`docs/architecture/mcp.md`).
+///     (`upeg_cli::surfaces` module docs).
 ///   * [`BOARD_SCOPE_HEADER`] — the `/mcp` lane's board scope. It grants
 ///     nothing: the board pin gate still decides, against the user's own
 ///     pegboard.

@@ -1,8 +1,7 @@
 //! The `inputs = [...]` / `outputs = [...]` DSL: the typed field syntax used
-//! by both the built-in `#[upeg_core::tool]` macro and the WASM-guest
-//! `#[upeg::tool]` macro to describe a tool's parameters. Moved out of
-//! `upeg-macros` so the two macro crates parse identical grammar instead of
-//! hand-kept copies (see this crate's top-level docs).
+//! by the built-in `#[upeg_core::tool]` and WASM-guest `#[upeg::tool]`
+//! macros. It was moved from `upeg-macros` so both macro crates parse one
+//! grammar (see this crate's top-level docs).
 
 use syn::{
     Ident, LitFloat, LitInt, LitStr, Result, Token, bracketed, parenthesized,

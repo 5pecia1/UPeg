@@ -18,7 +18,7 @@ void main() {
     test(
       'dispatchReorderPin_passes_the_focused_pin_to_the_atomic_reorder_seam',
       () async {
-        ToolId? observedTool;
+        PinId? observedTool;
         OrderDirectionDto? observedDirection;
 
         final container = ProviderContainer(
@@ -33,13 +33,13 @@ void main() {
 
         container
             .read(focusedPinProvider.notifier)
-            .focus(ToolId.parse('fixture.wide'));
+            .focus(PinId.parse('fixture.wide'));
         await dispatchReorderPin(
           container,
           const KeyboardCommandDto.reorder(direction: OrderDirectionDto.next),
         );
 
-        expect(observedTool, ToolId.parse('fixture.wide'));
+        expect(observedTool, PinId.parse('fixture.wide'));
         expect(observedDirection, OrderDirectionDto.next);
       },
     );

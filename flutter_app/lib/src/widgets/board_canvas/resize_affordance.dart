@@ -128,7 +128,7 @@ class _ResizeHandleState extends ConsumerState<ResizeHandle> {
         .read(resizeModeProvider.notifier)
         .start(
           boardKey: widget.boardKey,
-          toolId: ToolId.parse(widget.placement.toolId),
+          toolId: PinId.parse(widget.placement.pinId),
           baseCols: widget.placement.w,
           baseRows: widget.placement.h,
           manifestCols: widget.manifestCols,

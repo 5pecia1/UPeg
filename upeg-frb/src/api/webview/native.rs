@@ -31,9 +31,27 @@ struct ProviderId(u64);
 struct RequestId(u64);
 
 struct PendingResponse {
-    tool_id: String,
+    session_key: SessionKey,
     deadline: Instant,
     sender: SyncSender<ExecutionResult>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum SessionKey {
+    Tool(String),
+    Pin { board_key: String, pin_id: String },
+}
+
+impl SessionKey {
+    fn from_request(request: &ControlledEmbedRequest<'_>) -> Self {
+        match request.placement {
+            Some(placement) => Self::Pin {
+                board_key: placement.board_key.to_string(),
+                pin_id: placement.pin_id.to_string(),
+            },
+            None => Self::Tool(request.tool_id.to_string()),
+        }
+    }
 }
 
 struct Provider {
@@ -218,13 +236,14 @@ impl WebViewBridge {
                     "desktop WebView request queue is full".to_string(),
                 ));
             }
-            // Dart serializes calls per tool. Reserve enough time for the
+            // Dart serializes calls per session. Reserve enough time for the
             // preceding calls as well as this pipeline, without extending
             // deadlines for unrelated tools or allowing unbounded waiting.
+            let session_key = SessionKey::from_request(&request);
             let available = provider
                 .pending
                 .values()
-                .filter(|pending| pending.tool_id == request.tool_id)
+                .filter(|pending| pending.session_key == session_key)
                 .map(|pending| pending.deadline)
                 .max()
                 .unwrap_or(started)
@@ -238,7 +257,7 @@ impl WebViewBridge {
             provider.pending.insert(
                 request_id,
                 PendingResponse {
-                    tool_id: request.tool_id.to_string(),
+                    session_key,
                     deadline,
                     sender: response_tx,
                 },
@@ -247,6 +266,12 @@ impl WebViewBridge {
                 request: WebViewExecutionRequestDto {
                     request_id: request_id.0,
                     tool_id: request.tool_id.to_string(),
+                    board_key: request
+                        .placement
+                        .map(|placement| placement.board_key.to_string()),
+                    pin_id: request
+                        .placement
+                        .map(|placement| placement.pin_id.to_string()),
                     url: request.url.to_string(),
                     bindings: request.bindings.iter().cloned().map(Into::into).collect(),
                     settings: request.settings.into(),

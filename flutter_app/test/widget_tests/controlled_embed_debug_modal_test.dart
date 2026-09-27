@@ -36,8 +36,8 @@ void main() {
       await robot.finishLoading();
 
       robot.expectNoOutput();
-      final entry = controlledEmbedFixture.sessions.entryFor(
-        ToolId.parse(fixtureTool().id),
+      final entry = controlledEmbedFixture.sessions.entryForPin(
+        kControlledEmbedTestPinKey,
       )!;
       expect(entry.phase, ControlledEmbedSessionPhase.failed);
       expect(entry.lastResult, same(canonicalErrorResult));
@@ -109,8 +109,8 @@ void main() {
       final robot = ControlledEmbedDebugRobot(tester);
       await robot.pump();
       await robot.tapRun();
-      final entry = controlledEmbedFixture.sessions.entryFor(
-        ToolId.parse(fixtureTool().id),
+      final entry = controlledEmbedFixture.sessions.entryForPin(
+        kControlledEmbedTestPinKey,
       )!;
       expect(entry.events, isNotEmpty);
       await robot.tapClear();
@@ -127,8 +127,8 @@ void main() {
     (tester) async {
       final robot = ControlledEmbedDebugRobot(tester);
       await robot.pump();
-      final entry = controlledEmbedFixture.sessions.entryFor(
-        ToolId.parse(fixtureTool().id),
+      final entry = controlledEmbedFixture.sessions.entryForPin(
+        kControlledEmbedTestPinKey,
       )!;
       expect(entry.displayedInDebugger, isTrue);
       await robot.tapClose();

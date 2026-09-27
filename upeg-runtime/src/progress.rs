@@ -39,6 +39,31 @@
 //! `Chain` of three `External` steps captures three reporters inside the
 //! same scope, so all three draw from the scope's one counter
 //! ([`ProgressScope::next_seq`]) instead of restarting at 0 per step.
+//!
+//! # Per-surface rendering and cancellation
+//!
+//! | Surface | While running | Cancel |
+//! |---|---|---|
+//! | CLI | verbatim mirror to stderr in human-readable modes (`--json`/`--field` stay silent) | `Ctrl+C` |
+//! | TUI | 8-line tail in the result pane; dispatch runs on a worker thread; a host-attached session streams chunks verbatim over `POST /v1/tools/{id}/stream` | `Esc`; when attached, dropping the response body is itself the cancel signal |
+//! | Desktop | expanded modal tails the last 8 lines, inline pins the last 3 (monospace) | cancel button |
+//! | HTTP | NDJSON stream | dropping the response body |
+//! | MCP | log notifications | — |
+//!
+//! Cancellation is a request, not a guarantee
+//! ([`super::CancellationToken`]): a Tool that never checks the token
+//! runs to the end and still ends in the single final envelope every
+//! surface renders. The TUI therefore takes `Esc` in two stages while
+//! running — once as a cancel request ("cancelling…"), then the
+//! quit-confirm overlay — so a person always has a way out in front of
+//! an invoker that ignores the token, without two reflexive `Esc`s
+//! dropping the session.
+//!
+//! Leaving the screen mid-run does not stop the run. In the TUI the
+//! model keeps holding it (`State::active_run`): running another Tool
+//! reports what is running and returns to that run's pane, where `Esc`
+//! is still cancel; the returned pane's tail is empty — lines discarded
+//! on the way out are never fabricated.
 
 use std::cell::RefCell;
 use std::sync::Arc;

@@ -16,6 +16,15 @@
 //                   `static` (Passive Embed — the webview IS the tool) and
 //                   any Controlled Embed with no page to drive.
 //
+// DISPATCH detail: the result renders inline immediately when the input
+// schema has no properties, else through an inline form first. When the
+// host is unreachable or the pasted token is rejected, the popup shows a
+// single explanatory message with a generic "Open upeg" deep-link
+// fallback — it never silently falls back to the per-tool deep link,
+// which is reserved for DEEP_LINK tools regardless of host reachability.
+// An IN_PAGE run whose tab has no live content script (the tab predates
+// the enablement) reports that inline; it never silently does nothing.
+//
 // Field names come from `upeg_runtime::ToolMetaRuntimeExt::to_json_object`
 // (upeg-cli surfaces/http/mod.rs calls it with `id_key = "name"`).
 
@@ -27,6 +36,9 @@ const UpegToolRouting = (() => {
     PIN: 'pin',
     INPUT_SCHEMA: 'inputSchema',
     SELECTOR_BINDINGS: 'selectorBindings',
+    ARGS_PRESET: 'argsPreset',
+    PRESET_FIELDS: 'presetFields',
+    REQUIRES_APPROVAL: 'requiresApproval',
   });
 
   // `upeg_core::PinKind::label()`.
@@ -71,6 +83,27 @@ const UpegToolRouting = (() => {
     return Array.isArray(bindings) ? bindings : [];
   }
 
+  function toolPreset(tool) {
+    const preset = tool[TOOL_FIELD.ARGS_PRESET];
+    return preset && typeof preset === 'object' && !Array.isArray(preset) ? preset : {};
+  }
+
+  function toolPresetFields(tool) {
+    const fields = tool[TOOL_FIELD.PRESET_FIELDS];
+    return Array.isArray(fields) ? fields.filter((field) => typeof field === 'string') : [];
+  }
+
+  function hasInPageFilePreset(tool) {
+    const properties = toolInputProperties(tool);
+    return toolPresetFields(tool).some(
+      (name) => properties[name] && properties[name]['x-upeg-kind'] === 'file',
+    );
+  }
+
+  function toolRequiresApproval(tool) {
+    return tool[TOOL_FIELD.REQUIRES_APPROVAL] === true;
+  }
+
   function isControlledEmbed(tool) {
     return tool[TOOL_FIELD.PIN] === PIN_KIND.CONTROLLED_EMBED;
   }
@@ -79,8 +112,9 @@ const UpegToolRouting = (() => {
   /// tab's site is enabled AND its content script answered a ping — the
   /// popup must never offer an in-page run it cannot perform.
   function activationRouteFor(tool, { inPageAvailable = false } = {}) {
+    if (toolRequiresApproval(tool)) return ACTIVATION_ROUTE.DEEP_LINK;
     if (isControlledEmbed(tool)) {
-      return inPageAvailable && toolSelectorBindings(tool).length > 0
+      return inPageAvailable && toolSelectorBindings(tool).length > 0 && !hasInPageFilePreset(tool)
         ? ACTIVATION_ROUTE.IN_PAGE
         : ACTIVATION_ROUTE.DEEP_LINK;
     }
@@ -99,6 +133,10 @@ const UpegToolRouting = (() => {
     toolId,
     toolInputProperties,
     toolLabel,
+    toolPreset,
+    toolPresetFields,
+    hasInPageFilePreset,
+    toolRequiresApproval,
     toolRequiredFields,
     toolSelectorBindings,
   });

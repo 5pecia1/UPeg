@@ -71,12 +71,13 @@ String _fakeTranslateArgs(
 Widget _harness({
   required List<PaletteHit> hits,
   required void Function(PaletteHit) onPick,
+  PaletteHitCallback? onPickWithPin,
   Widget Function(PaletteHitCallback onPick)? childBuilder,
   List<BoardDto> boards = const <BoardDto>[BoardDto(key: 'dev', title: 'Dev')],
   Set<BoardKey> pinnedBoards = const <BoardKey>{},
   LocaleDto locale = LocaleDto.en,
   String? currentBoardKey,
-  PinMutator? pinTool,
+  AddPinMutator? addPin,
   List<ToolDto>? tools,
 }) {
   return ProviderScope(
@@ -105,7 +106,7 @@ Widget _harness({
       i18nTranslateOverride.overrideWithValue(_fakeTranslate),
       i18nTranslateArgsOverride.overrideWithValue(_fakeTranslateArgs),
       fakeKeyboardResolverOverride,
-      if (pinTool != null) pinToolMutatorProvider.overrideWithValue(pinTool),
+      if (addPin != null) addPinMutatorProvider.overrideWithValue(addPin),
       if (tools != null)
         toolsLoaderProvider.overrideWith(
           (ref) =>
@@ -115,7 +116,17 @@ Widget _harness({
     child: MaterialApp(
       home: _PaletteHarnessHost(
         currentBoardKey: currentBoardKey,
-        child: childBuilder?.call(onPick) ?? PaletteOverlay(onPick: onPick),
+        child:
+            childBuilder?.call((hit, pinKey) {
+              onPickWithPin?.call(hit, pinKey);
+              onPick(hit);
+            }) ??
+            PaletteOverlay(
+              onPick: (hit, pinKey) {
+                onPickWithPin?.call(hit, pinKey);
+                onPick(hit);
+              },
+            ),
       ),
     ),
   );
@@ -185,7 +196,9 @@ void main() {
             pinKind: PinKindDto.inline,
           ),
         ];
-        await tester.pumpWidget(_harness(hits: hits, onPick: (_) {}));
+        await tester.pumpWidget(
+          _harness(hits: hits, onPick: (_) {}, currentBoardKey: 'dev'),
+        );
         await tester.pumpAndSettle();
 
         expect(
@@ -193,49 +206,85 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.byKey(const Key('palette-board-chips-num.hex_to_decimal')),
+          find.byKey(const Key('palette-add-num.hex_to_decimal')),
           findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('palette-board-chips-num.hex_to_decimal')),
+          findsNothing,
         );
         expect(find.byKey(const Key('palette-empty-hint')), findsNothing);
       },
     );
 
-    testWidgets('paletteoverlay_pins_via_a_board_chip_click_without_a_query', (
-      tester,
-    ) async {
-      PaletteHit? picked;
-      final pinCalls = <(BoardKey, ToolId)>[];
-      const hits = [
-        PaletteHit(
-          id: 'num.hex_to_decimal',
-          label: 'hex → dec',
-          description: '',
-          score: 1.0,
-          pinKind: PinKindDto.inline,
-        ),
-      ];
-      await tester.pumpWidget(
-        _harness(
-          hits: hits,
-          onPick: (hit) => picked = hit,
-          currentBoardKey: 'dev',
-          pinTool: (board, tool) {
-            pinCalls.add((board, tool));
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'paletteoverlay_adds_a_new_pin_each_time_for_the_current_board',
+      (tester) async {
+        PaletteHit? picked;
+        final pinCalls = <(BoardKey, ToolId)>[];
+        var nextPin = 0;
+        const hits = [
+          PaletteHit(
+            id: 'num.hex_to_decimal',
+            label: 'hex → dec',
+            description: '',
+            score: 1.0,
+            pinKind: PinKindDto.inline,
+          ),
+        ];
+        await tester.pumpWidget(
+          _harness(
+            hits: hits,
+            onPick: (hit) => picked = hit,
+            currentBoardKey: 'dev',
+            boards: const [
+              BoardDto(key: 'dev', title: 'Dev'),
+              BoardDto(key: 'ops', title: 'Ops'),
+            ],
+            addPin: (board, tool) {
+              pinCalls.add((board, tool));
+              return 'newPin${++nextPin}';
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const Key('palette-board-chip-num.hex_to_decimal-dev')),
-      );
-      await tester.pumpAndSettle();
+        final addButton = find.byKey(
+          const Key('palette-add-num.hex_to_decimal'),
+        );
+        expect(
+          addButton,
+          findsOneWidget,
+          reason: 'only the current board has an add button',
+        );
+        await tester.tap(addButton);
+        await tester.pumpAndSettle();
+        await tester.tap(addButton);
+        await tester.pumpAndSettle();
 
-      expect(picked, isNull, reason: 'board chip tap should only pin');
-      expect(pinCalls, [
-        (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
-      ]);
-    });
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        expect(
+          picked,
+          isNull,
+          reason: 'adding a placement does not open the tool',
+        );
+        expect(pinCalls, [
+          (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
+          (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
+        ]);
+        expect(container.read(focusedPinProvider), PinId.parse('newPin2'));
+        expect(
+          find.byKey(const Key('palette-board-chip-num.hex_to_decimal-dev')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const Key('palette-board-chip-num.hex_to_decimal-ops')),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets(
       'paletteoverlay_shows_a_korean_search_placeholder_in_locale_ko',
@@ -381,13 +430,11 @@ void main() {
       },
     );
 
-    testWidgets('paletteoverlay_cmd_enter_opens_and_pins_the_selected_hit', (
+    testWidgets('paletteoverlay_cmd_enter_adds_and_returns_the_new_pin', (
       tester,
     ) async {
-      // H06 — Cmd/Ctrl+Enter must both dispatch the hit (open the
-      // expanded modal) AND pin the tool onto the current board. The
-      // Cmd/Ctrl modifier is read off the keyboard event itself.
       PaletteHit? picked;
+      PinKey? pickedPin;
       final pinCalls = <(BoardKey, ToolId)>[];
       const hits = [
         PaletteHit(
@@ -402,27 +449,32 @@ void main() {
         _harness(
           hits: hits,
           onPick: (hit) => picked = hit,
+          onPickWithPin: (hit, pinKey) => pickedPin = pinKey,
           currentBoardKey: 'dev',
-          pinTool: (board, tool) {
+          addPin: (board, tool) {
             pinCalls.add((board, tool));
+            return 'newPin1';
           },
         ),
       );
 
       await tester.enterText(find.byType(TextField), 'hex');
       await tester.pumpAndSettle();
-
-      // Cmd+Enter (macOS-style metaModifier). The Flutter
-      // shortcut layer accepts either meta OR control.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
       await tester.pumpAndSettle();
 
-      expect(picked?.id, 'num.hex_to_decimal', reason: 'open should fire');
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      expect(picked?.id, 'num.hex_to_decimal');
+      expect(pickedPin, (BoardKey.parse('dev'), PinId.parse('newPin1')));
       expect(pinCalls, [
         (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
-      ], reason: 'pin should fire with current board key + tool id');
+      ]);
+      expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
+      expect(container.read(focusedPinProvider), PinId.parse('newPin1'));
     });
 
     testWidgets(
@@ -617,107 +669,6 @@ void main() {
       expect(picked?.id, 'num.hex_to_decimal');
     });
 
-    testWidgets(
-      'paletteoverlay_enter_switches_to_the_pinned_board_and_focuses_the_pin',
-      (tester) async {
-        // Palette ↔ board integration: running a tool via Enter that is
-        // pinned only on another board (ops) must switch to that board
-        // before running and set focusedPinProvider so the BoardCanvas
-        // scroll-into-view reveals the pin.
-        PaletteHit? picked;
-        const hits = [
-          PaletteHit(
-            id: 'num.hex_to_decimal',
-            label: 'hex → dec',
-            description: '',
-            score: 1.0,
-            pinKind: PinKindDto.inline,
-          ),
-        ];
-        await tester.pumpWidget(
-          _harness(
-            hits: hits,
-            onPick: (hit) => picked = hit,
-            currentBoardKey: 'dev',
-            boards: const [
-              BoardDto(key: 'dev', title: 'Dev'),
-              BoardDto(key: 'ops', title: 'Ops'),
-            ],
-            pinnedBoards: {BoardKey.parse('ops')},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.enterText(find.byType(TextField), 'hex');
-        await tester.pumpAndSettle();
-        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-        await tester.pumpAndSettle();
-
-        final container = ProviderScope.containerOf(
-          tester.element(find.byType(MaterialApp)),
-        );
-        expect(picked?.id, 'num.hex_to_decimal');
-        expect(
-          container.read(currentBoardKeyProvider),
-          BoardKey.parse('ops'),
-          reason: 'must switch to the board holding the pin',
-        );
-        expect(
-          container.read(focusedPinProvider),
-          ToolId.parse('num.hex_to_decimal'),
-          reason: 'must focus the pin of the tool just run',
-        );
-      },
-    );
-
-    testWidgets(
-      'paletteoverlay_enter_keeps_the_current_board_when_it_already_has_the_pin',
-      (tester) async {
-        PaletteHit? picked;
-        const hits = [
-          PaletteHit(
-            id: 'num.hex_to_decimal',
-            label: 'hex → dec',
-            description: '',
-            score: 1.0,
-            pinKind: PinKindDto.inline,
-          ),
-        ];
-        await tester.pumpWidget(
-          _harness(
-            hits: hits,
-            onPick: (hit) => picked = hit,
-            currentBoardKey: 'dev',
-            boards: const [
-              BoardDto(key: 'dev', title: 'Dev'),
-              BoardDto(key: 'ops', title: 'Ops'),
-            ],
-            pinnedBoards: {BoardKey.parse('dev'), BoardKey.parse('ops')},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.enterText(find.byType(TextField), 'hex');
-        await tester.pumpAndSettle();
-        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-        await tester.pumpAndSettle();
-
-        final container = ProviderScope.containerOf(
-          tester.element(find.byType(MaterialApp)),
-        );
-        expect(picked?.id, 'num.hex_to_decimal');
-        expect(
-          container.read(currentBoardKeyProvider),
-          BoardKey.parse('dev'),
-          reason: 'when the current board already has the pin, the board stays',
-        );
-        expect(
-          container.read(focusedPinProvider),
-          ToolId.parse('num.hex_to_decimal'),
-        );
-      },
-    );
-
     testWidgets('paletteoverlay_enter_does_not_jump_when_nothing_is_pinned', (
       tester,
     ) async {
@@ -764,138 +715,5 @@ void main() {
         reason: 'with no pin there is nothing to focus',
       );
     });
-
-    testWidgets(
-      'paletteoverlay_cmd_enter_pins_on_the_current_board_and_focuses_that_pin',
-      (tester) async {
-        // ⌘↵ must treat the just-pinned current board as the jump target —
-        // and set focusedPinProvider — even while the pin write is still
-        // in flight.
-        PaletteHit? picked;
-        final pinCalls = <(BoardKey, ToolId)>[];
-        const hits = [
-          PaletteHit(
-            id: 'num.hex_to_decimal',
-            label: 'hex → dec',
-            description: '',
-            score: 1.0,
-            pinKind: PinKindDto.inline,
-          ),
-        ];
-        await tester.pumpWidget(
-          _harness(
-            hits: hits,
-            onPick: (hit) => picked = hit,
-            currentBoardKey: 'dev',
-            pinTool: (board, tool) => pinCalls.add((board, tool)),
-          ),
-        );
-
-        await tester.enterText(find.byType(TextField), 'hex');
-        await tester.pumpAndSettle();
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-        await tester.pumpAndSettle();
-
-        final container = ProviderScope.containerOf(
-          tester.element(find.byType(MaterialApp)),
-        );
-        expect(picked?.id, 'num.hex_to_decimal');
-        expect(pinCalls, [
-          (BoardKey.parse('dev'), ToolId.parse('num.hex_to_decimal')),
-        ]);
-        expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
-        expect(
-          container.read(focusedPinProvider),
-          ToolId.parse('num.hex_to_decimal'),
-          reason: 'must focus the pin on the board it was just pinned to',
-        );
-      },
-    );
-
-    testWidgets(
-      'paletteoverlay_jumps_to_a_pinned_board_via_its_chip_without_running',
-      (tester) async {
-        // Requirement 2 — a filled (pinned) board chip is a jump button:
-        // switch board + focus the pin + close the palette. onPick (run)
-        // is never called.
-        PaletteHit? picked;
-        const hits = [
-          PaletteHit(
-            id: 'num.hex_to_decimal',
-            label: 'hex → dec',
-            description: '',
-            score: 1.0,
-            pinKind: PinKindDto.inline,
-          ),
-        ];
-        await tester.pumpWidget(
-          _harness(
-            hits: hits,
-            onPick: (hit) => picked = hit,
-            currentBoardKey: 'dev',
-            boards: const [
-              BoardDto(key: 'dev', title: 'Dev'),
-              BoardDto(key: 'ops', title: 'Ops'),
-            ],
-            pinnedBoards: {BoardKey.parse('ops')},
-            childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
-          ),
-        );
-        await tester.tap(find.byKey(const Key('open-palette-dialog')));
-        await tester.pumpAndSettle();
-
-        await tester.tap(
-          find.byKey(const Key('palette-board-chip-num.hex_to_decimal-ops')),
-        );
-        await tester.pumpAndSettle();
-
-        final container = ProviderScope.containerOf(
-          tester.element(find.byType(MaterialApp)),
-        );
-        expect(picked, isNull, reason: 'a chip jump navigates without running');
-        expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
-        expect(
-          container.read(focusedPinProvider),
-          ToolId.parse('num.hex_to_decimal'),
-        );
-        expect(
-          find.byType(PaletteOverlay),
-          findsNothing,
-          reason: 'the palette must close after the jump',
-        );
-      },
-    );
-
-    testWidgets(
-      'a_paletteoverlay_board_chip_label_is_the_board_title_not_the_slug',
-      (tester) async {
-        const hits = [
-          PaletteHit(
-            id: 'num.hex_to_decimal',
-            label: 'hex → dec',
-            description: '',
-            score: 1.0,
-            pinKind: PinKindDto.inline,
-          ),
-        ];
-        await tester.pumpWidget(
-          _harness(
-            hits: hits,
-            onPick: (_) {},
-            boards: const [BoardDto(key: 'dev', title: 'Dev Board')],
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Dev Board'), findsOneWidget);
-        expect(
-          find.text('dev'),
-          findsNothing,
-          reason: 'the slug is never shown',
-        );
-      },
-    );
   });
 }

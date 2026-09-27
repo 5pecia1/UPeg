@@ -30,12 +30,14 @@ Stream<DispatchStreamEventDto> dispatchToolStreamed({
   required String toolId,
   required String argsJson,
   String? boardKey,
+  String? pinId,
   required bool approve,
   required String runId,
 }) => RustLib.instance.api.crateApiDispatchStreamDispatchToolStreamed(
   toolId: toolId,
   argsJson: argsJson,
   boardKey: boardKey,
+  pinId: pinId,
   approve: approve,
   runId: runId,
 );

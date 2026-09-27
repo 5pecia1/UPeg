@@ -57,6 +57,7 @@ void main() {
         container
             .read(lastOutcomeProvider.notifier)
             .record(
+              (BoardKey.parse('dev'), PinId.parse('demo.inline')),
               ToolId.parse('demo.inline'),
               const CanonicalToolResult(
                 ok: true,
@@ -83,6 +84,7 @@ void main() {
                     placements: [
                       PlacementDto(
                         toolId: 'demo.inline',
+                        pinId: 'demo.inline',
                         x: 0,
                         y: 0,
                         w: 1,
@@ -126,11 +128,25 @@ void main() {
               boardKey: 'dev',
               boardCols: 6,
               placements: <PlacementDto>[
-                PlacementDto(toolId: 'demo.inline', x: 0, y: 0, w: 1, h: 1),
-                PlacementDto(toolId: 'demo.launcher', x: 1, y: 0, w: 2, h: 1),
+                PlacementDto(
+                  toolId: 'demo.inline',
+                  pinId: 'demo.inline',
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
+                PlacementDto(
+                  toolId: 'demo.launcher',
+                  pinId: 'demo.launcher',
+                  x: 1,
+                  y: 0,
+                  w: 2,
+                  h: 1,
+                ),
               ],
             ),
-            dispatch: ({required toolId, required args}) async =>
+            dispatch: ({pinKey, required toolId, required args}) async =>
                 const CanonicalToolResult(
                   ok: true,
                   outputs: <CanonicalOutputEntry>[],
@@ -169,10 +185,17 @@ void main() {
               boardKey: 'dev',
               boardCols: 6,
               placements: <PlacementDto>[
-                PlacementDto(toolId: 'demo.zero_input', x: 0, y: 0, w: 1, h: 1),
+                PlacementDto(
+                  toolId: 'demo.zero_input',
+                  pinId: 'demo.zero_input',
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
               ],
             ),
-            dispatch: ({required toolId, required args}) async =>
+            dispatch: ({pinKey, required toolId, required args}) async =>
                 const CanonicalToolResult(
                   ok: true,
                   outputs: <CanonicalOutputEntry>[],
@@ -202,10 +225,17 @@ void main() {
               boardKey: 'dev',
               boardCols: 6,
               placements: <PlacementDto>[
-                PlacementDto(toolId: 'demo.timer', x: 0, y: 0, w: 1, h: 1),
+                PlacementDto(
+                  toolId: 'demo.timer',
+                  pinId: 'demo.timer',
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
               ],
             ),
-            dispatch: ({required toolId, required args}) async {
+            dispatch: ({pinKey, required toolId, required args}) async {
               calls.add(args);
               return const CanonicalToolResult(
                 ok: true,
@@ -238,7 +268,11 @@ void main() {
                 (ref) =>
                     () => <ToolDto>[timerTool],
               ),
-              ...dispatchOverrides(({required toolId, required args}) async {
+              ...dispatchOverrides(({
+                pinKey,
+                required toolId,
+                required args,
+              }) async {
                 calls.add(args);
                 return const CanonicalToolResult(
                   ok: true,
@@ -265,6 +299,7 @@ void main() {
                       placements: <PlacementDto>[
                         PlacementDto(
                           toolId: 'demo.unsupported_timer',
+                          pinId: 'demo.unsupported_timer',
                           x: 0,
                           y: 0,
                           w: 1,
@@ -298,8 +333,22 @@ void main() {
             boardKey: 'dev',
             boardCols: 6,
             placements: <PlacementDto>[
-              PlacementDto(toolId: 'demo.first', x: 0, y: 0, w: 1, h: 1),
-              PlacementDto(toolId: 'demo.second', x: 1, y: 0, w: 1, h: 1),
+              PlacementDto(
+                toolId: 'demo.first',
+                pinId: 'demo.first',
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+              PlacementDto(
+                toolId: 'demo.second',
+                pinId: 'demo.second',
+                x: 1,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
             ],
           ),
         );
@@ -313,7 +362,7 @@ void main() {
                     () => <ToolDto>[firstTool, secondTool],
               ),
               ...dispatchOverrides(
-                ({required toolId, required args}) async =>
+                ({pinKey, required toolId, required args}) async =>
                     const CanonicalToolResult(
                       ok: true,
                       outputs: <CanonicalOutputEntry>[],
@@ -350,8 +399,22 @@ void main() {
           boardKey: 'dev',
           boardCols: 6,
           placements: <PlacementDto>[
-            PlacementDto(toolId: 'demo.second', x: 0, y: 0, w: 1, h: 1),
-            PlacementDto(toolId: 'demo.first', x: 1, y: 0, w: 1, h: 1),
+            PlacementDto(
+              toolId: 'demo.second',
+              pinId: 'demo.second',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
+            PlacementDto(
+              toolId: 'demo.first',
+              pinId: 'demo.first',
+              x: 1,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
           ],
         );
         await tester.pump();
@@ -385,7 +448,7 @@ void main() {
         );
         final PinKey expectedKey = (
           BoardKey.parse('dev'),
-          ToolId.parse('demo.second'),
+          PinId.parse('demo.second'),
         );
         expect(positioned.key, ValueKey<PinKey>(expectedKey));
       },
@@ -405,6 +468,7 @@ void main() {
               placements: <PlacementDto>[
                 PlacementDto(
                   toolId: 'demo.interactive',
+                  pinId: 'demo.interactive',
                   x: 0,
                   y: 0,
                   w: 1,
@@ -412,7 +476,7 @@ void main() {
                 ),
               ],
             ),
-            dispatch: ({required toolId, required args}) async =>
+            dispatch: ({pinKey, required toolId, required args}) async =>
                 const CanonicalToolResult(
                   ok: true,
                   outputs: <CanonicalOutputEntry>[],

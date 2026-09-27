@@ -15,6 +15,7 @@ import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/state/diagnostics_provider.dart';
 import 'package:upeg/src/widgets/no_transition_dialog.dart';
 import 'package:upeg/src/widgets/tweaks_form.dart';
 
@@ -39,6 +40,14 @@ class _SettingsModalState extends ConsumerState<_SettingsModal> {
   final FocusNode _closeFocusNode = FocusNode(debugLabel: 'settings-close');
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(recentDiagnosticsProvider);
+    });
+  }
+
+  @override
   void dispose() {
     _closeFocusNode.dispose();
     super.dispose();
@@ -47,6 +56,19 @@ class _SettingsModalState extends ConsumerState<_SettingsModal> {
   KeyEventResult _handleSettingsKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
+    }
+    // Let a settings text field finish every ordinary character before the
+    // dialog's vim-like navigation resolver sees it. This includes `/`, a
+    // normal absolute-path character that otherwise opens the board palette
+    // while editing the project directory. The editable receives the text
+    // input first; handling the bubbling key here only prevents an ancestor
+    // shortcut. Explicit global chords remain available.
+    if (primaryFocusIsEditableText() && !isGlobalShortcutKeyEvent(event)) {
+      // Do not bubble into the settings/board shortcut handlers, while still
+      // letting the platform text-input channel update EditableText. `handled`
+      // also suppresses macOS text entry, which made absolute paths appear to
+      // focus correctly but never receive their characters.
+      return KeyEventResult.skipRemainingHandlers;
     }
     final cmd = resolveKeyboardCommand(
       ref,

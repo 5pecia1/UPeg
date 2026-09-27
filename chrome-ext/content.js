@@ -1,5 +1,5 @@
 // upeg content script — the extension-only surface
-// (docs/ui-ux-surface-contract.md "Chrome extension contract").
+// (contract: detectors.js / selector_adapter.js / site_access.js headers).
 //
 // Two capabilities that exist nowhere else in upeg, because both need to be
 // inside a page the user did not author:

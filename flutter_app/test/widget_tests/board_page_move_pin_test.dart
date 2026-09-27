@@ -36,6 +36,7 @@ class _SeededCurrentBoardNotifier extends CurrentBoardNotifier {
 
 const _focusedPlacement = PlacementDto(
   toolId: 'num.hex_to_decimal',
+  pinId: 'num.hex_to_decimal',
   x: 1,
   y: 0,
   w: 1,
@@ -45,10 +46,10 @@ const _focusedPlacement = PlacementDto(
 void main() {
   group('Move pin slot dispatch (F12)', () {
     test('movePinSlot_calls_the_FRB_seam_when_a_pin_is_focused', () async {
-      ToolId? observedTool;
+      PinId? observedPin;
       int? observedDelta;
-      Future<void> recorder(ToolId toolId, int delta) async {
-        observedTool = toolId;
+      Future<void> recorder(PinId pinId, int delta) async {
+        observedPin = pinId;
         observedDelta = delta;
       }
 
@@ -59,19 +60,19 @@ void main() {
 
       container
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('num.hex_to_decimal'));
+          .focus(PinId.parse('num.hex_to_decimal'));
       await dispatchMovePinSlot(
         container,
         cmd: const KeyboardCommandDto.movePinPrev(),
       );
 
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+      expect(observedPin, PinId.parse('num.hex_to_decimal'));
       expect(observedDelta, -1);
     });
 
     test('movePinSlot_skips_the_seam_without_a_focused_pin', () async {
       var called = false;
-      Future<void> recorder(ToolId toolId, int delta) async {
+      Future<void> recorder(PinId pinId, int delta) async {
         called = true;
       }
 
@@ -90,7 +91,7 @@ void main() {
 
     test('movePinSlot_passes_delta_plus_1_for_MovePinNext', () async {
       int? observedDelta;
-      Future<void> recorder(ToolId toolId, int delta) async {
+      Future<void> recorder(PinId pinId, int delta) async {
         observedDelta = delta;
       }
 
@@ -101,7 +102,7 @@ void main() {
 
       container
           .read(focusedPinProvider.notifier)
-          .focus(ToolId.parse('id.uuid_v7'));
+          .focus(PinId.parse('id.uuid_v7'));
       await dispatchMovePinSlot(
         container,
         cmd: const KeyboardCommandDto.movePinNext(),
@@ -113,11 +114,11 @@ void main() {
     test(
       'the_default_movePinSlot_commits_to_the_slot_after_the_current_placement',
       () async {
-        ToolId? observedTool;
+        PinId? observedPin;
         int? observedX;
         int? observedY;
-        Future<void> recorder(ToolId toolId, int anchorX, int anchorY) async {
-          observedTool = toolId;
+        Future<void> recorder(PinId pinId, int anchorX, int anchorY) async {
+          observedPin = pinId;
           observedX = anchorX;
           observedY = anchorY;
         }
@@ -141,13 +142,13 @@ void main() {
 
         container
             .read(focusedPinProvider.notifier)
-            .focus(ToolId.parse('num.hex_to_decimal'));
+            .focus(PinId.parse('num.hex_to_decimal'));
         await dispatchMovePinSlot(
           container,
           cmd: const KeyboardCommandDto.movePinNext(),
         );
 
-        expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+        expect(observedPin, PinId.parse('num.hex_to_decimal'));
         expect(observedX, 2);
         expect(observedY, 0);
       },

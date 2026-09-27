@@ -13,6 +13,7 @@ import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/live_output_tail.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -52,6 +53,7 @@ final class _ScriptedDispatch {
 
   DispatchStreamFn get fn =>
       ({
+        PinKey? pinKey,
         required ToolId toolId,
         required ToolArgs args,
         required bool approve,
@@ -112,7 +114,7 @@ Widget _inlineHarness(_ScriptedDispatch dispatch, _CancelLog cancel) {
           height: 240,
           child: GenericInlinePinBody(
             tool: _manualInlineTool,
-            pinKey: (BoardKey.parse('dev'), ToolId.parse(_manualInlineTool.id)),
+            pinKey: (BoardKey.parse('dev'), PinId.parse(_manualInlineTool.id)),
           ),
         ),
       ),

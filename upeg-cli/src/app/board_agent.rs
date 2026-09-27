@@ -165,7 +165,13 @@ pub(crate) fn context_from_snapshot(
         .find(|entry| entry.key == board.as_str())
         .ok_or_else(|| BoardAgentError::UnknownBoard(board.to_string()))?;
     let working_directory = std::env::current_dir()?.canonicalize()?;
-    let project_manifest = upeg_sources::project::detect_project_manifest();
+    let project_manifest = upeg_sources::project::current_project_root()
+        .map(|root| root.join(upeg_core::PROJECT_MARKER_DIR))
+        .or_else(upeg_sources::project::detect_project_manifest)
+        .map(|marker| {
+            let config = marker.join(upeg_core::PROJECT_CONFIG_FILE);
+            if config.is_file() { config } else { marker }
+        });
     let guidance_manifest = upeg_runtime::pegboard_project::project_board_scope()
         .filter(|scope| scope.declaration(board.as_str()).is_some())
         .map(|scope| scope.manifest_path().to_path_buf());
@@ -235,7 +241,9 @@ fn revision(
     }
     if let Some(path) = &context.project_manifest {
         path.hash(&mut hash);
-        std::fs::read(path)?.hash(&mut hash);
+        if path.is_file() {
+            std::fs::read(path)?.hash(&mut hash);
+        }
     }
     for directory in [crate::toolkits_dir(), crate::mcp_import_dir()]
         .into_iter()

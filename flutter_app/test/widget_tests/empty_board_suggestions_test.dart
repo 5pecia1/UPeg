@@ -49,7 +49,10 @@ Widget _harness({
             (ref) =>
                 (_, _) => false,
           ),
-          pinToolMutatorProvider.overrideWith((ref) => (_, _) {}),
+          addPinMutatorProvider.overrideWith(
+            (ref) =>
+                (_, _) => 'pin',
+          ),
         ],
       );
   return UncontrolledProviderScope(
@@ -104,10 +107,11 @@ void main() {
             (ref) =>
                 (_, _) => false,
           ),
-          pinToolMutatorProvider.overrideWith(
+          addPinMutatorProvider.overrideWith(
             (ref) => (b, t) {
               gotBoard = b;
               gotTool = t;
+              return 'pin';
             },
           ),
         ],

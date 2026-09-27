@@ -2,8 +2,8 @@
 //!
 //! The Dart `lastOutcomeProvider` cache is write-through: every recorded
 //! outcome lands here as well, keyed per placement (`board_key`,
-//! `tool_id`) in the shared SQLite store (`upeg-sources::store`,
-//! schema v3). On boot / board switch the provider hydrates from
+//! `pin_id`) in the shared SQLite store (`upeg-sources::store`,
+//! schema v6). On boot / board switch the provider hydrates from
 //! [`load_last_outcomes`], so a restart restores the most recent result
 //! of every pinned tool as a "restored" (not fresh) state.
 //!
@@ -26,6 +26,8 @@ use super::tools::CanonicalToolResult;
 #[derive(Debug, Clone)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct LastOutcomeDto {
+    /// The placement identity, independent from `tool_id`.
+    pub pin_id: String,
     pub tool_id: String,
     /// The canonical result as recorded (minus `error.details`, which
     /// the store does not persist).
@@ -36,7 +38,8 @@ pub struct LastOutcomeDto {
     pub updated_at_ms: i64,
 }
 
-/// Persist `result` as the last outcome of `tool_id` on `board_key`.
+/// Persist `result` as the last outcome of `pin_id` / `tool_id` on
+/// `board_key`.
 /// Both ok and error results are recorded — the store keeps whatever
 /// the dispatch produced; presentation policy (e.g. render only ok
 /// results inline) stays with the consumer.
@@ -44,10 +47,11 @@ pub struct LastOutcomeDto {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn record_last_outcome(
     board_key: String,
+    pin_id: String,
     tool_id: String,
     result: CanonicalToolResult,
 ) -> Result<(), FrbError> {
-    let outcome = native::new_last_outcome_from(tool_id, &result)?;
+    let outcome = native::new_last_outcome_from(pin_id, tool_id, &result)?;
     let mut store = native::open_store()?;
     store
         .record_last_outcome(&board_key, &outcome)
@@ -62,14 +66,15 @@ pub fn record_last_outcome(
 #[cfg(target_arch = "wasm32")]
 pub fn record_last_outcome(
     board_key: String,
+    pin_id: String,
     tool_id: String,
     result: CanonicalToolResult,
 ) -> Result<(), FrbError> {
-    let _ = (board_key, tool_id, result);
+    let _ = (board_key, pin_id, tool_id, result);
     Ok(())
 }
 
-/// All persisted outcomes for `board_key`, sorted by tool id.
+/// All persisted outcomes for `board_key`, sorted by pin id.
 ///
 /// Best-effort read (mirrors `list_boards`): an unopenable store or a
 /// corrupt row yields an empty / shorter list instead of an error —
@@ -116,6 +121,7 @@ mod native {
     /// failure is an [`FrbError::Internal`] (the DTO is plain data, so
     /// this indicates a bug rather than bad user input).
     pub(super) fn new_last_outcome_from(
+        pin_id: String,
         tool_id: String,
         result: &CanonicalToolResult,
     ) -> Result<NewLastOutcome, FrbError> {
@@ -124,6 +130,7 @@ mod native {
                 message: format!("serialize outputs: {err}"),
             })?;
         Ok(NewLastOutcome {
+            pin_id,
             tool_id,
             ok: result.ok,
             primary_output_id: result.primary_output_id.clone(),
@@ -144,6 +151,7 @@ mod native {
             details: None,
         });
         Some(LastOutcomeDto {
+            pin_id: record.pin_id,
             tool_id: record.tool_id,
             result: CanonicalToolResult {
                 ok: record.ok,
@@ -210,9 +218,12 @@ mod tests {
     #[test]
     fn canonical_result_round_trips_through_store_row_to_dto() {
         let (dir, mut store) = temp_store();
-        for (tool_id, result) in [("num.hex", ok_result()), ("net.ping", error_result())] {
-            let outcome =
-                new_last_outcome_from(tool_id.to_string(), &result).expect("row conversion");
+        for (pin_id, tool_id, result) in [
+            ("pin-hex", "num.hex", ok_result()),
+            ("pin-ping", "net.ping", error_result()),
+        ] {
+            let outcome = new_last_outcome_from(pin_id.to_string(), tool_id.to_string(), &result)
+                .expect("row conversion");
             store.record_last_outcome("dev", &outcome).expect("record");
         }
 
@@ -224,15 +235,17 @@ mod tests {
             .collect();
         assert_eq!(loaded.len(), 2);
 
-        let ping = &loaded[0];
-        assert_eq!(ping.tool_id, "net.ping");
-        assert_eq!(ping.result, error_result());
-        assert!(!ping.truncated);
-
-        let hex = &loaded[1];
+        let hex = &loaded[0];
+        assert_eq!(hex.pin_id, "pin-hex");
         assert_eq!(hex.tool_id, "num.hex");
         assert_eq!(hex.result, ok_result());
-        assert!(hex.updated_at_ms > 0);
+        assert!(!hex.truncated);
+
+        let ping = &loaded[1];
+        assert_eq!(ping.pin_id, "pin-ping");
+        assert_eq!(ping.tool_id, "net.ping");
+        assert_eq!(ping.result, error_result());
+        assert!(ping.updated_at_ms > 0);
 
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -240,6 +253,7 @@ mod tests {
     #[test]
     fn corrupted_outputs_json_row_is_filtered_out_in_dto_conversion() {
         let record = upeg_sources::store::LastOutcomeRecord {
+            pin_id: "pin-hex".to_string(),
             tool_id: "num.hex".to_string(),
             ok: true,
             primary_output_id: None,

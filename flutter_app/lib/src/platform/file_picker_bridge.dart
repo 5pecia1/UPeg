@@ -82,6 +82,15 @@ abstract class FilePickerBridge {
   /// file paths, such as Web.
   Future<String?> pickOpenPath();
 
+  /// Ask the user for a directory path.
+  ///
+  /// This stays separate from [pickOpenPath] because a path-shaped tool
+  /// input can legitimately mean either a file or a directory.  The form
+  /// presents both choices; the tool remains responsible for validating the
+  /// selected path against its declared contract.
+  Future<String?> pickDirectoryPath({String dialogTitle = 'Pick a folder'}) =>
+      Future<String?>.value(null);
+
   /// Write [bytes] to [path].
   Future<void> writeBytesTo(String path, Uint8List bytes);
 }
@@ -180,6 +189,12 @@ class FilePickerPluginBridge extends FilePickerBridge {
       return null;
     }
     return result.files.first.path;
+  }
+
+  @override
+  Future<String?> pickDirectoryPath({String dialogTitle = 'Pick a folder'}) {
+    if (kIsWeb) return Future<String?>.value(null);
+    return fp.FilePicker.platform.getDirectoryPath(dialogTitle: dialogTitle);
   }
 
   @override

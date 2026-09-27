@@ -1,7 +1,7 @@
 # upeg Chrome extension
 
 Dependency-free MV3 extension: a popup that lists Board tabs + pinned tools
-from the local HTTP surface (`http://127.0.0.1:7173`), and — the part that
+from the local extension Board adapter (`http://127.0.0.1:7173/v1/ext/boards`), and — the part that
 only a browser extension can do — a content script that annotates detected
 tokens in the page and applies a Controlled Embed tool's selector bindings to
 the tab the user is already on.
@@ -32,12 +32,48 @@ manual test plan.
 
 ## Build
 
+The static assets need no compiler or npm dependencies; `build.sh` needs Bash
+(Git Bash or WSL on Windows).
+
 ```
 bash chrome-ext/build.sh
 ```
 
 Then `chrome://extensions` → enable "Developer mode" → "Load unpacked" →
 select `chrome-ext/dist/`.
+
+For first pairing, reuse a running host or start one with
+`upeg http --addr 127.0.0.1:7173`. Run `upeg http status --pairing`, open the
+popup and its gear menu, and save the reported endpoint and token. Return to
+the Board list and confirm that it appears.
+
+## Extension Board adapter
+
+The popup uses only these additive, authenticated routes:
+
+- `GET /v1/ext/boards`
+- `GET /v1/ext/boards/{board}`
+- `POST /v1/ext/boards/{board}/tools/{id}`
+
+They list and call only pins visible on the `ext` surface. A call is always
+stamped as the `ext` execution mode; its principal role still comes from the
+bearer token, never from browser input. The extension does not use the
+privileged `X-Upeg-Origin-Surface` header.
+
+Board metadata includes `argsPreset` for declared, non-File input values and
+`presetFields` for every declared saved input, including only the presence of
+a saved File. File bytes are never returned. Backend credentials are neither
+resolved nor serialized. Ordinary user-saved strings and JSON are input values
+and are visible to an authenticated paired extension.
+
+The popup applies explicit edits over saved values over schema defaults. A
+saved File remains on the host unless the user selects a replacement. A
+Controlled Embed with a saved File cannot represent that value in the page,
+so the popup offers Desktop upeg instead. Tools requiring approval likewise
+hand off to Desktop: the extension has no approval UI, and the server rejects
+known gated tools before dispatch. Nested Chains still run their normal
+runtime gates; an earlier ungated step may already have had side effects, so a
+failed chain is not transactional.
 
 ## Manual test plan
 
@@ -49,6 +85,10 @@ Prereqs: a debug `upeg` binary and a running host serving `/v1`
 ```
 upeg http --addr 127.0.0.1:7173 --token test-tok
 ```
+
+Open the popup, open its gear menu, and save `http://127.0.0.1:7173` and
+`test-tok` in the host endpoint and token fields. Then return to the Board
+list.
 
 - Open the popup. Expect Board tabs across the top and the first
   board's pinned tools below, each showing a display label + id.

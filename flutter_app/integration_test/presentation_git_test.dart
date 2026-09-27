@@ -244,7 +244,10 @@ final class _GitPresentationRobot {
     );
     await tester.pump();
     await _tapAndWait(run, outcome);
-    final block = find.descendant(of: modal, matching: find.byType(OutcomeBlock));
+    final block = find.descendant(
+      of: modal,
+      matching: find.byType(OutcomeBlock),
+    );
     final result = tester.widget<OutcomeBlock>(block).outcome;
     expect(result.ok, isTrue);
     final reference = result.jsonValues['reference'] as Map<String, Object?>;

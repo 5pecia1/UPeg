@@ -16,12 +16,16 @@ use upeg_core::{
 };
 use upeg_runtime::ToolMetaRuntimeExt;
 
+mod approval_args;
 pub mod file_input_policy;
 mod gui_context;
 pub mod input_field;
 
+#[cfg(test)]
+use approval_args::APPROVE_RESERVED_ARG;
+use approval_args::shape_approval_arg;
 pub use file_input_policy::FileInputPolicyDto;
-use gui_context::{apply_gui_context, gui_execution_context};
+use gui_context::{apply_gui_context, gui_execution_context_for_pin};
 pub use input_field::{
     ChoiceOptionDto, FieldConstraintsDto, InputFieldDto, InputFieldType, NumberConstraintsDto,
     StringConstraintsDto,
@@ -104,7 +108,7 @@ pub struct ToolDto {
     /// in front of the run. Dispatching without it is not unsafe — the
     /// gated step refuses with `approval_required` and nothing runs — but
     /// it is a dead end for the person, who has no way to answer from a
-    /// failed result. See `docs/architecture/chain.md`.
+    /// failed result. See `upeg_runtime::approval`'s module docs.
     pub requires_approval: bool,
     /// Surface labels (`cli`, `tui`, `desktop`, …) whose approval this
     /// tool honors — the manifest's `approval_surfaces` or the default.
@@ -622,6 +626,7 @@ pub fn resolve_tool_action_bindings(
 /// toolkit selector / nav.
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_toolkits() -> Vec<ToolkitDto> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let mut dtos: Vec<ToolkitDto> = upeg_runtime::toolbox_toolkits()
         .map(ToolkitDto::from)
         .collect();
@@ -634,6 +639,7 @@ pub fn list_toolkits() -> Vec<ToolkitDto> {
 /// everything.
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_tools(toolkit: Option<String>) -> Vec<ToolDto> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let mut dtos: Vec<ToolDto> = upeg_runtime::toolbox_tools()
         .filter(|t| match toolkit.as_deref() {
             Some(tk) => t.toolkit == tk,
@@ -847,17 +853,31 @@ impl From<ToolError> for CanonicalToolError {
 /// CLI/HTTP/MCP/TUI). `None` dispatches globally with only the
 /// `desktop` surface label.
 ///
-/// `approve` lifts a Chain's approval barrier — see
-/// [`APPROVE_RESERVED_ARG`] for why it is a typed parameter and not a
-/// key the caller writes into `args_json`.
+/// `approve` lifts a Chain's approval barrier through a typed parameter;
+/// caller-supplied JSON cannot grant approval.
 #[flutter_rust_bridge::frb(sync)]
 pub fn dispatch_tool(
     tool_id: String,
     args_json: String,
     board_key: Option<String>,
+    pin_id: Option<String>,
     approve: bool,
 ) -> CanonicalToolResult {
-    dispatch_tool_impl(&tool_id, &args_json, board_key.as_deref(), approve)
+    let _project_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => return CanonicalToolResult::error("project_switching", message),
+    };
+    let diagnostic_identity =
+        super::diagnostics::capture_dispatch_identity(&tool_id, &args_json, None);
+    let result = dispatch_tool_impl_for_pin(
+        &tool_id,
+        &args_json,
+        board_key.as_deref(),
+        pin_id.as_deref(),
+        approve,
+    );
+    super::diagnostics::record_dispatch_diagnostic(diagnostic_identity, &result);
+    result
 }
 
 /// Run the named tool with JSON-encoded args on FRB's async dispatch path.
@@ -866,70 +886,24 @@ pub async fn dispatch_tool_async(
     tool_id: String,
     args_json: String,
     board_key: Option<String>,
+    pin_id: Option<String>,
     approve: bool,
 ) -> CanonicalToolResult {
-    dispatch_tool_impl(&tool_id, &args_json, board_key.as_deref(), approve)
-}
-
-/// Reserved call argument that approves every gated step of a Chain in
-/// one call (`docs/architecture/chain.md`).
-///
-/// A GUI surface never lets it arrive as data. Dart passes a typed
-/// `approve` flag and Rust is the only writer of the key — see
-/// [`shape_approval_arg`] — so an args map hand-built anywhere in the
-/// widget tree cannot self-approve a gated run.
-const APPROVE_RESERVED_ARG: &str = "approve";
-
-/// Make the two approval levers say exactly what the typed `approve`
-/// flag says, whatever the caller put in `args`.
-///
-/// There are two, not one. `approve = true` approves the whole call, and
-/// `_upeg.approvedSteps` names individual steps
-/// (`upeg-loader/src/dispatcher/chain/approval.rs`); the second is
-/// caller-preserved by design, so unlike every other `_upeg` key it
-/// survives the execution-context merge
-/// (`upeg-runtime/src/execution.rs`). Stripping only the first left the
-/// second as a data path into an approval: a `upeg://open` deep link
-/// carrying `{"_upeg":{"approvedSteps":["gate"]}}` arrived at the
-/// dispatch stamped `desktop` — a default approval surface — and lifted
-/// a barrier no person had answered.
-///
-/// So both are removed first, which makes a `false` flag a real denial
-/// rather than a missing overwrite, and only `approve` is re-inserted for
-/// a `true` flag: the typed flag is the sole writer, and it says "the
-/// whole call", which is the only thing a GUI confirmation ever means.
-/// Non-object args carry no reserved key by construction (there is
-/// nowhere to put one), so they pass through untouched.
-fn shape_approval_arg(mut args: serde_json::Value, approve: bool) -> serde_json::Value {
-    let Some(object) = args.as_object_mut() else {
-        return args;
+    let _project_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => return CanonicalToolResult::error("project_switching", message),
     };
-    object.remove(APPROVE_RESERVED_ARG);
-    strip_approved_steps(object);
-    if approve {
-        object.insert(
-            APPROVE_RESERVED_ARG.to_string(),
-            serde_json::Value::Bool(true),
-        );
-    }
-    args
-}
-
-/// Drop `_upeg.approvedSteps` from a call's execution-context block,
-/// leaving the rest of the block (and the block itself) alone.
-///
-/// Removing the whole `_upeg` block instead would throw away the
-/// surface, board and principal annotations
-/// [`apply_gui_context`] just stamped — this runs *after* that merge on
-/// purpose, so that a board pin's saved args preset cannot smuggle the
-/// key in as a default either.
-fn strip_approved_steps(args: &mut serde_json::Map<String, serde_json::Value>) {
-    if let Some(context) = args
-        .get_mut(upeg_core::EXECUTION_CONTEXT_ARG)
-        .and_then(serde_json::Value::as_object_mut)
-    {
-        context.remove(upeg_core::EXECUTION_CONTEXT_APPROVED_STEPS);
-    }
+    let diagnostic_identity =
+        super::diagnostics::capture_dispatch_identity(&tool_id, &args_json, None);
+    let result = dispatch_tool_impl_for_pin(
+        &tool_id,
+        &args_json,
+        board_key.as_deref(),
+        pin_id.as_deref(),
+        approve,
+    );
+    super::diagnostics::record_dispatch_diagnostic(diagnostic_identity, &result);
+    result
 }
 
 /// Shared dispatch body: id validation, args parsing, desktop execution
@@ -938,10 +912,21 @@ fn strip_approved_steps(args: &mut serde_json::Map<String, serde_json::Value>) {
 /// `pub(crate)` so the streaming entry point (`api::dispatch_stream`)
 /// runs the *same* path with a progress sink and a cancellation token
 /// installed around it, rather than forking the arg-shaping logic.
+#[cfg(test)]
 pub(crate) fn dispatch_tool_impl(
     tool_id: &str,
     args_json: &str,
     board_key: Option<&str>,
+    approve: bool,
+) -> CanonicalToolResult {
+    dispatch_tool_impl_for_pin(tool_id, args_json, board_key, None, approve)
+}
+
+pub(crate) fn dispatch_tool_impl_for_pin(
+    tool_id: &str,
+    args_json: &str,
+    board_key: Option<&str>,
+    pin_id: Option<&str>,
     approve: bool,
 ) -> CanonicalToolResult {
     if let Err(err) = ToolId::parse_canonical(tool_id) {
@@ -961,7 +946,15 @@ pub(crate) fn dispatch_tool_impl(
         }
     };
 
-    let context = match gui_execution_context(tool_id, board_key) {
+    // Take the project call lease before reading board presets/context and
+    // retain it through dispatch. Without this, a project switch could swap
+    // registry state between the preset read and the eventual tool call.
+    let _project_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => return CanonicalToolResult::error("project_switching", message),
+    };
+
+    let context = match gui_execution_context_for_pin(tool_id, board_key, pin_id) {
         Ok(context) => context,
         Err(err) => return *err,
     };
@@ -969,7 +962,7 @@ pub(crate) fn dispatch_tool_impl(
     // writer: a board pin's saved args preset is caller-supplied data
     // too, and it must not be able to smuggle the reserved key in as a
     // default.
-    let args = shape_approval_arg(apply_gui_context(args, &context), approve);
+    let args = shape_approval_arg(apply_gui_context(args, &context, pin_id, tool_id), approve);
 
     match upeg_tools::dispatch_registered(tool_id, &args) {
         upeg_tools::RegisteredDispatch::Ran(result) => CanonicalToolResult::from(result),

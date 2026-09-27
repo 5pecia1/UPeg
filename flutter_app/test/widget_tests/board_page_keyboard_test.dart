@@ -294,7 +294,7 @@ void main() {
       tester,
     ) async {
       KeyboardScopeDto? enterScope;
-      ToolId? observedTool;
+      PinId? observedTool;
       int? observedX;
       int? observedY;
 
@@ -307,6 +307,7 @@ void main() {
             placements: const [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,
@@ -364,7 +365,7 @@ void main() {
       await tester.pump();
 
       expect(enterScope, KeyboardScopeDto.moving);
-      expect(observedTool, ToolId.parse('num.hex_to_decimal'));
+      expect(observedTool, PinId.parse('num.hex_to_decimal'));
       expect(observedX, 0);
       expect(observedY, 0);
     });
@@ -384,6 +385,7 @@ void main() {
             placements: const [
               PlacementDto(
                 toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
                 x: 0,
                 y: 0,
                 w: 1,

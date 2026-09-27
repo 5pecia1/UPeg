@@ -8,6 +8,7 @@ import 'package:upeg/src/features/controlled_embed/webview_session.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/embed.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/controlled_embed/debug.dart';
 import 'package:upeg/src/widgets/controlled_embed/runner.dart';
 import 'package:upeg/src/widgets/controlled_embed/settings.dart';
@@ -27,15 +28,20 @@ typedef ControlledEmbedResultNormalizer =
       ControlledEmbedWaitTimeoutError? waitTimeout,
     );
 
-/// A tool keeps its page until its URL/settings change or the app closes.
+/// A board pin or a tool-level caller keeps its own page until settings change.
+typedef _SessionKey = (PinKey?, ToolId?);
+
 @immutable
 final class ControlledEmbedSessionSpec {
   const ControlledEmbedSessionSpec({
+    this.pinKey,
     required this.toolId,
     required this.url,
     this.settings,
   });
 
+  /// Present for a board placement; null identifies a tool-level call.
+  final PinKey? pinKey;
   final ToolId toolId;
   final String url;
   final ResolvedBrowserSettings? settings;
@@ -43,6 +49,7 @@ final class ControlledEmbedSessionSpec {
   @override
   bool operator ==(Object other) =>
       other is ControlledEmbedSessionSpec &&
+      other._key == _key &&
       other.toolId == toolId &&
       other.url == url &&
       (other.settings?.hasUserAgentOverride ?? false) ==
@@ -53,11 +60,14 @@ final class ControlledEmbedSessionSpec {
   @override
   int get hashCode => Object.hash(
     toolId,
+    _key,
     url,
     settings?.hasUserAgentOverride ?? false,
     settings?.userAgent,
     settings?.viewportSize,
   );
+
+  _SessionKey get _key => pinKey == null ? (null, toolId) : (pinKey, null);
 }
 
 enum ControlledEmbedSessionPhase { loading, ready, running, failed }
@@ -130,16 +140,19 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
   final ControlledEmbedSessionFactory _createSession;
   final ControlledEmbedResultNormalizer _normalizeResult;
   final ControlledEmbedRunner _runner;
-  final Map<ToolId, ControlledEmbedSessionEntry> _entries = {};
-  final Map<ToolId, Future<ControlledEmbedSessionEntry>> _opening = {};
-  final Map<ToolId, Future<void>> _queues = {};
+  final Map<_SessionKey, ControlledEmbedSessionEntry> _entries = {};
+  final Map<_SessionKey, Future<ControlledEmbedSessionEntry>> _opening = {};
+  final Map<_SessionKey, Future<void>> _queues = {};
   final Set<ControlledEmbedCancellation> _executions = {};
   bool _closed = false;
 
   List<ControlledEmbedSessionEntry> get entries =>
       List.unmodifiable(_entries.values);
 
-  ControlledEmbedSessionEntry? entryFor(ToolId toolId) => _entries[toolId];
+  ControlledEmbedSessionEntry? entryForPin(PinKey key) => _entries[(key, null)];
+
+  ControlledEmbedSessionEntry? entryForTool(ToolId toolId) =>
+      _entries[(null, toolId)];
 
   void _notify() {
     if (!_closed) notifyListeners();
@@ -149,12 +162,12 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
     ControlledEmbedSessionSpec spec,
   ) async {
     if (_closed) throw StateError('The WebView service is closed.');
-    final opening = _opening[spec.toolId];
+    final opening = _opening[spec._key];
     if (opening != null) {
       await opening;
       return ensure(spec);
     }
-    final existing = _entries[spec.toolId];
+    final existing = _entries[spec._key];
     if (existing != null && existing.spec == spec) {
       await existing.browser.ready;
       return existing;
@@ -167,11 +180,11 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
       );
     }
     final pending = _open(spec, existing);
-    _opening[spec.toolId] = pending;
+    _opening[spec._key] = pending;
     try {
       return await pending;
     } finally {
-      _opening.remove(spec.toolId);
+      _opening.remove(spec._key);
     }
   }
 
@@ -180,7 +193,7 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
     ControlledEmbedSessionEntry? previous,
   ) async {
     if (previous != null) {
-      _entries.remove(spec.toolId);
+      _entries.remove(spec._key);
       _notify();
       await previous.browser.close();
     }
@@ -193,7 +206,7 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
       throw StateError('The WebView service is closed.');
     }
     final entry = ControlledEmbedSessionEntry(spec, browser);
-    _entries[spec.toolId] = entry;
+    _entries[spec._key] = entry;
     // Publish before waiting: the hidden host mounts the native viewport.
     _notify();
     try {
@@ -203,8 +216,8 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
       _notify();
       return entry;
     } catch (_) {
-      if (identical(_entries[spec.toolId], entry)) {
-        _entries.remove(spec.toolId);
+      if (identical(_entries[spec._key], entry)) {
+        _entries.remove(spec._key);
         _notify();
         await browser.close();
       }
@@ -229,8 +242,13 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
     };
   }
 
-  void clearEvents(ToolId toolId) {
-    _entries[toolId]?._events.clear();
+  void clearEventsForPin(PinKey key) {
+    entryForPin(key)?._events.clear();
+    _notify();
+  }
+
+  void clearEventsForTool(ToolId toolId) {
+    entryForTool(toolId)?._events.clear();
     _notify();
   }
 
@@ -244,7 +262,7 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
       return Future.error(StateError('The WebView service is closed.'));
     }
     _executions.add(cancellation);
-    final previous = _queues[spec.toolId] ?? Future<void>.value();
+    final previous = _queues[spec._key] ?? Future<void>.value();
     final operation = previous.then((_) async {
       cancellation.check();
       final entry = await cancellation.untilCancelled(ensure(spec));
@@ -306,12 +324,12 @@ final class ControlledEmbedSessionService extends ChangeNotifier {
       }
     });
     final settled = operation.then<void>((_) {}, onError: (Object _) {});
-    _queues[spec.toolId] = settled;
+    _queues[spec._key] = settled;
     unawaited(
       settled.then((_) {
         _executions.remove(cancellation);
-        if (identical(_queues[spec.toolId], settled)) {
-          _queues.remove(spec.toolId);
+        if (identical(_queues[spec._key], settled)) {
+          _queues.remove(spec._key);
         }
       }),
     );

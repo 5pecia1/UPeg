@@ -119,6 +119,7 @@ class PinWithLabel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.upeg;
     final toolId = ToolId.parse(placement.toolId);
+    final pinKey = (boardKey, PinId.parse(placement.pinId));
     final ToolDto? tool = ref.watch(toolByIdProvider(toolId));
     final readinessTarget = tool?.invoker == InvokerDto.external_
         ? readinessTargetFor(tool!, boardKey: boardKey)
@@ -126,7 +127,7 @@ class PinWithLabel extends ConsumerWidget {
     final readinessInspection = readinessTarget == null
         ? null
         : ref.watch(externalReadinessProvider(readinessTarget));
-    final focused = ref.watch(focusedPinProvider) == toolId;
+    final focused = ref.watch(focusedPinProvider) == pinKey.$2;
     // Zero-input Inline/Function tools are candidates too: `GenericInlinePinBody`
     // renders a bare Run affordance when a tool declares no input fields, so
     // the input-field count no longer gates eligibility for the inline body.
@@ -152,7 +153,9 @@ class PinWithLabel extends ConsumerWidget {
     if (tool != null &&
         tool.source is SourceDto_Timer &&
         !genericInlineCandidate) {
-      final liveState = ref.watch(liveOutcomeProvider(toolId));
+      final liveState = ref.watch(
+        liveOutcomeProvider((pinKey: pinKey, toolId: toolId)),
+      );
       switch (liveState) {
         case LiveOutcomeFresh(:final outcome):
           outputResult = outcome;
@@ -167,7 +170,7 @@ class PinWithLabel extends ConsumerWidget {
       // additionally carry their recording timestamp so the pin shows
       // the "last run · N ago" badge instead of passing off a previous
       // session's result as fresh.
-      final last = ref.watch(pinLastOutcomeProvider(toolId));
+      final last = ref.watch(pinLastOutcomeProvider(pinKey));
       if (last != null && last.result.ok) {
         outputResult = last.result;
         if (last case RestoredOutcome(:final updatedAt, :final truncated)) {
@@ -215,7 +218,7 @@ class PinWithLabel extends ConsumerWidget {
       } else if (isMemoNotepadTool(tool)) {
         // memo.scratch: an always-live inline notepad backed by the
         // memos store. No activation step — the text field is the tool.
-        bodyOverride = const MemoPinBody();
+        bodyOverride = MemoPinBody(pinKey: pinKey);
         bodyOwnsGesture = true;
       } else if (toolNeedsProviderConfig(tool)) {
         // eth.gas-style: live external data, no configured provider.
@@ -240,6 +243,7 @@ class PinWithLabel extends ConsumerWidget {
             PinKindDto.controlledEmbed => ControlledEmbedTile(
               tool: tool,
               resolution: resolution,
+              pinKey: pinKey,
               // ControlledEmbed uses the same canonical output display rows
               // as normal pins; pass the board tool schema explicitly so
               // selector output ids resolve to user-facing labels inline.
@@ -256,10 +260,7 @@ class PinWithLabel extends ConsumerWidget {
         // no fields means a bare Run affordance) — no per-tool template.
         // Gated off for wasm-unsupported tools so the
         // honest capability notice / attach routing below still applies.
-        bodyOverride = GenericInlinePinBody(
-          tool: tool,
-          pinKey: (boardKey, toolId),
-        );
+        bodyOverride = GenericInlinePinBody(tool: tool, pinKey: pinKey);
         bodyOwnsGesture = true;
         inlineTapOpensModal = true;
       }
@@ -290,7 +291,7 @@ class PinWithLabel extends ConsumerWidget {
         if (attachable && configured) {
           attachRouted = true;
           final notice = hostAttachNoticeFor(
-            ref.watch(pinAttachResultProvider(toolId)),
+            ref.watch(pinAttachResultProvider(pinKey)),
           );
           if (notice != null) {
             // A failed remote attempt: show the honest attach notice. The
@@ -325,12 +326,12 @@ class PinWithLabel extends ConsumerWidget {
       tapHandler = (_) => unawaited(
         ref
             .read(hostAttachDispatchProvider.notifier)
-            .run(toolId, ToolArgs.empty),
+            .run(toolId, ToolArgs.empty, pinKey: pinKey),
       );
     } else {
       tapHandler = onTap;
     }
-    final payload = PinDragPayload(toolId: toolId, boardKey: boardKey);
+    final payload = PinDragPayload(pinKey: pinKey, toolId: toolId);
 
     // A cheap, text-body copy of the pin used as the translucent drag
     // feedback. Built without the live body so an embed pin never mounts a
@@ -364,7 +365,7 @@ class PinWithLabel extends ConsumerWidget {
       restoredAt: restoredAt,
       outputTruncated: outputTruncated,
       stale: stale,
-      running: ref.watch(toolIsRunningProvider(toolId)),
+      running: ref.watch(pinIsRunningProvider(pinKey)),
       focused: focused,
       showMoveHandle: true,
       // Gesture-owning bodies drag only from the injected handle; the pin
@@ -514,8 +515,8 @@ class PinWithLabel extends ConsumerWidget {
         pointerCol,
         pointerRow,
         PinDragPayload(
+          pinKey: (boardKey, PinId.parse(placement.pinId)),
           toolId: ToolId.parse(placement.toolId),
-          boardKey: boardKey,
         ),
       );
     } else {

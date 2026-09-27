@@ -38,7 +38,7 @@ use upeg_runtime::{
 use crate::frb_generated::StreamSink;
 
 use super::boot::FrbError;
-use super::tools::{CanonicalToolResult, dispatch_tool_impl};
+use super::tools::{CanonicalToolResult, dispatch_tool_impl_for_pin};
 
 /// Validation field name reported when a `run_id` is already in flight.
 const RUN_ID_FIELD: &str = "run_id";
@@ -199,19 +199,48 @@ pub fn dispatch_tool_streamed(
     tool_id: String,
     args_json: String,
     board_key: Option<String>,
+    pin_id: Option<String>,
     approve: bool,
     run_id: String,
     sink: StreamSink<DispatchStreamEventDto>,
 ) -> Result<(), FrbError> {
+    let _project_call = match upeg_runtime::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => {
+            let _ = sink.add(DispatchStreamEventDto::Done {
+                result: CanonicalToolResult {
+                    ok: false,
+                    primary_output_id: None,
+                    outputs: Vec::new(),
+                    error: Some(super::tools::CanonicalToolError {
+                        code: "project_switching".to_string(),
+                        message: message.to_string(),
+                        details: None,
+                    }),
+                },
+            });
+            return Ok(());
+        }
+    };
+    let diagnostic_identity =
+        super::diagnostics::capture_dispatch_identity(&tool_id, &args_json, Some(&run_id));
     let token = CancellationToken::new();
-    let _registration = RunRegistration::open(run_id, token.clone())?;
+    let _registration = RunRegistration::open(run_id.clone(), token.clone())?;
 
     let forwarder: SharedProgressSink = Arc::new(SinkProgressForwarder { sink: sink.clone() });
     let result = with_cancellation(token, || {
         with_progress_sink(forwarder, || {
-            dispatch_tool_impl(&tool_id, &args_json, board_key.as_deref(), approve)
+            dispatch_tool_impl_for_pin(
+                &tool_id,
+                &args_json,
+                board_key.as_deref(),
+                pin_id.as_deref(),
+                approve,
+            )
         })
     });
+
+    super::diagnostics::record_dispatch_diagnostic(diagnostic_identity, &result);
 
     let _ = sink.add(DispatchStreamEventDto::Done { result });
     Ok(())

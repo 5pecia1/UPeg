@@ -17,6 +17,8 @@ import 'package:upeg/src/rust/api/pause.dart' as pause_frb;
 import 'package:upeg/src/rust/api/status.dart' as status_frb;
 import 'package:upeg/src/rust/api/tweaks.dart';
 import 'package:upeg/src/state/status_provider.dart';
+import 'package:upeg/src/state/diagnostics_provider.dart';
+import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/settings_overlay.dart';
@@ -38,6 +40,45 @@ class _FakeStatusNotifier extends StatusNotifier {
       buildVersion: 'test',
     );
   }
+}
+
+class _FakeProjectApi implements ProjectContextApi {
+  const _FakeProjectApi();
+
+  @override
+  Future<ProjectDefinition?> current() async => null;
+
+  @override
+  Future<ProjectDefinition> validateRoot(String root) =>
+      throw UnimplementedError();
+
+  @override
+  Future<ProjectActivation> activate(String root) => throw UnimplementedError();
+
+  @override
+  Future<ProjectActivation> setToolChoice({
+    required String root,
+    required String toolId,
+    required ProjectToolChoice choice,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> close() => throw UnimplementedError();
+}
+
+class _FakeDiagnosticsApi implements DiagnosticsApi {
+  final List<DiagnosticSummary> items = [];
+
+  @override
+  Future<List<DiagnosticSummary>> list({required int limit}) async =>
+      items.take(limit).toList();
+
+  @override
+  Future<DiagnosticReport?> show(String id) => throw UnimplementedError();
+
+  @override
+  Future<String> export(String id, {required bool debug}) =>
+      throw UnimplementedError();
 }
 
 const TweaksDto _defaultDto = TweaksDto(
@@ -102,6 +143,7 @@ String _fakeTranslateArgs(
 Widget _hostHarness({
   TweaksDto initial = _defaultDto,
   void Function(TweaksDto value)? onSave,
+  DiagnosticsApi? diagnosticsApi,
 }) {
   return ProviderScope(
     overrides: [
@@ -131,6 +173,10 @@ Widget _hostHarness({
       // The status bar reads this — the FRB-defaulted version would
       // crash because the dylib never loads in widget tests.
       statusSnapshotProvider.overrideWith(() => _FakeStatusNotifier()),
+      projectContextApiProvider.overrideWithValue(const _FakeProjectApi()),
+      diagnosticsApiProvider.overrideWithValue(
+        diagnosticsApi ?? _FakeDiagnosticsApi(),
+      ),
     ],
     child: MaterialApp(
       theme: UpegTheme.darkTheme(),
@@ -234,6 +280,61 @@ void main() {
       expect(find.text('SETTINGS'), findsNothing);
     });
 
+    testWidgets('SettingsOverlay_consumes_path_slash_in_the_project_field', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_hostHarness());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('open-settings-btn')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('project-context-root-input')));
+      await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+      await tester.pumpAndSettle();
+
+      // The fake settings resolver maps `/` to Close. A focused editable
+      // must consume it, as absolute project paths begin with this character.
+      expect(find.byKey(const Key('settings-close-btn')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('project-context-root-input')),
+        '/tmp/project',
+      );
+      final input = tester.widget<TextField>(
+        find.byKey(const Key('project-context-root-input')),
+      );
+      expect(input.controller?.text, '/tmp/project');
+    });
+
+    testWidgets('SettingsOverlay_refreshes_recent_reports_when_reopened', (
+      tester,
+    ) async {
+      final api = _FakeDiagnosticsApi();
+      await tester.pumpWidget(_hostHarness(diagnosticsApi: api));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('open-settings-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('diagnostic-d-2')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('settings-close-btn')));
+      await tester.pumpAndSettle();
+      api.items.add(
+        const DiagnosticSummary(
+          id: 'd-2',
+          runId: 'run-2',
+          occurredAtMs: 2,
+          source: 'app',
+          errorCode: 'APP_FAILED',
+          errorMessage: 'after first open',
+          status: 'failed',
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('open-settings-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('diagnostic-d-2')), findsOneWidget);
+    });
+
     testWidgets('SettingsOverlay_moves_focus_with_j_and_k', (tester) async {
       await tester.pumpWidget(_hostHarness());
       await tester.pumpAndSettle();
@@ -241,23 +342,25 @@ void main() {
       await tester.tap(find.byKey(const Key('open-settings-btn')));
       await tester.pumpAndSettle();
 
-      final closeContext = tester.element(
-        find.byKey(const Key('settings-close-focus')),
+      final themeContext = tester.element(
+        find.byKey(const Key('tweaks-theme-radio-focus')),
       );
-      expect(Focus.of(closeContext).hasPrimaryFocus, isTrue);
+      final accentContext = tester.element(
+        find.byKey(const Key('tweaks-accent-radio-focus')),
+      );
+      Focus.of(themeContext).requestFocus();
+      await tester.pump();
+      expect(Focus.of(themeContext).hasPrimaryFocus, isTrue);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
       await tester.pump();
 
-      final themeContext = tester.element(
-        find.byKey(const Key('tweaks-theme-radio-focus')),
-      );
-      expect(Focus.of(themeContext).hasPrimaryFocus, isTrue);
+      expect(Focus.of(accentContext).hasPrimaryFocus, isTrue);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
       await tester.pump();
 
-      expect(Focus.of(closeContext).hasPrimaryFocus, isTrue);
+      expect(Focus.of(themeContext).hasPrimaryFocus, isTrue);
     });
 
     testWidgets('SettingsOverlay_changes_the_focused_setting_with_l_and_h', (
@@ -270,8 +373,12 @@ void main() {
       await tester.tap(find.byKey(const Key('open-settings-btn')));
       await tester.pumpAndSettle();
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+      final themeContext = tester.element(
+        find.byKey(const Key('tweaks-theme-radio-focus')),
+      );
+      Focus.of(themeContext).requestFocus();
       await tester.pump();
+
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
       await tester.pumpAndSettle();
 

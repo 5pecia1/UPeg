@@ -15,6 +15,7 @@ void main() {
   group('Pin', () {
     const placement = PlacementDto(
       toolId: 'num.hex_to_decimal',
+      pinId: 'num.hex_to_decimal',
       x: 0,
       y: 0,
       w: 1,
@@ -532,7 +533,14 @@ void main() {
       await tester.pumpWidget(
         harness(
           Pin(
-            placement: PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
+            placement: PlacementDto(
+              toolId: 'eth.gas',
+              pinId: 'eth.gas',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
             toolLabel: 'eth gas',
             pinKind: UpegPinKind.live,
             outputFields: const [
@@ -566,7 +574,14 @@ void main() {
       await tester.pumpWidget(
         harness(
           const Pin(
-            placement: PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
+            placement: PlacementDto(
+              toolId: 'eth.gas',
+              pinId: 'eth.gas',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
             toolLabel: 'eth gas',
             pinKind: UpegPinKind.live,
             outputFields: [
@@ -591,7 +606,14 @@ void main() {
       await tester.pumpWidget(
         harness(
           const Pin(
-            placement: PlacementDto(toolId: 'eth.gas', x: 0, y: 0, w: 1, h: 1),
+            placement: PlacementDto(
+              toolId: 'eth.gas',
+              pinId: 'eth.gas',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            ),
             toolLabel: 'eth gas',
             pinKind: UpegPinKind.live,
             stale: true,

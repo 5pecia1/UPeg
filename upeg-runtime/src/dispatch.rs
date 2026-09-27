@@ -77,7 +77,8 @@ impl std::fmt::Display for DispatchArgs<'_> {
     }
 }
 
-type ToolDispatcher = std::sync::Arc<dyn for<'a> Fn(DispatchArgs<'a>) -> ToolResult + Send + Sync>;
+pub(crate) type ToolDispatcher =
+    std::sync::Arc<dyn for<'a> Fn(DispatchArgs<'a>) -> ToolResult + Send + Sync>;
 
 #[derive(Clone)]
 struct RuntimeDispatcherEntry {
@@ -174,6 +175,28 @@ where
     generation
 }
 
+pub(crate) fn take_runtime_dispatcher(id: &str) -> Option<ToolDispatcher> {
+    dispatchers_lock()
+        .lock()
+        .ok()?
+        .remove(id)
+        .map(|entry| entry.dispatcher)
+}
+
+pub(crate) fn restore_runtime_dispatcher(id: &'static str, dispatcher: ToolDispatcher) {
+    let generation = NEXT_RUNTIME_DISPATCHER_GENERATION.fetch_add(1, Ordering::Relaxed);
+    dispatchers_lock()
+        .lock()
+        .expect("runtime dispatcher registry poisoned")
+        .insert(
+            id,
+            RuntimeDispatcherEntry {
+                dispatcher,
+                generation,
+            },
+        );
+}
+
 /// Whether a runtime dispatcher is currently registered for `id`, without
 /// running it. Used by the capability layer to distinguish a `Function`
 /// tool whose dispatcher is compiled out on this host (native-only) from
@@ -186,6 +209,18 @@ pub fn has_runtime_dispatcher(id: &str) -> bool {
 }
 
 pub fn try_runtime_dispatch(id: &str, args: &serde_json::Value) -> Option<ToolResult> {
+    let _active_call = match crate::project_scope::begin_call() {
+        Ok(guard) => guard,
+        Err(message) => return Some(tool_failure("project_switching", message)),
+    };
+    if crate::project_scope::is_project_tool_blocked(id) {
+        return Some(tool_failure(
+            "project_tool_conflict",
+            format!(
+                "tool `{id}` has both global and project definitions; choose one in .upeg/project.toml"
+            ),
+        ));
+    }
     let f = {
         let guard = dispatchers_lock()
             .lock()

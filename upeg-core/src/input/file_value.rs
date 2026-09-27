@@ -4,6 +4,45 @@
 //! either the file's bytes or the directory's recursive entries, and that
 //! choice alone decides whether the value is a directory. See LEXICON v2.3 §2
 //! and the Pin rename + auto-render design doc.
+//!
+//! # File wire contract
+//!
+//! File input and output use the same canonical `FileValue` JSON on
+//! every surface. Top-level fields in order: `name`, `is_dir`, optional
+//! `mime`, `content`. `is_dir` is derived from `content.kind`, not
+//! independent state: `false` for `bytes`, `true` for `directory`, and a
+//! mismatch is rejected. A regular file's `content` is
+//! `{"kind":"bytes","bytes":"…"}`; `bytes` is a standard padded RFC 4648
+//! Base64 string — URL-safe `-`/`_`, whitespace/line breaks, missing or
+//! non-canonical padding, and the legacy numeric-array form are all
+//! rejected. Only an empty file uses `""`. A directory's `content` is
+//! `{"kind":"directory","entries":[…]}` with recursive `FileValue`
+//! entries; multiple files go in one Directory, never a top-level array.
+//!
+//! ```json
+//! {"name":"hello.txt","is_dir":false,"mime":"text/plain",
+//!  "content":{"kind":"bytes","bytes":"aGVsbG8="}}
+//! ```
+//!
+//! JSON Schema marks File properties with `x-upeg-file-wire` — a closed
+//! extension object declaring version 1, `base64-rfc4648-padded`, no
+//! numeric arrays, and recursive Directory support. An external legacy
+//! schema may omit it; when present every key and value must match
+//! exactly (`upeg-core/tests/file_wire_schema.rs` gates this).
+//!
+//! # Size budgets
+//!
+//! The stricter of the Tool's `max_file_bytes`/`max_total_bytes` policy
+//! and the surface limits wins. Canonical File *output* per root: 64 MiB
+//! decoded bytes, 128 total nodes (root included), 16 KiB of combined
+//! name+MIME metadata, depth 64 (root = 1). File *input*: 100 actual
+//! files, 128 nodes, 16 KiB metadata, depth 64, 50 MiB decoded. Each
+//! HTTP request body / MCP request line is capped at 1,000,000 bytes of
+//! envelope; the Chrome extension caps File input at 640 KiB decoded and
+//! reads output up to the 64 MiB root budget. `x-upeg-file-policy` stays
+//! input-only — output size is steered by the optional
+//! `max_output_bytes` input (1..=64 MiB, default 64 MiB) on the media
+//! Tools that accept it.
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 

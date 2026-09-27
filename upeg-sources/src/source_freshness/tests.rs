@@ -42,6 +42,38 @@ fn source_snapshot_detects_file_change_addition_and_deletion() {
 }
 
 #[test]
+fn project_snapshot_tracks_config_and_each_toolkit_in_marker_directory() {
+    let (root, mut config) = fixture("project-directory");
+    let marker = root.join("project/.upeg");
+    std::fs::create_dir_all(marker.join("toolkits")).expect("project marker");
+    config.project_manifest = Some(crate::project::ProjectManifestLookup {
+        path: marker.clone(),
+        origin: crate::project::ProjectManifestOrigin::Detected,
+    });
+    record_sources_for_root(&root, &config);
+    assert!(validate_sources_for_root(&root, &config).is_ok());
+    std::fs::write(marker.join("project.toml"), "schema_version = 1\n").expect("project config");
+    assert!(matches!(
+        validate_sources_for_root(&root, &config),
+        Err(LoadedSourcesError::Changed { .. })
+    ));
+    record_sources_for_root(&root, &config);
+    let toolkit = marker.join("toolkits/check.toml");
+    std::fs::write(&toolkit, "id = 'check'\n").expect("project toolkit");
+    assert!(matches!(
+        validate_sources_for_root(&root, &config),
+        Err(LoadedSourcesError::Changed { .. })
+    ));
+    record_sources_for_root(&root, &config);
+    std::fs::remove_file(toolkit).expect("remove toolkit");
+    assert!(matches!(
+        validate_sources_for_root(&root, &config),
+        Err(LoadedSourcesError::Changed { .. })
+    ));
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn source_snapshots_do_not_interfere_across_config_roots() {
     let (first_root, first) = fixture("first-root");
     let (second_root, second) = fixture("second-root");

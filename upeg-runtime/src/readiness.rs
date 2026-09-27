@@ -1,4 +1,30 @@
 //! Non-executing readiness inspection for declarative External tools.
+//!
+//! `[tools.setup]` (legal only on `External`; HTTP(S) guide URLs only,
+//! blank guidance rejected) is *display-only* install guidance — upeg
+//! never installs software or runs a setup command. Readiness itself is
+//! a runtime sidecar, not `ToolMeta`: tool identity stays source-neutral
+//! while the loader records process requirements for the native host.
+//!
+//! [`inspect_tool_readiness`] takes the caller working directory and an
+//! optional caller PATH, computes the same working-directory policy as
+//! dispatch, and checks only filesystem executable metadata — it never
+//! spawns a process and never resolves a credential. The serializable
+//! result reports `ready` | `missing_executable` |
+//! `missing_working_directory` | `unchecked_credential_path`, always
+//! names the host platform, and may carry the command, effective
+//! directory, resolved executable, and OS-selected setup guidance. It
+//! never exposes PATH values, declared env values, or credential names.
+//!
+//! PATH priority: caller context → manifest plain `env` → inherited.
+//! A credential-supplied PATH is unknowable until dispatch, so the
+//! result is `unchecked_credential_path` — except that a missing working
+//! directory still wins because it is independently knowable. Readiness
+//! is advisory: a later filesystem/env change can flip the answer either
+//! way, and dispatch remains authoritative. `External` is not itself
+//! proof that requirements exist — MCP-imported proxy tools share the
+//! invoker and return not-applicable, so they stay runnable and show no
+//! setup warning.
 
 use std::ffi::OsString;
 use std::path::PathBuf;

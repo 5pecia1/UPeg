@@ -11,7 +11,6 @@ use upeg_core::{
 use upeg_runtime::manifest::{
     RuntimeToolManifest, lower_runtime_tool_manifest, validate_tool_identity,
 };
-use upeg_runtime::pegboard_project::ProjectBoardDecl;
 
 pub(crate) mod boards;
 pub(crate) mod chain;
@@ -129,19 +128,11 @@ pub(crate) struct LoweredToolkit {
     pub(crate) skipped: Vec<SkippedTool>,
 }
 
-/// A whole manifest file, lowered: the toolkit, its tools, and the
-/// boards it declares.
-///
-/// `[[boards]]` is carried out separately from `parse_toolkit_full`'s
-/// tuple because only *one* caller may honour it — the Project Manifest
-/// loader. Every other caller (toolkit-directory loading, `upeg toolkit
-/// validate`, example fixtures) keeps the tuple and cannot accidentally
-/// register a project board.
+/// A whole Toolkit manifest file, lowered.
 #[derive(Debug)]
 pub(crate) struct ParsedManifest {
     pub(crate) toolkit: ToolkitMeta,
     pub(crate) tools: Vec<(ToolMeta, ToolToml)>,
-    pub(crate) boards: Vec<ProjectBoardDecl>,
     /// Tools this host cannot run — see [`SkippedTool`]. Empty on every
     /// machine that can honour everything the file declared.
     pub(crate) skipped: Vec<SkippedTool>,
@@ -150,12 +141,10 @@ pub(crate) struct ParsedManifest {
 pub(crate) fn parse_manifest(input: &str) -> Result<ParsedManifest, LoadError> {
     reject_retired_fields(input)?;
     let parsed: ToolkitToml = toml::from_str(input).map_err(LoadError::Toml)?;
-    let boards = boards::lower_board_entries(&parsed.boards)?;
     let lowered = toolkit_to_meta_and_tools(&parsed, HostCapabilities::CURRENT)?;
     Ok(ParsedManifest {
         toolkit: lowered.toolkit,
         tools: lowered.tools,
-        boards,
         skipped: lowered.skipped,
     })
 }
@@ -173,6 +162,9 @@ fn reject_retired_fields(input: &str) -> Result<(), LoadError> {
                 replacement: "tags",
             });
         }
+    }
+    if table.contains_key("boards") {
+        return Err(LoadError::BoardsOutsideProjectManifest);
     }
     if let Some(tools) = table.get("tools").and_then(toml::Value::as_array) {
         for tool in tools {

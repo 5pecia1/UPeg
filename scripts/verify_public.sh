@@ -31,6 +31,9 @@ verify_lane() {
       # This lane runs in the exported checkout, where quality/ is at root.
       python3 quality/public_language_check.py self-test
       python3 quality/public_language_check.py check
+      bash packaging/test-release-files.sh
+      bash packaging/test-msix.sh
+      bash release/test-release-scripts.sh
       browser="${UPEG_BROWSER_PATH:-${CHROME_EXECUTABLE:-}}"
       if [ -z "$browser" ]; then
         browser="$(command -v google-chrome || command -v chromium || true)"
@@ -46,6 +49,9 @@ verify_lane() {
       cargo build --workspace --locked
       cargo clippy --workspace --all-targets --locked -- -D warnings
       cargo test --workspace --locked
+      just interface-inventory-check
+      just toolkit-schema-check
+      just test-chrome-ext-file-input
       ;;
     wasm)
       for package in upeg-tools upeg-core upeg_frb; do
@@ -56,7 +62,9 @@ verify_lane() {
       python3 scripts/flutter_i18n_check.py self-test
       python3 scripts/flutter_i18n_check.py check --baseline fixtures/flutter-i18n-baseline.json
       flutter --version | grep -F "Flutter $FLUTTER_VERSION " >/dev/null
-      (cd flutter_app && flutter pub get --enforce-lockfile && flutter analyze && flutter test)
+      (cd flutter_app && flutter pub get --enforce-lockfile)
+      just frb-codegen-check
+      (cd flutter_app && flutter analyze && flutter test)
       just flutter-build-linux
       just flutter-build-web
       ;;
@@ -71,7 +79,7 @@ verify_lane() {
     *) printf 'Unknown verification lane: %s\n' "$1" >&2; return 1 ;;
   esac
   # Enforce the dependency graph even in an archive or linked worktree.
-  printf '%s\n' "$LOCK_HASHES" | sha256sum --check --status
+  printf '%s\n' "$LOCK_HASHES" | sha256sum -c - >/dev/null
 
 }
 

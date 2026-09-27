@@ -76,6 +76,10 @@ Future<void> _pumpTile(
       child: MaterialApp(
         home: Scaffold(
           body: ControlledEmbedTile(
+            pinKey: (
+              BoardKey.parse('integration'),
+              PinId.parse(_fixtureTool().id),
+            ),
             tool: _fixtureTool(),
             resolution: _fixtureResolution(url),
           ),

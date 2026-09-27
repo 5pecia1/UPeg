@@ -21,6 +21,7 @@ const {
   RUN_HINT_COMMAND,
   authHeaders,
   buildDeepLink,
+  boardShowPath,
   callTool,
   classifyDispatchResponse,
   endpointForStoredValue,
@@ -31,6 +32,11 @@ const {
   readHostEndpoint,
   toolCallPath,
 } = require('../host_api.js');
+
+test('extension_board_paths_are_separate_from_the_legacy_http_routes', () => {
+  assert.equal(boardShowPath('dev'), '/v1/ext/boards/dev');
+  assert.equal(toolCallPath('dev', 'num.hex_to_decimal'), '/v1/ext/boards/dev/tools/num.hex_to_decimal');
+});
 
 test('deep_link_uses_the_same_order_and_encoding_as_the_rust_desktop_deep_link', () => {
   // `upeg_pegboard_ui::deep_link::desktop_deep_link` emits surface, board,
@@ -60,9 +66,9 @@ test('the_authorization_header_is_attached_only_when_a_token_exists', () => {
   assert.deepEqual(authHeaders(''), { Accept: 'application/json' });
 });
 
-test('the_tool_path_encodes_the_id', () => {
-  assert.equal(toolCallPath('num.hex_to_decimal'), '/v1/tools/num.hex_to_decimal');
-  assert.equal(toolCallPath('a/b'), '/v1/tools/a%2Fb');
+test('the_extension_tool_path_encodes_the_board_and_id', () => {
+  assert.equal(toolCallPath('dev', 'num.hex_to_decimal'), '/v1/ext/boards/dev/tools/num.hex_to_decimal');
+  assert.equal(toolCallPath('board/a', 'a/b'), '/v1/ext/boards/board%2Fa/tools/a%2Fb');
 });
 
 test('401_and_403_are_classified_as_auth_failures', () => {
@@ -132,7 +138,7 @@ test('a_body_over_the_request_cap_becomes_request_too_large_before_sending', asy
   assert.ok(outcome.actualBytes > outcome.limitBytes - 1);
 });
 
-test('dispatch_posts_to_v1_tools_with_a_bearer_token_and_a_json_body', async () => {
+test('dispatch_posts_to_the_extension_board_route_with_a_bearer_token_and_a_json_body', async () => {
   const seen = [];
   const outcome = await callTool({
     fetchImpl: async (url, init) => {
@@ -141,13 +147,14 @@ test('dispatch_posts_to_v1_tools_with_a_bearer_token_and_a_json_body', async () 
     },
     baseUrl: 'http://127.0.0.1:7173',
     token: 'test-tok',
+    board: 'dev',
     toolId: 'num.hex_to_decimal',
     args: { input: '0xff' },
   });
 
   assert.equal(outcome.kind, DISPATCH_RESULT_KIND.SUCCESS);
   const [url, init] = seen[0];
-  assert.equal(url, 'http://127.0.0.1:7173/v1/tools/num.hex_to_decimal');
+  assert.equal(url, 'http://127.0.0.1:7173/v1/ext/boards/dev/tools/num.hex_to_decimal');
   assert.equal(init.method, 'POST');
   assert.equal(init.headers.Authorization, 'Bearer test-tok');
   assert.equal(init.headers['Content-Type'], 'application/json');
@@ -165,11 +172,12 @@ test('dispatch_against_a_configured_endpoint_uses_that_base_url', async () => {
       return { status: 200, json: async () => ({ ok: true, outputs: [] }) };
     },
     baseUrl: endpoint.baseUrl,
+    board: 'dev',
     toolId: 'num.hex_to_decimal',
     args: {},
   });
   assert.equal(outcome.kind, DISPATCH_RESULT_KIND.SUCCESS);
-  assert.equal(seen[0], 'http://127.0.0.1:49317/v1/tools/num.hex_to_decimal');
+  assert.equal(seen[0], 'http://127.0.0.1:49317/v1/ext/boards/dev/tools/num.hex_to_decimal');
 });
 
 test('primary_output_picks_the_declared_id_and_falls_back_to_the_first_row', () => {

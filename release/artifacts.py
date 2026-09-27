@@ -1,48 +1,35 @@
 #!/usr/bin/env python3
-"""Release artifact set, build manifest, and verified-run gate.
+"""Canonical release asset profiles and the v2 checksum manifest.
 
-Build side (public release workflow):
-  expected-files VERSION TAG [cli] [desktop] [web]
-      Print the release file names the selected components must produce.
-  manifest DIST_DIR OUT_JSON
-      Write release-manifest.json covering every file in DIST_DIR; refuse
-      when a selected component produced no file. Selection and metadata
-      come from UPEG_* environment variables (see manifest()).
-
-Publish side (trusted publisher):
-  check DIST_DIR MANIFEST_JSON
-      Verify every file in DIST_DIR against the manifest sha256/size list.
-  verify-run OUT_DIR --repo-id ID --tag TAG
-      Gate a downloaded public workflow run: run.json, jobs.json,
-      artifacts.json, manifest/release-manifest.json and files/ under
-      OUT_DIR must describe the same commit, the expected tag, the full
-      component set, and byte-identical files. Writes OUT_DIR/verified.json.
-
-Only stdlib; safe to run in the public repository and in the publisher.
+``build_commit`` records the commit that produced the bytes. A mirrored
+release's public tag target is bound separately by github_release.py.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import sys
 
-SCHEMA = 'upeg-release-manifest/v1'
-COMPONENTS = ('cli', 'desktop', 'web')
+MIRROR_SCHEMA = 'upeg-release-manifest/v2'
 PUBLIC_REPO = '5pecia1/UPeg'
-WORKFLOW_PATH = '.github/workflows/release.yml'
-REQUIRED_JOBS = ('preflight', 'cli-linux', 'cli-macos', 'cli-windows',
-                 'flutter-linux', 'manifest')
-ARTIFACT_NAMES = ('cli-linux', 'cli-macos', 'cli-windows', 'flutter-linux',
-                  'flutter-web', 'release-manifest')
-SHA_PATTERN = re.compile(r'[0-9a-f]{40}')
+COMPONENTS = ('cli', 'desktop', 'web')
+SHA_PATTERN = re.compile(r'[0-9a-f]{40}\Z')
+DIGEST_PATTERN = re.compile(r'[0-9a-f]{64}\Z')
 
 
 class GateError(RuntimeError):
     """A failed check; callers must stop before publishing."""
+
+
+def safe_name(name: object) -> str:
+    if not isinstance(name, str) or not name or name in ('.', '..'):
+        raise GateError('invalid release asset name')
+    if '/' in name or '\\' in name or '\x00' in name:
+        raise GateError(f'unsafe release asset name: {name!r}')
+    return name
 
 
 def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
@@ -55,24 +42,38 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
             files += [f'upeg-{tag}-x86_64-pc-windows-msvc.zip',
                       f'upeg-{tag}-x86_64-pc-windows-msvc.zip.sha256']
         elif component == 'desktop':
-            files += [f'upeg_{version}_amd64.deb',
-                      f'upeg_{version}_amd64.deb.sha256',
-                      f'upeg-{tag}-x86_64.AppImage',
-                      f'upeg-{tag}-x86_64.AppImage.sha256']
+            files += [f'upeg_{version}_amd64.deb', f'upeg_{version}_amd64.deb.sha256',
+                      f'upeg-{tag}-x86_64.AppImage', f'upeg-{tag}-x86_64.AppImage.sha256']
         elif component == 'web':
-            files += [f'upeg-{tag}-web.tar.gz',
-                      f'upeg-{tag}-web.tar.gz.sha256']
+            files += [f'upeg-{tag}-web.tar.gz', f'upeg-{tag}-web.tar.gz.sha256']
         else:
             raise GateError(f'unknown component: {component}')
     return sorted(files)
 
 
-def selected_components(env: dict[str, str]) -> list[str]:
-    selected = [c for c in COMPONENTS if env.get(f'UPEG_WANT_{c.upper()}', '1') == '1']
-    unknown = set(selected) - set(COMPONENTS)
-    if unknown:
-        raise GateError(f'unknown components: {sorted(unknown)}')
-    return selected
+def profile_files(version: str, tag: str, profile: str) -> set[str]:
+    if profile == 'public':
+        return set(expected_files(version, tag, list(COMPONENTS)))
+    if profile == 'linux':
+        payloads = {
+            f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-aarch64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-web.tar.gz', f'upeg_{version}_amd64.deb',
+            f'upeg-{tag}-x86_64.AppImage',
+        }
+    elif profile == 'full':
+        payloads = {
+            f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-aarch64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-aarch64-apple-darwin.tar.gz',
+            f'upeg-{tag}-x86_64-pc-windows-msvc.zip',
+            f'upeg_{version}_amd64.deb', f'upeg-{tag}-x86_64.AppImage',
+            f'upeg-{tag}-web.tar.gz', f'upeg-{tag}.dmg',
+            f'upeg-{tag}-x86_64.msix',
+        }
+    else:
+        raise GateError(f'unknown release profile: {profile!r}')
+    return payloads | {f'{name}.sha256' for name in payloads}
 
 
 def sha256(path: Path) -> str:
@@ -83,142 +84,65 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def file_entries(dist_dir: Path) -> list[dict]:
-    entries = []
-    for path in sorted(dist_dir.iterdir()):
-        if path.is_file():
-            entries.append({'name': path.name, 'sha256': sha256(path),
-                            'bytes': path.stat().st_size})
-    return entries
+def regular_files(dist_dir: Path) -> dict[str, Path]:
+    if not dist_dir.is_dir() or dist_dir.is_symlink():
+        raise GateError('release asset directory is missing or is a symlink')
+    files: dict[str, Path] = {}
+    for path in dist_dir.iterdir():
+        safe_name(path.name)
+        if path.is_symlink() or not path.is_file():
+            raise GateError(f'non-regular release asset: {path.name}')
+        files[path.name] = path
+    return files
 
 
-def manifest(dist_dir: Path, out_json: Path, env: dict[str, str]) -> dict:
-    version = env.get('UPEG_VERSION', '')
-    tag = env.get('UPEG_TAG', '')
-    components = selected_components(env)
-    if not tag.startswith('v') or tag[1:] != version:
-        raise GateError(f'tag {tag!r} must equal v{version!r}')
-    entries = file_entries(dist_dir)
-    present = {entry['name'] for entry in entries}
-    missing = sorted(set(expected_files(version, tag, components)) - present)
-    if missing:
-        raise GateError(f'selected components missing files: {missing}')
-    document = {
-        'schema': SCHEMA,
-        'repo': repo if (repo := env.get('UPEG_REPO', '')) else PUBLIC_REPO,
-        'run_id': env.get('UPEG_RUN_ID', ''),
-        'run_attempt': env.get('UPEG_RUN_ATTEMPT', ''),
-        'workflow': env.get('UPEG_WORKFLOW', 'release'),
-        'event': env.get('UPEG_EVENT', 'workflow_dispatch'),
-        'ref': env.get('UPEG_REF', 'refs/heads/main'),
-        'commit': env.get('UPEG_COMMIT', ''),
-        'version': version,
-        'tag': tag,
-        'flutter_version': env.get('UPEG_FLUTTER_VERSION', ''),
-        'components': components,
-        'files': entries,
-    }
+def manifest_v2(dist_dir: Path, out_json: Path, tag: str, commit: str, profile: str) -> dict:
+    version = tag.removeprefix('v')
+    if not tag.startswith('v') or not version or not SHA_PATTERN.fullmatch(commit):
+        raise GateError('v2 manifest needs a v-prefixed tag and full build commit SHA')
+    files = regular_files(dist_dir)
+    if set(files) != profile_files(version, tag, profile):
+        raise GateError('release files differ from the selected profile')
+    entries = [{'name': name, 'sha256': sha256(files[name]), 'bytes': files[name].stat().st_size}
+               for name in sorted(files)]
+    document = {'schema': MIRROR_SCHEMA, 'tag': tag, 'version': version,
+                'profile': profile, 'build_commit': commit, 'files': entries}
     out_json.write_text(json.dumps(document, indent=2) + '\n')
     return document
 
 
-def load_manifest(manifest_json: Path) -> dict:
+def verify_mirror(dist_dir: Path, manifest_json: Path, tag: str) -> dict:
     document = json.loads(manifest_json.read_text())
-    if document.get('schema') != SCHEMA:
-        raise GateError(f'unexpected manifest schema: {document.get("schema")!r}')
-    if not document.get('files'):
-        raise GateError('manifest lists no files')
-    return document
-
-
-def check(dist_dir: Path, manifest_json: Path) -> dict:
-    document = load_manifest(manifest_json)
-    entries = {entry['name']: entry for entry in document['files']}
-    actual = {path.name: path for path in dist_dir.iterdir() if path.is_file()}
-    if set(actual) != set(entries):
-        raise GateError(
-            f'artifact set mismatch: missing={sorted(set(entries) - set(actual))}, '
-            f'unexpected={sorted(set(actual) - set(entries))}')
-    for name, entry in entries.items():
-        path = actual[name]
-        if path.stat().st_size != entry['bytes'] or sha256(path) != entry['sha256']:
-            raise GateError(f'artifact content mismatch: {name}')
-    return document
-
-
-def verify_run(out_dir: Path, repo_id: str, run_id: str, tag: str) -> dict:
-    run = json.loads((out_dir / 'run.json').read_text())
-    repo = json.loads((out_dir / 'repo.json').read_text())
-    jobs = json.loads((out_dir / 'jobs.json').read_text())
-    artifacts = json.loads((out_dir / 'artifacts.json').read_text())
-    document = check(out_dir / 'files', out_dir / 'manifest' / 'release-manifest.json')
-
-    if not repo_id.isdecimal() or not run_id.isdecimal():
-        raise GateError('expected numeric repository and run IDs')
-    if repo.get('id') != int(repo_id) or repo.get('full_name') != PUBLIC_REPO:
-        raise GateError('repository ID/name mismatch; the URL may still redirect')
-    if run.get('id') != int(run_id):
-        raise GateError('saved run metadata is not for the requested run ID')
-    if run.get('path') != WORKFLOW_PATH:
-        raise GateError(f'run is not the release workflow: {run.get("path")!r}')
-    if run.get('event') != 'workflow_dispatch' or run.get('head_branch') != 'main':
-        raise GateError('run must be a workflow_dispatch on main')
-    if run.get('status') != 'completed' or run.get('conclusion') != 'success':
-        raise GateError(f'run did not succeed: {run.get("conclusion")!r}')
-    commit = run.get('head_sha', '')
-    if not SHA_PATTERN.fullmatch(commit):
-        raise GateError('run head_sha is not a full commit SHA')
-    if run.get('repository', {}).get('id') != int(repo_id) \
-            or run.get('head_repository', {}).get('id') != int(repo_id):
-        raise GateError('run did not run on the public repository itself')
-    if run.get('run_attempt') != int(document.get('run_attempt') or 0):
-        raise GateError('manifest run_attempt differs from the verified run')
-
-    job_results = {job['name']: job.get('conclusion') for job in jobs.get('jobs', [])}
-    failed = {name: result for name, result in job_results.items()
-              if result not in ('success', 'skipped')}
-    if failed:
-        raise GateError(f'failed jobs in run: {failed}')
-    for name in REQUIRED_JOBS:
-        if job_results.get(name) != 'success':
-            raise GateError(f'required job did not succeed: {name}={job_results.get(name)!r}')
-
-    wanted = set(ARTIFACT_NAMES)
-    seen = {}
-    for artifact in artifacts.get('artifacts', []):
-        name = artifact.get('name')
-        if name not in wanted:
-            raise GateError(f'unexpected artifact: {name!r}')
-        if artifact.get('expired'):
-            raise GateError(f'artifact expired: {name!r}')
-        seen[name] = artifact
-    if set(seen) != wanted:
-        raise GateError(f'missing artifacts: {sorted(wanted - set(seen))}')
-
-    if document.get('repo') != PUBLIC_REPO or document.get('commit') != commit:
-        raise GateError('manifest repo/commit differ from the verified run')
+    if not isinstance(document, dict) or document.get('schema') != MIRROR_SCHEMA:
+        raise GateError('unexpected release manifest schema')
     if document.get('tag') != tag or document.get('version') != tag.removeprefix('v'):
-        raise GateError(f'manifest tag {document.get("tag")!r} does not match {tag!r}')
-    if sorted(document.get('components', [])) != list(COMPONENTS):
-        raise GateError('run did not build the full release component set')
-    expected = set(expected_files(document['version'], tag, list(COMPONENTS)))
-    listed = {entry['name'] for entry in document['files']}
-    if listed != expected:
-        raise GateError(f'release file set differs: missing={sorted(expected - listed)}, '
-                        f'unexpected={sorted(listed - expected)}')
-
-    verified = {
-        'tag': tag,
-        'version': document['version'],
-        'commit': commit,
-        'repo': PUBLIC_REPO,
-        'repo_id': int(repo_id),
-        'run_id': run.get('id'),
-        'run_attempt': run.get('run_attempt'),
-        'files': sorted(listed),
-    }
-    (out_dir / 'verified.json').write_text(json.dumps(verified, indent=2) + '\n')
-    return verified
+        raise GateError('release manifest tag/version mismatch')
+    if not isinstance(document.get('build_commit'), str) \
+            or not SHA_PATTERN.fullmatch(document['build_commit']):
+        raise GateError('release manifest build_commit is invalid')
+    entries = document.get('files')
+    if not isinstance(entries, list) or not entries:
+        raise GateError('release manifest lists no files')
+    names: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise GateError('invalid release manifest file entry')
+        names.append(safe_name(entry.get('name')))
+    if len(names) != len(set(names)):
+        raise GateError('duplicate release manifest file name')
+    if set(names) != profile_files(document['version'], tag, document.get('profile')):
+        raise GateError('release manifest files differ from selected profile')
+    actual = regular_files(dist_dir)
+    if set(actual) != set(names):
+        raise GateError('release asset set mismatch')
+    for entry in entries:
+        name = entry['name']
+        size, checksum = entry.get('bytes'), entry.get('sha256')
+        if type(size) is not int or size < 0 or not isinstance(checksum, str) \
+                or not DIGEST_PATTERN.fullmatch(checksum) \
+                or actual[name].stat().st_size != size or sha256(actual[name]) != checksum:
+            raise GateError(f'release artifact content mismatch: {name}')
+    return document
 
 
 def main() -> int:
@@ -228,32 +152,27 @@ def main() -> int:
     exp.add_argument('version')
     exp.add_argument('tag')
     exp.add_argument('components', nargs='*', default=list(COMPONENTS))
-    man = sub.add_parser('manifest')
+    man = sub.add_parser('manifest-v2')
     man.add_argument('dist_dir', type=Path)
     man.add_argument('out_json', type=Path)
-    chk = sub.add_parser('check')
+    man.add_argument('--tag', required=True)
+    man.add_argument('--commit', required=True)
+    man.add_argument('--profile', required=True, choices=('linux', 'public', 'full'))
+    chk = sub.add_parser('verify-mirror')
     chk.add_argument('dist_dir', type=Path)
     chk.add_argument('manifest_json', type=Path)
-    ver = sub.add_parser('verify-run')
-    ver.add_argument('out_dir', type=Path)
-    ver.add_argument('--repo-id', required=True)
-    ver.add_argument('--run-id', required=True)
-    ver.add_argument('--tag', required=True)
+    chk.add_argument('--tag', required=True)
     args = parser.parse_args()
     try:
         if args.command == 'expected-files':
-            components = args.components or list(COMPONENTS)
-            print('\n'.join(expected_files(args.version, args.tag, components)))
-        elif args.command == 'manifest':
-            document = manifest(args.dist_dir, args.out_json, dict(os.environ))
-            print(f"[PASS] manifest: {len(document['files'])} files, tag {document['tag']}")
-        elif args.command == 'check':
-            document = check(args.dist_dir, args.manifest_json)
-            print(f"[PASS] artifacts verified: {len(document['files'])} files, tag {document['tag']}")
-        elif args.command == 'verify-run':
-            verified = verify_run(args.out_dir, args.repo_id, args.run_id, args.tag)
-            print(f"[PASS] run verified: tag {verified['tag']} at {verified['commit']}")
-    except (GateError, OSError, ValueError, KeyError) as error:
+            print('\n'.join(expected_files(args.version, args.tag, args.components or list(COMPONENTS))))
+        elif args.command == 'manifest-v2':
+            document = manifest_v2(args.dist_dir, args.out_json, args.tag, args.commit, args.profile)
+            print(f"[PASS] release manifest: {len(document['files'])} files, tag {document['tag']}")
+        else:
+            document = verify_mirror(args.dist_dir, args.manifest_json, args.tag)
+            print(f"[PASS] release assets verified: {len(document['files'])} files, tag {document['tag']}")
+    except (GateError, OSError, ValueError, KeyError, TypeError) as error:
         print(f'[FAIL] {error}', file=sys.stderr)
         return 1
     return 0

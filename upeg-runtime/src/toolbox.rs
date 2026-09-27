@@ -1,3 +1,72 @@
+//! The Toolbox — one call hierarchy, four Tool sources, one dispatch
+//! boundary.
+//!
+//! # Hierarchy
+//!
+//! ```text
+//! Toolkit (grouping/distribution unit — never callable)
+//! └── Tool (call unit; full id `{toolkit}.{tool}`)
+//! ```
+//!
+//! Ids are canonical — manifests reject surrounding whitespace rather
+//! than normalize it. Personal tools live under a personal-namespace
+//! Toolkit (`my.<name>`).
+//!
+//! # Sources
+//!
+//! | Source | Method | Unit |
+//! |---|---|---|
+//! | Static | Rust `#[upeg::toolkit]` / `#[upeg::tool]` | built-in Toolkit compiled into core |
+//! | Declarative | TOML (`~/.upeg/toolkits/*.toml`, project `upeg.toml`) | one file = one Toolkit |
+//! | Wasm | `~/.upeg/wasm/*.wasm` | one binary = one Toolkit |
+//! | MCP Import | upstream servers declared in `~/.upeg/mcp-imports/*.toml` | one file = one namespace |
+//!
+//! # Invoker — the call mechanism (closed enum)
+//!
+//! `Function` (direct Rust call, static source only) · `External`
+//! (subprocess — hosts that can spawn only) · `Http` (credential
+//! reference + declared URL) · `Static` (dispatch is a no-op;
+//! `PinKind::Embed` only) · `Embed` (WebView selector adapter;
+//! `PinKind::ControlledEmbed` only, bindings required) · `Chain`
+//! (declarative composition — itself a single Tool) · `Llm` (provider
+//! is adapter config, not domain) · `Wasm` (extism host,
+//! feature-gated). `Invoker::Embed` and `PinKind::Embed` are *not* a
+//! pair — each pairs with the other side's counterpart.
+//!
+//! # Tags
+//!
+//! Toolkit tags are inherited by every child Tool; Tool tags are
+//! additive. Effective tags = `toolkit.tags ∪ tool.tags ∪ toolkit id ∪
+//! capability tags`. `category` is retired — never reintroduce it.
+//!
+//! # Dispatch boundary
+//!
+//! Every surface calls Tools through this one toolbox + dispatcher
+//! boundary — no per-surface ad-hoc code. `ToolMeta` is pure metadata
+//! (id, toolkit, tags, description, schema, pin kind, pegboard units,
+//! invoker, surfaces, boards); `ToolkitMeta` is grouping metadata. A
+//! runtime dispatcher is registered by id and receives JSON args; a
+//! surface gates on `Surface` before running; the result is the
+//! canonical `ToolResult` — CLI stdout picks a representation
+//! (primary/`--json`/`--field`/`--pretty`), transports and UI surfaces
+//! consume the same output rows.
+//!
+//! Dispatch order: built-in dispatchers are guaranteed → the toolbox
+//! must hold the metadata → a runtime dispatcher runs → metadata with
+//! no dispatcher is a clear not-implemented Tool error. Before metadata
+//! becomes visible, every accepted invoker registers either an
+//! executable dispatcher or a capability-explicit error. The single CLI
+//! path is the dynamic route `upeg {toolkit} {tool} <pos…>` — hardcoded
+//! per-Toolkit subcommands are never reintroduced, and adding a Toolkit
+//! must not require a CLI change.
+//!
+//! # Boards
+//!
+//! A Tool's `boards = [...]` only chooses which tab it sits on — it does
+//! not create a board. Boards come from `upeg_core::BUILTIN_BOARDS` or
+//! the project manifest's top-level `[[boards]]` (declaration and
+//! persistence rules: `upeg_sources::project` module docs).
+
 #![allow(
     clippy::expect_used,
     clippy::panic,
@@ -82,6 +151,7 @@ pub trait ToolMetaRuntimeExt {
 }
 
 pub fn tool_json_entries_for_surface(surface: Surface, id_key: &str) -> Vec<serde_json::Value> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     let mut tools: Vec<_> = toolbox_tools()
         .filter(|tool| tool.is_on_surface(surface))
         .collect();
@@ -107,7 +177,13 @@ impl ToolMetaRuntimeExt for ToolMeta {
 
     fn tag_labels(&self) -> Vec<String> {
         let mut tags = Vec::new();
-        if let Some(toolkit) = toolbox_toolkit(self.toolkit_id()) {
+        let toolkit = match crate::tool_provenance(self.id) {
+            crate::ToolProvenance::ProjectManifest { .. } => {
+                crate::project_scope::project_toolkit_meta(self.toolkit_id())
+            }
+            _ => toolbox_toolkit(self.toolkit_id()),
+        };
+        if let Some(toolkit) = toolkit {
             for tag in toolkit.tags {
                 push_tag(&mut tags, tag);
             }
@@ -223,6 +299,7 @@ pub fn toolbox_add_toolkit(meta: ToolkitMeta) {
 }
 
 pub fn toolbox_toolkits() -> impl Iterator<Item = &'static ToolkitMeta> {
+    let catalog = crate::project_scope::catalog_read_guard();
     let runtime_snapshot: Vec<&'static ToolkitMeta> = runtime_toolkits_lock()
         .lock()
         .map(|guard| guard.clone())
@@ -235,7 +312,17 @@ pub fn toolbox_toolkits() -> impl Iterator<Item = &'static ToolkitMeta> {
             .inspect(|meta| meta.assert_valid())
             .filter(|meta| !runtime_ids.contains(meta.id)),
     );
-    toolkits.into_iter().inspect(|meta| meta.assert_valid())
+    let existing_ids: std::collections::HashSet<_> =
+        toolkits.iter().map(|toolkit| toolkit.id).collect();
+    toolkits.extend(
+        crate::project_scope::project_toolkit_metas()
+            .into_iter()
+            .filter(|toolkit| !existing_ids.contains(toolkit.id)),
+    );
+    toolkits.into_iter().inspect(move |meta| {
+        let _keep_catalog = &catalog;
+        meta.assert_valid();
+    })
 }
 
 pub fn toolbox_toolkit(id: &str) -> Option<&'static ToolkitMeta> {
@@ -260,6 +347,12 @@ pub fn board_context(board: &str) -> BoardExecutionContext {
 
 pub fn toolbox_add_tool(meta: ToolMeta) {
     let _ = insert_runtime_tool(meta);
+}
+
+pub(crate) fn take_runtime_tool(id: &str) -> Option<&'static ToolMeta> {
+    let mut guard = runtime_tools_lock().lock().ok()?;
+    let position = guard.iter().position(|entry| entry.meta.id == id)?;
+    Some(guard.remove(position).meta)
 }
 
 #[derive(Debug)]
@@ -422,6 +515,7 @@ where
 }
 
 pub fn toolbox_tools() -> impl Iterator<Item = &'static ToolMeta> {
+    let catalog = crate::project_scope::catalog_read_guard();
     let runtime_snapshot: Vec<&'static ToolMeta> = runtime_tools_lock()
         .lock()
         .map(|guard| guard.iter().map(|entry| entry.meta).collect())
@@ -429,11 +523,33 @@ pub fn toolbox_tools() -> impl Iterator<Item = &'static ToolMeta> {
     inventory_tools()
         .iter()
         .chain(runtime_snapshot)
-        .inspect(|meta| meta.assert_valid())
+        .filter(|meta| !crate::project_scope::is_project_tool_blocked(meta.id))
+        .inspect(move |meta| {
+            let _keep_catalog = &catalog;
+            meta.assert_valid();
+        })
 }
 
 pub fn toolbox_tool(id: &str) -> Option<&'static ToolMeta> {
     toolbox_tools().find(|t| t.id == id)
+}
+
+pub fn toolbox_registered_tool(id: &str) -> Option<&'static ToolMeta> {
+    inventory_tools()
+        .iter()
+        .find(|tool| tool.id == id)
+        .or_else(|| {
+            runtime_tools_lock()
+                .lock()
+                .ok()?
+                .iter()
+                .find(|entry| entry.meta.id == id)
+                .map(|entry| entry.meta)
+        })
+}
+
+pub fn toolbox_is_builtin(id: &str) -> bool {
+    inventory_tools().iter().any(|tool| tool.id == id)
 }
 
 pub fn toolbox_tool_in_toolkit(toolkit: &str, local: &str) -> Option<&'static ToolMeta> {
@@ -450,6 +566,7 @@ fn sorted_tools_for_surface(surface: Surface) -> Vec<&'static ToolMeta> {
 }
 
 pub fn toolkits_for_surface(surface: Surface) -> Vec<&'static str> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     let mut ids: Vec<_> = sorted_tools_for_surface(surface)
         .into_iter()
         .map(|t| t.toolkit)
@@ -460,6 +577,7 @@ pub fn toolkits_for_surface(surface: Surface) -> Vec<&'static str> {
 }
 
 pub fn tools_for_toolkit_on_surface(toolkit: &str, surface: Surface) -> Vec<&'static ToolMeta> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     sorted_tools_for_surface(surface)
         .into_iter()
         .filter(|t| t.toolkit == toolkit)
@@ -467,6 +585,7 @@ pub fn tools_for_toolkit_on_surface(toolkit: &str, surface: Surface) -> Vec<&'st
 }
 
 pub fn tags_for_surface(surface: Surface) -> Vec<String> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     let mut tags: Vec<_> = sorted_tools_for_surface(surface)
         .into_iter()
         .flat_map(|t| t.tag_labels().into_iter())
@@ -477,6 +596,7 @@ pub fn tags_for_surface(surface: Surface) -> Vec<String> {
 }
 
 pub fn tools_with_tag_on_surface(tag: &str, surface: Surface) -> Vec<&'static ToolMeta> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     sorted_tools_for_surface(surface)
         .into_iter()
         .filter(|t| t.has_tag(tag))
@@ -484,6 +604,7 @@ pub fn tools_with_tag_on_surface(tag: &str, surface: Surface) -> Vec<&'static To
 }
 
 pub fn boards_for_surface(surface: Surface) -> Vec<&'static str> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     let mut boards: Vec<_> = sorted_tools_for_surface(surface)
         .into_iter()
         .flat_map(|t| t.boards.iter().copied())
@@ -494,6 +615,7 @@ pub fn boards_for_surface(surface: Surface) -> Vec<&'static str> {
 }
 
 pub fn tools_on_board_for_surface(board: &str, surface: Surface) -> Vec<&'static ToolMeta> {
+    let _catalog = crate::project_scope::catalog_read_guard();
     sorted_tools_for_surface(surface)
         .into_iter()
         .filter(|t| t.is_on_board(board))

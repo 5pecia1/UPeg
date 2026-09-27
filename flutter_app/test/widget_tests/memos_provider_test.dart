@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/features/memos/memos_provider.dart';
+import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/memos.dart' show MemoEntry;
 
 ProviderContainer _container({
@@ -72,5 +73,50 @@ void main() {
       expect(container.read(memosProvider), hasLength(1));
       expect(container.read(memosProvider).single.body, 'new');
     });
+  });
+
+  test('active_memo_selection_is_independent_for_each_pin', () {
+    final container = _container();
+    final first = (BoardKey.parse('dev'), PinId.parse('memo-first'));
+    final second = (BoardKey.parse('dev'), PinId.parse('memo-second'));
+
+    container.read(activeMemoKeyProvider(first).notifier).setActive('memo-1');
+    container.read(activeMemoKeyProvider(second).notifier).setActive('memo-2');
+
+    expect(container.read(activeMemoKeyProvider(first)), 'memo-1');
+    expect(container.read(activeMemoKeyProvider(second)), 'memo-2');
+  });
+
+  test('new_pin_defaults_are_distinct_and_restore_their_saved_bodies', () {
+    final first = (BoardKey.parse('dev'), PinId.parse('memo-first'));
+    final second = (BoardKey.parse('dev'), PinId.parse('memo-second'));
+    final firstKey = defaultMemoKeyForPin(first);
+    final secondKey = defaultMemoKeyForPin(second);
+    final saved = <List<MemoEntry>>[];
+    final writer = _container(onSave: saved.add);
+
+    expect(writer.read(activeMemoKeyProvider(first)), firstKey);
+    expect(writer.read(activeMemoKeyProvider(second)), secondKey);
+    writer.read(memosProvider.notifier).updateBody(firstKey, 'first body');
+    writer.read(memosProvider.notifier).updateBody(secondKey, 'second body');
+
+    final restored = _container(seed: saved.last);
+    expect(restored.read(activeMemoKeyProvider(first)), firstKey);
+    expect(restored.read(activeMemoKeyProvider(second)), secondKey);
+    expect(
+      restored.read(memosProvider.notifier).byKey(firstKey)?.body,
+      'first body',
+    );
+    expect(
+      restored.read(memosProvider.notifier).byKey(secondKey)?.body,
+      'second body',
+    );
+  });
+
+  test('legacy_memo_scratch_pin_keeps_the_existing_scratch_key', () {
+    final legacy = (BoardKey.parse('dev'), PinId.parse('memo.scratch'));
+    final container = _container();
+
+    expect(container.read(activeMemoKeyProvider(legacy)), scratchMemoKey);
   });
 }

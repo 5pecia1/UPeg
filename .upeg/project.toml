@@ -1,0 +1,17 @@
+schema_version = 1
+name = "UPeg"
+
+[[boards]]
+id = "upeg-dev"
+label = "upeg dev"
+description = "Checks during development, pre-PR verification, and release verification for the UPeg repository."
+instructions = """
+Use dev.test_crate to check a change to a specific crate during development.
+Use dev.check for the default pre-PR verification and dev.verify for release
+verification. Include dev.flutter_analyze for Flutter changes.
+
+dev.fmt and dev.frb_codegen modify files; run them according to the scope the
+user asked for. Report which tools ran, success/failure with failure reasons,
+and any unchecked scope. Distinguish "no run environment" from an actual
+check failure.
+"""

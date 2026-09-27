@@ -58,9 +58,9 @@ fn repo_root() -> PathBuf {
 /// coordinates, not self-pins — the cheap but real check behind the
 /// "inventory declaration honesty" backlog item. For each hand-declared
 /// entry in `desktop_pwa_ext.rs`, verifies (1) the `source`/`command_path`
-/// locators point at a real file (+symbol), (2) doc anchors point at a
-/// real heading, and (3) `tests` pointers point at a real file other than
-/// the declaring file itself.
+/// locators point at a real file (+symbol), (2) `schema_ref` `file#Symbol`
+/// locators resolve to a symbol that occurs in the file, and (3) `tests`
+/// pointers point at a real file other than the declaring file itself.
 #[test]
 fn desktop_pwa_ext_declarations_point_to_real_source_docs_tests_coordinates() {
     let repo_root = repo_root();
@@ -133,17 +133,13 @@ fn assert_locator_resolves(repo_root: &Path, locator: &str, source_path: &str, e
     );
 }
 
-/// `schemaRef`: docs paths need a real heading behind their anchor; other
-/// repo-relative file paths just need to exist. Opaque Rust type names
-/// (`upeg_core::InputSpec`) and URI templates (`upeg://open?...`) are not
-/// locators and are skipped.
+/// `schemaRef`: a `file#Symbol` locator needs the symbol to occur in the
+/// file; other repo-relative file paths just need to exist. Opaque Rust
+/// type names (`upeg_core::InputSpec`) and URI templates
+/// (`upeg://open?...`) are not locators and are skipped.
 fn assert_schema_ref_resolves(repo_root: &Path, schema_ref: &str, entry_id: &str) {
     if let Some((path, anchor)) = schema_ref.split_once('#') {
-        if path.starts_with("docs/") {
-            assert_doc_heading_exists(repo_root, path, anchor, entry_id);
-        } else {
-            assert_file_contains(repo_root, path, anchor, entry_id);
-        }
+        assert_file_contains(repo_root, path, anchor, entry_id);
         return;
     }
 
@@ -165,47 +161,6 @@ fn assert_file_contains(repo_root: &Path, rel_path: &str, needle: &str, entry_id
         content.contains(needle),
         "{entry_id}: symbol `{needle}` not found in {rel_path} (stale locator)"
     );
-}
-
-fn assert_doc_heading_exists(repo_root: &Path, doc_path: &str, anchor: &str, entry_id: &str) {
-    let file = repo_root.join(doc_path);
-    let content = std::fs::read_to_string(&file)
-        .unwrap_or_else(|e| panic!("{entry_id}: failed to read {doc_path}: {e}"));
-    let has_heading = content
-        .lines()
-        .filter_map(heading_slug)
-        .any(|slug| slug == anchor);
-    assert!(
-        has_heading,
-        "{entry_id}: no heading in {doc_path} matching anchor `#{anchor}`"
-    );
-}
-
-/// Cheap `GitHub`-style heading slug (`## Chrome extension contract` ->
-/// `chrome-extension-contract`). Good enough for this one doc's headings —
-/// not a full GFM slugger.
-fn heading_slug(line: &str) -> Option<String> {
-    let trimmed = line.trim_start();
-    if !trimmed.starts_with('#') {
-        return None;
-    }
-    let heading = trimmed.trim_start_matches('#').trim();
-    if heading.is_empty() {
-        return None;
-    }
-
-    let mut slug = String::with_capacity(heading.len());
-    let mut last_was_hyphen = false;
-    for ch in heading.chars() {
-        if ch.is_ascii_alphanumeric() {
-            slug.push(ch.to_ascii_lowercase());
-            last_was_hyphen = false;
-        } else if !last_was_hyphen {
-            slug.push('-');
-            last_was_hyphen = true;
-        }
-    }
-    Some(slug.trim_matches('-').to_string())
 }
 
 /// How a `tests.test_name` occurs in its file, per test language. A
@@ -317,6 +272,9 @@ fn interface_inventory_covers_cli_http_and_mcp() {
         "http.v1.tools.readiness",
         "http.v1.tools.call",
         "http.v1.tools.call.stream",
+        "http.v1.ext.boards.list",
+        "http.v1.ext.boards.show",
+        "http.v1.ext.boards.tools.call",
         "mcp.board.context",
         "mcp.tools.list",
         "mcp.tools.call",

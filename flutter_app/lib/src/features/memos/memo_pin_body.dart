@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/features/memos/memos_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 
 /// Widget key for the notepad's text field — lets tests target the memo
@@ -21,7 +22,9 @@ const Key memoPinFieldKey = Key('memo-pin-field');
 const String memoPinHintText = 'scratch memo…';
 
 class MemoPinBody extends ConsumerStatefulWidget {
-  const MemoPinBody({super.key});
+  const MemoPinBody({required this.pinKey, super.key});
+
+  final PinKey pinKey;
 
   @override
   ConsumerState<MemoPinBody> createState() => _MemoPinBodyState();
@@ -55,7 +58,7 @@ class _MemoPinBodyState extends ConsumerState<MemoPinBody> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.upeg;
-    final activeKey = ref.watch(activeMemoKeyProvider);
+    final activeKey = ref.watch(activeMemoKeyProvider(widget.pinKey));
     final body = ref.watch(
       memosProvider.select((entries) {
         for (final entry in entries) {

@@ -142,7 +142,8 @@ pub fn acquire_at(path: PathBuf) -> std::io::Result<AcquireOutcome> {
 
 /// `<config_root>/desktop.lock`. The path constant lives in
 /// `upeg-core::paths` (the workspace's config-root owner), not in a
-/// surface crate — see `docs/architecture/crate-boundaries.md`.
+/// surface crate — see the crate-boundaries gate's module docs
+/// (`upeg-core/tests/crate_boundaries.rs`).
 fn lock_path() -> Option<PathBuf> {
     upeg_core::paths::desktop_lock_path()
 }

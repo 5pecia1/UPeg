@@ -42,13 +42,6 @@
         "$ref": "#/$defs/ToolEntryToml"
       },
       "minItems": 1
-    },
-    "boards": {
-      "description": "Boards this manifest declares. Project Manifests (`upeg.toml`)\nonly — the loader rejects the field on a toolkits-directory\nmanifest, which has no project to scope a board to.",
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/BoardEntryToml"
-      }
     }
   },
   "additionalProperties": false,
@@ -212,7 +205,7 @@
           "default": null
         },
         "cwd": {
-          "description": "Working directory for the spawned command. A relative path\nresolves against the directory holding this manifest file.\nHonored only when `invoker = \"External\"`. When omitted, a\nProject Manifest (`upeg.toml`) tool runs in the manifest's own\ndirectory and a caller-supplied working directory is honored\nonly if it sits inside that directory.",
+          "description": "Working directory for the spawned command. A relative path\nresolves against the project root for a project Toolkit, or\nthe manifest directory for a global Toolkit. Honored only when\n`invoker = \"External\"`. When omitted, a project Toolkit runs in\nthe project root and a caller-supplied working directory is honored\nonly if it sits inside that directory.",
           "type": [
             "string",
             "null"
@@ -276,7 +269,7 @@
           }
         },
         "approval_surfaces": {
-          "description": "Surface labels allowed to satisfy this chain's `requires_approval`\nsteps. An approval (`approve = true` / `_upeg.approvedSteps`) is\nhonored only when the call's `_upeg.surface` is in this list;\nevery other surface is refused with `approval_denied_for_surface`.\nDefaults to the three surfaces a person is sitting at — `cli`,\n`tui`, `desktop` — each of which ships a real approval gesture\n(`upeg call <chain> -a approve=true`, the TUI's confirm dialog,\nthe desktop's confirm dialog). Every other surface must be named\nexplicitly. Must overlap this tool's `surfaces`, or the gated\nstep could never be approved by anyone who can reach it.",
+          "description": "Surfaces permitted to satisfy this chain's `requires_approval` steps.\nDefaults to `cli`/`tui`/`desktop`; `mcp`, `http`, and `pwa` require an\nexplicit entry. `ext` is unsupported because the browser extension has\nno approval gesture. The list must overlap this tool's `surfaces`.",
           "type": [
             "array",
             "null"
@@ -1216,40 +1209,6 @@
       "additionalProperties": false,
       "x-doc-reference": true,
       "x-doc-order": 13
-    },
-    "BoardEntryToml": {
-      "description": "One entry in a Project Manifest's top-level `[[boards]]` array.\n\nProject-declared boards are the only way a manifest can add a board\ntab; they exist while the manifest is detected and disappear when it\nis not (`docs/architecture/project-manifest.md`). Toolkit manifests\nunder `~/.upeg/toolkits` are global and have no project to scope a\nboard to, so the loader rejects `[[boards]]` there.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "description": "Board id, as typed on every surface (`upeg board <id> list`) and\nas named by a tool's `boards = [...]` array. Must be canonical\n(unpadded), must not contain `:`, and must not shadow a built-in\nboard.",
-          "type": "string"
-        },
-        "label": {
-          "description": "Tab title for GUI surfaces. Defaults to `id` when omitted.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "description": {
-          "description": "Short description of the board's purpose. Empty when omitted.",
-          "type": "string",
-          "default": ""
-        },
-        "instructions": {
-          "description": "Markdown guidance for people and agents using this board.",
-          "type": "string",
-          "default": ""
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ],
-      "x-doc-reference": true,
-      "x-doc-order": 14
     }
   }
 }

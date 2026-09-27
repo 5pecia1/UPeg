@@ -1,6 +1,21 @@
 //! Shell completion script generation — CLI-surface specific because
 //! it's clap-tied. Pure (no I/O); the caller decides where to write
 //! the output.
+//!
+//! `upeg completions <shell>` (alias `completion`) writes a script for
+//! bash/zsh/fish/elvish/powershell to stdout; installation redirects it
+//! into the shell's completion directory.
+//!
+//! The dynamic route has no subcommands clap knows about, so the
+//! generator reads the toolbox *at generation time* and bakes candidates
+//! into the script: canonical Tool ids for `upeg call <TAB>`, and one
+//! synthesized subcommand per Toolkit holding kebab-case Tool names for
+//! `upeg <toolkit> <TAB>` (a name colliding with a built-in subcommand
+//! is never synthesized — a built-in is never shadowed). The script is
+//! a **generation-time snapshot**: Tools installed or changed later do
+//! not complete until it is regenerated. Synthesis is generation-only —
+//! real parsing still goes through `Cli::parse`, so
+//! `external_subcommand` semantics do not change.
 
 use clap::CommandFactory;
 use clap_complete::Shell;

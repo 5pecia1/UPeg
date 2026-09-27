@@ -266,6 +266,11 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
     LocaleDto.en: 'imports loading…',
     LocaleDto.ko: '임포트 로딩 중…',
   },
+  'desktop.status.project_global': {LocaleDto.en: 'global', LocaleDto.ko: '전역'},
+  'desktop.status.project': {
+    LocaleDto.en: 'project {name}',
+    LocaleDto.ko: '프로젝트 {name}',
+  },
 
   // Board tab bar.
   'desktop.tab.add_board': {LocaleDto.en: '+ board', LocaleDto.ko: '+ 보드'},
@@ -686,6 +691,11 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
   'host_attach.notice.invalid_file_hint': {
     LocaleDto.en: 'the host returned a file this app could not read',
     LocaleDto.ko: '호스트가 읽을 수 없는 파일을 반환했습니다',
+  },
+  'host_attach.notice.invalid_pin_hint': {
+    LocaleDto.en:
+        'this pin is no longer available; refresh the board and try again',
+    LocaleDto.ko: '이 핀은 더 이상 사용할 수 없습니다. 보드를 새로고침한 뒤 다시 시도하세요',
   },
   'readiness.ready_on_platform': {
     LocaleDto.en: 'ready on {platform}',

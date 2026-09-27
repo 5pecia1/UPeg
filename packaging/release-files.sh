@@ -19,6 +19,7 @@
 # UPEG_SOURCE_ROOT overrides the source tree root (default: parent dir of
 # this script). BUILD-INFO fields come from UPEG_VERSION/UPEG_COMMIT/
 # UPEG_REPO/UPEG_RUN_URL, then the GitHub Actions env, then local git.
+# UPEG_PUBLIC_RELEASE=1 omits repository and run URLs from distributed metadata.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,11 +43,17 @@ workspace_version() {
     "$SOURCE_ROOT/Cargo.toml" | head -n 1
 }
 
+source_has_own_git() {
+  local top
+  command -v git >/dev/null 2>&1 || return 1
+  top="$(git -C "$SOURCE_ROOT" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ "$(cd "$top" && pwd -P)" = "$(cd "$SOURCE_ROOT" && pwd -P)" ]
+}
+
 resolve_version() {
   if [ -n "${UPEG_VERSION:-}" ]; then
     printf '%s\n' "$UPEG_VERSION"
-  elif command -v git >/dev/null 2>&1 && \
-       git -C "$SOURCE_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  elif source_has_own_git; then
     git -C "$SOURCE_ROOT" describe --tags --always --abbrev=8
   else
     ws="$(workspace_version)"
@@ -58,15 +65,19 @@ write_build_info() {
   local dest="$1" version commit repo run_url
   version="$(resolve_version)"
   commit="${UPEG_COMMIT:-${GITHUB_SHA:-}}"
-  if [ -z "$commit" ] && command -v git >/dev/null 2>&1 \
-      && git -C "$SOURCE_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  if [ -z "$commit" ] && source_has_own_git; then
     commit="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
   fi
-  repo="${UPEG_REPO:-${GITHUB_REPOSITORY:-unknown}}"
-  if [ -n "${GITHUB_RUN_ID:-}" ]; then
-    run_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+  if [ "${UPEG_PUBLIC_RELEASE:-0}" = 1 ]; then
+    repo="release-source"
+    run_url="unpublished"
   else
-    run_url="${UPEG_RUN_URL:-}"
+    repo="${UPEG_REPO:-${GITHUB_REPOSITORY:-unknown}}"
+    if [ -n "${GITHUB_RUN_ID:-}" ]; then
+      run_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+    else
+      run_url="${UPEG_RUN_URL:-}"
+    fi
   fi
   {
     printf 'version=%s\n' "$version"

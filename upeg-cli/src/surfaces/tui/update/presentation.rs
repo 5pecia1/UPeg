@@ -8,7 +8,7 @@ use super::super::model::{
     FocusArea, PresentationHost, PresentationOrigin, State, TuiFormState, View,
 };
 use super::super::scroll::ScrollOffset;
-use super::start_run;
+use super::{dispatch_or_confirm, start_run};
 
 fn presentation_outputs(outputs: &[OutputEntry]) -> Value {
     Value::Object(
@@ -134,6 +134,9 @@ pub(super) fn open_result_action(state: &mut State) -> Effect {
             selected_action: state.result_action,
             result_run: state.result_run,
         });
+    if target.effect == upeg_core::ToolEffect::Read && resolved.unbound_required_inputs.is_empty() {
+        return dispatch_or_confirm(state, target.id, values);
+    }
     state.view = View::Form {
         tool_id: target.id,
         form: TuiFormState::with_initial_values(target.input_spec.clone(), &values),

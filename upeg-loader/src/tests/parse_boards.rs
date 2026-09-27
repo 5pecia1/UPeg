@@ -1,25 +1,14 @@
-//! Top-level `[[boards]]` — the Project Manifest's board declarations.
+//! `[[boards]]` belongs to `.upeg/project.toml`.
 
-use crate::LoadError;
-use crate::parse::parse_manifest;
+use crate::{LoadError, ProjectConfigError, parse_project_config};
 
-fn manifest(boards: &str) -> String {
-    format!(
-        r#"id = "proj"
-{boards}
-
-[[tools]]
-id = "echo"
-pegboard_units = "U1"
-invoker = "External"
-command = "echo"
-"#
-    )
+fn config(boards: &str) -> String {
+    format!("schema_version = 1\n{boards}\n")
 }
 
 #[test]
 fn board_description_and_markdown_instructions_are_read_from_manifest() {
-    let parsed = parse_manifest(&manifest(
+    let parsed = parse_project_config(&config(
         r#"[[boards]]
 id = "upeg-dev"
 description = "development workspace"
@@ -43,7 +32,7 @@ instructions = """
 
 #[test]
 fn board_guidance_fields_can_each_be_omitted() {
-    let parsed = parse_manifest(&manifest(
+    let parsed = parse_project_config(&config(
         r#"[[boards]]
 id = "empty"
 [[boards]]
@@ -67,7 +56,7 @@ instructions = "instructions only""#,
 
 #[test]
 fn boards_declaration_lowers_id_and_label() {
-    let parsed = parse_manifest(&manifest(
+    let parsed = parse_project_config(&config(
         r#"[[boards]]
 id = "upeg-dev"
 label = "upeg dev""#,
@@ -81,7 +70,7 @@ label = "upeg dev""#,
 
 #[test]
 fn missing_label_falls_back_to_id() {
-    let parsed = parse_manifest(&manifest(
+    let parsed = parse_project_config(&config(
         r#"[[boards]]
 id = "upeg-dev""#,
     ))
@@ -92,13 +81,13 @@ id = "upeg-dev""#,
 
 #[test]
 fn manifest_without_boards_declares_none() {
-    let parsed = parse_manifest(&manifest("")).expect("parse");
+    let parsed = parse_project_config(&config("")).expect("parse");
     assert!(parsed.boards.is_empty());
 }
 
 #[test]
 fn builtin_board_id_is_rejected() {
-    let error = parse_manifest(&manifest(
+    let error = parse_project_config(&config(
         r#"[[boards]]
 id = "dev""#,
     ))
@@ -107,7 +96,7 @@ id = "dev""#,
     assert!(
         matches!(
             &error,
-            LoadError::BuiltinProjectBoardId { position: 0, board } if board == "dev"
+            ProjectConfigError::Board(LoadError::BuiltinProjectBoardId { position: 0, board }) if board == "dev"
         ),
         "unexpected error: {error}"
     );
@@ -115,7 +104,7 @@ id = "dev""#,
 
 #[test]
 fn duplicate_board_id_is_rejected() {
-    let error = parse_manifest(&manifest(
+    let error = parse_project_config(&config(
         r#"[[boards]]
 id = "one"
 
@@ -127,7 +116,7 @@ id = "one""#,
     assert!(
         matches!(
             error,
-            LoadError::DuplicateProjectBoardId { position: 1, .. }
+            ProjectConfigError::Board(LoadError::DuplicateProjectBoardId { position: 1, .. })
         ),
         "unexpected error: {error}"
     );
@@ -135,28 +124,34 @@ id = "one""#,
 
 #[test]
 fn board_id_with_reserved_separator_is_rejected() {
-    let error = parse_manifest(&manifest(
+    let error = parse_project_config(&config(
         r#"[[boards]]
 id = "project:abc:dev""#,
     ))
     .expect_err("`:` is a reserved store key character");
 
     assert!(
-        matches!(error, LoadError::InvalidProjectBoardId { position: 0, .. }),
+        matches!(
+            error,
+            ProjectConfigError::Board(LoadError::InvalidProjectBoardId { position: 0, .. })
+        ),
         "unexpected error: {error}"
     );
 }
 
 #[test]
 fn empty_board_id_is_rejected() {
-    let error = parse_manifest(&manifest(
+    let error = parse_project_config(&config(
         r#"[[boards]]
 id = "  ""#,
     ))
     .expect_err("empty ids must be rejected");
 
     assert!(
-        matches!(error, LoadError::InvalidProjectBoardId { position: 0, .. }),
+        matches!(
+            error,
+            ProjectConfigError::Board(LoadError::InvalidProjectBoardId { position: 0, .. })
+        ),
         "unexpected error: {error}"
     );
 }
@@ -169,12 +164,9 @@ fn boards_in_toolkit_directory_manifest_fail_registration() {
     std::fs::create_dir_all(&dir).expect("create directory");
     std::fs::write(
         dir.join("kit.toml"),
-        manifest(
-            r#"[[boards]]
-id = "kit-board""#,
-        ),
+        "id = 'kit'\n[[boards]]\nid = 'kit-board'\n[[tools]]\nid = 'run'\npegboard_units = 'U1'\ninvoker = 'External'\ncommand = 'echo'\n",
     )
-    .expect("write manifest");
+    .expect("write Toolkit");
 
     let outcome = crate::load_and_register_dir_verbose(&dir);
 

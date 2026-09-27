@@ -1,9 +1,10 @@
 //! Per-step metadata carried out of a Chain run.
 //!
-//! `docs/architecture/chain.md` rule 4 promises that a skipped step is
-//! recorded as metadata, but until now `skipped` was dispatcher-internal
-//! state readable only from a `{{steps.<id>.skipped}}` expression — a
-//! caller that just ran the chain could not see which links executed.
+//! Execution rule 4 of the chain contract (see the parent module's docs)
+//! promises that a skipped step is recorded as metadata, but `skipped`
+//! was dispatcher-internal state readable only from a
+//! `{{steps.<id>.skipped}}` expression — a caller that just ran the
+//! chain could not see which links executed.
 //!
 //! The summary rides the canonical envelope, so every surface gets it
 //! from the same place with no per-surface plumbing: a success carries an
@@ -11,6 +12,28 @@
 //! carries the same array under `error.details.steps`. Only steps that
 //! reached a terminal state appear — a chain that stops early simply has
 //! no row for the links it never got to.
+//!
+//! # Row contract
+//!
+//! Each row is `{ id, tool, status, duration_ms }` where `status` is
+//! `ran` (dispatched, succeeded) | `skipped` (`when` was false — never
+//! dispatched) | `failed` (dispatched and failed, or the Tool was not
+//! found) | `denied` (blocked at an approval barrier; which gate refused
+//! is told apart by `error.code`). `duration_ms` is that step's dispatch
+//! wall-clock; a never-dispatched step reports 0.
+//!
+//! `steps` is a reserved output id on Chain: declaring it in `outputs`
+//! is a load error, and a colliding runtime output fails the call with
+//! `chain_step_summary_conflict` — an engine row never silently
+//! overwrites an author's row. A chain that produced no output of its
+//! own reports `steps` as the primary output.
+//!
+//! When the last step is itself a chain, the inner run's engine rows
+//! come back in the envelope and the outer engine *folds* them into its
+//! own single row — every chain answers for its own steps. Only the
+//! engine-made shape (`steps` + `json` + the row array) is folded, so a
+//! `steps` output from a non-chain tool still conflicts. When a step
+//! fails, *that step's* `error.code` becomes the chain's code as-is.
 
 use serde_json::{Value, json};
 use upeg_core::{OutputEntry, OutputKind, OutputValue};

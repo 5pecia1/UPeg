@@ -144,7 +144,7 @@ RUN cargo install cargo-deny --locked --version "${CARGO_DENY_VERSION}"
 # a less precise parser and produces subtly different Dart bindings,
 # which then drift-check against the committed copy and fail
 # `just frb-codegen-check` in CI.
-RUN cargo install cargo-expand --locked
+RUN cargo install cargo-expand --locked --version 1.0.126
 
 # `cargo fix` and `flutter test` run as the non-root devcontainer user, so
 # the shared cargo home and Flutter SDK must be writable after the image is

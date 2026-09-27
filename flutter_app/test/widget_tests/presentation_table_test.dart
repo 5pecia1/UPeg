@@ -8,6 +8,7 @@ Widget _harness({
   required bool rowActionsEnabled,
   required List<String> diagnostics,
   required ValueChanged<PresentationTableRow> onAction,
+  ValueChanged<PresentationTableRow>? onReadRowNavigate,
 }) {
   final tokens = UpegTheme.darkTheme().extension<UpegTokens>()!;
   return MaterialApp(
@@ -18,6 +19,7 @@ Widget _harness({
           PresentationTableColumn(label: 'Name'),
           PresentationTableColumn(label: 'Enabled'),
         ],
+        onReadRowNavigate: onReadRowNavigate,
         rows: rows,
         actions: [
           PresentationTableAction(
@@ -99,4 +101,24 @@ void main() {
     expect(action.onPressed, isNull);
     expect(called, isFalse);
   });
+
+  testWidgets(
+    'forwards a single click only when its caller enables read navigation',
+    (tester) async {
+      PresentationTableRow? navigated;
+      await tester.pumpWidget(
+        _harness(
+          rows: const [alpha],
+          rowActionsEnabled: true,
+          diagnostics: const [],
+          onAction: (_) {},
+          onReadRowNavigate: (row) => navigated = row,
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('presentation-table-row-alpha')));
+
+      expect(navigated?.key, 'alpha');
+    },
+  );
 }

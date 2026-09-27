@@ -53,6 +53,7 @@ final _mediaBoardKey = BoardKey.parse('media');
 /// Effective size 2x1 (span override) — a tool whose manifest is u1(1x1).
 const _widePlacement = PlacementDto(
   toolId: 'fixture.wide',
+  pinId: 'fixture.wide',
   x: 1,
   y: 2,
   w: 2,
@@ -96,7 +97,7 @@ Future<ProviderContainer> _readyContainer({
   // Preload the catalog so toolByIdProvider can read the manifest
   // synchronously.
   await c.read(toolsProvider.future);
-  c.read(focusedPinProvider.notifier).focus(ToolId.parse('fixture.wide'));
+  c.read(focusedPinProvider.notifier).focus(PinId.parse('fixture.wide'));
   return c;
 }
 
@@ -116,7 +117,7 @@ void main() {
         expect(handled, isTrue);
         final active = c.read(resizeModeProvider) as ResizeModeActive;
         expect(active.boardKey, _devBoardKey);
-        expect(active.toolId, ToolId.parse('fixture.wide'));
+        expect(active.toolId, PinId.parse('fixture.wide'));
         expect(active.baseCols, 2);
         expect(active.baseRows, 1);
         expect(active.currentCols, 2);
@@ -187,9 +188,9 @@ void main() {
     test(
       'Commit_sends_a_changed_span_to_the_seam_as_a_setSpan_action',
       () async {
-        ToolId? observedTool;
+        PinId? observedTool;
         ResizeCommitAction? observedAction;
-        Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+        Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
           observedTool = toolId;
           observedAction = action;
         }
@@ -213,7 +214,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         expect(c.read(resizeModeProvider), isA<ResizeModeIdle>());
-        expect(observedTool, ToolId.parse('fixture.wide'));
+        expect(observedTool, PinId.parse('fixture.wide'));
         final action = observedAction;
         expect(action, isA<ResizeCommitSetSpan>());
         final setSpan = action as ResizeCommitSetSpan;
@@ -224,7 +225,7 @@ void main() {
 
     test('Commit_sends_a_clearSpan_action_at_manifest_size', () async {
       ResizeCommitAction? observedAction;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+      Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
         observedAction = action;
       }
 
@@ -247,7 +248,7 @@ void main() {
 
     test('Commit_skips_the_seam_when_the_base_size_is_unchanged', () async {
       var called = false;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+      Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
         called = true;
       }
 
@@ -272,7 +273,7 @@ void main() {
       'commit_does_not_save_on_a_board_other_than_the_starting_one',
       () async {
         var called = false;
-        Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+        Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
           called = true;
         }
 
@@ -297,7 +298,7 @@ void main() {
 
     test('Cancel_calls_nothing_and_returns_to_Idle', () async {
       var called = false;
-      Future<void> recorder(ToolId toolId, ResizeCommitAction action) async {
+      Future<void> recorder(PinId toolId, ResizeCommitAction action) async {
         called = true;
       }
 
@@ -330,7 +331,7 @@ void main() {
           .read(moveModeProvider.notifier)
           .start(
             boardKey: _devBoardKey,
-            toolId: ToolId.parse('fixture.wide'),
+            toolId: PinId.parse('fixture.wide'),
             originX: 1,
             originY: 2,
             maxX: _fixedBoardCols - 2,

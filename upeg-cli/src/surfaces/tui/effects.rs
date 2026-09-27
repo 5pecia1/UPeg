@@ -400,7 +400,7 @@ fn dispatch_through_host_or_local(
     args: Value,
     board: Option<upeg_core::BoardKey>,
     preset: Option<upeg_core::ArgsPreset>,
-    attached_host: Option<crate::infrastructure::discovery::ServerInfo>,
+    attached_host: Option<crate::infrastructure::discovery::DiscoveredHost>,
 ) -> crate::domain::execution::dispatch::Outcome {
     // D-3: attaching does not turn the TUI into an HTTP client, so the
     // context is the same on both routes. The origin-surface header tells
@@ -439,7 +439,7 @@ fn dispatch_through_host_or_local(
 /// buffered route rather than failing — and says so in the tail, because
 /// a pane that stays empty for ten minutes should say why.
 fn dispatch_over_attach(
-    host: &crate::infrastructure::discovery::ServerInfo,
+    host: &crate::infrastructure::discovery::DiscoveredHost,
     tool_id: &str,
     args: &Value,
     board: Option<&upeg_core::BoardKey>,

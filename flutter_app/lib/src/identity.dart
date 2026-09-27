@@ -47,6 +47,47 @@ final class ToolId {
   int get hashCode => value.hashCode;
 }
 
+/// Stable identity of one placement instance.
+///
+/// Unlike [ToolId], a pin id has no catalogue-shaped syntax: Rust owns
+/// minting it and old persisted pins deliberately use their tool id during
+/// migration. Flutter therefore accepts any non-empty canonical string.
+@immutable
+final class PinId {
+  const PinId._(this.value);
+
+  factory PinId.parse(String raw) {
+    if (raw.isEmpty) {
+      throw FormatException('pin id must not be empty', raw);
+    }
+    if (raw.trim() != raw) {
+      throw FormatException('pin id must be canonical and unpadded', raw);
+    }
+    return PinId._(raw);
+  }
+
+  static PinId? tryParse(String? raw) {
+    if (raw == null) return null;
+    try {
+      return PinId.parse(raw);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  final String value;
+
+  @override
+  String toString() => value;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PinId && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
 @immutable
 final class BoardKey {
   const BoardKey._(this.value);

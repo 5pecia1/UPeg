@@ -3,10 +3,9 @@
 //!
 //! These types are deliberately small and dependency-free — UI surfaces
 //! and runtime toolbox code imports them without dragging in toolbox
-//! state, schema, or inventory metadata.
-
-use crate::args_preset::ArgsPreset;
-use crate::pin_span::PinSpan;
+//! state, schema, or inventory metadata. The closed I/O type set
+//! ([`IoType`] / input/output kinds) is documented in [`crate::input`]
+//! module docs.
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -540,62 +539,6 @@ impl PegboardUnits {
 
 /// Number of columns in the canonical pegboard grid.
 pub const BOARD_COLS: u16 = 6;
-
-/// User-controlled placement of a tool on a board. Position is owned by
-/// the user; size comes from the tool's manifest (`pegboard_units`)
-/// unless the user set a per-pin [`PinSpan`] override in `span`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Placement {
-    pub tool_id: String,
-    pub x: u16,
-    pub y: u16,
-    #[cfg_attr(
-        feature = "serde",
-        serde(default, skip_serializing_if = "Option::is_none")
-    )]
-    pub color: Option<PinColorHex>,
-    /// User-set size override. `None` keeps the manifest footprint.
-    #[cfg_attr(
-        feature = "serde",
-        serde(default, skip_serializing_if = "Option::is_none")
-    )]
-    pub span: Option<PinSpan>,
-    /// User-saved argument preset applied when invoking from this pin.
-    #[cfg_attr(
-        feature = "serde",
-        serde(default, skip_serializing_if = "Option::is_none")
-    )]
-    pub args_preset: Option<ArgsPreset>,
-}
-
-impl Placement {
-    pub fn new(tool_id: impl Into<String>, x: u16, y: u16) -> Self {
-        Self {
-            tool_id: tool_id.into(),
-            x,
-            y,
-            color: None,
-            span: None,
-            args_preset: None,
-        }
-    }
-
-    pub fn with_color(mut self, color: Option<PinColorHex>) -> Self {
-        self.color = color;
-        self
-    }
-
-    pub fn with_span(mut self, span: Option<PinSpan>) -> Self {
-        self.span = span;
-        self
-    }
-
-    pub fn with_args_preset(mut self, args_preset: Option<ArgsPreset>) -> Self {
-        self.args_preset = args_preset;
-        self
-    }
-}
 
 // ─── Invoker ───────────────────────────────────────────────────
 // Lexicon §4 + Lexicon §7 (Invoker::Embed vs PinKind::Embed):

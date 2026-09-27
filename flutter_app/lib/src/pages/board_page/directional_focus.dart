@@ -11,9 +11,9 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/keyboard.dart' show DirectionDto;
 import 'package:upeg/src/rust/api/pegboard.dart';
 
-PlacementDto? placementForTool(List<PlacementDto> placements, ToolId toolId) {
+PlacementDto? placementForTool(List<PlacementDto> placements, PinId toolId) {
   for (final placement in placements) {
-    if (placement.toolId == toolId.value) return placement;
+    if (placement.pinId == toolId.value) return placement;
   }
   return null;
 }
@@ -76,7 +76,7 @@ PlacementDto? _fallbackSpatialCandidate(
   return _minByScore(
     placements.where(
       (placement) =>
-          placement.toolId != current.toolId &&
+          placement.pinId != current.pinId &&
           _placementIsInDirection(placement, current, direction),
     ),
     (placement) => _fallbackSpatialScore(placement, current, direction),

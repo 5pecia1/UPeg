@@ -9,8 +9,8 @@
 //! Lifecycle (PRD §5.2 Host Precedence):
 //!   - Host calls [`publish`] right after binding an ephemeral port.
 //!     `create_new` semantics give mutual exclusion; no separate lock file.
-//!   - Any surface calls [`read_reachable`] at startup; presence + a
-//!     `GET /healthz` round-trip decides "attach as client" vs "host".
+//!   - Any surface calls [`read_reachable`] at startup; the recorded PID
+//!     must exist before a `GET /healthz` can validate its endpoint.
 //!   - The returned [`DiscoveryGuard`] removes the file on drop, but
 //!     only if it still names the same pid (so a concurrent restart
 //!     doesn't accidentally clean up the new host's file).
@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use super::paths;
-use super::process::pid_alive;
+use super::process::{ProcessProbe, probe_process};
 
 /// `/healthz` probe budget — aggressive so a hung host doesn't stall a
 /// surface's startup path (PRD §5.3). Connect and read are separate.
@@ -61,11 +61,104 @@ pub struct ServerInfo {
     pub mcp_endpoint: String,
     pub token: String,
     pub pid: u32,
+    /// Application wall-clock timestamp, not an OS process birth identity.
+    /// It cannot rule out PID reuse.
     pub started_at_ms: u64,
     /// How this host came up (RC-6 teardown policy). `#[serde(default)]`
     /// so a legacy file with no `origin` key parses as `Explicit`.
     #[serde(default)]
     pub origin: HostOrigin,
+}
+
+/// A host selected from this process's discovery record. Retains the
+/// original path and fields so every authenticated attach can recheck
+/// them immediately before writing its bearer token.
+#[derive(Debug, Clone)]
+pub(crate) struct DiscoveredHost {
+    info: ServerInfo,
+    path: PathBuf,
+    #[cfg(test)]
+    _test_root: Option<std::sync::Arc<tempfile::TempDir>>,
+}
+
+#[derive(Debug)]
+enum DiscoveryRefusal {
+    Changed,
+    ProcessUnavailable,
+}
+
+impl std::fmt::Display for DiscoveryRefusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Changed => write!(
+                formatter,
+                "host discovery changed; restart the client to discover the current host"
+            ),
+            Self::ProcessUnavailable => write!(
+                formatter,
+                "recorded host process is unavailable; restart the client to discover the current host"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for DiscoveryRefusal {}
+
+pub(crate) fn is_discovery_refusal(error: &io::Error) -> bool {
+    error
+        .get_ref()
+        .is_some_and(<dyn std::error::Error + Send + Sync>::is::<DiscoveryRefusal>)
+}
+
+impl std::ops::Deref for DiscoveredHost {
+    type Target = ServerInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
+impl DiscoveredHost {
+    pub(crate) fn verify(&self) -> io::Result<()> {
+        if !record_unchanged(&self.path, &self.info) {
+            return Err(io::Error::new(
+                ErrorKind::PermissionDenied,
+                DiscoveryRefusal::Changed,
+            ));
+        }
+        if probe_process(self.info.pid) != ProcessProbe::Alive {
+            return Err(io::Error::new(
+                ErrorKind::PermissionDenied,
+                DiscoveryRefusal::ProcessUnavailable,
+            ));
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(info: ServerInfo) -> Self {
+        let root = std::sync::Arc::new(tempfile::tempdir().expect("test discovery root"));
+        let path = root.path().join("server.json");
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&info).expect("test discovery JSON"),
+        )
+        .expect("write test discovery");
+        Self {
+            info,
+            path,
+            _test_root: Some(root),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replace_for_test(&self, info: &ServerInfo) {
+        std::fs::write(
+            &self.path,
+            serde_json::to_vec(info).expect("replacement JSON"),
+        )
+        .expect("replace test discovery");
+    }
 }
 
 impl ServerInfo {
@@ -125,27 +218,53 @@ pub fn read() -> Option<ServerInfo> {
     read_from(&path).ok()
 }
 
-/// Read + verify the recorded endpoint is actually reachable. When the
-/// endpoint does not answer `/healthz`, the discovery file is removed
-/// ONLY if the recorded process is no longer alive (see [`should_reap`]);
-/// a live-but-transiently-unresponsive host's file is preserved so a
-/// still-booting or busy host is never orphaned (PRD §5.3 multi-signal
-/// staleness). Returns `None` whenever the host is not reachable now, so
-/// callers proceed to "no host" code paths.
+/// A host is attachable only when its recorded PID exists and its
+/// endpoint answers `/healthz`. A dead PID is reaped only if the file
+/// still contains the same record. Unknown process state or a live
+/// process with an unresponsive endpoint leaves the file in place.
 pub fn read_reachable() -> Option<ServerInfo> {
-    let info = read()?;
-    if health_check(&info.endpoint) {
-        return Some(info);
+    let path = paths::server_json_path()?;
+    read_reachable_from(&path, probe_process, health_check)
+}
+
+pub(crate) fn discover_reachable() -> Option<DiscoveredHost> {
+    let path = paths::server_json_path()?;
+    let info = read_reachable_from(&path, probe_process, health_check)?;
+    Some(DiscoveredHost {
+        info,
+        path,
+        #[cfg(test)]
+        _test_root: None,
+    })
+}
+
+fn read_reachable_from(
+    path: &Path,
+    probe: impl Fn(u32) -> ProcessProbe,
+    health: impl Fn(&str) -> bool,
+) -> Option<ServerInfo> {
+    let info = read_from(path).ok()?;
+    match probe(info.pid) {
+        ProcessProbe::Dead => {
+            remove_if_unchanged(path, &info);
+            None
+        }
+        ProcessProbe::Unknown => None,
+        ProcessProbe::Alive if health(&info.endpoint) && record_unchanged(path, &info) => {
+            Some(info)
+        }
+        ProcessProbe::Alive => None,
     }
-    // Not answering. Reap the record ONLY if the process is genuinely
-    // gone — never pull the rug from under a live-but-transiently-
-    // unresponsive host (PRD §5.3 multi-signal staleness).
-    if should_reap(&info, false)
-        && let Some(path) = paths::server_json_path()
-    {
-        let _ = std::fs::remove_file(&path);
+}
+
+fn record_unchanged(path: &Path, info: &ServerInfo) -> bool {
+    read_from(path).is_ok_and(|current| current == *info)
+}
+
+fn remove_if_unchanged(path: &Path, info: &ServerInfo) {
+    if record_unchanged(path, info) {
+        let _ = std::fs::remove_file(path);
     }
-    None
 }
 
 /// Publish `ServerInfo` atomically. Returns `Err(AlreadyExists)` if a
@@ -235,23 +354,11 @@ fn read_from(path: &Path) -> std::io::Result<ServerInfo> {
         .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("parse server.json: {e}")))
 }
 
-/// Whether an unreachable discovery record is safe to delete. Staleness
-/// is multi-signal (PRD §5.3): a record is reaped ONLY when the endpoint
-/// is unreachable AND its pid is gone. A live-but-slow / still-booting
-/// host is transiently unreachable, not stale — deleting its file would
-/// orphan a running daemon (single-source-of-truth invariant).
-///
-/// Future hardening: also compare `started_at_ms` against the OS process
-/// start-time to defend against pid reuse (PRD §5.3). Out of scope here.
-fn should_reap(info: &ServerInfo, reachable: bool) -> bool {
-    !reachable && !pid_alive(info.pid)
-}
-
 /// Format `host:port` as a socket-address string that always parses as
 /// [`std::net::SocketAddr`]. IPv6 literals (host contains `':'`) are
 /// bracketed — `parse_endpoint` strips the brackets, so rebuilding a bare
 /// `::1:port` would fail to parse and make a live IPv6 host look dead.
-fn socket_addr_str(host: &str, port: u16) -> String {
+pub(crate) fn socket_addr_str(host: &str, port: u16) -> String {
     if host.contains(':') {
         format!("[{host}]:{port}")
     } else {
@@ -265,10 +372,9 @@ fn read_http_response_prefix(reader: &mut impl Read) -> io::Result<bool> {
     Ok(&prefix == HTTP_RESPONSE_PREFIX)
 }
 
-/// Lightweight `/healthz` probe. Doesn't require the bearer token —
-/// the route is intentionally unauthenticated so liveness checks don't
-/// need to know about the token. Any HTTP response (200 or 401) proves
-/// the listener is alive; complete connection failure proves it isn't.
+/// Lightweight unauthenticated `/healthz` probe. Any HTTP response
+/// shows only that a listener answered; callers must check the recorded
+/// process independently before accepting it as the host.
 ///
 /// Times out aggressively (see `HEALTH_CONNECT_TIMEOUT_MS` /
 /// `HEALTH_READ_TIMEOUT_MS`) so a hung host doesn't stall every
@@ -513,23 +619,190 @@ mod tests {
 
     #[test]
     fn should_reap_preserves_a_record_with_a_live_pid() {
-        // Our own pid is definitely alive; an unreachable-but-live host is
-        // transiently unresponsive (starting/busy/IPv6), NOT stale.
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("server.json");
         let info = info_with(std::process::id(), HostOrigin::default());
-        assert!(!should_reap(&info, false), "live pid must never be reaped");
-        assert!(!should_reap(&info, true), "reachable is never reaped");
+        std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+        assert!(read_reachable_from(&path, |_| ProcessProbe::Alive, |_| false).is_none());
+        assert_eq!(read_from(&path).unwrap(), info);
+        assert_eq!(
+            read_reachable_from(&path, |_| ProcessProbe::Alive, |_| true),
+            Some(info.clone())
+        );
+        assert_eq!(read_from(&path).unwrap(), info);
     }
 
     #[test]
     fn should_reap_treats_only_a_dead_pid_record_as_stale() {
-        // 99_999_999 is above the default max pid on Linux and not a real
-        // process — the same sentinel instance_lock's tests use.
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("server.json");
         let info = info_with(99_999_999, HostOrigin::default());
-        assert!(should_reap(&info, false), "dead pid + unreachable is stale");
-        assert!(
-            !should_reap(&info, true),
-            "a reachable host is never reaped"
+        std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+        let health_called = std::cell::Cell::new(false);
+
+        let found = read_reachable_from(
+            &path,
+            |_| ProcessProbe::Dead,
+            |_| {
+                health_called.set(true);
+                true
+            },
         );
+
+        assert!(found.is_none());
+        assert!(
+            !health_called.get(),
+            "dead PID must not probe a foreign listener"
+        );
+        assert!(!path.exists(), "unchanged dead record must be reaped");
+    }
+
+    #[test]
+    fn dead_record_cannot_attach_to_an_unrelated_http_listener() {
+        crate::test_support::with_seeded_pegboard_home(
+            "foreign-listener",
+            |_| {},
+            || {
+                let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+                listener.set_nonblocking(true).unwrap();
+                let endpoint = format!("http://{}", listener.local_addr().unwrap());
+                let mut info = ServerInfo::new(endpoint, FAKE_TOKEN);
+                info.pid = 99_999_999;
+                let path = paths::server_json_path().unwrap();
+                std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+                let authenticated = std::sync::atomic::AtomicUsize::new(0);
+                std::thread::scope(|scope| {
+                    scope.spawn(|| {
+                        let deadline = std::time::Instant::now() + Duration::from_millis(700);
+                        while std::time::Instant::now() < deadline {
+                            match listener.accept() {
+                                Ok((mut stream, _)) => {
+                                    stream
+                                        .set_read_timeout(Some(Duration::from_millis(200)))
+                                        .unwrap();
+                                    let mut request = [0_u8; 512];
+                                    let read = stream.read(&mut request).unwrap_or(0);
+                                    if request[..read].windows(15).any(|s| s == b"Authorization: ")
+                                    {
+                                        authenticated
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                    stream
+                                        .write_all(
+                                            b"HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\n{}",
+                                        )
+                                        .unwrap();
+                                }
+                                Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                    std::thread::sleep(Duration::from_millis(10));
+                                }
+                                Err(error) => panic!("foreign listener: {error}"),
+                            }
+                        }
+                    });
+                    if let Some(host) = super::super::attach::current_host() {
+                        let _ = super::super::attach::post_mcp_with_board(&host, "{}", None);
+                    }
+                    assert!(
+                        read_reachable().is_none(),
+                        "a foreign listener cannot validate a dead recorded pid"
+                    );
+                });
+                assert_eq!(authenticated.load(std::sync::atomic::Ordering::SeqCst), 0);
+                assert!(!path.exists(), "unchanged dead record should be reaped");
+            },
+        );
+    }
+
+    #[test]
+    fn unknown_process_does_not_probe_or_reap_the_record() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("server.json");
+        let info = info_with(std::process::id(), HostOrigin::Explicit);
+        std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+        let found = read_reachable_from(
+            &path,
+            |_| ProcessProbe::Unknown,
+            |_| panic!("unknown process must not contact the endpoint"),
+        );
+
+        assert!(found.is_none());
+        assert_eq!(read_from(&path).unwrap(), info);
+    }
+
+    #[test]
+    fn live_process_with_unresponsive_endpoint_keeps_its_record() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("server.json");
+        let info = info_with(std::process::id(), HostOrigin::Explicit);
+        std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+        let found = read_reachable_from(&path, |_| ProcessProbe::Alive, |_| false);
+
+        assert!(found.is_none());
+        assert_eq!(read_from(&path).unwrap(), info);
+    }
+
+    #[test]
+    fn live_process_timeout_preserves_the_discovery_file() {
+        crate::test_support::with_seeded_pegboard_home(
+            "live-timeout",
+            |_| {},
+            || {
+                let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+                let info = ServerInfo::new(
+                    format!("http://{}", listener.local_addr().unwrap()),
+                    FAKE_TOKEN,
+                );
+                let path = paths::server_json_path().unwrap();
+                std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+                std::thread::scope(|scope| {
+                    scope.spawn(|| {
+                        let (mut stream, _) = listener.accept().unwrap();
+                        let mut request = [0_u8; 512];
+                        let _ = stream.read(&mut request).unwrap();
+                        std::thread::sleep(Duration::from_millis(HEALTH_READ_TIMEOUT_MS + 100));
+                    });
+                    assert!(read_reachable().is_none());
+                });
+
+                assert_eq!(read_from(&path).unwrap(), info);
+            },
+        );
+    }
+
+    #[test]
+    fn stale_cleanup_and_attach_recheck_preserve_a_replacement_record() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("server.json");
+        let old = info_with(99_999_999, HostOrigin::Explicit);
+        let mut replacement = info_with(std::process::id(), HostOrigin::Explicit);
+        replacement.token = "replacement-token".into();
+        std::fs::write(&path, serde_json::to_vec(&old).unwrap()).unwrap();
+
+        let found = read_reachable_from(
+            &path,
+            |_| {
+                std::fs::write(&path, serde_json::to_vec(&replacement).unwrap()).unwrap();
+                ProcessProbe::Dead
+            },
+            |_| panic!("dead process must not contact the endpoint"),
+        );
+
+        assert!(found.is_none());
+        assert_eq!(read_from(&path).unwrap(), replacement);
+        let selected = DiscoveredHost {
+            info: old,
+            path,
+            _test_root: None,
+        };
+        let error = selected.verify().unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("discovery changed"));
     }
 
     #[test]

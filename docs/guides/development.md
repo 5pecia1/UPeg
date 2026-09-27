@@ -1,6 +1,8 @@
 ---
 title: Development
 description: "The upeg dev toolchain, the check/verify gates, and generated-artifact drift checks."
+type: Guide
+tags: [development]
 ---
 
 # Development
@@ -10,21 +12,35 @@ Working on upeg itself needs the full toolchain — more than the
 
 ## Toolchain
 
-- **Rust 1.92+** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **`wasm32-unknown-unknown` target** — `rustup target add wasm32-unknown-unknown`
-- **`just`** — `cargo install just --locked`
+- **Rust 1.92+** — install it with the OS-specific instructions at
+  <https://rustup.rs/>; on macOS/Linux, `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+  installs rustup, while Windows uses `rustup-init.exe` from that site.
+- **`just` 1.51.0** — `cargo install just --locked --version 1.51.0`
 - **python3** — `apt install python3` / `brew install python3`
-- **Flutter SDK** — <https://docs.flutter.dev/get-started/install> (for the
-  desktop/PWA lanes)
+- **Flutter SDK** — 3.44.0 for the desktop/PWA lanes. Install it from the
+  [SDK archive](https://docs.flutter.dev/install/archive), or keep it isolated
+  from an existing SDK with `git clone --branch 3.44.0 --depth 1 https://github.com/flutter/flutter.git ~/.local/opt/flutter-3.44.0`
+  and `export PATH="$HOME/.local/opt/flutter-3.44.0/bin:$PATH"`.
 - **flutter_rust_bridge_codegen 2.12.0** —
   `cargo install flutter_rust_bridge_codegen --locked --version 2.12.0`
-- **wasm-pack** — `cargo install wasm-pack --locked`
+- **cargo-expand 1.0.126** —
+  `cargo install cargo-expand --locked --version 1.0.126` (FRB drift check)
+- **wasm-pack 0.13.1** — `cargo install wasm-pack --locked --version 0.13.1`
 - **cargo-deny 0.18.9** — `cargo install cargo-deny --locked --version 0.18.9` (license lane)
 - **actionlint** — for the workflow lint recipe
 - **Chrome/Chromium** — the Rust E2E tests and headless Controlled Embed
   need a real browser binary (`UPEG_BROWSER_PATH`/`CHROME_EXECUTABLE`)
-- **node** — the dependency-free Chrome-extension tests
+- **Node.js 24** — the dependency-free Chrome-extension tests
   (`node --test chrome-ext/tests/*.test.js`)
+
+For normal development, use Rust 1.92+. Public CI verifies exact Rust 1.92.0
+and Flutter 3.44.0; select the Rust toolchain for this checkout with:
+
+```bash
+rustup toolchain install 1.92.0 --profile minimal --component rustfmt,clippy
+rustup override set 1.92.0
+rustup target add wasm32-unknown-unknown
+```
 
 ## Gates
 
@@ -49,14 +65,18 @@ runs via `scripts/verify_public.sh`:
 
 | Lane | Covers |
 | --- | --- |
-| `rust` | fmt, workspace build, clippy `-D warnings`, workspace tests (needs Chrome/Chromium for E2E) |
+| `rust` | packaging shell tests, fmt, workspace build, clippy `-D warnings`, workspace tests, interface inventory and toolkit schema drift checks, Chrome extension Node tests (needs Chrome/Chromium for E2E) |
 | `wasm` | `wasm32-unknown-unknown` clippy for `upeg-tools`, `upeg-core`, `upeg_frb` |
-| `flutter` | `pub get --enforce-lockfile`, analyze, test, Linux + web builds |
+| `flutter` | `pub get --enforce-lockfile`, FRB binding drift check, analyze, test, Linux + web builds |
 | `licenses` | `cargo deny --locked --all-features check advisories licenses sources` |
 
 Run one lane directly with `bash scripts/verify_public.sh <lane>`. Pinned
-tool versions (Rust 1.92.0, Flutter 3.44.0, cargo-deny 0.18.9) are in that
-script; native package deps are in `.github/actions/verify/action.yml`.
+tool versions (Rust 1.92.0, Flutter 3.44.0, Node.js 24, just 1.51.0,
+FRB codegen 2.12.0, cargo-expand 1.0.126, wasm-pack 0.13.1,
+cargo-deny 0.18.9) are in that script and its CI action. A full local
+verification needs Linux plus the native dependencies for the Linux Flutter
+build listed in `.github/actions/verify/action.yml`; the Rust lane also
+needs Chrome or Chromium.
 
 ## Generated artifacts and drift gates
 
@@ -83,7 +103,7 @@ test name and an output excerpt directly; you don't need a second
 
 The generation lanes run hermetically: they point the runtime source dirs at
 empty paths and set `UPEG_PROJECT_MANIFEST_PATH=off` so your personal
-toolkits and this repo's own `upeg.toml` don't leak into generated fixtures.
+toolkits and this repo's own `.upeg/toolkits/dev.toml` don't leak into generated fixtures.
 
 ## Conventions
 
@@ -109,5 +129,14 @@ toolkits and this repo's own `upeg.toml` don't leak into generated fixtures.
 | WASM plugin API | `upeg-plugin-api/`, `upeg-plugin-macros/`, `upeg-wasm/` |
 | Examples | `examples/tools/`, `examples/plugins/greet/`, `examples/mcp-imports/`, `examples/project-manifest/` |
 
-Architecture contracts live in [`docs/architecture/`](../architecture/index.md);
-crate boundaries and the layer rules are the right first read.
+Architecture contracts live in [`docs/architecture.md`](../architecture.md);
+the layer rules are the right first read, and each section points at the
+owning module's rustdoc.
+
+## Project and diagnostic verification
+
+`just check` and the baseline runner keep test state under
+`target/hermetic-sources/state`, with project auto-detection disabled. When
+running individual native test commands, set an isolated `UPEG_HOME`; failure
+capture deliberately persists diagnostics and must not write a developer's
+personal store. The browser debug workbench has separate integration tests.

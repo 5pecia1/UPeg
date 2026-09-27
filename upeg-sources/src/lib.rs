@@ -21,6 +21,7 @@
     )
 )]
 
+pub mod diagnostics;
 pub mod mcp_import;
 pub mod memos;
 pub mod pegboard;

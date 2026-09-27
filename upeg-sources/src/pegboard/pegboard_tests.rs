@@ -454,6 +454,36 @@ fn surface_filtered_board_entries_are_subset_of_unfiltered() {
     }
 }
 
+#[test]
+fn board_catalog_listing_deduplicates_tool_instances_using_the_call_representative() {
+    let first = Placement::new("num.hex_to_decimal", 0, 0).with_args_preset(Some(
+        upeg_core::ArgsPreset::parse(r#"{"base":16}"#).expect("preset"),
+    ));
+    let second = Placement::new("num.hex_to_decimal", 1, 0)
+        .with_pin_id(upeg_core::PinId::parse("duplicate-pin").expect("pin id"))
+        .with_args_preset(Some(
+            upeg_core::ArgsPreset::parse(r#"{"base":2}"#).expect("preset"),
+        ));
+    let state = PegboardState {
+        boards: vec![BoardData {
+            key: "dev".into(),
+            title: "Dev".into(),
+            guidance: upeg_core::BoardGuidance::default(),
+        }],
+        layouts: BTreeMap::from([("dev".into(), vec![second, first])]),
+        selection: PegboardSelection::default(),
+    };
+
+    let listed = board_entries_on_surface_in(&state, "dev", None, Surface::Cli);
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].0.pin_id.as_str(), "num.hex_to_decimal");
+    let representative =
+        board_placement_on_surface_in(&state, "dev", "num.hex_to_decimal", Surface::Cli)
+            .expect("listed tool must be callable");
+    assert_eq!(representative.pin_id, listed[0].0.pin_id);
+    assert_eq!(representative.args_preset, listed[0].0.args_preset);
+}
+
 /// `board_placement_on_surface_in` (single-tool gate) must reach the
 /// same verdict as `board_entries_on_surface_in` (the list) — there
 /// must be no "absent from the list but callable" or the reverse.

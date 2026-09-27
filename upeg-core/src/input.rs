@@ -1,3 +1,34 @@
+//! Tool input specification — and the closed I/O type set every surface
+//! shares. [`crate::output`] mirrors it.
+//!
+//! # Closed I/O type set
+//!
+//! Every Tool's inputs and outputs are declared from a closed set —
+//! [`crate::types::IoType`] / [`InputKind`] / [`crate::output::OutputKind`]
+//! — identical on all seven surfaces and serializable to text on CLI
+//! stdout. Rendering is the extensible layer: adding a type means
+//! updating renderers, never the contract.
+//!
+//! | Type | CLI representation |
+//! |---|---|
+//! | `String` / `Markdown` / `Url` | as-is |
+//! | `Number` / `Integer` | as-is |
+//! | `Boolean` | `true` / `false` |
+//! | `Options` / `MultiOptions` | the selected value / comma-separated |
+//! | `Json` | pretty-printed JSON |
+//! | `Datetime` | ISO 8601 |
+//! | `FilePath` | absolute path |
+//! | `File` | canonical `FileValue` JSON (see `file_value`); written via `--out` |
+//! | `EmbeddedView` | output only — the URL on non-GUI surfaces |
+//!
+//! Inline constraints attach at the declaration site and serve both
+//! form rendering and validation: `min=`/`max=`/`default=` on
+//! `Number`/`Integer`; `regex=`/`placeholder=`/`default=` on `String`;
+//! a choice list in first-argument position on `Options`/`MultiOptions`.
+//! Types outside the closed set are unsupported — such Tools fall back
+//! to an iframe/launcher instead of an Inline pin, and GUI-only outputs
+//! like `EmbeddedView` must restrict themselves via `surfaces`.
+
 use std::collections::HashSet;
 use std::fmt;
 

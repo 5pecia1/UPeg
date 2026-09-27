@@ -1,4 +1,4 @@
-/// Per-tool store of the latest inline pin-body input snapshot.
+/// Per-placement store of the latest inline pin-body input snapshot.
 ///
 /// The inline body writes its current form values here on every change;
 /// opening the expanded modal reads them to seed the full form, so values

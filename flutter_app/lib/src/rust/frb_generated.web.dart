@@ -11,6 +11,7 @@ import 'api/board_details.dart';
 import 'api/boot.dart';
 import 'api/capability.dart';
 import 'api/deep_link.dart';
+import 'api/diagnostics.dart';
 import 'api/dispatch_stream.dart';
 import 'api/embed.dart';
 import 'api/events.dart';
@@ -22,6 +23,7 @@ import 'api/palette.dart';
 import 'api/pause.dart';
 import 'api/pegboard.dart';
 import 'api/pin_activation.dart';
+import 'api/project.dart';
 import 'api/readiness.dart';
 import 'api/shared_state.dart';
 import 'api/status.dart';
@@ -151,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_box_autoadd_controlled_embed_viewport_dto(dynamic raw);
 
   @protected
+  DiagnosticReportDto dco_decode_box_autoadd_diagnostic_report_dto(dynamic raw);
+
+  @protected
   EmbedResolutionDto dco_decode_box_autoadd_embed_resolution_dto(dynamic raw);
 
   @protected
@@ -186,6 +191,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PegboardSelectionDto dco_decode_box_autoadd_pegboard_selection_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProjectDefinitionDto dco_decode_box_autoadd_project_definition_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProjectToolChoiceDto dco_decode_box_autoadd_project_tool_choice_dto(
     dynamic raw,
   );
 
@@ -275,6 +290,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DesktopLaunchDto dco_decode_desktop_launch_dto(dynamic raw);
+
+  @protected
+  DiagnosticReportDto dco_decode_diagnostic_report_dto(dynamic raw);
+
+  @protected
+  DiagnosticSummaryDto dco_decode_diagnostic_summary_dto(dynamic raw);
 
   @protected
   DirectionDto dco_decode_direction_dto(dynamic raw);
@@ -376,6 +397,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChoiceOptionDto> dco_decode_list_choice_option_dto(dynamic raw);
 
   @protected
+  List<DiagnosticSummaryDto> dco_decode_list_diagnostic_summary_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<InputFieldDto> dco_decode_list_input_field_dto(dynamic raw);
 
   @protected
@@ -413,6 +439,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<ProjectConflictDto> dco_decode_list_project_conflict_dto(dynamic raw);
+
+  @protected
+  List<ProjectToolkitDto> dco_decode_list_project_toolkit_dto(dynamic raw);
 
   @protected
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
@@ -470,6 +502,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_opt_box_autoadd_controlled_embed_viewport_dto(dynamic raw);
 
   @protected
+  DiagnosticReportDto? dco_decode_opt_box_autoadd_diagnostic_report_dto(
+    dynamic raw,
+  );
+
+  @protected
   EmbedResolutionDto? dco_decode_opt_box_autoadd_embed_resolution_dto(
     dynamic raw,
   );
@@ -500,6 +537,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NumberConstraintsDto? dco_decode_opt_box_autoadd_number_constraints_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProjectDefinitionDto? dco_decode_opt_box_autoadd_project_definition_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProjectToolChoiceDto? dco_decode_opt_box_autoadd_project_tool_choice_dto(
     dynamic raw,
   );
 
@@ -569,6 +616,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PresentationRowsDto dco_decode_presentation_rows_dto(dynamic raw);
+
+  @protected
+  ProjectActivationDto dco_decode_project_activation_dto(dynamic raw);
+
+  @protected
+  ProjectConflictDto dco_decode_project_conflict_dto(dynamic raw);
+
+  @protected
+  ProjectDefinitionDto dco_decode_project_definition_dto(dynamic raw);
+
+  @protected
+  ProjectToolChoiceDto dco_decode_project_tool_choice_dto(dynamic raw);
+
+  @protected
+  ProjectToolkitDto dco_decode_project_toolkit_dto(dynamic raw);
 
   @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
@@ -779,6 +841,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DiagnosticReportDto sse_decode_box_autoadd_diagnostic_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EmbedResolutionDto sse_decode_box_autoadd_embed_resolution_dto(
     SseDeserializer deserializer,
   );
@@ -828,6 +895,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PegboardSelectionDto sse_decode_box_autoadd_pegboard_selection_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectDefinitionDto sse_decode_box_autoadd_project_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectToolChoiceDto sse_decode_box_autoadd_project_tool_choice_dto(
     SseDeserializer deserializer,
   );
 
@@ -939,6 +1016,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DesktopLaunchDto sse_decode_desktop_launch_dto(SseDeserializer deserializer);
+
+  @protected
+  DiagnosticReportDto sse_decode_diagnostic_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DiagnosticSummaryDto sse_decode_diagnostic_summary_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DirectionDto sse_decode_direction_dto(SseDeserializer deserializer);
@@ -1066,6 +1153,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DiagnosticSummaryDto> sse_decode_list_diagnostic_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<InputFieldDto> sse_decode_list_input_field_dto(
     SseDeserializer deserializer,
   );
@@ -1113,6 +1205,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<ProjectConflictDto> sse_decode_list_project_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ProjectToolkitDto> sse_decode_list_project_toolkit_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<(String, String)> sse_decode_list_record_string_string(
@@ -1190,6 +1292,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DiagnosticReportDto? sse_decode_opt_box_autoadd_diagnostic_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EmbedResolutionDto? sse_decode_opt_box_autoadd_embed_resolution_dto(
     SseDeserializer deserializer,
   );
@@ -1224,6 +1331,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NumberConstraintsDto? sse_decode_opt_box_autoadd_number_constraints_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectDefinitionDto? sse_decode_opt_box_autoadd_project_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectToolChoiceDto? sse_decode_opt_box_autoadd_project_tool_choice_dto(
     SseDeserializer deserializer,
   );
 
@@ -1307,6 +1424,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PresentationRowsDto sse_decode_presentation_rows_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectActivationDto sse_decode_project_activation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectConflictDto sse_decode_project_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectDefinitionDto sse_decode_project_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectToolChoiceDto sse_decode_project_tool_choice_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProjectToolkitDto sse_decode_project_toolkit_dto(
     SseDeserializer deserializer,
   );
 
@@ -1574,6 +1716,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_diagnostic_report_dto(
+    DiagnosticReportDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_embed_resolution_dto(
     EmbedResolutionDto self,
     SseSerializer serializer,
@@ -1633,6 +1781,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_pegboard_selection_dto(
     PegboardSelectionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_project_definition_dto(
+    ProjectDefinitionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_project_tool_choice_dto(
+    ProjectToolChoiceDto self,
     SseSerializer serializer,
   );
 
@@ -1774,6 +1934,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_desktop_launch_dto(
     DesktopLaunchDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_diagnostic_report_dto(
+    DiagnosticReportDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_diagnostic_summary_dto(
+    DiagnosticSummaryDto self,
     SseSerializer serializer,
   );
 
@@ -1934,6 +2106,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_diagnostic_summary_dto(
+    List<DiagnosticSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_input_field_dto(
     List<InputFieldDto> self,
     SseSerializer serializer,
@@ -1996,6 +2174,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_project_conflict_dto(
+    List<ProjectConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_project_toolkit_dto(
+    List<ProjectToolkitDto> self,
     SseSerializer serializer,
   );
 
@@ -2090,6 +2280,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_diagnostic_report_dto(
+    DiagnosticReportDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_embed_resolution_dto(
     EmbedResolutionDto? self,
     SseSerializer serializer,
@@ -2131,6 +2327,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_number_constraints_dto(
     NumberConstraintsDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_project_definition_dto(
+    ProjectDefinitionDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_project_tool_choice_dto(
+    ProjectToolChoiceDto? self,
     SseSerializer serializer,
   );
 
@@ -2242,6 +2450,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_presentation_rows_dto(
     PresentationRowsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_project_activation_dto(
+    ProjectActivationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_project_conflict_dto(
+    ProjectConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_project_definition_dto(
+    ProjectDefinitionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_project_tool_choice_dto(
+    ProjectToolChoiceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_project_toolkit_dto(
+    ProjectToolkitDto self,
     SseSerializer serializer,
   );
 

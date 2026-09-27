@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/state/pin_provider.dart';
 
 /// Fired by the empty-board card's call-to-action.
 typedef OpenPaletteCallback = void Function();
@@ -15,9 +16,9 @@ typedef OpenPaletteCallback = void Function();
 /// instantiating the surrounding `BoardCanvas`.
 @immutable
 class PinDragPayload {
-  const PinDragPayload({required this.toolId, required this.boardKey});
+  const PinDragPayload({required this.pinKey, required this.toolId});
+  final PinKey pinKey;
   final ToolId toolId;
-  final BoardKey boardKey;
 }
 
 /// Side-effect injected from outside so widget tests can intercept the
@@ -25,7 +26,7 @@ class PinDragPayload {
 typedef MovePinCallback =
     void Function({
       required BoardKey boardKey,
-      required ToolId toolId,
+      required PinId pinId,
       required int anchorX,
       required int anchorY,
     });

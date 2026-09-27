@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-22T05:38:31Z",
+  "generatedAt": "2026-09-26T15:17:57Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3406,
+      "total": 3470,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -34,6 +34,41 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "adapters::credentials::tests::keychain_reference_stores_schema_not_secret_value"
+        },
+        {
+          "className": "adapters::diagnostics::tests",
+          "methodName": "external_cancellation_report_keeps_partial_streams_and_cancelled_detail",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::diagnostics::tests::external_cancellation_report_keeps_partial_streams_and_cancelled_detail"
+        },
+        {
+          "className": "adapters::diagnostics::tests",
+          "methodName": "external_nonzero_streams_survive_diagnostic_store_reopen",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::diagnostics::tests::external_nonzero_streams_survive_diagnostic_store_reopen"
+        },
+        {
+          "className": "adapters::diagnostics::tests",
+          "methodName": "external_timeout_report_keeps_typed_timeout_detail_after_reopen",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::diagnostics::tests::external_timeout_report_keeps_typed_timeout_detail_after_reopen"
+        },
+        {
+          "className": "adapters::diagnostics::tests",
+          "methodName": "project_root_is_read_from_the_real_execution_context_key",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::diagnostics::tests::project_root_is_read_from_the_real_execution_context_key"
+        },
+        {
+          "className": "adapters::diagnostics::tests",
+          "methodName": "run_ids_are_unique_within_one_millisecond",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::diagnostics::tests::run_ids_are_unique_within_one_millisecond"
         },
         {
           "className": "adapters::execution_log::execution_log_time::tests",
@@ -107,10 +142,10 @@
         },
         {
           "className": "adapters::execution_log::tests",
-          "methodName": "human_output_renders_rfc3339_timestamp_instead_of_epoch_ms",
+          "methodName": "human_output_renders_local_rfc3339_timestamp_instead_of_epoch_ms",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
-          "fullName": "adapters::execution_log::tests::human_output_renders_rfc3339_timestamp_instead_of_epoch_ms"
+          "fullName": "adapters::execution_log::tests::human_output_renders_local_rfc3339_timestamp_instead_of_epoch_ms"
         },
         {
           "className": "adapters::execution_log::tests",
@@ -1409,6 +1444,13 @@
         },
         {
           "className": "infrastructure::attach::http_transport::tests",
+          "methodName": "changed_discovery_record_sends_no_bearer_request",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::http_transport::tests::changed_discovery_record_sends_no_bearer_request"
+        },
+        {
+          "className": "infrastructure::attach::http_transport::tests",
           "methodName": "http_response_allows_the_exact_body_limit",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1521,6 +1563,13 @@
         },
         {
           "className": "infrastructure::attach::http_transport::tests",
+          "methodName": "ipv6_attach_uses_a_bracketed_socket_and_host_authority",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::http_transport::tests::ipv6_attach_uses_a_bracketed_socket_and_host_authority"
+        },
+        {
+          "className": "infrastructure::attach::http_transport::tests",
           "methodName": "real_tcp_attach_returns_a_well_formed_json_response",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1567,6 +1616,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::attach::stream::tests::host_unaware_of_the_streaming_route_falls_back_to_buffered_path"
+        },
+        {
+          "className": "infrastructure::attach::stream::tests",
+          "methodName": "ipv6_plain_board_and_stream_attach_use_bracketed_authority",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::attach::stream::tests::ipv6_plain_board_and_stream_attach_use_bracketed_authority"
         },
         {
           "className": "infrastructure::attach::stream::tests",
@@ -1759,6 +1815,13 @@
         },
         {
           "className": "infrastructure::discovery::tests",
+          "methodName": "dead_record_cannot_attach_to_an_unrelated_http_listener",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::dead_record_cannot_attach_to_an_unrelated_http_listener"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
           "methodName": "discovery_file_is_owner_only_from_the_instant_it_is_created",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -1791,6 +1854,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::discovery::tests::http_response_prefix_read_survives_interrupted_and_partial_reads"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "live_process_timeout_preserves_the_discovery_file",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::live_process_timeout_preserves_the_discovery_file"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "live_process_with_unresponsive_endpoint_keeps_its_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::live_process_with_unresponsive_endpoint_keeps_its_record"
         },
         {
           "className": "infrastructure::discovery::tests",
@@ -1833,6 +1910,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::discovery::tests::socket_addr_str_brackets_ipv6_literals"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "stale_cleanup_and_attach_recheck_preserve_a_replacement_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::stale_cleanup_and_attach_recheck_preserve_a_replacement_record"
+        },
+        {
+          "className": "infrastructure::discovery::tests",
+          "methodName": "unknown_process_does_not_probe_or_reap_the_record",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::discovery::tests::unknown_process_does_not_probe_or_reap_the_record"
         },
         {
           "className": "infrastructure::lifecycle::tests",
@@ -1882,6 +1973,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::lifecycle::tests::format_status_text_stale_mentions_staleness_and_pid"
+        },
+        {
+          "className": "infrastructure::lifecycle::tests",
+          "methodName": "format_status_text_unreachable_says_record_is_retained",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::lifecycle::tests::format_status_text_unreachable_says_record_is_retained"
         },
         {
           "className": "infrastructure::lifecycle::tests",
@@ -2218,6 +2316,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "infrastructure::process::tests::pid_alive_returns_true_for_own_pid"
+        },
+        {
+          "className": "infrastructure::process::tests",
+          "methodName": "process_probe_distinguishes_live_dead_and_unknown",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "infrastructure::process::tests::process_probe_distinguishes_live_dead_and_unknown"
         },
         {
           "className": "infrastructure::process::tests",
@@ -2582,6 +2687,27 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::http::cors::tests::wildcard_origins_are_rejected_in_configuration"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "extension_adapter_lists_and_calls_only_extension_visible_pins",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::extension_adapter_lists_and_calls_only_extension_visible_pins"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "extension_scrub_removes_both_approval_levers_without_losing_cwd",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::extension_scrub_removes_both_approval_levers_without_losing_cwd"
+        },
+        {
+          "className": "surfaces::http::ext_boards::tests",
+          "methodName": "metadata_exposes_declared_literal_presets_but_not_files_or_backend_values",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::ext_boards::tests::metadata_exposes_declared_literal_presets_but_not_files_or_backend_values"
         },
         {
           "className": "surfaces::http::identity_parity_tests",
@@ -3740,6 +3866,20 @@
         },
         {
           "className": "surfaces::mcp::proxy::tests",
+          "methodName": "changed_discovery_notification_sends_no_reply",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::changed_discovery_notification_sends_no_reply"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "changed_discovery_returns_mcp_error_without_local_fallback",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::changed_discovery_returns_mcp_error_without_local_fallback"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
           "methodName": "cwd_stamp_leaves_non_object_arguments_untouched",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -3758,6 +3898,20 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::mcp::proxy::tests::cwd_stamp_promotes_missing_arguments_to_object"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "lost_host_response_never_replays_a_tool_call_locally",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::lost_host_response_never_replays_a_tool_call_locally"
+        },
+        {
+          "className": "surfaces::mcp::proxy::tests",
+          "methodName": "lost_host_response_tool_notification_sends_no_reply",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::mcp::proxy::tests::lost_host_response_tool_notification_sends_no_reply"
         },
         {
           "className": "surfaces::mcp::proxy::tests",
@@ -6428,6 +6582,13 @@
         },
         {
           "className": "surfaces::tui::state_tests::navigation::result_view",
+          "methodName": "complete_read_follow_up_dispatches_without_opening_form",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::navigation::result_view::complete_read_follow_up_dispatches_without_opening_form"
+        },
+        {
+          "className": "surfaces::tui::state_tests::navigation::result_view",
           "methodName": "enter_on_result_reruns_same_tool",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -6498,6 +6659,13 @@
         },
         {
           "className": "surfaces::tui::state_tests::navigation::result_view",
+          "methodName": "incomplete_read_follow_up_opens_prefilled_form",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::navigation::result_view::incomplete_read_follow_up_opens_prefilled_form"
+        },
+        {
+          "className": "surfaces::tui::state_tests::navigation::result_view",
           "methodName": "local_follow_up_completion_refreshes_a_current_local_origin",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -6509,6 +6677,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::tui::state_tests::navigation::result_view::unconsumed_key_on_result_keeps_result"
+        },
+        {
+          "className": "surfaces::tui::state_tests::navigation::result_view",
+          "methodName": "write_and_unknown_follow_ups_keep_explicit_form",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::navigation::result_view::write_and_unknown_follow_ups_keep_explicit_form"
         },
         {
           "className": "surfaces::tui::state_tests::navigation",
@@ -9409,6 +9584,13 @@
           "fullName": "the_repo_dogfood_manifest_gathers_tools_on_a_dedicated_board"
         },
         {
+          "className": "project_commands::tests/project_commands.rs",
+          "methodName": "cli_initializes_validates_and_resolves_a_duplicate_tool_choice",
+          "status": "passed",
+          "target": "project_commands::tests/project_commands.rs",
+          "fullName": "cli_initializes_validates_and_resolves_a_duplicate_tool_choice"
+        },
+        {
           "className": "three_sources_e2e::tests/three_sources_e2e.rs",
           "methodName": "toml_wasm_and_mcp_tools_each_dispatch_independently",
           "status": "passed",
@@ -9652,6 +9834,20 @@
           "status": "passed",
           "target": "upeg_core::src/lib.rs",
           "fullName": "capability::tests::wasm_invoker_is_unsupported_on_wasm_without_an_extism_host"
+        },
+        {
+          "className": "diagnostics::tests",
+          "methodName": "redaction_covers_quoted_json_keys_and_common_api_key_spelling",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "diagnostics::tests::redaction_covers_quoted_json_keys_and_common_api_key_spelling"
+        },
+        {
+          "className": "diagnostics::tests",
+          "methodName": "redaction_removes_common_credential_forms_and_keeps_utf8_valid",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "diagnostics::tests::redaction_removes_common_credential_forms_and_keeps_utf8_valid"
         },
         {
           "className": "i18n::tests",
@@ -10691,17 +10887,17 @@
         },
         {
           "className": "manifest_tests",
+          "methodName": "placement_serialization_includes_the_legacy_derived_pin_id",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "manifest_tests::placement_serialization_includes_the_legacy_derived_pin_id"
+        },
+        {
+          "className": "manifest_tests",
           "methodName": "placement_span_and_args_preset_survive_a_serde_roundtrip",
           "status": "passed",
           "target": "upeg_core::src/lib.rs",
           "fullName": "manifest_tests::placement_span_and_args_preset_survive_a_serde_roundtrip"
-        },
-        {
-          "className": "manifest_tests",
-          "methodName": "placement_with_none_new_fields_is_byte_identical_to_the_legacy_json",
-          "status": "passed",
-          "target": "upeg_core::src/lib.rs",
-          "fullName": "manifest_tests::placement_with_none_new_fields_is_byte_identical_to_the_legacy_json"
         },
         {
           "className": "manifest_tests",
@@ -11124,6 +11320,20 @@
           "fullName": "pin_span::tests::row_span_rejects_zero_and_allows_one_or_more"
         },
         {
+          "className": "placement::tests",
+          "methodName": "explicit_blank_or_padded_pin_id_is_rejected",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "placement::tests::explicit_blank_or_padded_pin_id_is_rejected"
+        },
+        {
+          "className": "placement::tests",
+          "methodName": "legacy_json_gets_stable_pin_id_and_new_ids_round_trip",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "placement::tests::legacy_json_gets_stable_pin_id_and_new_ids_round_trip"
+        },
+        {
           "className": "prefs::locale::tests",
           "methodName": "default_is_english",
           "status": "passed",
@@ -11234,6 +11444,13 @@
           "status": "passed",
           "target": "upeg_core::src/lib.rs",
           "fullName": "prefs::tweaks::tests::settings_parse_respects_an_explicit_locale"
+        },
+        {
+          "className": "presentation::tests",
+          "methodName": "a_null_project_binding_leaves_the_required_folder_for_the_user_to_choose",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "presentation::tests::a_null_project_binding_leaves_the_required_folder_for_the_user_to_choose"
         },
         {
           "className": "presentation::tests",
@@ -12235,6 +12452,13 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "dispatcher::chain::approval::tests::default_approval_surfaces_are_the_three_attended_surfaces"
+        },
+        {
+          "className": "dispatcher::chain::approval::tests",
+          "methodName": "extension_surface_never_approves_even_when_a_hand_built_policy_names_it",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "dispatcher::chain::approval::tests::extension_surface_never_approves_even_when_a_hand_built_policy_names_it"
         },
         {
           "className": "dispatcher::chain::approval::tests",
@@ -13246,6 +13470,13 @@
         },
         {
           "className": "parse::chain::tests",
+          "methodName": "extension_approval_surface_fails_load_because_it_has_no_gesture",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "parse::chain::tests::extension_approval_surface_fails_load_because_it_has_no_gesture"
+        },
+        {
+          "className": "parse::chain::tests",
           "methodName": "unknown_approval_surfaces_entry_fails_load",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -13355,6 +13586,27 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "parse::triggers::tests::tool_without_triggers_passes"
+        },
+        {
+          "className": "project::tests",
+          "methodName": "empty_marker_needs_no_config_file",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "project::tests::empty_marker_needs_no_config_file"
+        },
+        {
+          "className": "project::tests",
+          "methodName": "project_config_rejects_unsupported_version",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "project::tests::project_config_rejects_unsupported_version"
+        },
+        {
+          "className": "project::tests",
+          "methodName": "v1_config_parses_boards_and_explicit_choices",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "project::tests::v1_config_parses_boards_and_explicit_choices"
         },
         {
           "className": "schema::tests",
@@ -13530,6 +13782,13 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "tests::dispatcher::external_contract::executable_with_a_missing_interpreter_keeps_the_raw_spawn_failure"
+        },
+        {
+          "className": "tests::dispatcher::external_contract",
+          "methodName": "external_child_receives_valid_surface_and_no_inherited_project_root",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher::external_contract::external_child_receives_valid_surface_and_no_inherited_project_root"
         },
         {
           "className": "tests::dispatcher::external_contract",
@@ -14125,6 +14384,13 @@
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
           "fullName": "tests::dispatcher_chain_nested::outputless_inner_chain_makes_outer_summary_primary"
+        },
+        {
+          "className": "tests::dispatcher_chain_nested",
+          "methodName": "step_args_cannot_approve_a_nested_gate_without_parent_approval",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::dispatcher_chain_nested::step_args_cannot_approve_a_nested_gate_without_parent_approval"
         },
         {
           "className": "tests::dispatcher_chain_nested",
@@ -16781,6 +17047,13 @@
         },
         {
           "className": "execution::tests",
+          "methodName": "sub_call_drops_child_approval_and_cwd_when_parent_did_not_supply_them",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "execution::tests::sub_call_drops_child_approval_and_cwd_when_parent_did_not_supply_them"
+        },
+        {
+          "className": "execution::tests",
           "methodName": "sub_call_inherits_parent_call_reserved_context_verbatim",
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
@@ -16925,6 +17198,13 @@
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "pegboard::tests::drop_with_span_wider_than_board_normalizes_start_column"
+        },
+        {
+          "className": "pegboard::tests",
+          "methodName": "duplicate_tool_pins_keep_distinct_identity_through_reflow_and_removal",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "pegboard::tests::duplicate_tool_pins_keep_distinct_identity_through_reflow_and_removal"
         },
         {
           "className": "pegboard::tests",
@@ -17261,6 +17541,20 @@
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "progress::tests::stream_names_match_wire_spelling"
+        },
+        {
+          "className": "project_scope::tests",
+          "methodName": "nested_catalog_read_remains_reentrant_when_transition_is_waiting",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "project_scope::tests::nested_catalog_read_remains_reentrant_when_transition_is_waiting"
+        },
+        {
+          "className": "project_scope::tests",
+          "methodName": "nested_dispatch_call_stays_valid_during_a_rejected_transition",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "project_scope::tests::nested_dispatch_call_stays_valid_during_a_rejected_transition"
         },
         {
           "className": "provenance::tests",
@@ -17978,6 +18272,13 @@
         },
         {
           "className": "pegboard::pegboard_tests",
+          "methodName": "board_catalog_listing_deduplicates_tool_instances_using_the_call_representative",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "pegboard::pegboard_tests::board_catalog_listing_deduplicates_tool_instances_using_the_call_representative"
+        },
+        {
+          "className": "pegboard::pegboard_tests",
           "methodName": "default_state_has_shared_boards_and_layouts",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
@@ -18285,130 +18586,172 @@
           "fullName": "pegboard::scope::tests::without_a_project_all_global_rows_are_owned"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "cwd_manifest_is_loaded_even_outside_home",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::cwd_manifest_is_loaded_even_outside_home"
+          "fullName": "project::discovery_tests::tests::cwd_manifest_is_loaded_even_outside_home"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "cwd_outside_home_does_not_load_ancestor_manifest",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::cwd_outside_home_does_not_load_ancestor_manifest"
+          "fullName": "project::discovery_tests::tests::cwd_outside_home_does_not_load_ancestor_manifest"
         },
         {
-          "className": "project::tests",
-          "methodName": "degenerate_home_value_does_not_get_home_fallback_either",
+          "className": "project::discovery_tests::tests",
+          "methodName": "degenerate_home_value_cannot_unlock_an_ancestor_walk",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::degenerate_home_value_does_not_get_home_fallback_either"
+          "fullName": "project::discovery_tests::tests::degenerate_home_value_cannot_unlock_an_ancestor_walk"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "degenerate_home_value_is_treated_as_no_home",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::degenerate_home_value_is_treated_as_no_home"
+          "fullName": "project::discovery_tests::tests::degenerate_home_value_is_treated_as_no_home"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "detect_override_behaves_like_default_detection",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::detect_override_behaves_like_default_detection"
+          "fullName": "project::discovery_tests::tests::detect_override_behaves_like_default_detection"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "explicit_absolute_path_wins_over_detectable_manifest",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::explicit_absolute_path_wins_over_detectable_manifest"
+          "fullName": "project::discovery_tests::tests::explicit_absolute_path_wins_over_detectable_manifest"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "missing_explicit_path_is_not_replaced_by_detection",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::missing_explicit_path_is_not_replaced_by_detection"
+          "fullName": "project::discovery_tests::tests::missing_explicit_path_is_not_replaced_by_detection"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "no_warning_for_non_relative_path",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::no_warning_for_non_relative_path"
+          "fullName": "project::discovery_tests::tests::no_warning_for_non_relative_path"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "normal_absolute_home_is_used_verbatim",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::normal_absolute_home_is_used_verbatim"
+          "fullName": "project::discovery_tests::tests::normal_absolute_home_is_used_verbatim"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "off_disables_even_when_manifest_is_detectable",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::off_disables_even_when_manifest_is_detectable"
+          "fullName": "project::discovery_tests::tests::off_disables_even_when_manifest_is_detectable"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "override_labels_distinguish_all_three_states",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::override_labels_distinguish_all_three_states"
+          "fullName": "project::discovery_tests::tests::override_labels_distinguish_all_three_states"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "override_parsing_falls_back_to_detect_for_relative_path_and_returns_warning",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::override_parsing_falls_back_to_detect_for_relative_path_and_returns_warning"
+          "fullName": "project::discovery_tests::tests::override_parsing_falls_back_to_detect_for_relative_path_and_returns_warning"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "override_parsing_treats_absolute_path_as_explicit",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::override_parsing_treats_absolute_path_as_explicit"
+          "fullName": "project::discovery_tests::tests::override_parsing_treats_absolute_path_as_explicit"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "override_parsing_treats_empty_as_detect",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::override_parsing_treats_empty_as_detect"
+          "fullName": "project::discovery_tests::tests::override_parsing_treats_empty_as_detect"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "override_parsing_treats_off_case_insensitively_as_disabled",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::override_parsing_treats_off_case_insensitively_as_disabled"
+          "fullName": "project::discovery_tests::tests::override_parsing_treats_off_case_insensitively_as_disabled"
         },
         {
-          "className": "project::tests",
-          "methodName": "project_manifest_detection_falls_back_to_home",
+          "className": "project::discovery_tests::tests",
+          "methodName": "project_detection_outside_home_has_no_unrelated_home_fallback",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::project_manifest_detection_falls_back_to_home"
+          "fullName": "project::discovery_tests::tests::project_detection_outside_home_has_no_unrelated_home_fallback"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "project_manifest_detection_walks_up_to_nearest_ancestor",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::project_manifest_detection_walks_up_to_nearest_ancestor"
+          "fullName": "project::discovery_tests::tests::project_manifest_detection_walks_up_to_nearest_ancestor"
         },
         {
-          "className": "project::tests",
+          "className": "project::discovery_tests::tests",
           "methodName": "without_home_does_not_walk_ancestors",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
-          "fullName": "project::tests::without_home_does_not_walk_ancestors"
+          "fullName": "project::discovery_tests::tests::without_home_does_not_walk_ancestors"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "closing_explicit_project_keeps_global_context_even_when_cwd_has_a_marker",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::closing_explicit_project_keeps_global_context_even_when_cwd_has_a_marker"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "duplicate_id_is_blocked_until_an_explicit_choice_restores_global_on_close",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::duplicate_id_is_blocked_until_an_explicit_choice_restores_global_on_close"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "empty_marker_is_a_project_without_a_config_file",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::empty_marker_is_a_project_without_a_config_file"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "failed_activation_restores_the_previous_catalog_and_board_scope",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::failed_activation_restores_the_previous_catalog_and_board_scope"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "project_loads_multiple_toolkits_with_root_relative_cwd_and_replaces_scope",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::project_loads_multiple_toolkits_with_root_relative_cwd_and_replaces_scope"
+        },
+        {
+          "className": "project::project_context_tests",
+          "methodName": "shared_toolkit_id_keeps_each_tools_own_source_tags",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "project::project_context_tests::shared_toolkit_id_keeps_each_tools_own_source_tags"
         },
         {
           "className": "source_freshness::tests",
@@ -18423,6 +18766,13 @@
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
           "fullName": "source_freshness::tests::lazy_import_load_does_not_overwrite_the_boot_snapshot"
+        },
+        {
+          "className": "source_freshness::tests",
+          "methodName": "project_snapshot_tracks_config_and_each_toolkit_in_marker_directory",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "source_freshness::tests::project_snapshot_tracks_config_and_each_toolkit_in_marker_directory"
         },
         {
           "className": "source_freshness::tests",
@@ -18514,6 +18864,27 @@
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
           "fullName": "sources::tests::runtime_source_load_treats_missing_directory_as_empty"
+        },
+        {
+          "className": "store::diagnostics::tests",
+          "methodName": "diagnostics_are_redacted_and_retained_in_a_bounded_newest_window",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::diagnostics::tests::diagnostics_are_redacted_and_retained_in_a_bounded_newest_window"
+        },
+        {
+          "className": "store::diagnostics::tests",
+          "methodName": "oversized_debug_context_remains_valid_json_after_capping",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::diagnostics::tests::oversized_debug_context_remains_valid_json_after_capping"
+        },
+        {
+          "className": "store::diagnostics::tests",
+          "methodName": "timeout_and_cancellation_debug_context_round_trip_without_raw_secret_values",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::diagnostics::tests::timeout_and_cancellation_debug_context_round_trip_without_raw_secret_values"
         },
         {
           "className": "store::tests",
@@ -18649,6 +19020,27 @@
           "fullName": "store::tests::over_size_cap_keeps_only_primary_output_and_marks_truncated"
         },
         {
+          "className": "store::tests::pin_instances",
+          "methodName": "unpinning_one_duplicate_keeps_the_sibling_placement_and_outcome",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::tests::pin_instances::unpinning_one_duplicate_keeps_the_sibling_placement_and_outcome"
+        },
+        {
+          "className": "store::tests::pin_instances",
+          "methodName": "v7_migrates_existing_v6_diagnostics_without_losing_reports",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::tests::pin_instances::v7_migrates_existing_v6_diagnostics_without_losing_reports"
+        },
+        {
+          "className": "store::tests::pin_instances",
+          "methodName": "v7_migrates_v5_rows_with_all_placement_fields_and_outcomes",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::tests::pin_instances::v7_migrates_v5_rows_with_all_placement_fields_and_outcomes"
+        },
+        {
           "className": "store::tests",
           "methodName": "pin_unpin_cleans_last_outcome_alongside_tombstone",
           "status": "passed",
@@ -18682,6 +19074,13 @@
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
           "fullName": "store::tests::row_level_upsert_and_tombstone_are_reflected_in_load_state"
+        },
+        {
+          "className": "store::tests",
+          "methodName": "same_tool_pins_keep_independent_outcomes_and_clear_by_pin_id",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::tests::same_tool_pins_keep_independent_outcomes_and_clear_by_pin_id"
         },
         {
           "className": "store::tests",
@@ -18734,17 +19133,17 @@
         },
         {
           "className": "store::tests",
-          "methodName": "v3_schema_creates_last_outcomes_table_keyed_per_placement",
-          "status": "passed",
-          "target": "upeg_sources::src/lib.rs",
-          "fullName": "store::tests::v3_schema_creates_last_outcomes_table_keyed_per_placement"
-        },
-        {
-          "className": "store::tests",
           "methodName": "v4_schema_adds_principal_column_to_execution_log",
           "status": "passed",
           "target": "upeg_sources::src/lib.rs",
           "fullName": "store::tests::v4_schema_adds_principal_column_to_execution_log"
+        },
+        {
+          "className": "store::tests",
+          "methodName": "v7_schema_keys_placements_and_last_outcomes_by_pin_id",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::tests::v7_schema_keys_placements_and_last_outcomes_by_pin_id"
         },
         {
           "className": "display_label::tests",
@@ -22562,6 +22961,20 @@
           "fullName": "api::deep_link::tests::parse_launch_intent_returns_none_for_non_upeg_uri"
         },
         {
+          "className": "api::diagnostics::tests",
+          "methodName": "generated_dispatch_run_ids_are_unique",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::diagnostics::tests::generated_dispatch_run_ids_are_unique"
+        },
+        {
+          "className": "api::diagnostics::tests",
+          "methodName": "identity_uses_project_root_and_cwd_stamped_on_the_actual_call",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::diagnostics::tests::identity_uses_project_root_and_cwd_stamped_on_the_actual_call"
+        },
+        {
           "className": "api::dispatch_stream::tests",
           "methodName": "cancel_does_not_erase_the_entry",
           "status": "passed",
@@ -23025,6 +23438,13 @@
         },
         {
           "className": "api::pegboard::tests",
+          "methodName": "duplicate_pins_keep_independent_presets_and_dispatch_results",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::pegboard::tests::duplicate_pins_keep_independent_presets_and_dispatch_results"
+        },
+        {
+          "className": "api::pegboard::tests",
           "methodName": "filtered_layout_snapshot_narrows_placements_by_runtime_tag",
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
@@ -23318,6 +23738,13 @@
           "fullName": "api::pin_activation::tests::pin_activation_for_routes_llm_tool_to_open_modal"
         },
         {
+          "className": "api::pin_activation::tests",
+          "methodName": "pin_activation_for_routes_read_presentation_to_modal",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::pin_activation::tests::pin_activation_for_routes_read_presentation_to_modal"
+        },
+        {
           "className": "api::shared_state::tests",
           "methodName": "file_mtime_converts_to_epoch_millis_version",
           "status": "passed",
@@ -23452,6 +23879,13 @@
         },
         {
           "className": "api::tools::gui_context::tests",
+          "methodName": "caller_cannot_forge_pin_placement_in_reserved_args",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::gui_context::tests::caller_cannot_forge_pin_placement_in_reserved_args"
+        },
+        {
+          "className": "api::tools::gui_context::tests",
           "methodName": "gui_surface_follows_this_builds_runtime_host",
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
@@ -23463,6 +23897,13 @@
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
           "fullName": "api::tools::gui_context::tests::invalid_board_key_is_rejected_with_canonical_error_envelope"
+        },
+        {
+          "className": "api::tools::gui_context::tests",
+          "methodName": "selected_project_supplies_the_gui_directory_without_overriding_explicit_call_context",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::gui_context::tests::selected_project_supplies_the_gui_directory_without_overriding_explicit_call_context"
         },
         {
           "className": "api::tools::input_field_tests",
@@ -23774,6 +24215,13 @@
         },
         {
           "className": "api::webview::native::tests",
+          "methodName": "same_tool_on_distinct_pins_keeps_exact_request_identity_and_queue",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::webview::native::tests::same_tool_on_distinct_pins_keeps_exact_request_identity_and_queue"
+        },
+        {
+          "className": "api::webview::native::tests",
           "methodName": "selector_wait_timeout_preserves_role_condition_and_error_code",
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
@@ -23892,7 +24340,7 @@
         "test",
         "--reporter=json"
       ],
-      "total": 1256,
+      "total": 1273,
       "tests": [
         {
           "className": "flutter::flutter_app/test/platform_tests/file_picker_bridge_test.dart",
@@ -24329,6 +24777,13 @@
           "fullName": "currentBoardKeyProvider::currentBoardKeyProvider_updates_value_via_select"
         },
         {
+          "className": "flutter::flutter_app/test/state_tests/duplicate_pin_instance_state_test.dart",
+          "methodName": "same-tool placements keep draft and running state independent",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/duplicate_pin_instance_state_test.dart",
+          "fullName": "same-tool placements keep draft and running state independent"
+        },
+        {
           "className": "flutter::flutter_app/test/state_tests/external_readiness_provider_test.dart",
           "methodName": "config_change_invalidates_cached_host_readiness",
           "status": "passed",
@@ -24469,67 +24924,74 @@
           "fullName": "InlineDraftStore::isolates drafts for the same tool across different boards"
         },
         {
-          "className": "lastOutcomeProvider clear",
-          "methodName": "clear_removes_only_the_given_tool_cache",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "a board selection hydrates while the notifier is alive",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider clear::clear_removes_only_the_given_tool_cache"
+          "fullName": "a board selection hydrates while the notifier is alive"
         },
         {
-          "className": "lastOutcomeProvider hydration",
-          "methodName": "board_switch_restores_stored_results_as_restored_state",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "an empty complete snapshot removes only that board restored rows",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider hydration::board_switch_restores_stored_results_as_restored_state"
+          "fullName": "an empty complete snapshot removes only that board restored rows"
         },
         {
-          "className": "lastOutcomeProvider hydration",
-          "methodName": "hydration_does_not_overwrite_session_fresh_results",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "board hydration skips malformed rows and preserves other-board state",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider hydration::hydration_does_not_overwrite_session_fresh_results"
+          "fullName": "board hydration skips malformed rows and preserves other-board state"
         },
         {
-          "className": "lastOutcomeProvider hydration",
-          "methodName": "hydration_load_failure_leaves_existing_cache_untouched",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "board switching keeps session-fresh outcomes on both boards",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider hydration::hydration_load_failure_leaves_existing_cache_untouched"
+          "fullName": "board switching keeps session-fresh outcomes on both boards"
         },
         {
-          "className": "lastOutcomeProvider hydration",
-          "methodName": "restart_simulation_restores_as_restored_after_provider_recreate_load",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "hydrates valid board rows as restored while fresh entries win",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider hydration::restart_simulation_restores_as_restored_after_provider_recreate_load"
+          "fullName": "hydrates valid board rows as restored while fresh entries win"
         },
         {
-          "className": "lastOutcomeProvider write-through",
-          "methodName": "error_results_are_written_through_to_the_store_too",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "load failure preserves cached outcomes",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider write-through::error_results_are_written_through_to_the_store_too"
+          "fullName": "load failure preserves cached outcomes"
         },
         {
-          "className": "lastOutcomeProvider write-through",
-          "methodName": "record_stores_fresh_state_and_calls_write_through_exactly_once",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "persistence failure leaves the fresh result in memory",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider write-through::record_stores_fresh_state_and_calls_write_through_exactly_once"
+          "fullName": "persistence failure leaves the fresh result in memory"
         },
         {
-          "className": "lastOutcomeProvider write-through",
-          "methodName": "without_selected_board_updates_cache_only_and_skips_persistence",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "record persists both duplicate pins and clear isolates a sibling",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider write-through::without_selected_board_updates_cache_only_and_skips_persistence"
+          "fullName": "record persists both duplicate pins and clear isolates a sibling"
         },
         {
-          "className": "lastOutcomeProvider write-through",
-          "methodName": "write_through_failure_keeps_cache_without_throwing",
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "record replaces only its own pin and persists failure outcomes",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
-          "fullName": "lastOutcomeProvider write-through::write_through_failure_keeps_cache_without_throwing"
+          "fullName": "record replaces only its own pin and persists failure outcomes"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "methodName": "selected board hydrates when the notifier is first built",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/last_outcome_provider_test.dart",
+          "fullName": "selected board hydrates when the notifier is first built"
         },
         {
           "className": "layoutProvider",
@@ -24593,6 +25055,13 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/live_outcome_provider_test.dart",
           "fullName": "skips_overlapping_ticks_while_previous_dispatch_is_in_flight"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/live_outcome_provider_test.dart",
+          "methodName": "timer dispatches are keyed by placement, even for one tool",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/live_outcome_provider_test.dart",
+          "fullName": "timer dispatches are keyed by placement, even for one tool"
         },
         {
           "className": "flutter::flutter_app/test/state_tests/live_outcome_provider_test.dart",
@@ -24686,41 +25155,6 @@
           "fullName": "MoveModeState machine (F15)::start_transitions_from_Idle_to_Active"
         },
         {
-          "className": "resolvePaletteJumpBoard",
-          "methodName": "does_not_jump_when_pinned_nowhere",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/palette_jump_test.dart",
-          "fullName": "resolvePaletteJumpBoard::does_not_jump_when_pinned_nowhere"
-        },
-        {
-          "className": "resolvePaletteJumpBoard",
-          "methodName": "jumps_to_first_pinned_board_even_when_current_board_is_null",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/palette_jump_test.dart",
-          "fullName": "resolvePaletteJumpBoard::jumps_to_first_pinned_board_even_when_current_board_is_null"
-        },
-        {
-          "className": "resolvePaletteJumpBoard",
-          "methodName": "picks_current_board_when_it_has_a_pin",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/palette_jump_test.dart",
-          "fullName": "resolvePaletteJumpBoard::picks_current_board_when_it_has_a_pin"
-        },
-        {
-          "className": "resolvePaletteJumpBoard",
-          "methodName": "picks_first_pinned_board_in_board_order_when_current_board_has_no_pin",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/palette_jump_test.dart",
-          "fullName": "resolvePaletteJumpBoard::picks_first_pinned_board_in_board_order_when_current_board_has_no_pin"
-        },
-        {
-          "className": "resolvePaletteJumpBoard",
-          "methodName": "pins_on_boards_missing_from_board_list_are_not_jump_targets",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/palette_jump_test.dart",
-          "fullName": "resolvePaletteJumpBoard::pins_on_boards_missing_from_board_list_are_not_jump_targets"
-        },
-        {
           "className": "paletteProvider",
           "methodName": "paletteProvider_forwards_query_to_FRB",
           "status": "passed",
@@ -24763,53 +25197,32 @@
           "fullName": "pauseControllableProvider::pauseControllableProvider_is_true_in_embedded_state"
         },
         {
-          "className": "PegboardMutations",
-          "methodName": "clearSpan_mutation_clears_override_and_invalidates_layout",
+          "className": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
+          "methodName": "failed mutations do not bump revision",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::clearSpan_mutation_clears_override_and_invalidates_layout"
+          "fullName": "failed mutations do not bump revision"
         },
         {
-          "className": "PegboardMutations",
-          "methodName": "move_mutation_does_not_invalidate_layout_on_FRB_failure",
+          "className": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
+          "methodName": "failed remove retains both outcomes and revision",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::move_mutation_does_not_invalidate_layout_on_FRB_failure"
+          "fullName": "failed remove retains both outcomes and revision"
         },
         {
-          "className": "PegboardMutations",
-          "methodName": "move_mutation_invalidates_current_board_layout",
+          "className": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
+          "methodName": "move reorder and span mutations forward exact pin and refresh",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::move_mutation_invalidates_current_board_layout"
+          "fullName": "move reorder and span mutations forward exact pin and refresh"
         },
         {
-          "className": "PegboardMutations",
-          "methodName": "pin_mutation_invalidates_layout_and_pinned_board_cache",
+          "className": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
+          "methodName": "remove clears only its successful pin outcome",
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::pin_mutation_invalidates_layout_and_pinned_board_cache"
-        },
-        {
-          "className": "PegboardMutations",
-          "methodName": "reorder_mutation_calls_atomic_reorder_mutator_and_invalidates_layout",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::reorder_mutation_calls_atomic_reorder_mutator_and_invalidates_layout"
-        },
-        {
-          "className": "PegboardMutations",
-          "methodName": "setSpan_mutation_forwards_span_and_invalidates_layout",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::setSpan_mutation_forwards_span_and_invalidates_layout"
-        },
-        {
-          "className": "PegboardMutations",
-          "methodName": "unpin_mutation_clears_last_outcome_cache_for_that_tool",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/pegboard_mutations_provider_test.dart",
-          "fullName": "PegboardMutations::unpin_mutation_clears_last_outcome_cache_for_that_tool"
+          "fullName": "remove clears only its successful pin outcome"
         },
         {
           "className": "pegboardSelectionProvider",
@@ -24831,13 +25244,6 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/pegboard_selection_provider_test.dart",
           "fullName": "pegboardSelectionProvider::pegboardSelectionProvider_reads_shared_selection_on_restore"
-        },
-        {
-          "className": "pinnedProvider",
-          "methodName": "pinnedProvider_returns_loader_result_verbatim",
-          "status": "passed",
-          "target": "flutter::flutter_app/test/state_tests/pin_provider_test.dart",
-          "fullName": "pinnedProvider::pinnedProvider_returns_loader_result_verbatim"
         },
         {
           "className": "PinnedNotifier",
@@ -26352,6 +26758,27 @@
           "fullName": "runs_with_the_request_inputs_and_settings_and_returns_raw_outputs_under_the_same_request_id"
         },
         {
+          "className": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "methodName": "should keep distinct browser sessions for two pins of one tool",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "fullName": "should keep distinct browser sessions for two pins of one tool"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "methodName": "should keep the tool session for a request without pin context",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "fullName": "should keep the tool session for a request without pin context"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "methodName": "should reject incomplete pin context before opening a browser",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_bridge_test.dart",
+          "fullName": "should reject incomplete pin context before opening a browser"
+        },
+        {
           "className": "flutter::flutter_app/test/widget_tests/controlled_embed_execution_parity_test.dart",
           "methodName": "a wait timeout stops debug operations and returns the same error and wait target as normal execution",
           "status": "passed",
@@ -26710,6 +27137,20 @@
         },
         {
           "className": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
+          "methodName": "keeps_same_tool_sessions_independent_for_each_pin_key",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
+          "fullName": "keeps_same_tool_sessions_independent_for_each_pin_key"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
+          "methodName": "should isolate one tool session from two board pin sessions",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
+          "fullName": "should isolate one tool session from two board pin sessions"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
           "methodName": "stores_the_normalized_output_type_and_a_representative_non_first_result_separately_from_the_string_source",
           "status": "passed",
           "target": "flutter::flutter_app/test/widget_tests/controlled_embed_session_service_test.dart",
@@ -26833,6 +27274,13 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/widget_tests/deep_link_listener_test.dart",
           "fullName": "DeepLinkListener.handleForTest::deep_link_listener_logs_and_ignores_a_malformed_upeg_uri"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/diagnostics_section_test.dart",
+          "methodName": "run lookup does not substitute another failure of the same tool",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/diagnostics_section_test.dart",
+          "fullName": "run lookup does not substitute another failure of the same tool"
         },
         {
           "className": "DesktopFileDropAdapter",
@@ -27451,6 +27899,13 @@
           "fullName": "bespokeRegistry hex_to_dec::bespokeregistry_builds_hextodecform_for_the_hex_to_dec_id"
         },
         {
+          "className": "flutter::flutter_app/test/widget_tests/host_attach_routing_test.dart",
+          "methodName": "pinned host dispatch uses each placement preset and caller overrides",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/host_attach_routing_test.dart",
+          "fullName": "pinned host dispatch uses each placement preset and caller overrides"
+        },
+        {
           "className": "flutter::flutter_app/test/widget_tests/iframe_load_observer_test.dart",
           "methodName": "a_late_notifyloaded_after_dispose_is_a_no_op",
           "status": "passed",
@@ -27708,6 +28163,27 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
           "fullName": "MemosNotifier::updatebody_replaces_an_existing_memo_body"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "methodName": "active_memo_selection_is_independent_for_each_pin",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "fullName": "active_memo_selection_is_independent_for_each_pin"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "methodName": "legacy_memo_scratch_pin_keeps_the_existing_scratch_key",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "fullName": "legacy_memo_scratch_pin_keeps_the_existing_scratch_key"
+        },
+        {
+          "className": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "methodName": "new_pin_defaults_are_distinct_and_restore_their_saved_bodies",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/widget_tests/memos_provider_test.dart",
+          "fullName": "new_pin_defaults_are_distinct_and_restore_their_saved_bodies"
         },
         {
           "className": "PendingActivationNotifier",
@@ -28509,6 +28985,13 @@
         },
         {
           "className": "BoardCanvas",
+          "methodName": "BoardCanvas_keeps_two_instances_of_the_same_tool_as_distinct_widgets",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardCanvas::BoardCanvas_keeps_two_instances_of_the_same_tool_as_distinct_widgets"
+        },
+        {
+          "className": "BoardCanvas",
           "methodName": "BoardCanvas_moves_a_pin_by_dragging_in_modeless",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -28747,6 +29230,13 @@
         },
         {
           "className": "BoardPage keyboard wiring",
+          "methodName": "BoardPage_does_not_remove_a_pin_when_none_is_focused",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::BoardPage_does_not_remove_a_pin_when_none_is_focused"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
           "methodName": "BoardPage_focuses_the_spatially_right_pin_on_arrow_keys",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -28793,13 +29283,6 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "BoardPage keyboard wiring::BoardPage_opens_the_rename_dialog_for_the_current_board_on_the_RenameBoard_command"
-        },
-        {
-          "className": "BoardPage keyboard wiring",
-          "methodName": "BoardPage_pins_an_unpinned_focused_tool_on_the_TogglePin_command",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "BoardPage keyboard wiring::BoardPage_pins_an_unpinned_focused_tool_on_the_TogglePin_command"
         },
         {
           "className": "BoardPage keyboard wiring",
@@ -29594,6 +30077,13 @@
         },
         {
           "className": "ExpandedModalPage",
+          "methodName": "picking_and_pinning_a_palette_tool_opens_its_modal_for_the_new_pin",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "ExpandedModalPage::picking_and_pinning_a_palette_tool_opens_its_modal_for_the_new_pin"
+        },
+        {
+          "className": "ExpandedModalPage",
           "methodName": "tapping_the_Run_button_calls_dispatchTool_and_shows_the_result",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -29815,6 +30305,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "GenericForm File field::a_file_field_stores_the_picked_file_bytes_and_mime_as_a_fileformvalue"
+        },
+        {
+          "className": "GenericForm FilePath field",
+          "methodName": "GenericForm_filepath_folder_picker_reflects_the_picked_folder",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "GenericForm FilePath field::GenericForm_filepath_folder_picker_reflects_the_picked_folder"
         },
         {
           "className": "GenericForm FilePath field",
@@ -30504,17 +31001,17 @@
         },
         {
           "className": "PaletteOverlay",
-          "methodName": "a_paletteoverlay_board_chip_label_is_the_board_title_not_the_slug",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::a_paletteoverlay_board_chip_label_is_the_board_title_not_the_slug"
-        },
-        {
-          "className": "PaletteOverlay",
           "methodName": "a_paletteoverlay_row_shows_the_pinkind_badge",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "PaletteOverlay::a_paletteoverlay_row_shows_the_pinkind_badge"
+        },
+        {
+          "className": "PaletteOverlay",
+          "methodName": "paletteoverlay_adds_a_new_pin_each_time_for_the_current_board",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PaletteOverlay::paletteoverlay_adds_a_new_pin_each_time_for_the_current_board"
         },
         {
           "className": "PaletteOverlay",
@@ -30539,17 +31036,10 @@
         },
         {
           "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_cmd_enter_opens_and_pins_the_selected_hit",
+          "methodName": "paletteoverlay_cmd_enter_adds_and_returns_the_new_pin",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_cmd_enter_opens_and_pins_the_selected_hit"
-        },
-        {
-          "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_cmd_enter_pins_on_the_current_board_and_focuses_that_pin",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_cmd_enter_pins_on_the_current_board_and_focuses_that_pin"
+          "fullName": "PaletteOverlay::paletteoverlay_cmd_enter_adds_and_returns_the_new_pin"
         },
         {
           "className": "PaletteOverlay",
@@ -30560,20 +31050,6 @@
         },
         {
           "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_enter_keeps_the_current_board_when_it_already_has_the_pin",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_enter_keeps_the_current_board_when_it_already_has_the_pin"
-        },
-        {
-          "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_enter_switches_to_the_pinned_board_and_focuses_the_pin",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_enter_switches_to_the_pinned_board_and_focuses_the_pin"
-        },
-        {
-          "className": "PaletteOverlay",
           "methodName": "paletteoverlay_escape_closes_the_dialog_without_a_transition",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -30581,24 +31057,10 @@
         },
         {
           "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_jumps_to_a_pinned_board_via_its_chip_without_running",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_jumps_to_a_pinned_board_via_its_chip_without_running"
-        },
-        {
-          "className": "PaletteOverlay",
           "methodName": "paletteoverlay_lists_pinnable_tools_even_with_an_empty_query",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "PaletteOverlay::paletteoverlay_lists_pinnable_tools_even_with_an_empty_query"
-        },
-        {
-          "className": "PaletteOverlay",
-          "methodName": "paletteoverlay_pins_via_a_board_chip_click_without_a_query",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "PaletteOverlay::paletteoverlay_pins_via_a_board_chip_click_without_a_query"
         },
         {
           "className": "PaletteOverlay",
@@ -31456,6 +31918,13 @@
         },
         {
           "className": "StatusBar",
+          "methodName": "StatusBar_shows_a_compact_project_name_with_full_root_tooltip",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "StatusBar::StatusBar_shows_a_compact_project_name_with_full_root_tooltip"
+        },
+        {
+          "className": "StatusBar",
           "methodName": "StatusBar_shows_a_loading_chip_while_imports_are_loading",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -31792,6 +32261,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "a completed failed run keeps its exact diagnostic link",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "a completed failed run keeps its exact diagnostic link"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "a missing CLI executable is shown as not ready to connect",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32030,6 +32506,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "asks for an explicit source when a tool id conflicts",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "asks for an explicit source when a tool id conflicts"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "before_running_only_a_hint_is_shown_and_no_browser_session_is_created",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32107,6 +32590,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "copy and save use the native redacted report",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "copy and save use the native redacted report"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "copying connection settings preserves the working directory and board without claiming a confirmed connection",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32139,6 +32629,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "form_numbers_and_strings_reach_the_dispatcher_with_their_types_and_board_context_preserved"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "forwards a single click only when its caller enables read navigation",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "forwards a single click only when its caller enables read navigation"
         },
         {
           "className": "host attach routing",
@@ -32267,6 +32764,20 @@
           "fullName": "inline-first activation::the_modal_opens_only_on_an_explicit_Open_gesture"
         },
         {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "inputless read presentation opens and queries once",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "inputless read presentation opens and queries once"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "invalid next project leaves the active project visible",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "invalid next project leaves the active project visible"
+        },
+        {
           "className": "isGlobalShortcutKeyEvent",
           "methodName": "a_ctrl_combination_is_global",
           "status": "passed",
@@ -32314,6 +32825,20 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "opening_debug_shows_the_app_session_without_running_the_tool_automatically"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "opens a validated project without changing process context",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "opens a validated project without changing process context"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "opens the complete canonical report from a recent row",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "opens the complete canonical report from a recent row"
         },
         {
           "className": "pin activation dispatch",
@@ -32415,6 +32940,20 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "should cache each remote modal result under its own duplicate pin id",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should cache each remote modal result under its own duplicate pin id"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should dispatch each duplicate tool with its own pin key when run from inline cards",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should dispatch each duplicate tool with its own pin key when run from inline cards"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "should invalidate cached ready when dispatch reports missing readiness",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32470,11 +33009,25 @@
           "fullName": "should preserve tool-authored messages that resemble catalog keys across locale changes"
         },
         {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "should run an offboard surface in its tool session",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "should run an offboard surface in its tool session"
+        },
+        {
           "className": "showSettingsOverlay",
           "methodName": "SettingsOverlay_changes_the_focused_setting_with_l_and_h",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "showSettingsOverlay::SettingsOverlay_changes_the_focused_setting_with_l_and_h"
+        },
+        {
+          "className": "showSettingsOverlay",
+          "methodName": "SettingsOverlay_consumes_path_slash_in_the_project_field",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "showSettingsOverlay::SettingsOverlay_consumes_path_slash_in_the_project_field"
         },
         {
           "className": "showSettingsOverlay",
@@ -32489,6 +33042,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "showSettingsOverlay::SettingsOverlay_moves_focus_with_j_and_k"
+        },
+        {
+          "className": "showSettingsOverlay",
+          "methodName": "SettingsOverlay_refreshes_recent_reports_when_reopened",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "showSettingsOverlay::SettingsOverlay_refreshes_recent_reports_when_reopened"
         },
         {
           "className": "showSettingsOverlay",
@@ -32552,6 +33112,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "shows diagnostics and disables actions for invalid row keys"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "switches projects and returns to the global context",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "switches projects and returns to the global context"
         },
         {
           "className": "flutter::widget_tester.dart",

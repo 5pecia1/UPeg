@@ -274,9 +274,10 @@ class Pin extends ConsumerWidget {
   Future<void> _resetSize(WidgetRef ref) async {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return;
-    await ref
-        .read(pegboardMutationsProvider)
-        .clearSpan(boardKey, ToolId.parse(placement.toolId));
+    await ref.read(pegboardMutationsProvider).clearSpan((
+      boardKey,
+      PinId.parse(placement.pinId),
+    ));
   }
 
   /// Unpin through the central pegboard mutation path against the
@@ -285,9 +286,10 @@ class Pin extends ConsumerWidget {
   Future<void> _unpin(WidgetRef ref) async {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return;
-    await ref
-        .read(pegboardMutationsProvider)
-        .unpin(boardKey, ToolId.parse(placement.toolId));
+    await ref.read(pegboardMutationsProvider).remove((
+      boardKey,
+      PinId.parse(placement.pinId),
+    ));
   }
 
   @override

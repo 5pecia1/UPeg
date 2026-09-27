@@ -8,9 +8,8 @@
 //! return value as the UTF-8 string the export must produce via
 //! [`ToPluginOutput`].
 //!
-//! Both traits are pure `serde_json` + `std`: this crate is shared by the
-//! host and the guest, so it must never depend on `extism-pdk` or any
-//! wasm-only crate.
+//! Both traits use only `serde_json` + `std`, because this crate is shared by
+//! host and guest and cannot depend on `extism-pdk` or another wasm-only crate.
 
 use serde_json::Value;
 
@@ -21,10 +20,9 @@ pub const NO_VALUE_ERROR: &str = "tool returned no value";
 
 /// Build the error for an argument that is absent or JSON `null`.
 ///
-/// Every non-`Option<T>` extraction has no fallback value, so both the
-/// `required` and "declared optional but read as a bare scalar" paths are
-/// errors; `required` only changes the wording so the message stays
-/// accurate about why the field had to be present.
+/// Non-`Option<T>` extraction has no fallback, so missing values are errors
+/// for both required fields and optional fields read as bare scalars.
+/// `required` only changes the reason reported.
 fn missing_argument_message(name: &str, required: bool) -> String {
     if required {
         format!("missing required argument `{name}`")
@@ -45,8 +43,8 @@ fn out_of_range_message(name: &str, expected: &str, actual: &Value) -> String {
 
 /// Look up `name` in the args object, rejecting absent or JSON `null` values.
 ///
-/// Scalar `FromPluginArg` impls all start here: only `serde_json::Value`
-/// and `Option<T>` know how to represent "no value" themselves.
+/// Scalar `FromPluginArg` impls start here; only `serde_json::Value` and
+/// `Option<T>` represent "no value" themselves.
 fn require_present<'args>(
     args: &'args Value,
     name: &str,
@@ -67,11 +65,10 @@ fn require_present<'args>(
 pub trait FromPluginArg: Sized {
     /// Extract `name` from `args`.
     ///
-    /// `required` selects the missing-value policy for scalar types
-    /// (missing/null is always an error — only `Option<T>` can represent
-    /// "no value"). `Option<T>` ignores the flag it receives and always
-    /// resolves missing/null to `None`, delegating to `T::from_plugin_arg`
-    /// with `required = true` otherwise.
+    /// For scalar types, `required` selects the missing-value policy:
+    /// missing/null is always an error because only `Option<T>` represents
+    /// "no value". `Option<T>` always maps missing/null to `None`; otherwise
+    /// it delegates to `T::from_plugin_arg` with `required = true`.
     ///
     /// # Errors
     ///

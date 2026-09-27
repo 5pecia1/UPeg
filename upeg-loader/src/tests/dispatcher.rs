@@ -938,7 +938,7 @@ fn external_dispatcher_receives_board_project_and_board_env_context() {
 toolkit = "test"
 invoker = "External"
 command = "sh"
-args_template = ["-c", "printf '%s|%s|%s' \"$UPEG_BOARD\" \"$UPEG_PROJECT_MANIFEST\" \"$PROFILE\""]"#,
+args_template = ["-c", "printf '%s|%s|%s|%s' \"$UPEG_BOARD\" \"$UPEG_PROJECT_MANIFEST\" \"$PROFILE\" \"$UPEG_SURFACE\""]"#,
         )),
     )
     .unwrap();
@@ -950,11 +950,12 @@ args_template = ["-c", "printf '%s|%s|%s' \"$UPEG_BOARD\" \"$UPEG_PROJECT_MANIFE
         upeg_core::EXECUTION_CONTEXT_ARG: {
             "board": "dev",
             "projectManifest": "/tmp/project/upeg.toml",
+            "surface": "cli",
             "boardEnv": { "PROFILE": "local" }
         }
     });
     let out = runtime_success_text(upeg_runtime::try_runtime_dispatch(id, &args));
-    assert_eq!(out, "dev|/tmp/project/upeg.toml|local");
+    assert_eq!(out, "dev|/tmp/project/upeg.toml|local|cli");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

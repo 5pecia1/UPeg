@@ -7,6 +7,9 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
+import 'package:upeg/src/state/diagnostics_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
+import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -57,7 +60,135 @@ CanonicalToolResult _jsonResult(String value) => CanonicalToolResult(
   ],
 );
 
+class _RunDiagnostics implements DiagnosticsApi {
+  String? runId;
+  @override
+  Future<List<DiagnosticSummary>> list({required int limit}) async =>
+      runId == null
+      ? []
+      : [
+          DiagnosticSummary(
+            id: 'saved-failure',
+            runId: runId!,
+            occurredAtMs: 1,
+            source: 'external',
+            errorCode: 'failed',
+            errorMessage: 'failed',
+            status: 'failed',
+          ),
+        ];
+  @override
+  Future<DiagnosticReport?> show(String id) async => null;
+  @override
+  Future<String> export(String id, {required bool debug}) async =>
+      '{"id":"$id"}';
+}
+
 void main() {
+  testWidgets('a completed failed run keeps its exact diagnostic link', (
+    tester,
+  ) async {
+    final api = _RunDiagnostics();
+    final tool = fixtureToolDto(
+      id: 'demo.failure',
+      effect: ToolEffectDto.read,
+      presentation: const ToolPresentationDto(
+        version: 1,
+        columns: [],
+        actions: [],
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ...i18nTestOverrides,
+          currentBoardKeyProvider.overrideWith(_BoardNotifier.new),
+          diagnosticsApiProvider.overrideWithValue(api),
+          dispatchStreamFnProvider.overrideWithValue(({
+            PinKey? pinKey,
+            required toolId,
+            required args,
+            required approve,
+            required runId,
+          }) async* {
+            api.runId = runId.value;
+            yield const DispatchStreamEventDto.done(
+              result: CanonicalToolResult(
+                ok: false,
+                outputs: [],
+                error: CanonicalToolError(code: 'failed', message: 'failed'),
+              ),
+            );
+          }),
+        ],
+        child: MaterialApp(
+          theme: UpegTheme.darkTheme(),
+          home: ExpandedModalPage(tool: tool),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(api.runId, isNotNull);
+    expect(find.byKey(Key('diagnostic-run-${api.runId}')), findsOneWidget);
+  });
+
+  testWidgets('inputless read presentation opens and queries once', (
+    tester,
+  ) async {
+    final overview = fixtureToolDto(
+      id: 'ecosystem.overview',
+      effect: ToolEffectDto.read,
+      inputFields: const [
+        InputFieldDto(
+          key: 'project',
+          label: 'Project',
+          fieldType: InputFieldType_Text(),
+          required_: false,
+        ),
+      ],
+      presentation: const ToolPresentationDto(
+        version: 1,
+        columns: [],
+        actions: [],
+      ),
+    );
+    final calls = <Map<String, Object?>>[];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ...i18nTestOverrides,
+          currentBoardKeyProvider.overrideWith(_BoardNotifier.new),
+          presentationRowsResolverProvider.overrideWithValue(
+            ({required toolId, required outputsJson}) =>
+                const PresentationRowsDto(
+                  rows: [],
+                  diagnostics: [],
+                  rowActionsEnabled: true,
+                ),
+          ),
+          dispatchStreamFnProvider.overrideWithValue(
+            stubDispatchStream(({
+              required toolId,
+              required args,
+              required approve,
+            }) async {
+              calls.add(args.toJsonObject());
+              return _jsonResult('{"rows":[]}');
+            }),
+          ),
+        ],
+        child: MaterialApp(
+          theme: UpegTheme.darkTheme(),
+          home: ExpandedModalPage(tool: overview),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(calls, const [<String, Object?>{}]);
+  });
+
   testWidgets(
     'row and result actions prefill forms and refresh the exact read once',
     (tester) async {

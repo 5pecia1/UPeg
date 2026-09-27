@@ -11,6 +11,27 @@
 /// 1..9 / B …) is resolved through the Rust-side
 /// `keyboardCommandFor` FRB so the binding policy stays canonical with
 /// the TUI surface. See `upeg-frb/src/api/keyboard.rs`.
+///
+/// Embed focus contract — enforced once primary focus is inside an
+/// editable text field, a View Embed webview body, or a ControlledEmbed
+/// cockpit form:
+///   * ALL keys route to the focused field/body — characters and arrows,
+///     but also Home/End, PageUp/PageDown, Backspace, and Delete, so the
+///     caret/scroll moves instead of the board paging. Only Cmd/Ctrl
+///     chords, the scoped F1–F4 commands, and Esc stay global
+///     ([_shouldYieldToEmbedBody]).
+///   * `Tab` performs ordinary focus traversal within the focused
+///     subtree ([_handleFlutterFocusTraversal]), never a board command.
+///   * `Esc` is two-stage inside an embed body: the first returns focus
+///     to the board root and dispatches nothing; the second — now with
+///     board focus — is the normal Back/Close ([_handleEmbedBodyKey]).
+///   * The passive-embed gate keys off pin metadata, not DOM focus:
+///     platform webviews frequently do not propagate DOM focus into the
+///     Flutter focus tree, so an `Embed`/`ControlledEmbed` pin kind
+///     forces the yield regardless of what the focus tree reports.
+///   * The hidden ControlledEmbed engine (the off-canvas webview that
+///     executes selector bindings) must never receive pointer,
+///     semantics, or keyboard focus.
 library;
 
 export 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
@@ -153,19 +174,26 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     PlacementDto placement,
   ) async {
     final toolId = ToolId.parse(placement.toolId);
-    ref.read(focusedPinProvider.notifier).focus(toolId);
-    await _openModalForToolId(boardKey, toolId);
+    final pinKey = (boardKey, PinId.parse(placement.pinId));
+    ref.read(focusedPinProvider.notifier).focus(pinKey.$2);
+    await _openModalForToolId(boardKey, toolId, pinKey: pinKey);
   }
 
-  Future<void> _openModalForToolId(BoardKey boardKey, ToolId toolId) async {
+  Future<void> _openModalForToolId(
+    BoardKey boardKey,
+    ToolId toolId, {
+    PinKey? pinKey,
+  }) async {
     // Seed the modal with anything typed inline on the tile (points 1 + 3).
-    final PinKey pinKey = (boardKey, toolId);
-    final draft = ref.read(inlineDraftProvider).read(pinKey);
+    final draft = pinKey == null
+        ? null
+        : ref.read(inlineDraftProvider).read(pinKey);
     final result = await openExpandedModalForToolId(
       context,
       ref,
       toolId,
       initialInput: draft,
+      pinKey: pinKey,
     );
     if (!mounted) return;
     if (result is ExpandedModalToolUnknown) {
@@ -182,17 +210,23 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     // feedback_dragend_race.md.
     final toolId = ToolId.parse(placement.toolId);
     focusPlacement(ProviderScope.containerOf(context), placement);
-    _activateToolId(toolId);
+    _activateToolId(
+      toolId,
+      pinKey: (
+        ref.read(currentBoardKeyProvider)!,
+        PinId.parse(placement.pinId),
+      ),
+    );
   }
 
   /// Route [toolId] through the shared activation policy. Single seam for
   /// pin taps, palette hits, keyboard Run, and shortcut-source tools.
-  void _activateToolId(ToolId toolId) {
+  void _activateToolId(ToolId toolId, {PinKey? pinKey}) {
     final activation = ref.read(pinActivationProvider)(
       toolId: toolId,
       argsJson: ToolArgs.emptyJson,
     );
-    unawaited(_dispatchActivation(activation));
+    unawaited(_dispatchActivation(activation, pinKey: pinKey));
   }
 
   /// Whether [toolId] has a placement on the currently visible board
@@ -207,15 +241,26 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     return false;
   }
 
-  Future<void> _dispatchActivation(PinActivationDto activation) async {
+  Future<void> _dispatchActivation(
+    PinActivationDto activation, {
+    PinKey? pinKey,
+  }) async {
     switch (activation) {
       case PinActivationDto_OpenEmbed(:final toolId):
         // Inline-canonical: the inline pin already IS the embed tool.
         // Focus it rather than pushing a full-screen EmbedPage. The
         // full-screen surface stays only for off-board entry (deep
         // links, tools not pinned on the visible board).
-        if (_isPinnedOnVisibleBoard(toolId)) {
-          ref.read(focusedPinProvider.notifier).focus(ToolId.parse(toolId));
+        if (pinKey != null || _isPinnedOnVisibleBoard(toolId)) {
+          final placement = visiblePlacementsForKeyboard(
+            ref,
+          ).where((p) => p.toolId == toolId).firstOrNull;
+          final focusId =
+              pinKey?.$2 ??
+              (placement == null ? null : PinId.parse(placement.pinId));
+          if (focusId != null) {
+            ref.read(focusedPinProvider.notifier).focus(focusId);
+          }
           return;
         }
         final parsedToolId = ToolId.parse(toolId);
@@ -268,17 +313,23 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
         // have no pin to render into.
         final running = ref.read(runningToolsProvider.notifier);
         final dispatch = ref.read(liveDispatchToolFnProvider);
-        final runningLease = running.begin(parsedToolId);
+        final runningLease = pinKey == null ? null : running.begin(pinKey);
         late final CanonicalToolResult outcome;
         try {
-          outcome = await dispatch(toolId: parsedToolId, args: ToolArgs.empty);
+          outcome = await dispatch(
+            pinKey: pinKey,
+            toolId: parsedToolId,
+            args: ToolArgs.empty,
+          );
         } finally {
-          running.end(runningLease);
+          if (runningLease != null) running.end(runningLease);
         }
         if (!mounted) return;
         final pinnedOnBoard = _isPinnedOnVisibleBoard(toolId);
-        if (outcome.ok) {
-          ref.read(lastOutcomeProvider.notifier).record(parsedToolId, outcome);
+        if (outcome.ok && pinKey != null) {
+          ref
+              .read(lastOutcomeProvider.notifier)
+              .record(pinKey, parsedToolId, outcome);
         }
         if (!outcome.ok || !pinnedOnBoard) {
           final messenger = ScaffoldMessenger.maybeOf(context);
@@ -289,7 +340,9 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       case PinActivationDto_OpenModal(:final toolId):
         final boardKey = ref.read(currentBoardKeyProvider);
         if (boardKey == null) return;
-        unawaited(_openModalForToolId(boardKey, ToolId.parse(toolId)));
+        unawaited(
+          _openModalForToolId(boardKey, ToolId.parse(toolId), pinKey: pinKey),
+        );
     }
   }
 
@@ -298,22 +351,27 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   /// memo. Backs `memo.create` / Cmd+Shift+N.
   void _createMemoAndFocusNotepad() {
     final key = ref.read(memosProvider.notifier).create();
-    ref.read(activeMemoKeyProvider.notifier).setActive(key);
     for (final placement in visiblePlacementsForKeyboard(ref)) {
       final tool = ref.read(toolByIdProvider(ToolId.parse(placement.toolId)));
       if (tool != null && isMemoNotepadTool(tool)) {
-        ref.read(focusedPinProvider.notifier).focus(ToolId.parse(tool.id));
+        final boardKey = ref.read(currentBoardKeyProvider);
+        if (boardKey == null) return;
+        final pinKey = (boardKey, PinId.parse(placement.pinId));
+        ref.read(activeMemoKeyProvider(pinKey).notifier).setActive(key);
+        ref
+            .read(focusedPinProvider.notifier)
+            .focus(PinId.parse(placement.pinId));
         return;
       }
     }
   }
 
-  void _onPaletteHit(PaletteHit hit) {
+  void _onPaletteHit(PaletteHit hit, PinKey? pinKey) {
     // Route palette selections through the same activation policy as
     // pin taps so embed tools land in EmbedPage and launcher tools fire
     // immediately. Without this, every palette hit forced the modal,
     // which renders nothing useful for embed-kind tools.
-    _activateToolId(ToolId.parse(hit.id));
+    _activateToolId(ToolId.parse(hit.id), pinKey: pinKey);
   }
 
   Future<void> _openPalette() {
@@ -401,10 +459,13 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   /// [primaryFocusIsInsideEmbedBody] can miss; keying off the focused pin's
   /// tool metadata covers that gap.
   bool _focusedPinIsEmbedBodied() {
-    final toolId = ref.read(focusedPinProvider);
-    if (toolId == null) return false;
-    if (!_isPinnedOnVisibleBoard(toolId.value)) return false;
-    final tool = ref.read(toolByIdProvider(toolId));
+    final pinId = ref.read(focusedPinProvider);
+    if (pinId == null) return false;
+    final placement = visiblePlacementsForKeyboard(
+      ref,
+    ).where((p) => p.pinId == pinId.value).firstOrNull;
+    if (placement == null) return false;
+    final tool = ref.read(toolByIdProvider(ToolId.parse(placement.toolId)));
     if (tool == null) return false;
     return tool.pinKind == PinKindDto.embed ||
         tool.pinKind == PinKindDto.controlledEmbed;
@@ -558,7 +619,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       case KeyboardCommandDto_EditPinColor():
         return _openPinColorDialog();
       case KeyboardCommandDto_Quit():
-        // Contract (docs/ui-ux-surface-contract.md): `q` opens the
+        // Contract (upeg_core::keyboard_catalog): `q` opens the
         // quit-confirm dialog — never an immediate exit. Mirrors the
         // TUI ConfirmQuit view.
         unawaited(_requestQuit());
@@ -592,7 +653,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     return _openPinColorDialogFor(toolId);
   }
 
-  bool _openPinColorDialogFor(ToolId toolId) {
+  bool _openPinColorDialogFor(PinId toolId) {
     final boardKey = ref.read(currentBoardKeyProvider);
     if (boardKey == null) return false;
 
@@ -603,7 +664,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     String? currentColor;
     var placementFound = false;
     for (final placement in snapshot.placements) {
-      if (placement.toolId == toolId.value) {
+      if (placement.pinId == toolId.value) {
         currentColor = placement.color;
         placementFound = true;
         break;
@@ -626,16 +687,18 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
             onSave: (colorHex) {
               if (!mounted) return;
               Navigator.of(context).pop();
-              ref
-                  .read(pegboardMutationsProvider)
-                  .setPinColor(boardKey, toolId, color: colorHex);
+              ref.read(pegboardMutationsProvider).setPinColor((
+                boardKey,
+                toolId,
+              ), color: colorHex);
             },
             onReset: (_) {
               if (!mounted) return;
               Navigator.of(context).pop();
-              ref
-                  .read(pegboardMutationsProvider)
-                  .setPinColor(boardKey, toolId, color: null);
+              ref.read(pegboardMutationsProvider).setPinColor((
+                boardKey,
+                toolId,
+              ), color: null);
             },
             onCancel: () {
               if (mounted) Navigator.of(context).pop();
@@ -648,7 +711,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   }
 
   bool _focusAndOpenPinColorDialog(PlacementDto placement) {
-    final toolId = ToolId.parse(placement.toolId);
+    final toolId = PinId.parse(placement.pinId);
     ref.read(focusedPinProvider.notifier).focus(toolId);
     return _openPinColorDialogFor(toolId);
   }
@@ -656,7 +719,17 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   void _activateFocusedPin() {
     final toolId = ref.read(focusedPinProvider);
     if (toolId == null) return;
-    _activateToolId(toolId);
+    final boardKey = ref.read(currentBoardKeyProvider);
+    if (boardKey == null) return;
+    final placement = visiblePlacementsForKeyboard(
+      ref,
+    ).where((p) => p.pinId == toolId.value).firstOrNull;
+    if (placement != null) {
+      _activateToolId(
+        ToolId.parse(placement.toolId),
+        pinKey: (boardKey, toolId),
+      );
+    }
   }
 
   /// Explicit "inspect" affordance (keyboard `o`): open the expanded
@@ -665,7 +738,18 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     final toolId = ref.read(focusedPinProvider);
     final boardKey = ref.read(currentBoardKeyProvider);
     if (toolId == null || boardKey == null) return;
-    unawaited(_openModalForToolId(boardKey, toolId));
+    final placement = visiblePlacementsForKeyboard(
+      ref,
+    ).where((p) => p.pinId == toolId.value).firstOrNull;
+    if (placement != null) {
+      unawaited(
+        _openModalForToolId(
+          boardKey,
+          ToolId.parse(placement.toolId),
+          pinKey: (boardKey, toolId),
+        ),
+      );
+    }
   }
 
   void _moveKeyboardFocusLinear({required bool forward}) {
@@ -673,7 +757,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     if (placements.isEmpty) return;
     final current = ref.read(focusedPinProvider);
     final ids = [
-      for (final placement in placements) ToolId.parse(placement.toolId),
+      for (final placement in placements) PinId.parse(placement.pinId),
     ];
     var idx = current == null ? -1 : ids.indexOf(current);
     if (idx < 0) {
@@ -712,7 +796,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       direction,
     );
     if (next == null) return;
-    ref.read(focusedPinProvider.notifier).focus(ToolId.parse(next.toolId));
+    ref.read(focusedPinProvider.notifier).focus(PinId.parse(next.pinId));
   }
 
   @override

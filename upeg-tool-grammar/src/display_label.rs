@@ -1,9 +1,8 @@
 //! Display-label precedence shared by both `#[tool]`-style attribute
-//! macros: an explicit `display_label = "..."` argument wins, then the
-//! annotated function's rustdoc first line, then a prettified slug derived
-//! from the tool's local id. Moved out of `upeg-macros` so the WASM-guest
-//! `upeg-plugin-macros` crate reuses byte-identical precedence instead of a
-//! hand-kept copy (see this crate's top-level docs).
+//! macros: an explicit `display_label = "..."` wins, then the annotated
+//! function's first rustdoc line, then its prettified local-id slug. Moved
+//! from `upeg-macros` so `upeg-plugin-macros` shares this exact precedence
+//! (see this crate's top-level docs).
 
 use syn::{Expr, ItemFn, Meta};
 

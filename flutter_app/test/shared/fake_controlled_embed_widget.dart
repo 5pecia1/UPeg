@@ -12,6 +12,13 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 import 'fake_controlled_embed_session.dart';
 
+typedef LegacyControlledEmbedToolExecutor =
+    Future<CanonicalToolResult> Function({
+      required ToolId toolId,
+      required ToolArgs args,
+      String? boardKey,
+    });
+
 /// Captures the public dispatcher boundary and uses the actual session service
 /// when a test needs normal/debug page ownership and live execution events.
 class ControlledEmbedWidgetFixture {
@@ -27,7 +34,7 @@ class ControlledEmbedWidgetFixture {
   final factory = FakeControlledEmbedSessionFactory();
   late final ControlledEmbedSessionService sessions;
   final calls = <({ToolId toolId, ToolArgs args, String? boardKey})>[];
-  ControlledEmbedToolExecutor? executor;
+  LegacyControlledEmbedToolExecutor? executor;
   ControlledEmbedResultNormalizer normalizeResult = (_, result, _) => result;
   bool nativeSupported = true;
   String? boardKey;
@@ -62,6 +69,7 @@ class ControlledEmbedWidgetFixture {
     required ToolId toolId,
     required ToolArgs args,
     String? boardKey,
+    String? pinId,
   }) async {
     calls.add((toolId: toolId, args: args, boardKey: boardKey));
     final custom = executor;
@@ -70,6 +78,9 @@ class ControlledEmbedWidgetFixture {
     }
     final outcome = await sessions.execute(
       spec: ControlledEmbedSessionSpec(
+        pinKey: boardKey == null || pinId == null
+            ? null
+            : (BoardKey.parse(boardKey), PinId.parse(pinId)),
         toolId: toolId,
         url: url,
         settings: settings,

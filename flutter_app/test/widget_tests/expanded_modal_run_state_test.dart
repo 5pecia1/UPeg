@@ -121,7 +121,7 @@ void main() {
             ),
           ],
         );
-        final toolId = ToolId.parse(tool.id);
+        final pinKey = (BoardKey.parse('dev'), PinId.parse(tool.id));
         // Both surfaces now share one dispatch seam, so the stub routes by
         // call order: the inline pin runs first, the modal second.
         final container = ProviderContainer(
@@ -155,10 +155,7 @@ void main() {
                 body: SizedBox(
                   width: 240,
                   height: 200,
-                  child: GenericInlinePinBody(
-                    tool: tool,
-                    pinKey: (BoardKey.parse('dev'), toolId),
-                  ),
+                  child: GenericInlinePinBody(tool: tool, pinKey: pinKey),
                 ),
               ),
             ),
@@ -171,12 +168,12 @@ void main() {
         await tester.tap(find.byKey(inlineRunButtonKey));
         await tester.pump();
         expect(inlineCalls, 1);
-        expect(container.read(runningToolsProvider), contains(toolId));
+        expect(container.read(runningToolsProvider), contains(pinKey));
 
         unawaited(
           navigatorKey.currentState!.push<void>(
             MaterialPageRoute<void>(
-              builder: (_) => ExpandedModalPage(tool: tool),
+              builder: (_) => ExpandedModalPage(tool: tool, pinKey: pinKey),
             ),
           ),
         );
@@ -186,15 +183,15 @@ void main() {
         await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
         await tester.pump();
         expect(modalCalls, 1);
-        expect(container.read(runningToolsProvider), contains(toolId));
+        expect(container.read(runningToolsProvider), contains(pinKey));
 
         modalCompleter.complete(_emptySuccess);
         await tester.pumpAndSettle();
-        expect(container.read(runningToolsProvider), contains(toolId));
+        expect(container.read(runningToolsProvider), contains(pinKey));
 
         inlineCompleter.complete(_emptySuccess);
         await tester.pump();
-        expect(container.read(runningToolsProvider), isNot(contains(toolId)));
+        expect(container.read(runningToolsProvider), isNot(contains(pinKey)));
       },
     );
   });

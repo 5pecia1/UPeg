@@ -46,6 +46,7 @@ instructions = "Install the fixture command."
 
 [tools.setup.install]
 linux = ["install-fixture-command"]
+macos = ["install-fixture-command"]
 "#,
         command.to_string_lossy(),
     );
