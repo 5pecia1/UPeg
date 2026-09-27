@@ -658,8 +658,8 @@ async fn even_a_silent_sse_call_emits_keep_alive() {
         .expect("no frame error");
     let text = String::from_utf8_lossy(first_bytes.data_ref().expect("data frame")).to_string();
 
-    drop(body);
     let child_pid = wait_for_child_pid(&pid_path).await;
+    drop(body);
     let _ = std::process::Command::new("kill")
         .args(["-KILL", &child_pid.to_string()])
         .status();

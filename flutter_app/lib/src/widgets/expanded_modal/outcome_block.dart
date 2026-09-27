@@ -5,11 +5,14 @@
 /// result is already shaped by `CanonicalToolResultView`.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/rust/api/tools/presentation_view.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
@@ -17,6 +20,8 @@ import 'package:upeg/src/widgets/expanded_modal/error_details_block.dart';
 import 'package:upeg/src/widgets/expanded_modal/structured_output.dart';
 import 'package:upeg/src/widgets/expanded_modal/presentation_collection.dart';
 import 'package:upeg/src/widgets/expanded_modal/presentation_table.dart';
+import 'package:upeg/src/widgets/expanded_modal/rich_presentation.dart';
+import 'package:upeg/src/state/presentation_resolver_provider.dart';
 
 class OutcomeBlock extends ConsumerWidget {
   const OutcomeBlock({
@@ -48,6 +53,21 @@ class OutcomeBlock extends ConsumerWidget {
         : t(ref, 'modal.outcome.error');
     final ClipboardWriter writer = ref.watch(clipboardWriterProvider);
     final outputRows = outcome.displayRows(outputFields);
+    final resolvedView = tool.presentation == null || !outcome.ok
+        ? null
+        : ref.watch(presentationViewResolverProvider)(
+            toolId: tool.id,
+            outputsJson: jsonEncode(outcome.jsonValues),
+          );
+    final richView = resolvedView == null
+        ? null
+        : richPresentationViewFromDto(
+            resolvedView,
+            rawJson: outcome.canonicalJsonText(),
+          );
+    final hasRichView =
+        resolvedView?.diagnostics.isEmpty == true &&
+        (richView?.hasContent ?? false);
     return Container(
       key: const Key('expanded-modal-outcome'),
       padding: const EdgeInsets.all(12),
@@ -101,25 +121,41 @@ class OutcomeBlock extends ConsumerWidget {
             ),
           if (outcome.errorDetailsText case final details?)
             ErrorDetailsBlock(details: details, tokens: tokens),
-          for (final row in outputRows)
-            if (row.field case final field?)
-              StructuredOutputBlock(
-                key: ValueKey('expanded-modal-output-${row.id}'),
-                field: field,
-                entry: row.entry,
-                primary: row.isPrimary,
-                tokens: tokens,
-                writer: writer,
-              )
-            else
-              _OutputBlock(
-                key: ValueKey('expanded-modal-output-${row.id}'),
-                label: row.label,
-                value: row.value,
-                primary: row.isPrimary,
-                tokens: tokens,
-                writer: writer,
+          if (resolvedView != null && resolvedView.diagnostics.isNotEmpty)
+            for (final diagnostic in resolvedView.diagnostics)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  diagnostic,
+                  style: TextStyle(color: tokens.warn, fontSize: 11),
+                ),
               ),
+          if (hasRichView)
+            RichPresentationPanel(
+              view: richView!,
+              tokens: tokens,
+              showRaw: false,
+            )
+          else
+            for (final row in outputRows)
+              if (row.field case final field?)
+                StructuredOutputBlock(
+                  key: ValueKey('expanded-modal-output-${row.id}'),
+                  field: field,
+                  entry: row.entry,
+                  primary: row.isPrimary,
+                  tokens: tokens,
+                  writer: writer,
+                )
+              else
+                _OutputBlock(
+                  key: ValueKey('expanded-modal-output-${row.id}'),
+                  label: row.label,
+                  value: row.value,
+                  primary: row.isPrimary,
+                  tokens: tokens,
+                  writer: writer,
+                ),
           PresentationCollection(
             tool: tool,
             outcome: outcome,
@@ -128,7 +164,13 @@ class OutcomeBlock extends ConsumerWidget {
             onResultAction: onResultAction,
             onReadRowNavigate: onReadRowNavigate,
           ),
-          if (!outcome.hasDisplayContent)
+          if (hasRichView && richView!.rawJson != null)
+            RichPresentationRaw(
+              raw: richView.rawJson!,
+              tokens: tokens,
+              label: t(ref, 'modal.presentation.raw_json'),
+            ),
+          if (!outcome.hasDisplayContent && !hasRichView)
             Text(
               t(ref, 'modal.no_output'),
               style: TextStyle(
@@ -142,6 +184,54 @@ class OutcomeBlock extends ConsumerWidget {
     );
   }
 }
+
+RichPresentationView richPresentationViewFromDto(
+  PresentationViewDto dto, {
+  required String rawJson,
+}) => RichPresentationView(
+  title: dto.title,
+  subtitle: dto.subtitle,
+  status: dto.status == null
+      ? null
+      : PresentationStatus(
+          label: dto.status!.label,
+          tone: _tone(dto.status!.tone),
+        ),
+  summary: dto.summary
+      .map(
+        (field) =>
+            PresentationTextValue(label: field.label, value: field.value),
+      )
+      .toList(growable: false),
+  notices: dto.notices
+      .map(
+        (notice) =>
+            PresentationNotice(text: notice.text, tone: _tone(notice.severity)),
+      )
+      .toList(growable: false),
+  detail: dto.detail == null ? null : _detail(dto.detail!),
+  // A rich metadata declaration is the explicit signal that raw output may
+  // move behind disclosure. Resolver diagnostics keep the legacy result open.
+  rawJson: dto.diagnostics.isEmpty ? rawJson : null,
+);
+
+PresentationDetail _detail(PresentationDetailDto dto) => PresentationDetail(
+  fields: dto.fields
+      .map(
+        (field) =>
+            PresentationTextValue(label: field.label, value: field.value),
+      )
+      .toList(growable: false),
+  markdown: dto.markdown,
+  diff: dto.diff,
+);
+
+PresentationTone _tone(String value) => switch (value) {
+  'success' => PresentationTone.success,
+  'warning' => PresentationTone.warning,
+  'error' => PresentationTone.error,
+  _ => PresentationTone.neutral,
+};
 
 class _OutputBlock extends StatelessWidget {
   const _OutputBlock({

@@ -1,13 +1,12 @@
 //! Built-in upeg Tools.
 //!
-//! Each function is a *pure* Tool implementation annotated with
-//! `#[upeg::tool]`. The macro registers a `StaticToolMeta` into the global
-//! `inventory` registry; surfaces (CLI/TUI/Desktop/MCP/HTTP/Ext) discover
-//! every Tool here without per-surface plumbing — PRD v2.1 §5.1.
+//! Tool implementations are selected by Cargo feature, one Toolkit per
+//! downloadable guest. The default feature set is empty. `#[upeg::tool]`
+//! emits source metadata; the pack builder extracts the complete inventory
+//! into the lightweight catalog consumed by shells before any guest loads.
 //!
-//! These functions return `Result<T, &'static str>` so different surfaces
-//! can format errors their own way (CLI → exit 1 + stderr, Desktop → "—"
-//! placeholder, MCP/HTTP → JSON error). UI wrappers live in surface crates.
+//! Guest dispatchers normalize function results to the shared `ToolResult`
+//! contract. UI wrappers live in surface crates.
 //!
 //! Implementations are organized one file per toolkit under
 //! [`toolkits`]; this `lib.rs` only declares the toolkit metadata,
@@ -38,114 +37,143 @@
     reason = "intentional public-surface re-export from each toolkit module"
 )]
 
-use upeg_core::toolkit;
+#[cfg(all(test, not(feature = "all-toolkits")))]
+compile_error!(
+    "upeg-tools tests require --features all-toolkits so the full built-in inventory is tested"
+);
 
 mod dispatch;
 mod toolkits;
 
 pub use dispatch::{RegisteredDispatch, dispatch_registered, register_all};
 
+#[cfg(feature = "color")]
 pub use toolkits::color::*;
+#[cfg(feature = "convert")]
 pub use toolkits::convert::*;
+#[cfg(feature = "csv")]
 pub use toolkits::csv::*;
 // `devcontainer`'s functions compile on every target (their `StaticToolMeta`
 // must stay discoverable on wasm32 too — see `toolkits::devcontainer`'s module
 // doc), so this re-export is unconditional, exactly like `eth`/`weather`.
+#[cfg(feature = "devcontainer")]
 pub use toolkits::devcontainer::*;
 // `eth`'s functions compile on every target (their `StaticToolMeta` must
 // stay discoverable on wasm32 too — see `toolkits::eth`'s module doc), so
 // this re-export is unconditional, unlike `net` below.
+#[cfg(feature = "eth")]
 pub use toolkits::eth::*;
+#[cfg(feature = "hash")]
 pub use toolkits::hash::*;
+#[cfg(feature = "id")]
 pub use toolkits::id::*;
 #[allow(
     unused_imports,
     reason = "wasm build leaves some helpers unused; native build exercises them"
 )]
+#[cfg(feature = "media")]
 pub use toolkits::media::*;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "net")]
 pub use toolkits::net::*;
+#[cfg(feature = "num")]
 pub use toolkits::num::*;
+#[cfg(feature = "qr")]
 pub use toolkits::qr::*;
+#[cfg(feature = "security")]
 pub use toolkits::security::*;
+#[cfg(feature = "text")]
 pub use toolkits::text::*;
+#[cfg(feature = "time")]
 pub use toolkits::time::*;
 // `weather`'s functions compile on every target (their `StaticToolMeta` must
 // stay discoverable on wasm32 too — see `toolkits::weather`'s module doc), so
 // this re-export is unconditional, exactly like `eth` above.
+#[cfg(feature = "weather")]
 pub use toolkits::weather::*;
 
-#[toolkit(
+#[cfg(feature = "convert")]
+#[upeg_core::toolkit(
     id = "convert",
     tags = ["pure", "encoding"],
     description = "Encoding, decoding, and serialization utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "id")]
+#[upeg_core::toolkit(
     id = "id",
     tags = ["pure", "identifier", "generator"],
     description = "Identifier generators."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "text")]
+#[upeg_core::toolkit(
     id = "text",
     tags = ["pure", "text"],
     description = "Text processing utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "hash")]
+#[upeg_core::toolkit(
     id = "hash",
     tags = ["pure", "hash"],
     description = "Hashing utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "time")]
+#[upeg_core::toolkit(
     id = "time",
     tags = ["pure", "time"],
     description = "Timestamp utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "color")]
+#[upeg_core::toolkit(
     id = "color",
     tags = ["pure", "color"],
     description = "Color conversion utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "security")]
+#[upeg_core::toolkit(
     id = "security",
     tags = ["pure", "security", "generator"],
     description = "Security helper utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "media")]
+#[upeg_core::toolkit(
     id = "media",
     tags = ["media", "file", "pdf", "image", "native"],
     description = "Image and PDF file conversion utilities."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "qr")]
+#[upeg_core::toolkit(
     id = "qr",
     tags = ["pure", "visual"],
     description = "QR code generation and decoding."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "csv")]
+#[upeg_core::toolkit(
     id = "csv",
     tags = ["pure", "data"],
     description = "CSV row-level diffing, CSV-to-JSON, and column selection."
 )]
 const _: () = ();
 
-#[toolkit(
+#[cfg(feature = "num")]
+#[upeg_core::toolkit(
     id = "num",
     tags = ["pure", "numeric"],
     description = "Numeric base conversion utilities (hex/decimal/binary)."
@@ -156,7 +184,8 @@ const _: () = ();
 // but the `ToolkitMeta` grouping label itself carries no per-target
 // behavior, so it is declared unconditionally like the toolkit's own
 // `#[tool]` functions.
-#[toolkit(
+#[cfg(feature = "eth")]
+#[upeg_core::toolkit(
     id = "eth",
     tags = ["network", "crypto"],
     description = "Minimal Ethereum JSON-RPC reads (gas price, address balance)."
@@ -166,7 +195,8 @@ const _: () = ();
 // `weather`'s dispatcher is native-only (see `toolkits::weather`'s module
 // doc), but the `ToolkitMeta` grouping label carries no per-target behavior,
 // so it is declared unconditionally like `eth` above.
-#[toolkit(
+#[cfg(feature = "weather")]
+#[upeg_core::toolkit(
     id = "weather",
     tags = ["network", "weather"],
     description = "Current weather and multi-day forecast lookups by city (Open-Meteo)."
@@ -176,7 +206,8 @@ const _: () = ();
 // `devcontainer`'s dispatcher is native-only (see `toolkits::devcontainer`'s
 // module doc), but the `ToolkitMeta` grouping label carries no per-target
 // behavior, so it is declared unconditionally like `eth`/`weather` above.
-#[toolkit(
+#[cfg(feature = "devcontainer")]
+#[upeg_core::toolkit(
     id = "devcontainer",
     tags = ["file", "vscode", "native"],
     description = "Locate VS Code/Cursor Dev Container workspaces from workspaceStorage."

@@ -33,6 +33,9 @@ pub struct PaletteHit {
 /// Flutter palette can pin without requiring the user to type first.
 #[flutter_rust_bridge::frb(sync)]
 pub fn search_tools(query: String) -> Vec<PaletteHit> {
+    if let Err(error) = super::tools::register_toolkit_runtime() {
+        tracing::error!(%error, "upeg toolkit runtime registration failed");
+    }
     let results = search_toolbox_tools(
         SearchQuery {
             needle: &query,
@@ -64,7 +67,7 @@ mod tests {
 
     #[test]
     fn search_tools_exposes_pin_kind_on_each_hit() {
-        upeg_tools::register_all();
+        super::super::tools::register_toolkit_runtime().expect("register toolkits");
         let hits = search_tools("hex_to_decimal".to_string());
         let hex = hits
             .iter()
@@ -76,7 +79,7 @@ mod tests {
 
     #[test]
     fn search_tools_returns_browsable_tools_for_empty_query() {
-        upeg_tools::register_all();
+        super::super::tools::register_toolkit_runtime().expect("register toolkits");
         let hits = search_tools(String::new());
 
         assert!(

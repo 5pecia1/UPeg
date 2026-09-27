@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/platform/file_picker_bridge.dart';
 import 'package:upeg/src/rust/api/embed.dart';
@@ -18,10 +20,6 @@ import 'package:upeg/src/widgets/expanded_modal/file_output_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const String _defaultOutputFileName = 'output.bin';
-const String _markdownFencePrefix = '```';
-const String _markdownHeadingPrefix = '# ';
-const String _markdownListPrefix = '- ';
-
 final RegExp _jsonTokenPattern = RegExp(
   r'"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\b(?:true|false|null)\b',
 );
@@ -215,7 +213,7 @@ class _StructuredOutputValue extends StatelessWidget {
     }
 
     if (fieldType is OutputFieldType_Markdown) {
-      return _MarkdownOutput(markdown: fallbackText, tokens: tokens);
+      return MarkdownOutput(markdown: fallbackText, tokens: tokens);
     }
 
     if (fieldType is OutputFieldType_Json) {
@@ -258,116 +256,46 @@ class _UrlOutput extends ConsumerWidget {
   }
 }
 
-class _MarkdownOutput extends StatelessWidget {
-  const _MarkdownOutput({required this.markdown, required this.tokens});
+class MarkdownOutput extends StatelessWidget {
+  const MarkdownOutput({
+    required this.markdown,
+    required this.tokens,
+    super.key,
+  });
 
   final String markdown;
   final UpegTokens tokens;
 
   @override
-  Widget build(BuildContext context) {
-    final widgets = <Widget>[];
-    final codeLines = <String>[];
-    var inCodeBlock = false;
-
-    void flushCode() {
-      if (codeLines.isEmpty) {
-        return;
-      }
-      widgets.add(
-        Container(
-          key: const Key('structured-output-markdown-code'),
-          width: double.infinity,
-          margin: const EdgeInsets.only(top: 4, bottom: 6),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: tokens.bg,
-            border: Border.all(color: tokens.line),
-            borderRadius: BorderRadius.circular(UpegSizing.radius1),
-          ),
-          child: SelectableText(
-            codeLines.join('\n'),
-            style: _monoStyle(tokens).copyWith(color: tokens.fg2),
-          ),
-        ),
-      );
-      codeLines.clear();
-    }
-
-    for (final line in markdown.split('\n')) {
-      if (line.startsWith(_markdownFencePrefix)) {
-        if (inCodeBlock) {
-          flushCode();
-        }
-        inCodeBlock = !inCodeBlock;
-        continue;
-      }
-      if (inCodeBlock) {
-        codeLines.add(line);
-        continue;
-      }
-      if (line.startsWith(_markdownHeadingPrefix)) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: SelectableText(
-              line.substring(_markdownHeadingPrefix.length),
-              key: const Key('structured-output-markdown-heading'),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: tokens.fg,
-              ),
-            ),
-          ),
-        );
-        continue;
-      }
-      if (line.startsWith(_markdownListPrefix)) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Row(
-              key: const Key('structured-output-markdown-list-item'),
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('- ', style: TextStyle(color: tokens.fg3)),
-                Expanded(
-                  child: SelectableText(
-                    line.substring(_markdownListPrefix.length),
-                    style: TextStyle(fontSize: 12, color: tokens.fg),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        continue;
-      }
-      if (line.trim().isEmpty) {
-        widgets.add(const SizedBox(height: 4));
-        continue;
-      }
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 3),
-          child: SelectableText(
-            line,
-            style: TextStyle(fontSize: 12, color: tokens.fg),
-          ),
-        ),
-      );
-    }
-    if (inCodeBlock) {
-      flushCode();
-    }
-
-    return Column(
-      key: const Key('structured-output-markdown'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
-  }
+  Widget build(BuildContext context) => MarkdownBody(
+    key: const Key('structured-output-markdown'),
+    data: markdown,
+    selectable: true,
+    extensionSet: md.ExtensionSet.gitHubFlavored,
+    onTapLink: (_, href, _) {
+      if (href != null) launchUrl(Uri.parse(href));
+    },
+    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+      p: TextStyle(color: tokens.fg, fontSize: 12, height: 1.4),
+      h1: TextStyle(
+        color: tokens.fg,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+      h2: TextStyle(
+        color: tokens.fg,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+      ),
+      code: _monoStyle(
+        tokens,
+      ).copyWith(color: tokens.fg2, backgroundColor: tokens.bg),
+      tableBorder: TableBorder.all(color: tokens.line),
+      tableHead: TextStyle(color: tokens.fg2, fontWeight: FontWeight.w600),
+      tableBody: TextStyle(color: tokens.fg),
+      a: TextStyle(color: tokens.accent, decoration: TextDecoration.underline),
+    ),
+  );
 }
 
 class _JsonOutput extends StatelessWidget {

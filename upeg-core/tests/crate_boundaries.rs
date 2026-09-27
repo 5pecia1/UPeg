@@ -19,6 +19,9 @@
 //! |---|---|---|---|
 //! | `upeg-core` | domain | Toolkit/Tool/Chain/Board value types, schema contracts, pure validation, pure positional binding, capability verdicts | runtime toolbox, dispatch, host I/O, UX labels |
 //! | `upeg-runtime` | runtime | toolbox overlay, dispatch, trigger binding/execution, embed binding, manifest lowering, conflict policy | source-format parsing, surface UI flow |
+//! | `upeg-toolkit-catalog` | metadata | generated built-in metadata and artifact digest contract | executable engines, network download |
+//! | `upeg-toolkit-native` | adapter | verified native pack download, cache, sidecar dispatch | tool implementations |
+//! | `upeg-toolkit-guest` / `upeg-toolkit-pack` | build artifacts | per-toolkit guest entry point and pack builder | shell UI |
 //! | `upeg-loader` | adapter | parses `upeg.toml`-style sources, calls runtime lowering | its own toolbox/dispatch semantics |
 //! | `upeg-wasm` | adapter | parses/hosts WASM sources, calls runtime lowering | its own toolbox/conflict policy |
 //! | `upeg-sources` | source boundary | runtime source discovery/registration: user Toolkits, project manifest, WASM plugins, upstream MCP servers | surface UI flow, parser internals |
@@ -135,29 +138,41 @@ const LAYERS: &[Layer] = &[
         name: "tools",
         rank: 4,
         kind: LayerKind::Library,
-        crates: &["upeg-tools"],
+        crates: &["upeg-tools", "upeg-toolkit-catalog"],
+    },
+    Layer {
+        name: "toolkit-artifacts",
+        rank: 5,
+        kind: LayerKind::Library,
+        crates: &["upeg-toolkit-native"],
+    },
+    Layer {
+        name: "toolkit-artifact-entrypoints",
+        rank: 6,
+        kind: LayerKind::EntryPoint,
+        crates: &["upeg-toolkit-guest", "upeg-toolkit-pack"],
     },
     Layer {
         name: "adapters",
-        rank: 5,
+        rank: 7,
         kind: LayerKind::Library,
         crates: &["upeg-loader", "upeg-wasm", "upeg-sources"],
     },
     Layer {
         name: "application+surface",
-        rank: 6,
+        rank: 8,
         kind: LayerKind::EntryPoint,
         crates: &["upeg-cli"],
     },
     Layer {
         name: "ui-state",
-        rank: 7,
+        rank: 9,
         kind: LayerKind::Library,
         crates: &["upeg-pegboard-ui"],
     },
     Layer {
         name: "bridge",
-        rank: 8,
+        rank: 10,
         kind: LayerKind::EntryPoint,
         crates: &["upeg-frb"],
     },
@@ -183,7 +198,7 @@ const ALLOWED_EDGES: &[(&str, &str)] = &[
     ("upeg-cli", "upeg-loader"),
     ("upeg-cli", "upeg-runtime"),
     ("upeg-cli", "upeg-sources"),
-    ("upeg-cli", "upeg-tools"),
+    ("upeg-cli", "upeg-toolkit-native"),
     ("upeg-cli", "upeg-wasm"),
     ("upeg-core", "upeg-macros"),
     // The one documented surface→surface edge; see DOCUMENTED_EXCEPTIONS.
@@ -197,7 +212,8 @@ const ALLOWED_EDGES: &[(&str, &str)] = &[
     ("upeg-frb", "upeg-pegboard-ui"),
     ("upeg-frb", "upeg-runtime"),
     ("upeg-frb", "upeg-sources"),
-    ("upeg-frb", "upeg-tools"),
+    ("upeg-frb", "upeg-toolkit-catalog"),
+    ("upeg-frb", "upeg-toolkit-native"),
     ("upeg-loader", "upeg-core"),
     ("upeg-loader", "upeg-runtime"),
     ("upeg-loader", "upeg-wasm"),
@@ -205,13 +221,26 @@ const ALLOWED_EDGES: &[(&str, &str)] = &[
     ("upeg-pegboard-ui", "upeg-core"),
     ("upeg-pegboard-ui", "upeg-runtime"),
     ("upeg-pegboard-ui", "upeg-sources"),
-    ("upeg-pegboard-ui", "upeg-tools"),
+    ("upeg-pegboard-ui", "upeg-toolkit-catalog"),
     ("upeg-plugin-macros", "upeg-tool-grammar"),
     ("upeg-runtime", "upeg-core"),
     ("upeg-sources", "upeg-core"),
     ("upeg-sources", "upeg-loader"),
     ("upeg-sources", "upeg-runtime"),
-    ("upeg-sources", "upeg-tools"),
+    ("upeg-sources", "upeg-toolkit-native"),
+    ("upeg-toolkit-catalog", "upeg-core"),
+    ("upeg-toolkit-catalog", "upeg-runtime"),
+    ("upeg-toolkit-guest", "upeg-core"),
+    // dev-only parity test compares the guest's embedded ABI to the catalog.
+    ("upeg-toolkit-guest", "upeg-toolkit-catalog"),
+    ("upeg-toolkit-guest", "upeg-tools"),
+    ("upeg-toolkit-native", "upeg-core"),
+    ("upeg-toolkit-native", "upeg-runtime"),
+    ("upeg-toolkit-native", "upeg-toolkit-catalog"),
+    ("upeg-toolkit-pack", "upeg-core"),
+    ("upeg-toolkit-pack", "upeg-runtime"),
+    ("upeg-toolkit-pack", "upeg-toolkit-catalog"),
+    ("upeg-toolkit-pack", "upeg-tools"),
     ("upeg-sources", "upeg-wasm"),
     ("upeg-tools", "upeg-core"),
     ("upeg-tools", "upeg-runtime"),

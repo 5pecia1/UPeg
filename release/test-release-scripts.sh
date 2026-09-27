@@ -10,11 +10,14 @@ COMMIT=d173ad2452c2df052afb54749d42677593252998
 
 public=(
   "upeg-$TAG-x86_64-unknown-linux-gnu.tar.gz"
+  "upeg-$TAG-aarch64-unknown-linux-gnu.tar.gz"
   "upeg-$TAG-aarch64-apple-darwin.tar.gz"
   "upeg-$TAG-x86_64-pc-windows-msvc.zip"
   "upeg_${VERSION}_amd64.deb"
   "upeg-$TAG-x86_64.AppImage"
   "upeg-$TAG-web.tar.gz"
+  "upeg-$TAG.dmg"
+  "upeg-$TAG-x86_64.msix"
 )
 linux=(
   "upeg-$TAG-x86_64-unknown-linux-gnu.tar.gz"
@@ -34,6 +37,20 @@ full=(
   "upeg-$TAG.dmg"
   "upeg-$TAG-x86_64.msix"
 )
+
+toolkit_ids=(color convert csv devcontainer eth hash id media net num qr security text time weather)
+add_toolkit_assets() {
+  local array_name="$1" target id
+  shift
+  local -n assets="$array_name"
+  for target in "$@"; do
+    assets+=("toolkits-$target-catalog.json")
+    for id in "${toolkit_ids[@]}"; do
+      assets+=("toolkits-$target-$id-$VERSION.gz")
+    done
+  done
+}
+add_toolkit_assets public x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-pc-windows-msvc
 
 build_profile() {
   local profile="$1" payload
@@ -74,6 +91,14 @@ expect_failure() {
 build_profile public
 build_profile linux
 build_profile full
+
+# The public profile must fail closed if either desktop package is missing.
+for package in "upeg-$TAG.dmg" "upeg-$TAG-x86_64.msix"; do
+  mv "$WORK/public/files/$package" "$WORK/$package"
+  expect_failure python3 "$HERE/artifacts.py" manifest-v2 "$WORK/public/files" \
+    "$WORK/missing-package.json" --tag "$TAG" --commit "$COMMIT" --profile public
+  mv "$WORK/$package" "$WORK/public/files/$package"
+done
 
 files="$WORK/public/files"
 manifest="$WORK/public/manifest.json"

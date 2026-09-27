@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/pages/expanded_modal_page.dart';
 import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/rust/api/tools/presentation_view.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
@@ -44,8 +45,18 @@ const _presentation = ToolPresentationDto(
   version: 1,
   rows: '/rows',
   rowKey: '/id',
-  columns: [PresentationColumnDto(label: 'Name', pointer: '/name')],
+  columns: [
+    PresentationColumnDto(label: 'Name', pointer: '/name', filterable: false),
+  ],
   actions: [_rowAction],
+);
+
+const _emptyPresentationView = PresentationViewDto(
+  summary: [],
+  notices: [],
+  rowDetails: [],
+  actions: [],
+  diagnostics: [],
 );
 
 CanonicalToolResult _jsonResult(String value) => CanonicalToolResult(
@@ -167,6 +178,9 @@ void main() {
                   rowActionsEnabled: true,
                 ),
           ),
+          presentationViewResolverProvider.overrideWithValue(
+            ({required toolId, required outputsJson}) => _emptyPresentationView,
+          ),
           dispatchStreamFnProvider.overrideWithValue(
             stubDispatchStream(({
               required toolId,
@@ -252,6 +266,7 @@ void main() {
                           key: 'row-1',
                           valueJson: '{"id":"row-1","name":"One"}',
                           cellsJson: ['"One"'],
+                          cellTones: [null],
                         ),
                       ],
                       diagnostics: [],
@@ -262,6 +277,10 @@ void main() {
                       diagnostics: [],
                       rowActionsEnabled: true,
                     ),
+            ),
+            presentationViewResolverProvider.overrideWithValue(
+              ({required toolId, required outputsJson}) =>
+                  _emptyPresentationView,
             ),
             presentationBindingsResolverProvider.overrideWithValue(
               ({

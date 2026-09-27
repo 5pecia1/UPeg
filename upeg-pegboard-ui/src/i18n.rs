@@ -274,6 +274,8 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "modal.generic.required"        => "REQUIRED",
     "modal.generic.error_prefix"    => "error: {msg}",
     "modal.presentation.search"     => "Search results",
+    "modal.presentation.raw_json"   => "Raw JSON",
+    "modal.generic.bound_inputs"    => "Passed inputs",
     "modal.presentation.empty"      => "No matching rows",
     "modal.presentation.board_changed_not_refreshed" => "The board changed; the list was not refreshed.",
     "modal.presentation.write_refresh_failed" => "The write succeeded, but the list refresh failed.",
@@ -305,17 +307,18 @@ static EN: Map<&'static str, &'static str> = phf_map! {
     "modal.embed.set_to_toml"       => " to its TOML manifest.",
     "modal.embed.url_arrow"         => "→ {url}",
     "modal.embed.iframe_title"      => "{tool_id} sandboxed embed",
-
     // Shared strings used by more than one Flutter surface.
     "common.unknown_tool"           => "unknown tool: {tool_id}",
     "common.search_failed"          => "search failed: {msg}",
-
     // Bottom status bar (flutter_app/lib/src/widgets/status_bar.dart).
     "desktop.status.pinned_count"   => " · {count} pinned",
     "desktop.status.paused"         => "paused",
     "desktop.status.imports"        => "imports {count}",
     "desktop.status.imports_loading" => "imports loading…",
-
+    "desktop.status.toolkit_downloading" => "downloading tool…",
+    "desktop.status.toolkit_retrying" => "retrying tool download…",
+    "desktop.status.toolkit_offline" => "tool download needs internet",
+    "desktop.status.toolkit_failed" => "tool download failed",
     // Board tab bar dialogs/menus (flutter_app/lib/src/widgets/board_tabs.dart).
     "desktop.tab.load_failed"          => "failed to load boards: {msg}",
     "desktop.tab.menu_rename"          => "Rename…",
@@ -631,6 +634,8 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "modal.generic.required"        => "필수",
     "modal.generic.error_prefix"    => "오류: {msg}",
     "modal.presentation.search"     => "결과 검색",
+    "modal.presentation.raw_json"   => "원본 JSON",
+    "modal.generic.bound_inputs"    => "전달된 입력",
     "modal.presentation.empty"      => "일치하는 행이 없습니다",
     "modal.presentation.board_changed_not_refreshed" => "보드가 변경되어 목록을 새로 고치지 못했습니다.",
     "modal.presentation.write_refresh_failed" => "쓰기는 성공했지만 목록을 새로 고치지 못했습니다.",
@@ -665,6 +670,10 @@ static KO: Map<&'static str, &'static str> = phf_map! {
     "desktop.status.paused"         => "일시정지",
     "desktop.status.imports"        => "임포트 {count}",
     "desktop.status.imports_loading" => "임포트 로딩 중…",
+    "desktop.status.toolkit_downloading" => "도구 다운로드 중…",
+    "desktop.status.toolkit_retrying" => "도구 다운로드 재시도 중…",
+    "desktop.status.toolkit_offline" => "도구 다운로드에 인터넷 연결이 필요함",
+    "desktop.status.toolkit_failed" => "도구 다운로드 실패",
 
     "desktop.tab.load_failed"          => "보드 목록을 불러오지 못했습니다: {msg}",
     "desktop.tab.menu_rename"          => "이름 바꾸기…",
@@ -811,185 +820,4 @@ static KO: Map<&'static str, &'static str> = phf_map! {
 pub const SUPPORTED_LOCALES: &[Locale] = &[Locale::En, Locale::Ko];
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_english_key_has_a_korean_translation() {
-        // Adding an entry to EN without a matching KO entry would silently
-        // serve English under Locale::Ko via the core fallback chain —
-        // intentional for a future-language onboarding ramp, but unwanted
-        // here because Ko is a shipping locale we want fully translated.
-        let missing: Vec<&str> = EN
-            .keys()
-            .chain(surface_io::EN.keys())
-            .chain(board_guidance::EN.keys())
-            .chain(media::EN.keys())
-            .copied()
-            .filter(|key| catalog(Locale::Ko, key).is_none())
-            .collect();
-        assert!(
-            missing.is_empty(),
-            "Ko catalog is missing translations for: {missing:?}",
-        );
-    }
-
-    #[test]
-    fn there_are_no_orphan_korean_keys() {
-        // A Ko-only key would never be reached — the core lookup hits Ko
-        // first, but every call site identifies a key by the literal it
-        // wrote in EN. An orphan Ko entry means a stale catalog row.
-        let orphans: Vec<&str> = KO
-            .keys()
-            .chain(surface_io::KO.keys())
-            .chain(board_guidance::KO.keys())
-            .chain(media::KO.keys())
-            .copied()
-            .filter(|key| catalog(Locale::En, key).is_none())
-            .collect();
-        assert!(
-            orphans.is_empty(),
-            "Ko catalog has orphan keys (no matching En entry): {orphans:?}",
-        );
-    }
-
-    #[test]
-    fn all_cheatsheet_label_keys_exist_in_both_locales() {
-        // The cheatsheet renders `upeg_core::binding_catalog()` labels
-        // through this catalog — a missing key would leak the raw i18n
-        // key (`???` marker chain) into the overlay.
-        for locale in [Locale::En, Locale::Ko] {
-            for scope_bindings in upeg_core::binding_catalog() {
-                assert!(
-                    catalog(locale, scope_bindings.label_key).is_some(),
-                    "{locale:?} catalog is missing scope label {}",
-                    scope_bindings.label_key,
-                );
-                for entry in &scope_bindings.entries {
-                    assert!(
-                        catalog(locale, entry.label_key).is_some(),
-                        "{locale:?} catalog is missing entry label {}",
-                        entry.label_key,
-                    );
-                }
-            }
-            // Overlay chrome keys are not part of the shared catalog
-            // structure but still must exist in both locales.
-            for key in ["keys.title", "keys.footer.close", "keys.requires_focus"] {
-                assert!(
-                    catalog(locale, key).is_some(),
-                    "{locale:?} catalog is missing cheatsheet chrome key {key}",
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn korean_locale_returns_korean_catalog_text() {
-        assert_eq!(
-            catalog(Locale::Ko, "empty.suggestion_header"),
-            Some("추천 시작 도구"),
-        );
-    }
-
-    #[test]
-    fn english_locale_returns_english_catalog_text() {
-        assert_eq!(
-            catalog(Locale::En, "empty.suggestion_header"),
-            Some("Suggested starters"),
-        );
-    }
-
-    #[test]
-    fn catalog_returns_none_for_unknown_keys() {
-        assert_eq!(catalog(Locale::En, "no.such.key"), None);
-        assert_eq!(catalog(Locale::Ko, "no.such.key"), None);
-    }
-
-    #[test]
-    fn t_respects_the_locale_parameter() {
-        assert_eq!(t("settings.theme.dark", Locale::En), "dark");
-        assert_eq!(t("settings.theme.dark", Locale::Ko), "다크");
-    }
-
-    #[test]
-    fn t_args_replaces_named_placeholders() {
-        let out = t_args("popup.no_match", &[("needle", "uuid")], Locale::En);
-        assert_eq!(out, "no tools match \"uuid\"");
-    }
-
-    #[test]
-    fn supported_locales_are_exactly_english_and_korean() {
-        // Pin the shipping locale set so adding a locale becomes a
-        // deliberate change (catalog parity + Settings dropdown +
-        // detect_from_str all have to update together).
-        assert_eq!(SUPPORTED_LOCALES, &[Locale::En, Locale::Ko]);
-    }
-
-    #[test]
-    fn pin_accessibility_keys_exist_in_both_locales() {
-        // Keys consumed by Flutter Pin Semantics(label/value/hint), context-menu
-        // labels, and CustomSemanticsAction labels. A missing key makes screen
-        // readers announce the raw key.
-        for key in [
-            "a11y.pin.label",
-            "a11y.pin.label_plain",
-            "a11y.pin.hint_run",
-            "a11y.pin.running",
-            "a11y.pin.stale",
-            "a11y.pin.result_ok",
-            "a11y.pin.result_ok_empty",
-            "a11y.pin.result_error",
-            "a11y.pin.result_error_empty",
-            "a11y.pin.restored",
-            "pin.last_run.just_now",
-            "pin.last_run.minutes_ago",
-            "pin.last_run.hours_ago",
-            "pin.last_run.days_ago",
-            "pin.menu.open",
-            "pin.menu.edit_color",
-            "pin.menu.reset_size",
-            "pin.menu.unpin",
-            "pin.resize.handle_tooltip",
-            "pin.resize.banner",
-        ] {
-            assert!(catalog(Locale::En, key).is_some(), "En missing {key}");
-            assert!(catalog(Locale::Ko, key).is_some(), "Ko missing {key}");
-        }
-    }
-
-    // ─── tool meta lookup ─────────────────────────────
-
-    #[test]
-    fn tool_namespace_keys_maintain_locale_parity() {
-        let missing: Vec<&str> = EN
-            .keys()
-            .chain(surface_io::EN.keys())
-            .chain(board_guidance::EN.keys())
-            .chain(media::EN.keys())
-            .copied()
-            .filter(|key| key.starts_with("tool.") && catalog(Locale::Ko, key).is_none())
-            .collect();
-        assert!(
-            missing.is_empty(),
-            "Ko catalog missing tool-meta keys: {missing:?}",
-        );
-    }
-
-    #[test]
-    fn known_tool_keys_resolve_in_their_namespace() {
-        for id in [
-            "num.hex_to_decimal",
-            "id.uuid_v7",
-            "convert.json_format",
-            "text.regex_match",
-        ] {
-            let label_key = format!("tool.{id}.label");
-            let desc_key = format!("tool.{id}.description");
-            assert!(catalog(Locale::En, &label_key).is_some());
-            assert!(catalog(Locale::Ko, &label_key).is_some());
-            assert!(catalog(Locale::En, &desc_key).is_some());
-            assert!(catalog(Locale::Ko, &desc_key).is_some());
-        }
-    }
-}
+mod tests;

@@ -1,0 +1,60 @@
+[package]
+name = "upeg-toolkit-guest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Per-toolkit browser WASM or native sidecar guest"
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "upeg-toolkit-guest"
+path = "src/main.rs"
+required-features = ["native-runner"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-tools.workspace = true
+
+[build-dependencies]
+serde_json.workspace = true
+serde_jcs.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+upeg-toolkit-catalog.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+
+[features]
+default = ["num"]
+native-runner = []
+color = ["upeg-tools/color"]
+convert = ["upeg-tools/convert"]
+csv = ["upeg-tools/csv"]
+devcontainer = ["upeg-tools/devcontainer"]
+eth = ["upeg-tools/eth"]
+hash = ["upeg-tools/hash"]
+id = ["upeg-tools/id"]
+media = ["upeg-tools/media"]
+net = ["upeg-tools/net"]
+num = ["upeg-tools/num"]
+qr = ["upeg-tools/qr"]
+security = ["upeg-tools/security"]
+text = ["upeg-tools/text"]
+time = ["upeg-tools/time"]
+weather = ["upeg-tools/weather"]
+
+[lints]
+workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

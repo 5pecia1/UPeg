@@ -26,10 +26,11 @@ with no per-surface code.
   plugins, imported MCP servers; credential values stay in environment
   variables or the OS keychain.
 
-Local-first: the toolbox runs on your machine, the HTTP host binds loopback
-by default, and every route except `/healthz` requires a bearer token. No
-cloud dependency — and no cloud sync yet (see
-[Project status](#project-status)).
+Local-first: the built-in toolbox runs on your machine, the HTTP host binds
+loopback by default, and every route except `/healthz` requires a bearer
+token. There is no cloud sync. A selected distributed Toolkit may download its
+versioned pack once before its first use; built-in Tools and already cached
+packs stay available offline.
 
 ## Project status
 
@@ -88,7 +89,9 @@ upeg call --local num.hex_to_decimal -a input=0xff
 
 This built-in call needs no network, account, or token — `--local` forces
 in-process dispatch. Without it, `upeg call` uses a running local host when
-one is discoverable. Then look around:
+one is discoverable. A selected distributed Toolkit is different: its first
+call may fetch the exact versioned pack listed by the release catalog, then
+the verified cached pack can run offline. Then look around:
 
 ```bash
 upeg tool list                 # every registered Tool

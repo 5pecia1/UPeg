@@ -66,7 +66,7 @@ ci-preflight: require-wasm-target fmt-check flutter-fmt-check actionlint license
 # the generated-artifact drift gates and native clippy.
 #
 # CI lane 2/4 — the whole test corpus (once) + drift gates + native clippy.
-ci-core: test-baseline-check interface-inventory-check toolkit-schema-check frb-codegen-check test-chrome-ext-file-input test-controlled-embed flutter-analyze clippy-native
+ci-core: test-baseline-check interface-inventory-check toolkit-schema-check toolkit-metadata-check frb-codegen-check test-chrome-ext-file-input test-controlled-embed flutter-analyze clippy-native
 	@printf '\033[1;32m  ok (ci-core)\033[0m\n'
 
 # CI lane 3/4 — wasm32 clippy for every crate that ships into the PWA.
@@ -129,6 +129,8 @@ mcp-import-real-smoke:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[smoke]\033[0m cargo test -p upeg-cli --test mcp_import_real_server -- --ignored\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	if [ -n "${CI:-}" ]; then
 	  export UPEG_REQUIRE_REAL_MCP=1
 	  printf '\033[1;33m  CI\033[0m UPEG_REQUIRE_REAL_MCP=1 — a skip is a failure here\n'
@@ -153,19 +155,48 @@ license-check:
 
 # Release build plus CLI smoke assertions.
 smoke:
-	@printf '\n\033[1;36m[smoke 1/2]\033[0m cargo build --release -p upeg-cli --bin upeg\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[smoke 1/2]\033[0m cargo build --release -p upeg-cli --bin upeg\n'
 	cargo build --release -p upeg-cli --bin upeg
-	@printf '\n\033[1;36m[smoke 2/2]\033[0m CLI smoke (tool list / hex-to-decimal / uuid-v7)\n'
-	bin="./target/release/upeg"; [ -x "$bin" ] || bin="./target/release/upeg.exe"; just smoke-bin "$bin"
-	@printf '\033[1;32m  ok\033[0m\n'
+	printf '\n\033[1;36m[smoke 2/2]\033[0m CLI metadata and native Toolkit smoke\n'
+	bin="./target/release/upeg"
+	[ -x "$bin" ] || bin="./target/release/upeg.exe"
+	just smoke-bin "$bin"
+	target="$(rustc -vV | sed -n 's/^host: //p')"
+	test -n "$target"
+	just native-toolkit-smoke "$bin" "$target"
+	printf '\033[1;32m  ok\033[0m\n'
 
-# Run CLI smoke assertions against an already-built binary.
+# Check CLI metadata against an already-built binary. Native execution is
+# exercised by `native-toolkit-smoke`, which supplies fresh local packs.
 smoke-bin bin:
 	{{bin}} tool list | grep -q 'num.hex_to_decimal' || { echo "  fail: 'num.hex_to_decimal' not in tool list" >&2; exit 1; }
 	{{bin}} tool list | grep -q 'media.image_to_pdf' || { echo "  fail: 'media.image_to_pdf' not in tool list" >&2; exit 1; }
 	{{bin}} tool list | grep -q 'media.pdf_to_images' || { echo "  fail: 'media.pdf_to_images' not in tool list" >&2; exit 1; }
-	result="$({{bin}} num hex-to-decimal 0xff)"; [ "$result" = "255" ] || { echo "  fail: hex-to-decimal 0xff = '$result' (want '255')" >&2; exit 1; }
-	uuid="$({{bin}} id uuid-v7)"; [ "${#uuid}" -eq 36 ] || { echo "  fail: uuid-v7 length ${#uuid} (want 36): $uuid" >&2; exit 1; }
+
+# Exercise the release-only native toolkit path without depending on an
+# already-published catalog or artifact. The first process cold-installs from
+# fresh local packs; the second proves the verified cache remains usable when
+# the source is unavailable.
+native-toolkit-smoke bin target:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	source_dir="$(mktemp -d)"
+	unavailable_dir="${source_dir}.unavailable"
+	cache_dir="$(mktemp -d)"
+	trap 'rm -rf "$source_dir" "$unavailable_dir" "$cache_dir"' EXIT
+	cargo run -p upeg-toolkit-pack -- build-native --target "{{target}}" --out "$source_dir" --base-url https://example.invalid
+	cargo run -p upeg-toolkit-pack -- verify-native --root "$source_dir" --target "{{target}}" --app-version "$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+	num="$(UPEG_TOOLKIT_LOCAL_DIR="$source_dir" UPEG_TOOLKIT_CACHE_DIR="$cache_dir" UPEG_TOOLKIT_CATALOG_URL=http://127.0.0.1:9/local "{{bin}}" call --local num.hex_to_decimal '{"input":"ff"}')"
+	[ "$num" = 255 ] || { echo "  fail: local native num result = '$num' (want 255)" >&2; exit 1; }
+	hash="$(UPEG_TOOLKIT_LOCAL_DIR="$source_dir" UPEG_TOOLKIT_CACHE_DIR="$cache_dir" UPEG_TOOLKIT_CATALOG_URL=http://127.0.0.1:9/local "{{bin}}" call --local hash.sha256 '{"input":"abc"}')"
+	[ "$hash" = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ] || { echo "  fail: local native hash result = '$hash'" >&2; exit 1; }
+	uuid="$(UPEG_TOOLKIT_LOCAL_DIR="$source_dir" UPEG_TOOLKIT_CACHE_DIR="$cache_dir" UPEG_TOOLKIT_CATALOG_URL=http://127.0.0.1:9/local "{{bin}}" call --local id.uuid_v7 '{}')"
+	[[ "$uuid" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] || { echo "  fail: local native UUIDv7 result = '$uuid'" >&2; exit 1; }
+	mv "$source_dir" "$unavailable_dir"
+	cached="$(UPEG_TOOLKIT_LOCAL_DIR="$source_dir" UPEG_TOOLKIT_CACHE_DIR="$cache_dir" UPEG_TOOLKIT_CATALOG_URL=http://127.0.0.1:9/offline "{{bin}}" call --local num.hex_to_decimal '{"input":"ff"}')"
+	[ "$cached" = 255 ] || { echo "  fail: cached native num result = '$cached' (want 255)" >&2; exit 1; }
 
 require-wasm-target:
 	@if ! rustup target list --installed 2>/dev/null | grep -q '^wasm32-unknown-unknown$'; then echo "error: wasm32-unknown-unknown target not installed" >&2; echo "  fix: rustup target add wasm32-unknown-unknown" >&2; exit 1; fi
@@ -249,7 +280,11 @@ file-size-budget:
 #
 # cargo test --workspace --lib — the `check` tier's test lane.
 test-unit:
-	@printf '\n\033[1;36m[check]\033[0m cargo test --workspace --lib\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[check]\033[0m cargo test --workspace --lib\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	{{hermetic_project_manifest}} cargo test --workspace --lib
 
 # Standalone dev recipes. NOT part of `verify`: `test-baseline-check`
@@ -258,11 +293,19 @@ test-unit:
 #
 # cargo test --workspace --all-targets (standalone; not in `verify`).
 test-workspace:
-	@printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --all-targets\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --all-targets\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	{{hermetic_project_manifest}} cargo test --workspace --all-targets
 
 test-docs:
-	@printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --doc\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --doc\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	{{hermetic_project_manifest}} cargo test --workspace --doc
 
 test-chrome-ext-file-input:
@@ -275,7 +318,11 @@ test-chrome-ext-file-input:
 # CDP round-trip is exercised by `--ignored` integration tests that
 # spin up real chromium (require `CHROME_EXECUTABLE` to point at one).
 test-controlled-embed:
-	@printf '\n\033[1;36m[verify]\033[0m cargo test -p upeg-cli --features controlled-embed\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[verify]\033[0m cargo test -p upeg-cli --features controlled-embed\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	{{hermetic_project_manifest}} cargo test -p upeg-cli --features controlled-embed
 
 # Parser/diff self-checks for the baseline runner itself. Sub-second, no
@@ -287,11 +334,19 @@ test-baseline-self-test:
 	python3 scripts/test_baseline.py self-test
 
 test-baseline:
-	@printf '\n\033[1;36m[test-baseline]\033[0m python3 scripts/test_baseline.py write --output fixtures/test-baseline.json\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[test-baseline]\033[0m python3 scripts/test_baseline.py write --output fixtures/test-baseline.json\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	python3 scripts/test_baseline.py write --output fixtures/test-baseline.json
 
 test-baseline-check:
-	@printf '\n\033[1;36m[verify]\033[0m python3 scripts/test_baseline.py compare --baseline fixtures/test-baseline.json --current-output target/test-baseline/current.json --diff-output target/test-baseline/diff.json\n'
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[verify]\033[0m python3 scripts/test_baseline.py compare --baseline fixtures/test-baseline.json --current-output target/test-baseline/current.json --diff-output target/test-baseline/diff.json\n'
+	source packaging/test-toolkit-env.sh
+	prepare_test_toolkit_env
 	python3 scripts/test_baseline.py compare --baseline fixtures/test-baseline.json --current-output target/test-baseline/current.json --diff-output target/test-baseline/diff.json
 
 # The inventory/schema drift gates compare generated output against a
@@ -311,7 +366,7 @@ test-baseline-check:
 # those 15 tools would land in the generated inventory/schema output and
 # blow up the drift gates. `off` disables Project Manifest detection
 # entirely (`upeg_sources::project` module docs).
-hermetic_project_manifest := "env -u UPEG_TOOLKITS_DIR -u UPEG_WASM_DIR -u UPEG_MCP_IMPORTS_DIR -u UPEG_LOG_PATH -u UPEG_CREDENTIALS_PATH UPEG_HOME='" + justfile_directory() + "/target/hermetic-sources/state' UPEG_PROJECT_MANIFEST_PATH=off"
+hermetic_project_manifest := "env -u UPEG_TOOLKITS_DIR -u UPEG_WASM_DIR -u UPEG_MCP_IMPORTS_DIR -u UPEG_LOG_PATH -u UPEG_CREDENTIALS_PATH UPEG_HOME=\"${UPEG_TOOLKIT_TEST_HOME:-" + justfile_directory() + "/target/hermetic-sources/state}\" UPEG_PROJECT_MANIFEST_PATH=off"
 hermetic_sources := "UPEG_TOOLKITS_DIR=target/hermetic-sources/toolkits UPEG_WASM_DIR=target/hermetic-sources/wasm UPEG_MCP_IMPORTS_DIR=target/hermetic-sources/mcp-imports " + hermetic_project_manifest
 
 interface-inventory:
@@ -330,13 +385,17 @@ toolkit-schema-check:
 	@printf '\n\033[1;36m[verify]\033[0m cargo run --locked -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff\n'
 	{{hermetic_sources}} cargo run --locked -p upeg-cli -- interface toolkit-schema check --baseline-json fixtures/toolkit.schema.json --baseline-markdown docs/TOOL_MANIFEST.md --current-json target/toolkit-schema/current.schema.json --current-markdown target/toolkit-schema/TOOL_MANIFEST.md --schema-diff-output target/toolkit-schema/schema.diff --docs-diff-output target/toolkit-schema/docs.diff
 
+toolkit-metadata-check:
+	@printf '\n\033[1;36m[verify]\033[0m cargo run --locked -p upeg-toolkit-pack -- verify-metadata\n'
+	cargo run --locked -p upeg-toolkit-pack -- verify-metadata
+
 clippy-native:
 	@printf '\n\033[1;36m[verify]\033[0m cargo clippy (workspace, --all-targets) -D warnings\n'
 	cargo clippy --workspace --all-targets -- -D warnings
 
 clippy-tools-wasm:
-	@printf '\n\033[1;36m[verify]\033[0m cargo clippy --target wasm32 -p upeg-tools -D warnings\n'
-	cargo clippy --target wasm32-unknown-unknown -p upeg-tools -- -D warnings
+	@printf '\n\033[1;36m[verify]\033[0m cargo clippy --target wasm32 -p upeg-tools --features all-toolkits -D warnings\n'
+	cargo clippy --target wasm32-unknown-unknown -p upeg-tools --features all-toolkits -- -D warnings
 
 clippy-core-wasm:
 	@printf '\n\033[1;36m[verify]\033[0m cargo clippy --target wasm32 -p upeg-core -D warnings\n'
@@ -583,10 +642,38 @@ flutter-build-windows: flutter-pub-get
 # lane that ships a non-offline PWA. The header of
 # flutter_app/web/upeg_service_worker.js carries the same warning.
 #
+# Prepare the catalogue before Flutter compiles the shell: the ABI digest is
+# baked into the shell and the loader refuses a catalogue from another ABI.
+# `toolkit-web-packs` then writes the selected packs and final catalogue after
+# Flutter has created its web root.
+toolkit-web-abi:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	mkdir -p target/toolkits
+	cargo run -p upeg-toolkit-pack -- prepare-web --out target/toolkits/abi_digest.txt
+	test -s target/toolkits/abi_digest.txt
+	grep -Eq '^[0-9a-f]{64}$' target/toolkits/abi_digest.txt
+
+# Finalize selected web toolkit artifacts in an existing Flutter web build and
+# independently re-check catalogue/artifact hashes and the ABI binding.
+toolkit-web-packs:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+	test -n "$version"
+	web_root="$(pwd)/flutter_app/build/web"
+	cargo run -p upeg-toolkit-pack -- build-web --out "$web_root/toolkits"
+	cargo run -p upeg-toolkit-pack -- verify-web --root "$web_root" --app-version "$version"
+
 # Release web bundle. Leave the service-worker flags alone (see above).
-flutter-build-web: build-frb-wasm
-	@printf '\n\033[1;36m[flutter]\033[0m flutter build web --release --no-wasm-dry-run\n'
-	cd flutter_app && flutter build web --release --no-wasm-dry-run
+flutter-build-web: toolkit-web-abi
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[flutter]\033[0m flutter build web --release --no-wasm-dry-run\n'
+	abi_digest="$(cat target/toolkits/abi_digest.txt)"
+	just build-frb-wasm
+	cd flutter_app && flutter build web --release --no-wasm-dry-run --dart-define="UPEG_TOOLKIT_ABI_DIGEST=$abi_digest"
+	just toolkit-web-packs
 
 # Boots the web bundle AND asserts the PWA service-worker cache contract
 # (`pwa.service-worker.cache` in the interface inventory): the worker
@@ -599,13 +686,22 @@ flutter-web-smoke: flutter-build-web
 	@printf '\n\033[1;36m[flutter]\033[0m flutter web smoke + PWA service worker contract (headless Chromium)\n'
 	scripts/flutter_web_smoke.sh
 
+# Downloaded-toolkit worker contract. This is intentionally separate from the
+# app-shell smoke: it mutates a local artifact response to prove integrity,
+# cache reuse, retry, concurrent-load, and offline behavior.
+toolkit-web-loader-smoke: flutter-build-web
+	@printf '\n\033[1;36m[toolkits]\033[0m browser loader contract (headless Chromium)\n'
+	UPEG_TOOLKIT_WEB_BUILD_DIR=flutter_app/build/web \
+	UPEG_TOOLKIT_WEB_CHROME="$(command -v chromium || command -v google-chrome || command -v chrome)" \
+	node scripts/toolkit_web_loader_check.mjs
+
 # FRB web helper. cargokit drives Linux/macOS/Windows cdylib builds
 # from inside the Flutter native pipeline (see flutter_app/rust_builder/),
 # but it does NOT cover web — Flutter Web is JS+wasm, not CMake/Xcode.
 # FRB's supported `build-web` command wraps wasm-pack with a nightly std build
 # and atomics/bulk-memory/mutable-globals. A plain stable wasm-pack build emits
 # non-shared WebAssembly.Memory, which cannot be transferred to FRB workers.
-build-frb-wasm: flutter-pub-get
+build-frb-wasm: flutter-pub-get toolkit-web-abi
 	#!/usr/bin/env bash
 	set -euo pipefail
 	toolchain="nightly-2025-12-08"
@@ -636,13 +732,23 @@ build-frb-wasm: flutter-pub-get
 # Flutter Web has no native pre-build hook for arbitrary commands, so
 # bundle the wasm-pack step into a single composite recipe. Web parallel
 # to how cargokit auto-invokes cargo on the desktop platforms.
-flutter-run-web: build-frb-wasm
-	@printf '\n\033[1;36m[flutter]\033[0m flutter run -d chrome\n'
-	cd flutter_app && flutter run -d chrome
+flutter-prepare-web-toolkit-dev: toolkit-web-abi build-frb-wasm
+	#!/usr/bin/env bash
+	set -euo pipefail
+	version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+	test -n "$version"
+	cargo run -p upeg-toolkit-pack -- build-web --out flutter_app/web/toolkits
+	cargo run -p upeg-toolkit-pack -- verify-web --root flutter_app/web --app-version "$version"
 
-flutter-run-web-server: build-frb-wasm
+flutter-run-web: flutter-prepare-web-toolkit-dev
+	@printf '\n\033[1;36m[flutter]\033[0m flutter run -d chrome\n'
+	abi_digest="$(cat target/toolkits/abi_digest.txt)"
+	cd flutter_app && flutter run -d chrome --dart-define="UPEG_TOOLKIT_ABI_DIGEST=$abi_digest"
+
+flutter-run-web-server: flutter-prepare-web-toolkit-dev
 	@printf '\n\033[1;36m[flutter]\033[0m flutter run -d web-server\n'
-	cd flutter_app && flutter run -d web-server --web-port=3000
+	abi_digest="$(cat target/toolkits/abi_digest.txt)"
+	cd flutter_app && flutter run -d web-server --web-port=3000 --dart-define="UPEG_TOOLKIT_ABI_DIGEST=$abi_digest"
 
 # ─── Phase 8 packaging ─────────────────────────────────────────────
 # Build + wrap Flutter outputs into installable artifacts. Recipes
@@ -793,21 +899,30 @@ package-windows-msix: flutter-build-windows
 	printf '\n\033[1;36m[package]\033[0m windows .msix\n'
 	bash packaging/package-windows-msix.sh
 
-# Web PWA bundle. Just renames the directory + gzip-prepares static assets.
+# Web PWA bundle. The toolkit builder and static Pages gate both fail closed:
+# release archives and Pages deploy the same selected toolkit files.
 package-web: flutter-build-web
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[package]\033[0m web pwa bundle\n'
-	out="${UPEG_PACKAGE_OUT:-target/packages}/web"
-	mkdir -p "$out"
-	rm -rf "$out"/*
-	cp -a flutter_app/build/web/. "$out/"
-	bash packaging/release-files.sh stage "$out/licenses"
+	package_root="${UPEG_PACKAGE_OUT:-target/packages}"
+	mkdir -p "$package_root"
+	stage="$(mktemp -d "$package_root/.web-stage.XXXXXX")"
+	trap 'rm -rf "$stage"' EXIT
+	cp -a flutter_app/build/web/. "$stage/"
+	bash packaging/release-files.sh stage "$stage/licenses"
+	version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+	test -n "$version"
 	# pre-gzip the main JS for static-host deployment
 	if command -v gzip >/dev/null 2>&1; then
-	  find "$out" -name '*.js' -exec gzip -k -9 {} \;
-	  find "$out" -name '*.css' -exec gzip -k -9 {} \;
+	  find "$stage" -name '*.js' -exec gzip -k -9 {} \;
+	  find "$stage" -name '*.css' -exec gzip -k -9 {} \;
 	fi
+	bash packaging/pages-static.sh prepare "$stage" "$version"
+	out="$package_root/web"
+	rm -rf "$out"
+	mv "$stage" "$out"
+	trap - EXIT
 	echo "web bundle: $out"
 
 # Build all linux artifacts on this host. macOS/Windows skipped (need the OS).

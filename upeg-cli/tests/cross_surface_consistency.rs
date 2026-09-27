@@ -210,6 +210,7 @@ fn search_with_the_same_query_and_signals_returns_the_same_ordered_ids_on_tui_de
 /// ToolMeta contract is pinned once here rather than assumed implicitly.
 #[test]
 fn the_hex_to_dec_tool_is_exposed_in_the_registry() {
+    upeg_toolkit_native::register_native_toolkits().expect("generated builtins register");
     let tool = toolbox_tool("num.hex_to_decimal")
         .expect("num.hex_to_decimal must be in the toolbox registry");
     assert_eq!(tool.toolkit, "num");

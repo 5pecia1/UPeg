@@ -23,8 +23,32 @@ pub(super) fn append_presentation(
             .map(|entry| (entry.id.clone(), entry.value.to_json_value()))
             .collect(),
     );
-    let resolved = upeg_core::resolve_rows(presentation, &output_values);
-    let mut rendered = false;
+    let view = upeg_core::resolve_view(presentation, &output_values);
+    let resolved = &view.rows;
+    let mut rendered = view.title.is_some();
+    if let Some(title) = &view.title {
+        body.push_str(&format!("\n\n{title}"));
+    }
+    if let Some(subtitle) = &view.subtitle {
+        body.push_str(&format!("\n{subtitle}"));
+        rendered = true;
+    }
+    if let Some(status) = &view.status {
+        body.push_str(&format!("\n[{:?}] {}", status.tone, status.label));
+        rendered = true;
+    }
+    for field in &view.summary {
+        let value = match &field.value {
+            serde_json::Value::String(text) => text.clone(),
+            other => other.to_string(),
+        };
+        body.push_str(&format!("\n{}: {value}", field.label));
+        rendered = true;
+    }
+    for notice in &view.notices {
+        body.push_str(&format!("\n! [{:?}] {}", notice.severity, notice.text));
+        rendered = true;
+    }
     if !resolved.rows.is_empty() {
         rendered = true;
         let selected_row = selected_row.min(resolved.rows.len() - 1);
@@ -51,6 +75,40 @@ pub(super) fn append_presentation(
             body.push_str(&format!("\n{marker} {cells}"));
         }
     }
+    if resolved.rows.is_empty()
+        && let Some(message) = &view.empty_message
+    {
+        body.push_str(&format!("\n\n{message}"));
+        rendered = true;
+    }
+    if let Some(detail) = &view.detail {
+        for field in &detail.fields {
+            body.push_str(&format!("\n{}: {}", field.label, field.value));
+            rendered = true;
+        }
+        for content in [&detail.markdown, &detail.diff].into_iter().flatten() {
+            if !content.is_empty() {
+                body.push_str(&format!("\n\n{content}"));
+                rendered = true;
+            }
+        }
+    }
+    if !resolved.rows.is_empty()
+        && let Some(detail) = view
+            .row_details
+            .get(selected_row.min(resolved.rows.len() - 1))
+    {
+        for field in &detail.fields {
+            body.push_str(&format!("\n{}: {}", field.label, field.value));
+            rendered = true;
+        }
+        for content in [&detail.markdown, &detail.diff].into_iter().flatten() {
+            if !content.is_empty() {
+                body.push_str(&format!("\n\n{content}"));
+                rendered = true;
+            }
+        }
+    }
     let row_available = resolved.row_actions_enabled && !resolved.rows.is_empty();
     let actions = presentation
         .actions
@@ -68,11 +126,16 @@ pub(super) fn append_presentation(
             if index == selected_action {
                 body.push_str("▶ ");
             }
+            let availability =
+                upeg_core::resolve_action_availability(presentation, action, &output_values);
             body.push_str(&action.label);
+            if !availability.enabled {
+                body.push_str(&format!(" ({})", availability.reason.unwrap_or_default()));
+            }
         }
         body.push_str("\n[↑/↓] row · [←/→] action · [a] open");
     }
-    for diagnostic in resolved.diagnostics {
+    for diagnostic in resolved.diagnostics.iter().chain(view.diagnostics.iter()) {
         body.push_str(&format!("\n! {diagnostic}"));
     }
     rendered

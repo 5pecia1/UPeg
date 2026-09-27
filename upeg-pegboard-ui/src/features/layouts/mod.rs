@@ -32,6 +32,7 @@ pub fn serialize_layouts(layouts: &BoardLayouts) -> String {
 /// surface, and any placement that no longer fits the canonical grid.
 /// Returns `None` only when the JSON is malformed.
 pub fn deserialize_layouts(json: &str, valid_boards: &[Board]) -> Option<BoardLayouts> {
+    let _ = upeg_toolkit_catalog::register_embedded_metadata();
     let parsed = serde_json::from_str::<BTreeMap<String, Vec<Placement>>>(json).ok()?;
     let mut out: BoardLayouts = HashMap::new();
     for (board_key, raw_placements) in parsed {

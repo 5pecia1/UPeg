@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-26T15:17:57Z",
+  "generatedAt": "2026-09-27T11:59:10Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3470,
+      "total": 3492,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -6589,6 +6589,13 @@
         },
         {
           "className": "surfaces::tui::state_tests::navigation::result_view",
+          "methodName": "disabled_result_follow_up_key_stays_on_result",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::navigation::result_view::disabled_result_follow_up_key_stays_on_result"
+        },
+        {
+          "className": "surfaces::tui::state_tests::navigation::result_view",
           "methodName": "enter_on_result_reruns_same_tool",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -11474,6 +11481,20 @@
           "fullName": "presentation::tests::rows_preserve_scalar_cells_and_disable_actions_for_duplicate_keys"
         },
         {
+          "className": "presentation::view::tests",
+          "methodName": "declared_action_condition_fails_closed_on_missing_or_wrong_type",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "presentation::view::tests::declared_action_condition_fails_closed_on_missing_or_wrong_type"
+        },
+        {
+          "className": "presentation::view::tests",
+          "methodName": "output_only_projection_keeps_scalar_and_diagnoses_bad_tone",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "presentation::view::tests::output_only_projection_keeps_scalar_and_diagnoses_bad_tone"
+        },
+        {
           "className": "principal::tests",
           "methodName": "half_written_principal_blocks_are_not_principals",
           "status": "passed",
@@ -15479,6 +15500,34 @@
         },
         {
           "className": "tests::presentation",
+          "methodName": "condition_is_limited_to_result_actions",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::presentation::condition_is_limited_to_result_actions"
+        },
+        {
+          "className": "tests::presentation",
+          "methodName": "optional_display_pointer_must_be_valid_json_pointer",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::presentation::optional_display_pointer_must_be_valid_json_pointer"
+        },
+        {
+          "className": "tests::presentation",
+          "methodName": "optional_output_only_fields_preserve_version_one",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::presentation::optional_output_only_fields_preserve_version_one"
+        },
+        {
+          "className": "tests::presentation",
+          "methodName": "output_alone_without_display_fields_is_still_rejected",
+          "status": "passed",
+          "target": "upeg_loader::src/lib.rs",
+          "fullName": "tests::presentation::output_alone_without_display_fields_is_still_rejected"
+        },
+        {
+          "className": "tests::presentation",
           "methodName": "presentation_rejects_an_undeclared_collection_output",
           "status": "passed",
           "target": "upeg_loader::src/lib.rs",
@@ -19319,6 +19368,97 @@
           "status": "passed",
           "target": "upeg_tool_grammar::src/lib.rs",
           "fullName": "tests::tool_identity_rejects_padded_dot_components"
+        },
+        {
+          "className": "tests",
+          "methodName": "detects_catalog_artifact_tampering",
+          "status": "passed",
+          "target": "upeg_toolkit_catalog::src/lib.rs",
+          "fullName": "tests::detects_catalog_artifact_tampering"
+        },
+        {
+          "className": "tests",
+          "methodName": "preserves_presentation_through_metadata_snapshot",
+          "status": "passed",
+          "target": "upeg_toolkit_catalog::src/lib.rs",
+          "fullName": "tests::preserves_presentation_through_metadata_snapshot"
+        },
+        {
+          "className": "tests",
+          "methodName": "rejects_missing_or_duplicate_tool_metadata_even_with_fresh_catalog_digest",
+          "status": "passed",
+          "target": "upeg_toolkit_catalog::src/lib.rs",
+          "fullName": "tests::rejects_missing_or_duplicate_tool_metadata_even_with_fresh_catalog_digest"
+        },
+        {
+          "className": "tests",
+          "methodName": "compiled_abi_matches_the_host_catalog",
+          "status": "passed",
+          "target": "upeg_toolkit_guest::src/lib.rs",
+          "fullName": "tests::compiled_abi_matches_the_host_catalog"
+        },
+        {
+          "className": "tests",
+          "methodName": "rejects_a_cross_toolkit_call",
+          "status": "passed",
+          "target": "upeg_toolkit_guest::src/lib.rs",
+          "fullName": "tests::rejects_a_cross_toolkit_call"
+        },
+        {
+          "className": "tests",
+          "methodName": "descendant_holding_stdout_cannot_outlive_deadline",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::descendant_holding_stdout_cannot_outlive_deadline"
+        },
+        {
+          "className": "tests",
+          "methodName": "downloads_executes_and_uses_verified_offline_cache",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::downloads_executes_and_uses_verified_offline_cache"
+        },
+        {
+          "className": "tests",
+          "methodName": "hanging_sidecar_is_killed_at_timeout",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::hanging_sidecar_is_killed_at_timeout"
+        },
+        {
+          "className": "tests",
+          "methodName": "local_release_source_installs_and_bad_update_preserves_cached_catalog",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::local_release_source_installs_and_bad_update_preserves_cached_catalog"
+        },
+        {
+          "className": "tests",
+          "methodName": "rejects_compressed_and_expanded_hash_mismatches",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::rejects_compressed_and_expanded_hash_mismatches"
+        },
+        {
+          "className": "tests",
+          "methodName": "simultaneous_first_local_catalog_loads_preserve_the_verified_cache",
+          "status": "passed",
+          "target": "upeg_toolkit_native::src/lib.rs",
+          "fullName": "tests::simultaneous_first_local_catalog_loads_preserve_the_verified_cache"
+        },
+        {
+          "className": "tests",
+          "methodName": "checked_in_metadata_matches_every_tool_annotation",
+          "status": "passed",
+          "target": "upeg_toolkit_pack::src/main.rs",
+          "fullName": "tests::checked_in_metadata_matches_every_tool_annotation"
+        },
+        {
+          "className": "tests",
+          "methodName": "every_executable_toolkit_has_an_artifact_target",
+          "status": "passed",
+          "target": "upeg_toolkit_pack::src/main.rs",
+          "fullName": "tests::every_executable_toolkit_has_an_artifact_target"
         },
         {
           "className": "collision_policy_tests",
@@ -24102,6 +24242,20 @@
           "fullName": "api::tools::tests::ungated_tool_dto_does_not_require_confirmation"
         },
         {
+          "className": "api::tools::tests",
+          "methodName": "web_toolkit_preparation_reuses_tool_id_validation",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::tests::web_toolkit_preparation_reuses_tool_id_validation"
+        },
+        {
+          "className": "api::tools::tests",
+          "methodName": "web_toolkit_preparation_shapes_reserved_approval_after_context",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::tests::web_toolkit_preparation_shapes_reserved_approval_after_context"
+        },
+        {
           "className": "api::tweaks::tests",
           "methodName": "dto_round_trip_preserves_all_fields",
           "status": "passed",
@@ -24340,7 +24494,7 @@
         "test",
         "--reporter=json"
       ],
-      "total": 1273,
+      "total": 1286,
       "tests": [
         {
           "className": "flutter::flutter_app/test/platform_tests/file_picker_bridge_test.dart",
@@ -25846,6 +26000,20 @@
           "status": "passed",
           "target": "flutter::flutter_app/test/state_tests/theme_mode_provider_test.dart",
           "fullName": "themeModeFromTweakValue::unknown_values_fall_back_to_default_dark_mode"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/toolkit_loader_contract_test.dart",
+          "methodName": "only_web_toolkit_tools_are_routable_to_the_worker",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/toolkit_loader_contract_test.dart",
+          "fullName": "only_web_toolkit_tools_are_routable_to_the_worker"
+        },
+        {
+          "className": "flutter::flutter_app/test/state_tests/toolkit_loader_contract_test.dart",
+          "methodName": "rejects_a_catalog_without_a_digest_or_toolkit_list",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/state_tests/toolkit_loader_contract_test.dart",
+          "fullName": "rejects_a_catalog_without_a_digest_or_toolkit_list"
         },
         {
           "className": "toolByIdProvider",
@@ -32555,6 +32723,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "bound text is disclosed while required unfinished inputs stay visible",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "bound text is disclosed while required unfinished inputs stay visible"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "clearing_the_console_keeps_the_result_and_page_and_only_clears_the_run_history",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32590,6 +32765,20 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "compact rich result replaces raw rows unless resolution failed: false",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "compact rich result replaces raw rows unless resolution failed: false"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "compact rich result replaces raw rows unless resolution failed: true",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "compact rich result replaces raw rows unless resolution failed: true"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "copy and save use the native redacted report",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32611,10 +32800,31 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "does not render a panel for an unresolved rich projection",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "does not render a panel for an unresolved rich projection"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "empty source hides search, filters, and column headers",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "empty source hides search, filters, and column headers"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "explicit_browser_settings_apply_to_the_shared_session_without_a_separate_page",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "explicit_browser_settings_apply_to_the_shared_session_without_a_separate_page"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "filters equal scalar values, sorts rows, and shows cell tone",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "filters equal scalar values, sorts rows, and shows cell tone"
         },
         {
           "className": "flutter::widget_tester.dart",
@@ -32786,6 +32996,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "keeps a resolver-disabled action unavailable with its reason",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "keeps a resolver-disabled action unavailable with its reason"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "omitted_settings_use_browser_defaults_without_forced_mobile_settings",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32863,10 +33080,31 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "raw disclosure opens inside a colored result container",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "raw disclosure opens inside a colored result container"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "reattaching_the_view_for_the_debug_screen_keeps_the_same_page_and_controller",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "reattaching_the_view_for_the_debug_screen_keeps_the_same_page_and_controller"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "renders fixed rich slots and keeps raw output explicitly available",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "renders fixed rich slots and keeps raw output explicitly available"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "renders headings links tables and fenced code through Markdown",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "renders headings links tables and fenced code through Markdown"
         },
         {
           "className": "flutter::widget_tester.dart",
@@ -32902,6 +33140,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "saving on the web shows only the browser storage result"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "search with no matches keeps controls for a nonempty source",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "search with no matches keeps controls for a nonempty source"
         },
         {
           "className": "shortcutKeysMatchEvent",

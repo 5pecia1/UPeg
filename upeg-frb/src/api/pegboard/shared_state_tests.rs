@@ -107,6 +107,7 @@ fn pegboard_selection_dto_saves_and_loads_shared_selection() {
 
 #[test]
 fn board_scoped_tag_options_counts_only_tags_of_tools_pinned_to_board() {
+    upeg_toolkit_catalog::register_embedded_metadata().expect("register builtin metadata");
     let boards = vec![
         Board {
             key: "dev",

@@ -314,6 +314,7 @@ fn dispatch_local_or_attached(
 /// [`run_no_command_with_terminal`] with `stdout_is_terminal=false`
 /// exercises the no-command path without spawning the TUI.
 pub fn run(cli: Cli) -> Result<String, CliError> {
+    upeg_toolkit_native::register_native_toolkits().map_err(CliError::tool_failed)?;
     let active_board = cli.board.as_deref();
     let active_tui_tag = cli.tui_tag.as_deref();
     match cli.command {

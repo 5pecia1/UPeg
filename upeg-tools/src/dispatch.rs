@@ -1,27 +1,30 @@
 //! Built-in tool dispatchers.
 //!
-//! Each `#[upeg::tool]` annotation in `lib.rs` registers a *meta* into
-//! the static `inventory` table — that lets every surface enumerate the
-//! built-in catalogue at compile time. Running a tool is a separate
-//! concern: surfaces look up `(id, args) → ToolResult` via
-//! `upeg_runtime::try_runtime_dispatch`, which is populated at runtime
-//! through `register_runtime_dispatcher`.
+//! Each selected Toolkit registers its annotated metadata and dispatchers
+//! inside a guest. Shell discovery uses the generated metadata snapshot;
+//! the shell does not link these implementations.
 //!
 //! The split exists so chain Tools, WASM plugins, and TOML-loaded
 //! External tools share one dispatch path with built-ins.
-//! Registration lives here (not in `upeg-cli`) so the Flutter desktop
-//! surface (via `upeg-frb`, wasm32 / no axum / no extism) can wire
-//! built-ins without dragging in CLI transitives.
+//! Registration lives here so the browser and native guest binaries share
+//! the same function-to-ToolResult conversion.
 //!
 //! Calling `register_all()` is idempotent — the `OnceLock` gate makes
 //! repeat calls cheap and safe across surfaces and tests.
 
+#[cfg(any(feature = "media", feature = "qr"))]
 use serde::Deserialize as _;
 use serde_json::Value;
 use std::sync::OnceLock;
-use upeg_core::{FileValue, OutputEntry, OutputKind, OutputValue, ToolResult, ToolSuccess};
+#[cfg(any(feature = "media", feature = "qr"))]
+use upeg_core::FileValue;
+use upeg_core::ToolResult;
+#[cfg(any(feature = "media", feature = "net", feature = "time"))]
+use upeg_core::{OutputEntry, OutputKind, OutputValue, ToolSuccess};
+#[cfg(any(feature = "media", feature = "time"))]
+use upeg_runtime::tool_failure;
 use upeg_runtime::{
-    DispatchArgs, register_runtime_dispatcher, single_text_result, tool_failure, toolbox_tool,
+    DispatchArgs, register_runtime_dispatcher, single_text_result, toolbox_tool,
     try_runtime_dispatch,
 };
 
@@ -82,9 +85,8 @@ pub fn dispatch_registered(tool_id: &str, args: &Value) -> RegisteredDispatch {
 /// Register a canonical runtime dispatcher for every built-in tool exposed by
 /// this crate. Idempotent: subsequent calls are O(1) no-ops.
 ///
-/// Surfaces should call this once at startup. The CLI's `dispatch_tool`
-/// fires it lazily on first use; the desktop UI calls it from
-/// `App::use_hook` so the form-driven \[F1\] run path can resolve built-ins.
+/// Guest entry points call this on first dispatch. The pack builder also
+/// calls it when extracting the complete source inventory.
 pub fn register_all() {
     REGISTERED.get_or_init(register_inner);
 }
@@ -94,10 +96,18 @@ pub fn register_all() {
 /// Dispatch is schema-validated before these closures run, so non-string
 /// values for string-typed built-in fields are rejected upstream. Missing or
 /// null optional fields still read as the local default sentinel `""`.
+#[allow(
+    dead_code,
+    reason = "no toolkit feature means no built-in dispatcher uses this helper"
+)]
 fn read_str<'a>(args: DispatchArgs<'a>, key: &str) -> &'a str {
     args.get(key).and_then(Value::as_str).unwrap_or("")
 }
 
+#[allow(
+    dead_code,
+    reason = "no toolkit feature means no built-in dispatcher uses this helper"
+)]
 fn register_single_output_dispatcher<F>(id: &'static str, f: F)
 where
     F: for<'a> Fn(DispatchArgs<'a>) -> Result<String, String> + Send + Sync + 'static,
@@ -106,27 +116,43 @@ where
 }
 
 fn register_inner() {
+    #[cfg(feature = "convert")]
     register_convert_dispatchers();
+    #[cfg(feature = "text")]
     register_text_dispatchers();
+    #[cfg(feature = "id")]
     register_id_dispatchers();
+    #[cfg(feature = "security")]
     register_security_dispatchers();
+    #[cfg(feature = "color")]
     register_color_dispatchers();
+    #[cfg(feature = "hash")]
     register_hash_dispatchers();
+    #[cfg(feature = "time")]
     register_time_dispatchers();
+    #[cfg(feature = "media")]
     register_media_dispatchers();
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "net")]
     register_net_dispatchers();
+    #[cfg(feature = "qr")]
     register_qr_dispatchers();
+    #[cfg(feature = "csv")]
     register_csv_dispatchers();
+    #[cfg(feature = "num")]
     register_num_dispatchers();
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "eth")]
     register_eth_dispatchers();
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "weather")]
     register_weather_dispatchers();
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "devcontainer")]
     register_devcontainer_dispatchers();
 }
 
+#[cfg(feature = "convert")]
 fn register_convert_dispatchers() {
     register_single_output_dispatcher(crate::BASE64_ENCODE_TOOL_ID, |args| {
         Ok(crate::base64_encode(read_str(args, "input")))
@@ -172,6 +198,7 @@ fn register_convert_dispatchers() {
     });
 }
 
+#[cfg(feature = "text")]
 fn register_text_dispatchers() {
     register_single_output_dispatcher(crate::TEXT_DIFF_TOOL_ID, |args| {
         Ok(crate::text_diff(
@@ -240,6 +267,7 @@ fn register_text_dispatchers() {
     });
 }
 
+#[cfg(feature = "id")]
 fn register_id_dispatchers() {
     register_single_output_dispatcher(crate::UUID_V7_TOOL_ID, |_args| Ok(crate::uuid_v7()));
     register_single_output_dispatcher(crate::UUID_V4_TOOL_ID, |_args| Ok(crate::uuid_v4()));
@@ -248,6 +276,7 @@ fn register_id_dispatchers() {
     });
 }
 
+#[cfg(feature = "security")]
 fn register_security_dispatchers() {
     register_single_output_dispatcher(crate::BYTES_GENERATE_TOOL_ID, |args| {
         crate::bytes_generate(read_usize(
@@ -272,6 +301,7 @@ fn register_security_dispatchers() {
     });
 }
 
+#[cfg(feature = "color")]
 fn register_color_dispatchers() {
     register_single_output_dispatcher(crate::COLOR_HEX_TO_RGB_TOOL_ID, |args| {
         crate::color_hex_to_rgb(read_str(args, "input")).map_err(std::string::ToString::to_string)
@@ -285,6 +315,7 @@ fn register_color_dispatchers() {
     });
 }
 
+#[cfg(feature = "qr")]
 fn register_qr_dispatchers() {
     register_single_output_dispatcher(crate::QR_ENCODE_TOOL_ID, |args| {
         crate::qr_encode(read_str(args, "input")).map_err(std::string::ToString::to_string)
@@ -294,6 +325,7 @@ fn register_qr_dispatchers() {
     });
 }
 
+#[cfg(feature = "csv")]
 fn register_csv_dispatchers() {
     register_single_output_dispatcher(crate::CSV_DIFF_TOOL_ID, |args| {
         crate::csv_diff(read_str(args, "left"), read_str(args, "right"))
@@ -307,6 +339,7 @@ fn register_csv_dispatchers() {
     });
 }
 
+#[cfg(feature = "num")]
 fn register_num_dispatchers() {
     register_single_output_dispatcher(crate::HEX_TO_DECIMAL_TOOL_ID, |args| {
         crate::hex_to_decimal(read_str(args, "input"))
@@ -333,6 +366,7 @@ fn register_num_dispatchers() {
 /// build gets a working runtime dispatcher, mirroring `net.status`
 /// exactly (`register_net_dispatchers` below).
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "eth")]
 fn register_eth_dispatchers() {
     register_single_output_dispatcher(crate::ETH_GAS_TOOL_ID, |args| {
         crate::eth_gas(read_str(args, "endpoint"))
@@ -348,6 +382,7 @@ fn register_eth_dispatchers() {
 /// `toolkits::weather`'s module doc), but only the native build gets a working
 /// runtime dispatcher.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "weather")]
 fn register_weather_dispatchers() {
     register_single_output_dispatcher(crate::WEATHER_LOOKUP_TOOL_ID, |args| {
         crate::weather_lookup(read_str(args, "city"))
@@ -367,6 +402,7 @@ fn register_weather_dispatchers() {
 /// only the native build gets a working runtime dispatcher (filesystem +
 /// SQLite).
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "devcontainer")]
 fn register_devcontainer_dispatchers() {
     register_single_output_dispatcher(crate::DEVCONTAINER_LIST_TOOL_ID, |args| {
         crate::devcontainer_list(read_str(args, "app"))
@@ -380,6 +416,7 @@ fn register_devcontainer_dispatchers() {
     });
 }
 
+#[cfg(feature = "hash")]
 fn register_hash_dispatchers() {
     register_single_output_dispatcher(crate::SHA256_HEX_TOOL_ID, |args| {
         Ok(crate::sha256_hex(read_str(args, "input")))
@@ -398,6 +435,7 @@ fn register_hash_dispatchers() {
     });
 }
 
+#[cfg(feature = "time")]
 fn register_time_dispatchers() {
     register_single_output_dispatcher(crate::EPOCH_NOW_TOOL_ID, |_args| {
         crate::epoch_now()
@@ -425,6 +463,7 @@ fn register_time_dispatchers() {
 /// 1-second timeout (see `toolkits/net.rs`) and returns the JSON shape
 /// `gui_meta.rs` declares: `{status, ping_ms, ipv6}`.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "net")]
 fn register_net_dispatchers() {
     register_runtime_dispatcher(crate::gui_meta::NET_STATUS_TOOL_ID, |_args| {
         let snapshot = crate::toolkits::net::net_status();
@@ -432,6 +471,7 @@ fn register_net_dispatchers() {
     });
 }
 
+#[cfg(feature = "time")]
 fn time_epoch_success(secs: u64, iso: String) -> ToolResult {
     structured_success(
         crate::gui_meta::TIME_EPOCH_EPOCH_OUTPUT_ID,
@@ -453,6 +493,7 @@ fn time_epoch_success(secs: u64, iso: String) -> ToolResult {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "net")]
 fn net_status_success(status: &str, ping_ms: u64, ipv6: bool) -> ToolResult {
     structured_success(
         crate::gui_meta::NET_STATUS_STATUS_OUTPUT_ID,
@@ -483,6 +524,7 @@ fn net_status_success(status: &str, ping_ms: u64, ipv6: bool) -> ToolResult {
     clippy::expect_used,
     reason = "callers guarantee primary_output_id exists in outputs; panic is the contract"
 )]
+#[cfg(any(feature = "time", feature = "net", feature = "media"))]
 fn structured_success(primary_output_id: &str, outputs: Vec<OutputEntry>) -> ToolResult {
     ToolResult::Success(
         ToolSuccess::new(Some(primary_output_id.to_string()), outputs)
@@ -490,6 +532,7 @@ fn structured_success(primary_output_id: &str, outputs: Vec<OutputEntry>) -> Too
     )
 }
 
+#[cfg(feature = "media")]
 fn register_media_dispatchers() {
     register_single_output_dispatcher(crate::IMAGE_CONVERT_TOOL_ID, |args| {
         crate::image_convert(
@@ -577,6 +620,7 @@ fn register_media_dispatchers() {
 /// `media.pptx_extract_images`). Missing or malformed values yield a clear
 /// error rather than a silent default, since a file input has no sensible
 /// empty sentinel.
+#[cfg(any(feature = "media", feature = "qr"))]
 fn read_file(args: DispatchArgs<'_>, key: &str) -> Result<FileValue, String> {
     let value = args
         .get(key)
@@ -584,6 +628,7 @@ fn read_file(args: DispatchArgs<'_>, key: &str) -> Result<FileValue, String> {
     FileValue::deserialize(value).map_err(|e| format!("input `{key}` is not a valid file: {e}"))
 }
 
+#[cfg(feature = "media")]
 fn read_f64(args: DispatchArgs<'_>, key: &str, default: f64) -> Result<f64, String> {
     match args.get(key) {
         None | Some(Value::Null) => Ok(default),
@@ -591,6 +636,12 @@ fn read_f64(args: DispatchArgs<'_>, key: &str, default: f64) -> Result<f64, Stri
     }
 }
 
+#[cfg(any(
+    feature = "media",
+    feature = "security",
+    feature = "text",
+    feature = "weather"
+))]
 fn read_usize(args: DispatchArgs<'_>, key: &str, default: usize) -> Result<usize, String> {
     match args.get(key) {
         None | Some(Value::Null) => Ok(default),

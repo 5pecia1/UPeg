@@ -11,7 +11,7 @@ fn tool_list_follows_shared_pegboard_layout_order() {
     let _home = crate::test_support::pegboard_home_test_lock()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    upeg_tools::register_all();
+    upeg_toolkit_native::register_native_toolkits().expect("register builtins");
     let tools = list_tools();
     let ids: Vec<&str> = tools.iter().map(|t| t.id).collect();
     let state = upeg_sources::pegboard::load_state();

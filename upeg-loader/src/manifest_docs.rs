@@ -67,6 +67,9 @@ mod tests {
         ("PresentationColumnToml", 16),
         ("PresentationActionToml", 17),
         ("PresentationBindingToml", 18),
+        ("PresentationStatusToml", 19),
+        ("PresentationNoticesToml", 20),
+        ("PresentationDetailToml", 21),
     ];
 
     fn discover_field_reference_schemas() -> Vec<String> {

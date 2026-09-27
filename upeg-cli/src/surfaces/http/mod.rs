@@ -186,6 +186,7 @@ pub(crate) use pairing::pairing_status_block;
 /// at all means "no bearer required" — used only by the legacy
 /// [`router`] entry point that some tests still use.
 fn router_with_state(state: HttpState) -> Router {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     // The CORS layer is the OUTERMOST `.layer()` call (added last — in
     // axum/tower, the last-added layer wraps every prior one, so it
     // sees the request first). That lets `tower_http`'s built-in

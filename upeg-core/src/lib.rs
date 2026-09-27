@@ -106,8 +106,11 @@ pub use pin_span::{ColSpan, PinSpan, PinSpanError, RowSpan};
 pub use placement::Placement;
 pub use presentation::{
     ActionBinding, ActionScope, ActionSuccess, BindingResolution, PRESENTATION_VERSION_V1,
-    PresentationAction, PresentationColumn, PresentationRow, RowsResolution, ToolEffect,
-    ToolPresentation, resolve_bindings, resolve_rows, validate_json_pointer,
+    PresentationAction, PresentationColumn, PresentationDetail, PresentationNotices,
+    PresentationRow, PresentationStatus, PresentationTone, ResolvedAction, ResolvedDetail,
+    ResolvedField, ResolvedNotice, ResolvedStatus, ResolvedView, RowsResolution, ToolEffect,
+    ToolPresentation, resolve_action_availability, resolve_bindings, resolve_rows, resolve_view,
+    validate_json_pointer,
 };
 pub use principal::{
     ALL_PRINCIPAL_ROLES, PRINCIPAL_ROLE_KEY, PRINCIPAL_SURFACE_KEY, Principal, PrincipalRole,

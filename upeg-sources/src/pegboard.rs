@@ -158,6 +158,7 @@ pub fn merge_project_boards(state: &mut PegboardState, visibility: &BoardVisibil
 /// Placements a board starts with: every Desktop-surface tool whose
 /// manifest declares this board, in id order.
 fn seeded_layout(board_key: &str) -> Vec<Placement> {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let mut ids: Vec<String> = toolbox_tools()
         .filter(|tool| tool.is_on_surface(Surface::Desktop))
         .filter(|tool| tool.is_on_board(board_key))
@@ -194,6 +195,7 @@ pub fn load_state_from_path_in(
     path: &Path,
     visibility: &BoardVisibility,
 ) -> Result<PegboardState, PegboardStateError> {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let store = Store::open_at(path)?;
     // Sanitize FIRST: that pass owns the "an empty store means the
     // built-in boards" fallback, and merging before it would make a
@@ -399,6 +401,7 @@ pub fn rename_board(state: &mut PegboardState, key: &str, new_title: &str) -> bo
 /// entry yet) initialises cleanly. This matches Desktop's iter-183 fix:
 /// the previous `get_mut` path silently dropped pins to new boards.
 pub fn pin_tool(state: &mut PegboardState, board: &str, id: &str) -> PinAction {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     if !state.boards.iter().any(|b| b.key == board) {
         return PinAction::NoOp;
     }
@@ -459,6 +462,7 @@ pub fn move_layout_entry(
     id: &str,
     direction: Direction,
 ) -> bool {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let Some(entry) = state.layouts.get_mut(board) else {
         return false;
     };
@@ -469,6 +473,7 @@ pub fn move_layout_entry(
 /// "drop A onto B" maps here directly. Returns `true` if both ids are
 /// present and distinct; otherwise leaves state untouched.
 pub fn swap_layout_pair(state: &mut PegboardState, board: &str, src: &str, tgt: &str) -> bool {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     if src == tgt {
         return false;
     }
@@ -484,6 +489,7 @@ pub fn set_pin_color(
     id: &str,
     color: Option<PinColorHex>,
 ) -> bool {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let Some(entry) = state.layouts.get_mut(board) else {
         return false;
     };
@@ -503,6 +509,7 @@ pub fn set_pin_span(
     id: &str,
     span: Option<PinSpan>,
 ) -> bool {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let Some(entry) = state.layouts.get_mut(board) else {
         return false;
     };
@@ -566,6 +573,7 @@ pub fn placements_for_board_and_tag_in(
     board: Option<&str>,
     tag: Option<&str>,
 ) -> Vec<(Placement, &'static ToolMeta)> {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let board_key = board.map(str::trim).filter(|b| !b.is_empty());
     let mut placements: Vec<Placement> = if let Some(key) = board_key {
         state.layouts.get(key).cloned().unwrap_or_default()
@@ -675,6 +683,7 @@ pub fn board_placement_on_surface_in<'a>(
     tool_id: &str,
     surface: Surface,
 ) -> Option<&'a Placement> {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let placement = placement_in(state, board, tool_id)?;
     toolbox_tool(tool_id)
         .filter(|tool| tool.is_on_surface(surface))
@@ -811,6 +820,7 @@ pub fn move_placement(
     x: u16,
     y: u16,
 ) -> bool {
+    let _ = upeg_toolkit_native::register_native_toolkits();
     let Some(placements) = state.layouts.get_mut(board_key) else {
         return false;
     };

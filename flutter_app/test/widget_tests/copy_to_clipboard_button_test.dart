@@ -730,18 +730,11 @@ void main() {
           find.byKey(const Key('structured-output-markdown')),
           findsOneWidget,
         );
-        expect(
-          find.byKey(const Key('structured-output-markdown-heading')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const Key('structured-output-markdown-list-item')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const Key('structured-output-markdown-code')),
-          findsOneWidget,
-        );
+        // Check visible Markdown semantics, independently of the renderer's
+        // former hand-written heading/list/code widget implementation.
+        expect(find.text('Title'), findsOneWidget);
+        expect(find.text('one'), findsOneWidget);
+        expect(find.text('code'), findsOneWidget);
         expect(find.byKey(const Key('structured-output-json')), findsOneWidget);
         expect(
           find.textContaining('"ok": true', findRichText: true),

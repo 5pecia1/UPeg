@@ -16,7 +16,7 @@ thiserror.workspace = true
 tracing.workspace = true
 upeg-core = { workspace = true, features = ["serde"] }
 upeg-runtime.workspace = true
-upeg-tools.workspace = true
+upeg-toolkit-catalog.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # No surface crate here: `upeg-pegboard-ui` is UI state, so it stops at

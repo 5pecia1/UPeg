@@ -12,6 +12,7 @@ import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/state/tools_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/presentation_table.dart';
+import 'package:upeg/src/widgets/expanded_modal/rich_presentation.dart';
 
 /// Adapts the generated presentation DTO to the small Dart collection view.
 /// Resolution remains in Rust; malformed cell JSON stays a non-actionable
@@ -46,6 +47,26 @@ class PresentationCollection extends ConsumerWidget {
       toolId: tool.id,
       outputsJson: jsonEncode(outcome.jsonValues),
     );
+    final view = ref.watch(presentationViewResolverProvider)(
+      toolId: tool.id,
+      outputsJson: jsonEncode(outcome.jsonValues),
+    );
+    final availability = {for (final item in view.actions) item.id: item};
+    final rowDetails = <String, PresentationDetail>{
+      for (final item in view.rowDetails)
+        item.key: PresentationDetail(
+          fields: item.detail.fields
+              .map(
+                (field) => PresentationTextValue(
+                  label: field.label,
+                  value: field.value,
+                ),
+              )
+              .toList(growable: false),
+          markdown: item.detail.markdown,
+          diff: item.detail.diff,
+        ),
+    };
     final rowActions = presentation.actions
         .where((action) => action.scope == ActionScopeDto.row)
         .toList(growable: false);
@@ -67,13 +88,19 @@ class PresentationCollection extends ConsumerWidget {
         children: [
           PresentationTable(
             columns: presentation.columns
-                .map((column) => PresentationTableColumn(label: column.label))
+                .map(
+                  (column) => PresentationTableColumn(
+                    label: column.label,
+                    filterable: column.filterable,
+                  ),
+                )
                 .toList(growable: false),
             rows: resolved.rows
                 .map(
                   (row) => PresentationTableRow(
                     key: row.key,
                     rawJson: row.valueJson,
+                    cellTones: row.cellTones,
                     cells: row.cellsJson
                         .map(_decodeCell)
                         .toList(growable: false),
@@ -86,6 +113,8 @@ class PresentationCollection extends ConsumerWidget {
                     id: action.id,
                     label: action.label,
                     onPressed: (row) => onRowAction(action, row),
+                    enabled: availability[action.id]?.enabled ?? true,
+                    disabledReason: availability[action.id]?.reason,
                   ),
                 )
                 .toList(growable: false),
@@ -93,10 +122,12 @@ class PresentationCollection extends ConsumerWidget {
                 ? (row) => onReadRowNavigate(readRowActions.single, row)
                 : null,
             rowActionsEnabled: resolved.rowActionsEnabled,
-            diagnostics: resolved.diagnostics,
+            diagnostics: [...resolved.diagnostics, ...view.diagnostics],
             tokens: tokens,
             searchHint: t(ref, 'modal.presentation.search'),
-            emptyLabel: t(ref, 'modal.presentation.empty'),
+            emptyLabel: view.emptyMessage ?? t(ref, 'modal.presentation.empty'),
+            noMatchesLabel: t(ref, 'modal.presentation.empty'),
+            rowDetails: rowDetails,
           ),
           if (resultActions.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -106,9 +137,18 @@ class PresentationCollection extends ConsumerWidget {
                 for (final action in resultActions)
                   OutlinedButton(
                     key: Key('presentation-result-action-${action.id}'),
-                    onPressed: () => onResultAction(action),
+                    onPressed: availability[action.id]?.enabled ?? true
+                        ? () => onResultAction(action)
+                        : null,
                     child: Text(action.label),
                   ),
+                for (final action in resultActions)
+                  if (availability[action.id]?.enabled == false &&
+                      availability[action.id]?.reason != null)
+                    Text(
+                      availability[action.id]!.reason!,
+                      style: TextStyle(color: tokens.fg2, fontSize: 10),
+                    ),
               ],
             ),
           ],

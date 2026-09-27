@@ -28,13 +28,14 @@ tracing.workspace = true
 upeg-core = { workspace = true, features = ["serde"] }
 upeg-pegboard-ui.workspace = true
 upeg-runtime.workspace = true
-upeg-tools.workspace = true
+upeg-toolkit-catalog.workspace = true
 uuid.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 open.workspace = true
 upeg-cli.workspace = true
 upeg-loader.workspace = true
+upeg-toolkit-native.workspace = true
 # `upeg-sources` transitively pulls in `tokio[net]`/`mio` which has no
 # wasm32 backend. Gate it to native; upeg-frb itself doesn't use the
 # crate (host bootstrap delegates through upeg-cli), so wasm32 simply
@@ -44,6 +45,7 @@ upeg-sources.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 getrandom = { version = "0.4", features = ["wasm_js"] }
+uuid = { workspace = true, features = ["js"] }
 
 [features]
 default = []

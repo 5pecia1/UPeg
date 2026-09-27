@@ -8,15 +8,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'tools/file_input_policy.dart';
 import 'tools/input_field.dart';
+import 'tools/presentation_view.dart';
 part 'tools.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dispatch_tool_impl_for_pin`, `error`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `error`, `register_toolkit_runtime`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 PresentationRowsDto resolveToolPresentationRows({
   required String toolId,
   required String outputsJson,
 }) => RustLib.instance.api.crateApiToolsResolveToolPresentationRows(
+  toolId: toolId,
+  outputsJson: outputsJson,
+);
+
+PresentationViewDto resolveToolPresentationView({
+  required String toolId,
+  required String outputsJson,
+}) => RustLib.instance.api.crateApiToolsResolveToolPresentationView(
   toolId: toolId,
   outputsJson: outputsJson,
 );
@@ -86,6 +95,36 @@ Future<CanonicalToolResult> dispatchToolAsync({
   boardKey: boardKey,
   pinId: pinId,
   approve: approve,
+);
+
+/// Reuse the in-process GUI dispatch boundary before a browser Worker invokes
+/// a toolkit pack. This owns tool-id validation, board/pin presets, execution
+/// context, and typed approval shaping; Dart must not recreate any of them.
+WebToolkitDispatchPreparation prepareWebToolkitDispatch({
+  required String toolId,
+  required String argsJson,
+  String? boardKey,
+  String? pinId,
+  required bool approve,
+}) => RustLib.instance.api.crateApiToolsPrepareWebToolkitDispatch(
+  toolId: toolId,
+  argsJson: argsJson,
+  boardKey: boardKey,
+  pinId: pinId,
+  approve: approve,
+);
+
+/// Record the Worker result through the same diagnostic boundary used by an
+/// in-process call. The Dart side has already decoded the canonical JSON into
+/// [`CanonicalToolResult`], retaining the established FileValue wire codec.
+void completeWebToolkitDispatch({
+  required String toolId,
+  required String effectiveArgsJson,
+  required CanonicalToolResult result,
+}) => RustLib.instance.api.crateApiToolsCompleteWebToolkitDispatch(
+  toolId: toolId,
+  effectiveArgsJson: effectiveArgsJson,
+  result: result,
 );
 
 class ActionBindingResolutionDto {
@@ -436,11 +475,22 @@ class PresentationBindingDto {
 class PresentationColumnDto {
   final String label;
   final String pointer;
+  final String? tonePointer;
+  final bool filterable;
 
-  const PresentationColumnDto({required this.label, required this.pointer});
+  const PresentationColumnDto({
+    required this.label,
+    required this.pointer,
+    this.tonePointer,
+    required this.filterable,
+  });
 
   @override
-  int get hashCode => label.hashCode ^ pointer.hashCode;
+  int get hashCode =>
+      label.hashCode ^
+      pointer.hashCode ^
+      tonePointer.hashCode ^
+      filterable.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -448,22 +498,30 @@ class PresentationColumnDto {
       other is PresentationColumnDto &&
           runtimeType == other.runtimeType &&
           label == other.label &&
-          pointer == other.pointer;
+          pointer == other.pointer &&
+          tonePointer == other.tonePointer &&
+          filterable == other.filterable;
 }
 
 class PresentationRowDto {
   final String key;
   final String valueJson;
   final List<String> cellsJson;
+  final List<String?> cellTones;
 
   const PresentationRowDto({
     required this.key,
     required this.valueJson,
     required this.cellsJson,
+    required this.cellTones,
   });
 
   @override
-  int get hashCode => key.hashCode ^ valueJson.hashCode ^ cellsJson.hashCode;
+  int get hashCode =>
+      key.hashCode ^
+      valueJson.hashCode ^
+      cellsJson.hashCode ^
+      cellTones.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -472,7 +530,8 @@ class PresentationRowDto {
           runtimeType == other.runtimeType &&
           key == other.key &&
           valueJson == other.valueJson &&
-          cellsJson == other.cellsJson;
+          cellsJson == other.cellsJson &&
+          cellTones == other.cellTones;
 }
 
 class PresentationRowsDto {
@@ -708,4 +767,26 @@ class ToolkitDto {
           id == other.id &&
           description == other.description &&
           tags == other.tags;
+}
+
+/// Arguments prepared for an independently downloaded browser toolkit.
+///
+/// Dart forwards only [`WebToolkitDispatchPreparation::effective_args_json`] to the Worker. Any
+/// context/preset/approval failure stays a normal canonical tool result.
+class WebToolkitDispatchPreparation {
+  final String? effectiveArgsJson;
+  final CanonicalToolResult? error;
+
+  const WebToolkitDispatchPreparation({this.effectiveArgsJson, this.error});
+
+  @override
+  int get hashCode => effectiveArgsJson.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WebToolkitDispatchPreparation &&
+          runtimeType == other.runtimeType &&
+          effectiveArgsJson == other.effectiveArgsJson &&
+          error == other.error;
 }

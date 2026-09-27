@@ -24,10 +24,11 @@ Chrome extension, MCP, HTTP**에서 호출할 수 있다. surface별 코드는 �
   플러그인, 임포트한 MCP 서버. credential 값은 환경변수나 OS keychain에만
   둔다.
 
-로컬 우선: 도구상자는 사용자의 기기에서 실행되고, HTTP host는 기본으로
+로컬 우선: 내장 도구상자는 사용자의 기기에서 실행되고, HTTP host는 기본으로
 loopback에 바인드하며, `/healthz`를 제외한 모든 라우트에 bearer token을
-요구한다. 클라우드 의존성은 없다 — 클라우드 동기화도 아직 없다
-([프로젝트 상태](#프로젝트-상태) 참고).
+요구한다. 클라우드 동기화는 없다. 선택한 배포 Toolkit은 첫 사용 전에 버전이
+고정된 pack을 한 번 다운로드할 수 있으며, 내장 Tool과 이미 검증해 캐시한 pack은
+오프라인에서도 동작한다.
 
 ## 프로젝트 상태
 
@@ -84,7 +85,9 @@ upeg call --local num.hex_to_decimal -a input=0xff
 
 이 내장 호출에는 네트워크도, 계정도, 토큰도 필요 없다 — `--local`이
 프로세스 안 dispatch를 강제한다. 이 옵션이 없으면 `upeg call`은 발견된
-실행 중 로컬 host를 사용한다. 이어서 둘러본다:
+실행 중 로컬 host를 사용한다. 선택한 배포 Toolkit의 첫 호출은 릴리스 catalog에
+기록된 정확한 버전 pack을 가져올 수 있고, 검증한 캐시 뒤에는 오프라인으로
+실행한다. 이어서 둘러본다:
 
 ```bash
 upeg tool list                 # 등록된 모든 Tool

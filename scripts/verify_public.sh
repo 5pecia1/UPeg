@@ -48,14 +48,22 @@ verify_lane() {
       cargo fmt --all -- --check
       cargo build --workspace --locked
       cargo clippy --workspace --all-targets --locked -- -D warnings
+      # shellcheck source=/dev/null
+      source packaging/test-toolkit-env.sh
+      prepare_test_toolkit_env
       cargo test --workspace --locked
       just interface-inventory-check
       just toolkit-schema-check
+      just toolkit-metadata-check
       just test-chrome-ext-file-input
       ;;
     wasm)
       for package in upeg-tools upeg-core upeg_frb; do
-        cargo clippy --target "$WASM_TARGET" -p "$package" --locked -- -D warnings
+        if [ "$package" = upeg-tools ]; then
+          cargo clippy --target "$WASM_TARGET" -p "$package" --features all-toolkits --locked -- -D warnings
+        else
+          cargo clippy --target "$WASM_TARGET" -p "$package" --locked -- -D warnings
+        fi
       done
       ;;
     flutter)

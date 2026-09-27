@@ -70,6 +70,11 @@ const NETWORK_FIRST_PATHS = new Set(
     (name) => new URL(name, self.location.href).pathname,
   ),
 );
+// Toolkit catalogues and packs are deliberately outside the app-shell cache.
+// Their dedicated Worker owns version identity, integrity verification,
+// retries, and offline fallback. Letting SWR answer these requests would make
+// `fetch({cache: 'no-store'})` observe an older catalogue or unverified pack.
+const TOOLKIT_PATH_PREFIX = '/toolkits/';
 
 // network-first인데 브라우저 HTTP 캐시가 낡은 사본을 그대로 돌려주면
 // "항상 새것"은 한 층 아래에서 다시 무너진다. 정적 호스트가
@@ -175,6 +180,9 @@ async function respondFromCacheWhileRevalidating(event, request) {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (new URL(request.url).pathname.startsWith(TOOLKIT_PATH_PREFIX)) {
+    return;
+  }
   if (request.mode === NAVIGATE_REQUEST_MODE) {
     event.respondWith(respondNetworkFirst(request, SHELL_DOCUMENT_URL));
     return;

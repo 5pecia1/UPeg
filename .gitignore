@@ -13,6 +13,7 @@ pnpm-debug.log*
 
 # Local frontend build artifacts
 /chrome-ext/dist/
+/flutter_app/web/toolkits/
 
 # Environment files
 .env
@@ -40,3 +41,7 @@ __pycache__/
 
 # Generated Zensical documentation site (built at the public export root)
 /site/
+
+# Wrangler's local Cloudflare Pages state. Credentials are never stored here,
+# but the cache is machine-specific and must not enter a release source tree.
+/.wrangler/

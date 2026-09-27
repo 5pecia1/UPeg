@@ -72,7 +72,9 @@ pub fn format_doctor() -> String {
         &upeg_sources::project::project_manifest_status(),
     ));
 
-    let inventory_count = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>().count();
+    let inventory_count = upeg_runtime::toolbox_tools()
+        .filter(|tool| upeg_runtime::toolbox_is_builtin(tool.id))
+        .count();
     let total_count = upeg_runtime::toolbox_tools().count();
     let runtime_count = total_count.saturating_sub(inventory_count);
     out.push_str("toolbox:\n");
@@ -167,7 +169,9 @@ pub fn format_doctor_json() -> String {
         dir_entry("mcp-imports", paths::mcp_import_dir(), "toml"),
     ]);
 
-    let inventory_count = upeg_core::inventory::iter::<upeg_core::StaticToolMeta>().count();
+    let inventory_count = upeg_runtime::toolbox_tools()
+        .filter(|tool| upeg_runtime::toolbox_is_builtin(tool.id))
+        .count();
     let total_count = upeg_runtime::toolbox_tools().count();
     let runtime_count = total_count.saturating_sub(inventory_count);
 

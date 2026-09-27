@@ -101,7 +101,9 @@ const fn requires_dispatcher(invoker: Invoker) -> bool {
 /// error. Registration is ensured first so the dispatcher probe is accurate.
 #[flutter_rust_bridge::frb(sync)]
 pub fn dispatch_capability_for(tool_id: String) -> DispatchCapabilityDto {
-    upeg_tools::register_all();
+    if let Err(error) = super::tools::register_toolkit_runtime() {
+        tracing::error!(%error, "upeg toolkit runtime registration failed");
+    }
 
     let Some(meta) = toolbox_tool(&tool_id) else {
         return DispatchCapabilityDto::Supported;

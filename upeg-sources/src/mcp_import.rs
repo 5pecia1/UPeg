@@ -754,6 +754,7 @@ pub fn check_no_inventory_shadows(
     server_name: &str,
     decls: &[RemoteToolDecl],
 ) -> Result<(), ImportError> {
+    upeg_toolkit_native::register_native_toolkits().map_err(ImportError::BadToolMeta)?;
     for decl in decls {
         let ns_id_str = format!("{server_name}.{}", decl.id);
         let key = ToolKey::parse_canonical(server_name, &decl.id).map_err(|error| {

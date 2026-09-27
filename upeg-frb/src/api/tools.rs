@@ -17,24 +17,41 @@ use upeg_core::{
 use upeg_runtime::ToolMetaRuntimeExt;
 
 mod approval_args;
+mod dispatch;
 pub mod file_input_policy;
 mod gui_context;
 pub mod input_field;
+pub(crate) mod presentation_view;
 
 #[cfg(test)]
 use approval_args::APPROVE_RESERVED_ARG;
 use approval_args::shape_approval_arg;
+#[cfg(test)]
+pub(crate) use dispatch::dispatch_tool_impl;
+pub(crate) use dispatch::dispatch_tool_impl_for_pin;
+use dispatch::{prepare_web_toolkit_args, register_embedded_toolkit_metadata};
 pub use file_input_policy::FileInputPolicyDto;
 use gui_context::{apply_gui_context, gui_execution_context_for_pin};
 pub use input_field::{
     ChoiceOptionDto, FieldConstraintsDto, InputFieldDto, InputFieldType, NumberConstraintsDto,
     StringConstraintsDto,
 };
+pub use presentation_view::{
+    PresentationActionAvailabilityDto, PresentationDetailDto, PresentationFieldDto,
+    PresentationNoticeDto, PresentationRowDetailDto, PresentationStatusDto, PresentationViewDto,
+};
 
 const INVALID_TOOL_ID_ERROR_CODE: &str = "invalid_tool_id";
 const INVALID_ARGS_JSON_ERROR_CODE: &str = "invalid_args_json";
 const TOOL_NOT_FOUND_ERROR_CODE: &str = "tool_not_found";
 const DISPATCH_UNIMPLEMENTED_ERROR_CODE: &str = "dispatch_unimplemented";
+
+pub(crate) fn register_toolkit_runtime() -> Result<(), String> {
+    upeg_toolkit_catalog::register_web_capabilities()?;
+    #[cfg(not(target_arch = "wasm32"))]
+    upeg_toolkit_native::register_native_toolkits()?;
+    Ok(())
+}
 
 /// Dart-mirrored view of [`upeg_core::ToolkitMeta`].
 ///
@@ -156,6 +173,8 @@ pub struct ToolPresentationDto {
 pub struct PresentationColumnDto {
     pub label: String,
     pub pointer: String,
+    pub tone_pointer: Option<String>,
+    pub filterable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -214,6 +233,7 @@ pub struct PresentationRowDto {
     pub key: String,
     pub value_json: String,
     pub cells_json: Vec<String>,
+    pub cell_tones: Vec<Option<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -232,6 +252,8 @@ impl From<&upeg_core::ToolPresentation> for ToolPresentationDto {
             .map(|column| PresentationColumnDto {
                 label: column.label.clone(),
                 pointer: column.pointer.clone(),
+                tone_pointer: column.tone_pointer.clone(),
+                filterable: column.filterable,
             })
             .collect();
         let actions = value
@@ -517,44 +539,15 @@ pub fn resolve_tool_presentation_rows(
     tool_id: String,
     outputs_json: String,
 ) -> PresentationRowsDto {
-    let Some(tool) = upeg_runtime::toolbox_tools().find(|tool| tool.id == tool_id) else {
-        return PresentationRowsDto {
-            rows: Vec::new(),
-            diagnostics: vec![format!("tool `{tool_id}` is not installed")],
-            row_actions_enabled: false,
-        };
-    };
-    let Some(presentation) = tool.presentation.as_ref() else {
-        return PresentationRowsDto {
-            rows: Vec::new(),
-            diagnostics: vec![format!("tool `{tool_id}` has no presentation")],
-            row_actions_enabled: false,
-        };
-    };
-    let outputs = match serde_json::from_str(&outputs_json) {
-        Ok(value) => value,
-        Err(error) => {
-            return PresentationRowsDto {
-                rows: Vec::new(),
-                diagnostics: vec![format!("outputs JSON is invalid: {error}")],
-                row_actions_enabled: false,
-            };
-        }
-    };
-    let resolved = upeg_core::resolve_rows(presentation, &outputs);
-    PresentationRowsDto {
-        rows: resolved
-            .rows
-            .into_iter()
-            .map(|row| PresentationRowDto {
-                key: row.key,
-                value_json: row.value.to_string(),
-                cells_json: row.cells.into_iter().map(|cell| cell.to_string()).collect(),
-            })
-            .collect(),
-        diagnostics: resolved.diagnostics,
-        row_actions_enabled: resolved.row_actions_enabled,
-    }
+    presentation_view::resolve_rows(tool_id, outputs_json)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn resolve_tool_presentation_view(
+    tool_id: String,
+    outputs_json: String,
+) -> PresentationViewDto {
+    presentation_view::resolve_view(tool_id, outputs_json)
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -600,6 +593,14 @@ pub fn resolve_tool_action_bindings(
         Ok(value) => value,
         Err(error) => return diagnostic(format!("outputs JSON is invalid: {error}")),
     };
+    let availability = upeg_core::resolve_action_availability(presentation, action, &outputs);
+    if !availability.enabled {
+        return diagnostic(
+            availability
+                .reason
+                .unwrap_or_else(|| "action is disabled".to_string()),
+        );
+    }
     let selected_row = match selected_row_json
         .as_deref()
         .map(serde_json::from_str)
@@ -626,6 +627,10 @@ pub fn resolve_tool_action_bindings(
 /// toolkit selector / nav.
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_toolkits() -> Vec<ToolkitDto> {
+    register_embedded_toolkit_metadata();
+    if let Err(error) = register_toolkit_runtime() {
+        tracing::error!(%error, "upeg toolkit runtime registration failed");
+    }
     let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let mut dtos: Vec<ToolkitDto> = upeg_runtime::toolbox_toolkits()
         .map(ToolkitDto::from)
@@ -639,6 +644,10 @@ pub fn list_toolkits() -> Vec<ToolkitDto> {
 /// everything.
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_tools(toolkit: Option<String>) -> Vec<ToolDto> {
+    register_embedded_toolkit_metadata();
+    if let Err(error) = register_toolkit_runtime() {
+        tracing::error!(%error, "upeg toolkit runtime registration failed");
+    }
     let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
     let mut dtos: Vec<ToolDto> = upeg_runtime::toolbox_tools()
         .filter(|t| match toolkit.as_deref() {
@@ -906,75 +915,59 @@ pub async fn dispatch_tool_async(
     result
 }
 
-/// Shared dispatch body: id validation, args parsing, desktop execution
-/// context, approval shaping, registry dispatch.
+/// Arguments prepared for an independently downloaded browser toolkit.
 ///
-/// `pub(crate)` so the streaming entry point (`api::dispatch_stream`)
-/// runs the *same* path with a progress sink and a cancellation token
-/// installed around it, rather than forking the arg-shaping logic.
-#[cfg(test)]
-pub(crate) fn dispatch_tool_impl(
-    tool_id: &str,
-    args_json: &str,
-    board_key: Option<&str>,
-    approve: bool,
-) -> CanonicalToolResult {
-    dispatch_tool_impl_for_pin(tool_id, args_json, board_key, None, approve)
+/// Dart forwards only [`WebToolkitDispatchPreparation::effective_args_json`] to the Worker. Any
+/// context/preset/approval failure stays a normal canonical tool result.
+#[derive(Debug, Clone, PartialEq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct WebToolkitDispatchPreparation {
+    pub effective_args_json: Option<String>,
+    pub error: Option<CanonicalToolResult>,
 }
 
-pub(crate) fn dispatch_tool_impl_for_pin(
-    tool_id: &str,
-    args_json: &str,
-    board_key: Option<&str>,
-    pin_id: Option<&str>,
+/// Reuse the in-process GUI dispatch boundary before a browser Worker invokes
+/// a toolkit pack. This owns tool-id validation, board/pin presets, execution
+/// context, and typed approval shaping; Dart must not recreate any of them.
+#[flutter_rust_bridge::frb(sync)]
+pub fn prepare_web_toolkit_dispatch(
+    tool_id: String,
+    args_json: String,
+    board_key: Option<String>,
+    pin_id: Option<String>,
     approve: bool,
-) -> CanonicalToolResult {
-    if let Err(err) = ToolId::parse_canonical(tool_id) {
-        return CanonicalToolResult::error(
-            INVALID_TOOL_ID_ERROR_CODE,
-            format!("tool_id validation error: {err}"),
-        );
+) -> WebToolkitDispatchPreparation {
+    register_embedded_toolkit_metadata();
+    match prepare_web_toolkit_args(
+        &tool_id,
+        &args_json,
+        board_key.as_deref(),
+        pin_id.as_deref(),
+        approve,
+    ) {
+        Ok(effective_args_json) => WebToolkitDispatchPreparation {
+            effective_args_json: Some(effective_args_json),
+            error: None,
+        },
+        Err(error) => WebToolkitDispatchPreparation {
+            effective_args_json: None,
+            error: Some(error),
+        },
     }
+}
 
-    let args: serde_json::Value = match serde_json::from_str(args_json) {
-        Ok(v) => v,
-        Err(err) => {
-            return CanonicalToolResult::error(
-                INVALID_ARGS_JSON_ERROR_CODE,
-                format!("args_json parse error: {err}"),
-            );
-        }
-    };
-
-    // Take the project call lease before reading board presets/context and
-    // retain it through dispatch. Without this, a project switch could swap
-    // registry state between the preset read and the eventual tool call.
-    let _project_call = match upeg_runtime::project_scope::begin_call() {
-        Ok(guard) => guard,
-        Err(message) => return CanonicalToolResult::error("project_switching", message),
-    };
-
-    let context = match gui_execution_context_for_pin(tool_id, board_key, pin_id) {
-        Ok(context) => context,
-        Err(err) => return *err,
-    };
-    // Approval shaping runs *after* the context merge so it is the last
-    // writer: a board pin's saved args preset is caller-supplied data
-    // too, and it must not be able to smuggle the reserved key in as a
-    // default.
-    let args = shape_approval_arg(apply_gui_context(args, &context, pin_id, tool_id), approve);
-
-    match upeg_tools::dispatch_registered(tool_id, &args) {
-        upeg_tools::RegisteredDispatch::Ran(result) => CanonicalToolResult::from(result),
-        upeg_tools::RegisteredDispatch::NotFound => CanonicalToolResult::error(
-            TOOL_NOT_FOUND_ERROR_CODE,
-            format!("tool `{tool_id}` is not registered"),
-        ),
-        upeg_tools::RegisteredDispatch::Unimplemented => CanonicalToolResult::error(
-            DISPATCH_UNIMPLEMENTED_ERROR_CODE,
-            format!("dispatch not implemented for `{tool_id}`"),
-        ),
-    }
+/// Record the Worker result through the same diagnostic boundary used by an
+/// in-process call. The Dart side has already decoded the canonical JSON into
+/// [`CanonicalToolResult`], retaining the established FileValue wire codec.
+#[flutter_rust_bridge::frb(sync)]
+pub fn complete_web_toolkit_dispatch(
+    tool_id: String,
+    effective_args_json: String,
+    result: CanonicalToolResult,
+) {
+    let identity =
+        super::diagnostics::capture_dispatch_identity(&tool_id, &effective_args_json, None);
+    super::diagnostics::record_dispatch_diagnostic(identity, &result);
 }
 
 #[cfg(test)]

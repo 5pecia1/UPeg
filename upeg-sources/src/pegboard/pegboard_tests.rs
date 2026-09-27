@@ -213,6 +213,7 @@ fn remove_tool_everywhere_empties_all_boards() {
 
 #[test]
 fn sanitize_moves_collisions_to_first_free_cell() {
+    upeg_toolkit_native::register_native_toolkits().expect("register builtin tool metadata");
     // Two U1 widgets at the same (x, y) mimic a corrupted saved value or
     // a manifest size change that now overlaps. sanitize must keep the
     // first placement at its stored coordinates and move the colliding
@@ -261,6 +262,7 @@ fn sanitize_moves_collisions_to_first_free_cell() {
 
 #[test]
 fn sanitize_moves_out_of_board_items_inside_fixed_board() {
+    upeg_toolkit_native::register_native_toolkits().expect("register builtin tool metadata");
     const BEYOND_BOARD_OFFSET: u16 = 4;
 
     // When a stored x exceeds BOARD_COLS, sanitize must relocate it to

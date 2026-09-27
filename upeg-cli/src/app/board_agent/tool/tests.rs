@@ -4,11 +4,14 @@ use upeg_runtime::execution_requirements::{
     ToolExecutionRequirements, set_tool_execution_requirements,
 };
 
+fn builtin_meta() -> &'static ToolMeta {
+    upeg_toolkit_native::register_native_toolkits().expect("register generated builtins");
+    upeg_runtime::toolbox_tool("num.hex_to_decimal").expect("num builtin metadata")
+}
+
 #[test]
 fn a_declared_default_alone_cannot_omit_a_required_input() {
-    let mut meta = upeg_runtime::toolbox_tool("num.hex_to_decimal")
-        .unwrap()
-        .clone();
+    let mut meta = builtin_meta().clone();
     meta.input_spec.fields[0].constraints.string = Some(upeg_core::StringConstraints {
         default: Some("0xff".into()),
         regex: None,
@@ -32,7 +35,7 @@ fn a_declared_default_alone_cannot_omit_a_required_input() {
 
 #[test]
 fn an_invalid_preset_keeps_the_required_input_and_guides_a_fix() {
-    let meta = upeg_runtime::toolbox_tool("num.hex_to_decimal").unwrap();
+    let meta = builtin_meta();
     let preset = ArgsPreset::parse(r#"{"input":42}"#).unwrap();
     let schema = effective_tool_schema(meta, Some(&preset));
     assert!(
@@ -56,9 +59,7 @@ fn verifies_external_command_existence_and_in_project_call_directory() {
     let root = tempfile::tempdir().unwrap();
     let member = root.path().join("member");
     std::fs::create_dir(&member).unwrap();
-    let mut meta = upeg_runtime::toolbox_tool("num.hex_to_decimal")
-        .unwrap()
-        .clone();
+    let mut meta = builtin_meta().clone();
     meta.id = ID;
     meta.invoker = Invoker::External;
     set_tool_execution_requirements(

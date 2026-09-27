@@ -23,7 +23,7 @@ use std::time::Instant;
 use serde_json::Value;
 use upeg_core::{ProcessErrorStreams, ToolFailure, ToolResult, ToolSuccess};
 use upeg_runtime::{ProgressEvent, SharedProgressSink, with_progress_sink};
-use upeg_tools::RegisteredDispatch;
+use upeg_toolkit_native::RegisteredDispatch;
 
 // Canonical output-text conversion lives in `upeg-runtime`; the CLI keeps
 // these named entry points so existing callers (surfaces, adapters) don't
@@ -122,7 +122,7 @@ pub fn dispatch_tool(id: &str, args: &Value) -> Outcome {
     };
     let started = Instant::now();
     let diagnostic_context = crate::adapters::diagnostics::capture_dispatch(id, args);
-    let outcome = match upeg_tools::dispatch_registered(id, args) {
+    let outcome = match upeg_toolkit_native::dispatch_registered(id, args) {
         RegisteredDispatch::NotFound => Outcome::NotFound,
         RegisteredDispatch::Ran(ToolResult::Success(success)) => Outcome::Success(success),
         RegisteredDispatch::Ran(ToolResult::Failure(failure)) => Outcome::Failure(failure),
@@ -367,8 +367,8 @@ mod tests {
         // Two calls in a row must be cheap and must leave the registry
         // pointing at the same closures (last write wins, same closure body
         // each time → equivalent behavior).
-        upeg_tools::register_all();
-        upeg_tools::register_all();
+        upeg_toolkit_native::register_native_toolkits().expect("register builtins");
+        upeg_toolkit_native::register_native_toolkits().expect("register builtins");
         // After init, hex_to_decimal resolves through try_runtime_dispatch — proves
         // the built-in took the runtime-dispatcher path rather than the old
         // hardcoded match.

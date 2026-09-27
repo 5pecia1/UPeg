@@ -75,9 +75,9 @@ class _PendingActivationBridgeState
         unawaited(_openEmbedForToolId(ToolId.parse(toolId)));
       case PinActivationDto_DispatchImmediate(:final toolId):
         final parsedToolId = ToolId.parse(toolId);
-        final outcome = await dispatchToolAsync(
-          toolId: parsedToolId.value,
-          argsJson: _kPopupActivationArgsJson,
+        final outcome = await ref.read(toolkitDispatchProvider)(
+          toolId: parsedToolId,
+          args: ToolArgs.empty,
           boardKey: ref.read(currentBoardKeyProvider)?.value,
           // A deep link / popup activation is not a person
           // answering an approval barrier, so it never approves.

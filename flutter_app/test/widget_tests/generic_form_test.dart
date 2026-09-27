@@ -44,6 +44,59 @@ bool _editableHasFocus(WidgetTester tester, String key) {
 }
 
 void main() {
+  testWidgets(
+    'bound text is disclosed while required unfinished inputs stay visible',
+    (tester) async {
+      final tool = _toolWithFields(const [
+        InputFieldDto(
+          key: 'token',
+          label: 'Token',
+          fieldType: InputFieldType_Text(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'project',
+          label: 'Project',
+          fieldType: InputFieldType_FilePath(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'note',
+          label: 'Note',
+          fieldType: InputFieldType_Text(),
+          required_: true,
+        ),
+      ]);
+      final controller = GenericFormController()
+        ..set('token', const TextValue('abc'));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [...i18nTestOverrides],
+          child: MaterialApp(
+            home: Scaffold(
+              body: GenericFormWidget(
+                tool: tool,
+                controller: controller,
+                boundInputKeys: const {'token', 'project', 'note'},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(
+        find.byKey(const Key('generic-form-bound-inputs')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('field-token')), findsNothing);
+      expect(find.byKey(const Key('field-project')), findsOneWidget);
+      expect(find.byKey(const Key('field-note')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('generic-form-bound-inputs')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('field-token')), findsOneWidget);
+      expect(controller.snapshot().toJsonObject()['token'], 'abc');
+    },
+  );
+
   group('GenericFormWidget', () {
     testWidgets('the_generic_form_renders_the_right_widget_for_each_field_type', (
       tester,

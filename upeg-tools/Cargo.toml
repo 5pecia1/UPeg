@@ -6,31 +6,30 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Built-in upeg Tools — pure cross-surface implementations annotated with #[upeg::tool]. Surfaces (CLI/TUI/Desktop/MCP/HTTP/Ext) consume the same registry."
+description = "Built-in Tool implementations selected one Toolkit feature at a time for downloadable packs."
 
 [dependencies]
-base32 = { workspace = true }
-base64 = { workspace = true }
-crc32fast = { workspace = true }
-csv = { workspace = true }
-getrandom = { workspace = true }
-md-5 = { workspace = true }
-qrcode = { workspace = true }
-regex = { workspace = true }
+base32 = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+crc32fast = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
+md-5 = { workspace = true, optional = true }
+qrcode = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha1 = { workspace = true }
-sha2 = { workspace = true }
-similar = { workspace = true }
-unicode-normalization = { workspace = true }
+sha1 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+similar = { workspace = true, optional = true }
+unicode-normalization = { workspace = true, optional = true }
 upeg-core = { workspace = true }
 upeg-runtime = { workspace = true }
-urlencoding = { workspace = true }
-uuid = { workspace = true }
-zxcvbn = { workspace = true }
+urlencoding = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+zxcvbn = { workspace = true, optional = true }
 
-# Pure-Rust media/QR engines — all wasm-safe, so they live in the common deps
-# and their tools compile on every surface including the browser (wasm32):
+# Pure-Rust media/QR engines are optional and only selected by their packs:
 #   zip     — in-memory archive read/write (pptx / pdf_extract / image_to_pdf)
 #   image   — PNG/JPEG decode/encode
 #   krilla  — pure-Rust PDF writer (media.image_to_pdf)
@@ -38,31 +37,50 @@ zxcvbn = { workspace = true }
 #   rqrr    — pure-Rust QR decoder (qr.decode)
 #   lopdf + flate2 + weezl + zune-jpeg + hayro-ccitt
 #           — media.pdf_extract_images codecs
-zip = { workspace = true }
-image = { workspace = true }
-resvg = { workspace = true }
-krilla = { workspace = true }
-hayro = { workspace = true }
-rqrr = { workspace = true }
-lopdf = { workspace = true }
-pdf-inspector = { workspace = true }
-flate2 = { workspace = true }
-weezl = { workspace = true }
-zune-jpeg = { workspace = true }
-hayro-ccitt = { workspace = true }
+zip = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
+resvg = { workspace = true, optional = true }
+krilla = { workspace = true, optional = true }
+hayro = { workspace = true, optional = true }
+rqrr = { workspace = true, optional = true }
+lopdf = { workspace = true, optional = true }
+pdf-inspector = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+weezl = { workspace = true, optional = true }
+zune-jpeg = { workspace = true, optional = true }
+hayro-ccitt = { workspace = true, optional = true }
 
 # WASM targets need the JavaScript-backed RNG so `uuid::Uuid::now_v7()` works
 # in browsers (STACK.md §3 — Desktop+PWA+Ext share the same bin via WASM).
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { workspace = true, features = ["wasm_js"] }
-uuid = { workspace = true, features = ["v4", "v7", "js"] }
+getrandom = { workspace = true, features = ["wasm_js"], optional = true }
+uuid = { workspace = true, features = ["v4", "v7", "js"], optional = true }
 
 # Native-only tools — `ureq`/`rusqlite`/`dirs` need real sockets/filesystem,
 # absent in the wasm32 sandbox.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dirs = { workspace = true }
-rusqlite = { workspace = true }
-ureq = { workspace = true }
+dirs = { workspace = true, optional = true }
+rusqlite = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
+
+[features]
+default = []
+all-toolkits = ["color", "convert", "csv", "devcontainer", "eth", "hash", "id", "media", "net", "num", "qr", "security", "text", "time", "weather"]
+color = []
+convert = ["dep:base32", "dep:base64", "dep:unicode-normalization", "dep:urlencoding"]
+csv = ["dep:csv", "dep:similar"]
+devcontainer = ["dep:dirs", "dep:rusqlite", "dep:regex", "dep:urlencoding"]
+eth = ["dep:ureq"]
+hash = ["dep:crc32fast", "dep:md-5", "dep:sha1", "dep:sha2"]
+id = ["dep:getrandom", "dep:uuid"]
+media = ["dep:zip", "dep:image", "dep:resvg", "dep:krilla", "dep:hayro", "dep:lopdf", "dep:pdf-inspector", "dep:flate2", "dep:weezl", "dep:zune-jpeg", "dep:hayro-ccitt"]
+net = []
+num = []
+qr = ["dep:qrcode", "dep:rqrr", "dep:image"]
+security = ["dep:getrandom", "dep:zxcvbn"]
+text = ["dep:regex", "dep:similar"]
+time = []
+weather = ["dep:ureq", "dep:urlencoding"]
 
 # `unsafe_code = "deny"` is inherited from `[workspace.lints.rust]` via
 # `[lints] workspace = true`, alongside the workspace clippy config. A local

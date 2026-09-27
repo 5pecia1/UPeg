@@ -20,6 +20,7 @@ import 'package:upeg/src/rust/api/boot.dart';
 import 'package:upeg/src/state/launch_intent_provider.dart';
 import 'package:upeg/src/state/shared_state_versions.dart';
 import 'package:upeg/src/state/theme_mode_provider.dart';
+import 'package:upeg/src/state/toolkit_runtime_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -51,6 +52,9 @@ final appInitProvider = FutureProvider<AppInitReport>((ref) async {
   log('upeg: appInitProvider — calling initApp()');
   final report = await run();
   log('upeg: appInitProvider — initApp returned, version=${report.version}');
+  // Catalog metadata is embedded in the shell, so this refresh never blocks
+  // boot or makes an installed toolkit depend on the network.
+  unawaited(ref.read(toolkitRuntimeProvider.notifier).syncCatalog());
 
   // Post-init wiring is best-effort: tray/window/deep-link failures must
   // NOT keep the splash spinner on screen forever. Each subsystem is

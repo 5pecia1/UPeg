@@ -86,6 +86,11 @@ pub(super) fn open_result_action(state: &mut State) -> Effect {
         );
         return Effect::None;
     };
+    let availability = upeg_core::resolve_action_availability(presentation, action, &output_values);
+    if !availability.enabled {
+        state.status_message = availability.reason;
+        return Effect::None;
+    }
     if matches!(action.scope, upeg_core::ActionScope::Row)
         && source.effect == upeg_core::ToolEffect::Read
         && let (Some(result_run), Some(PresentationHost::LocalTui)) =

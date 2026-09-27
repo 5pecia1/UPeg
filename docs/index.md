@@ -59,6 +59,8 @@ applications rather than replacing them.
 - [Architecture](architecture.md) — one Tool on seven surfaces: layers, the
   call envelope, file wire, hosts, HTTP, MCP, and the security absolutes.
   Contracts live in module rustdoc.
+- [Toolkit pack runtime](TOOLKIT_PACK_RUNTIME.md) — catalog, integrity, and
+  offline-cache rules for independently delivered Toolkit code.
 
 ## Reference
 

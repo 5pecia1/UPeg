@@ -303,6 +303,14 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `row_key` | no | string or null | JSON Pointer from each row to its stable key. |
 | `columns` | no | array<PresentationColumnToml> | Ordered columns rendered for each row in the collection. |
 | `actions` | no | array<PresentationActionToml> | Follow-up actions available for the result or its rows. |
+| `title_pointer` | no | string or null | String pointers into `output` for a prominent title and context. |
+| `subtitle_pointer` | no | string or null | Secondary context string pointer into `output`. |
+| `status` | no | PresentationStatusToml or null | Text and closed tone for the result state. |
+| `summary` | no | array<PresentationColumnToml> | Scalar facts shown before the collection. |
+| `notices` | no | PresentationNoticesToml or null | Array of visible notices with text and severity. |
+| `detail` | no | PresentationDetailToml or null | Detail fields and optional Markdown or unified diff for the result. |
+| `row_detail` | no | PresentationDetailToml or null | Detail fields for the selected collection row. |
+| `empty_message_pointer` | no | string or null | Message for an empty source array, distinct from a search with no matches. |
 
 ### PresentationColumnToml
 
@@ -310,6 +318,8 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | --- | --- | --- | --- |
 | `label` | yes | string | Human-readable column heading. |
 | `pointer` | yes | string | JSON Pointer from the current row to the displayed value. |
+| `tone_pointer` | no | string or null | Optional pointer to a closed tone for this row cell. |
+| `filterable` | no | boolean | Whether the UI may offer an equality filter on this column. |
 
 ### PresentationActionToml
 
@@ -321,6 +331,8 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `target_tool` | yes | string | Fully qualified id of the tool invoked by this action. |
 | `on_success` | no | string or null | Optional post-success behavior; currently `refresh_origin`. |
 | `bindings` | no | object | Map of target-tool input names to values resolved from this result. |
+| `enabled_pointer` | no | string or null | Optional boolean pointer into the selected JSON output; missing is disabled. |
+| `disabled_reason_pointer` | no | string or null | String pointer displayed when the action is disabled. |
 
 ### PresentationBindingToml
 
@@ -329,6 +341,29 @@ The table below documents the user-authored Toolkit TOML shape. It intentionally
 | `from` | yes | string | Value source: `input`, `output`, `row`, or `constant`. |
 | `pointer` | no | string or null | JSON Pointer used by non-constant sources. |
 | `value` | no | unknown | Literal JSON value used by a `constant` source. |
+
+### PresentationStatusToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `label_pointer` | yes | string | String pointer into the selected JSON output. |
+| `tone_pointer` | yes | string | Pointer to `info`, `success`, `warning`, or `error`. |
+
+### PresentationNoticesToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `rows_pointer` | yes | string | Pointer to an array within the selected JSON output. |
+| `text_pointer` | yes | string | String pointer relative to one notice row. |
+| `severity_pointer` | yes | string | Tone pointer relative to one notice row. |
+
+### PresentationDetailToml
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `fields` | no | array<PresentationColumnToml> | Ordered scalar fields in the selected result or row. |
+| `markdown_pointer` | no | string or null | Optional Markdown string pointer. |
+| `diff_pointer` | no | string or null | Optional unified diff string pointer. |
 
 ## Tool output contracts
 

@@ -16,6 +16,7 @@
 library;
 
 import 'dart:async' show unawaited;
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
@@ -32,9 +33,11 @@ import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/tools.dart'
     show CanonicalToolResult, OutputFieldDto;
+import 'package:upeg/src/rust/api/tools/presentation_view.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
+import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/pin_renderers/registry.dart'
     show pinKindChrome;
@@ -305,6 +308,20 @@ class Pin extends ConsumerWidget {
     final toolkitLabel = toolkit ?? '';
     final kind = pinKind;
     final chrome = kind == null ? null : pinKindChrome(kind);
+    PresentationViewDto? compact;
+    if (outputResult != null && !outputTruncated) {
+      // Pins can render before the catalog/presentation metadata is ready.
+      // The ordinary compact output remains available in that state.
+      try {
+        compact = ref.watch(presentationViewResolverProvider)(
+          toolId: placement.toolId,
+          outputsJson: jsonEncode(outputResult!.jsonValues),
+        );
+        if (compact.diagnostics.isNotEmpty) compact = null;
+      } on StateError {
+        compact = null;
+      }
+    }
     final bodyContent = bodyOverride == null
         ? PinBody(
             tokens: tokens,
@@ -312,6 +329,10 @@ class Pin extends ConsumerWidget {
             description: toolDescription,
             outputFields: outputFields,
             outputResult: outputResult,
+            richStatus: compact?.status?.label,
+            richSummary: compact?.summary.isEmpty ?? true
+                ? null
+                : '${compact!.summary.first.label}: ${compact.summary.first.value}',
             truncated: outputTruncated,
           )
         // Embed bodies (form field + live webview) mark their

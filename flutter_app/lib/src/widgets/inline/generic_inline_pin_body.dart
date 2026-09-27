@@ -21,7 +21,9 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,7 +35,9 @@ import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/inline_draft_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart' show PinKey;
+import 'package:upeg/src/state/presentation_resolver_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
+import 'package:upeg/src/state/toolkit_runtime_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/approval_confirm_dialog.dart';
 import 'package:upeg/src/widgets/expanded_modal/generic_form.dart'
@@ -319,6 +323,10 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
     ToolArgs args, {
     required bool approve,
   }) async {
+    if (kIsWeb) {
+      await _webRun(revision, args, approve: approve);
+      return;
+    }
     final dispatch = ref.read(dispatchStreamFnProvider);
     final runningTools = ref.read(runningToolsProvider.notifier);
     final runId = nextDispatchRunId();
@@ -360,6 +368,44 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
       if (acceptResult) {
         _result = outcome.ok ? outcome : _safeFailureResult();
       }
+    });
+    if (acceptResult) _revealOutput();
+    if (rerunLatest) {
+      scheduleMicrotask(() => _requestRun(_RunTrigger.inputChange));
+    }
+  }
+
+  Future<void> _webRun(
+    int revision,
+    ToolArgs args, {
+    required bool approve,
+  }) async {
+    final runningTools = ref.read(runningToolsProvider.notifier);
+    final runningLease = runningTools.begin(widget.pinKey);
+    CanonicalToolResult outcome;
+    try {
+      outcome = await ref.read(toolkitDispatchProvider)(
+        toolId: _toolId,
+        args: args,
+        boardKey: widget.pinKey.$1.value,
+        pinId: widget.pinKey.$2.value,
+        approve: approve,
+      );
+    } on Object {
+      outcome = _safeFailureResult();
+    } finally {
+      runningTools.end(runningLease);
+    }
+    if (!mounted) return;
+    final acceptResult = revision == _revision;
+    final rerunLatest =
+        _queuedRevision == _revision && _allOk && _sourceRunsOnChange;
+    setState(() {
+      _running = false;
+      _runningRevision = null;
+      _queuedRevision = null;
+      _runId = null;
+      if (acceptResult) _result = outcome.ok ? outcome : _safeFailureResult();
     });
     if (acceptResult) _revealOutput();
     if (rerunLatest) {
@@ -564,6 +610,38 @@ class _GenericInlinePinBodyState extends ConsumerState<GenericInlinePinBody> {
           fontFamilyFallback: upegMonoFontFamilyFallback,
           color: tokens.warn,
         ),
+      );
+    }
+    final presentation = widget.tool.presentation == null
+        ? null
+        : ref.watch(presentationViewResolverProvider)(
+            toolId: widget.tool.id,
+            outputsJson: jsonEncode(result.jsonValues),
+          );
+    if (presentation != null &&
+        presentation.diagnostics.isEmpty &&
+        (presentation.summary.isNotEmpty || presentation.status != null)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (presentation.status case final status?)
+            Text(
+              status.label,
+              style: TextStyle(color: tokens.fg3, fontSize: 10),
+            ),
+          if (presentation.summary.isNotEmpty)
+            Text(
+              '${presentation.summary.first.label}: ${presentation.summary.first.value}',
+              key: const Key('inline-rich-summary'),
+              maxLines: _inlineSingleLine,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: tokens.fg,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+        ],
       );
     }
     // Tools that declare no `outputs` still yield a single fallback value

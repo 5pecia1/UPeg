@@ -141,7 +141,7 @@ impl Default for RuntimeSourceConfig {
 /// path can all call it unconditionally.
 pub fn load_local_runtime_sources(config: &RuntimeSourceConfig) -> RuntimeSourceReport {
     crate::source_freshness::record_loaded_sources(config);
-    upeg_tools::register_all();
+    let _ = upeg_toolkit_native::register_native_toolkits();
 
     let (toolkits, toolkits_outcome) = load_toolkits_dir(config.toolkits_dir.as_deref());
     let project_manifest = config.project_manifest.as_ref().map(load_project_manifest);

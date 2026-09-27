@@ -74,20 +74,18 @@ drift, analyze, tests, and Linux/web builds; `licenses` runs cargo-deny.
 
 ## Releases
 
-The `release` workflow has two explicit modes. `native` builds and publishes
-from the selected public commit after all four public verification lanes pass.
+The manually dispatched `release` workflow builds from the selected public
+`main` commit and publishes only after all four public verification lanes pass.
 It requires `PUBLIC_RELEASE_APP_ID` and `PUBLIC_RELEASE_APP_PRIVATE_KEY` for
 an App installed only on this repository with `contents: write`; the default
 workflow token cannot create protected tags. That designated App must also be
-an allowed bypass actor for the `oss-tags-app-only` tag ruleset. `native` is
-started manually with `workflow_dispatch`. `mirror` starts automatically from
-the `repository_dispatch` event `upeg_release_mirror` and can also be started
-manually with `workflow_dispatch`. It verifies the exact bytes and manifest
-already attached to a public draft release, runs the same four lanes against
-`public_sha`, and only then publishes that draft. It has no
-credential for, or dependency on, the private source repository. The bridge
-uses an App with Contents, Workflows, and Pull requests write permissions;
-it does not require Actions write permission.
+an allowed bypass actor for the `oss-tags-app-only` tag ruleset. There is no
+Pro-to-OSS release bridge: every public release builds its assets from its
+public source commit.
+The public release requires the four native CLI archives, Linux DEB and
+AppImage, macOS DMG, Windows MSIX, web bundle, and all four native toolkit
+catalogues with their 15 packs each. Every payload has a SHA256 sidecar;
+the manifest rejects missing assets before the release App can publish.
 
 ## Conventions
 

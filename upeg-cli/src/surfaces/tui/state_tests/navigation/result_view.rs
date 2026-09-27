@@ -10,6 +10,16 @@ fn follow_up_state(
     effect: ToolEffect,
     input: serde_json::Value,
 ) -> State {
+    follow_up_state_with_availability(target_id, target_local_id, effect, input, None)
+}
+
+fn follow_up_state_with_availability(
+    target_id: &'static str,
+    target_local_id: &'static str,
+    effect: ToolEffect,
+    input: serde_json::Value,
+    enabled: Option<bool>,
+) -> State {
     let source_id: &'static str =
         Box::leak(format!("test.source_{target_local_id}").into_boxed_str());
     let source_local_id: &'static str =
@@ -19,7 +29,7 @@ fn follow_up_state(
     source.local_id = source_local_id;
     source.presentation = Some(ToolPresentation {
         version: upeg_core::PRESENTATION_VERSION_V1,
-        output: None,
+        output: enabled.map(|_| "result".into()),
         rows: None,
         row_key: None,
         columns: Vec::new(),
@@ -29,6 +39,8 @@ fn follow_up_state(
             label: "Follow".into(),
             target_tool: target_id.into(),
             on_success: None,
+            enabled_pointer: enabled.map(|_| "/view/actions/follow/enabled".into()),
+            disabled_reason_pointer: None,
             bindings: BTreeMap::from([(
                 "project".into(),
                 ActionBinding::Input {
@@ -36,6 +48,14 @@ fn follow_up_state(
                 },
             )]),
         }],
+        title_pointer: None,
+        subtitle_pointer: None,
+        status: None,
+        summary: Vec::new(),
+        notices: None,
+        detail: None,
+        row_detail: None,
+        empty_message_pointer: None,
     });
     upeg_runtime::toolbox_add_tool(source);
     let mut target = fixture_tools()[0].clone();
@@ -48,13 +68,42 @@ fn follow_up_state(
     State {
         view: View::Result {
             tool_id: source_id,
-            outputs: Vec::new(),
+            outputs: enabled.map_or_else(Vec::new, |enabled| {
+                vec![OutputEntry {
+                    id: "result".into(),
+                    label: None,
+                    kind: OutputKind::Json,
+                    value: OutputValue::Json(
+                        json!({"view":{"actions":{"follow":{"enabled":enabled}}}}),
+                    ),
+                }]
+            }),
             text: "result".into(),
             is_error: false,
         },
         result_inputs: input,
         ..fresh()
     }
+}
+
+#[test]
+fn disabled_result_follow_up_key_stays_on_result() {
+    let mut state = follow_up_state_with_availability(
+        "test.follow_disabled",
+        "follow_disabled",
+        ToolEffect::Write,
+        json!({"project":"alpha"}),
+        Some(false),
+    );
+    assert_eq!(
+        handle_key(&mut state, Key::Char('a'), &fixture_tools()),
+        Action::None
+    );
+    assert!(matches!(state.view, View::Result { .. }));
+    assert_eq!(
+        state.status_message.as_deref(),
+        Some("현재 실행할 수 없습니다")
+    );
 }
 
 #[test]

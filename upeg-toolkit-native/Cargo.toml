@@ -1,0 +1,27 @@
+[package]
+name = "upeg-toolkit-native"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "On-demand native toolkit sidecar installer and dispatcher"
+build = "build.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+flate2.workspace = true
+command-group.workspace = true
+thiserror.workspace = true
+ureq.workspace = true
+upeg-core = { workspace = true, features = ["serde"] }
+upeg-runtime.workspace = true
+upeg-toolkit-catalog.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

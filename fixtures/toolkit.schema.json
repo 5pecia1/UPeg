@@ -671,6 +671,81 @@
           "items": {
             "$ref": "#/$defs/PresentationActionToml"
           }
+        },
+        "title_pointer": {
+          "description": "String pointers into `output` for a prominent title and context.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "subtitle_pointer": {
+          "description": "Secondary context string pointer into `output`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "status": {
+          "description": "Text and closed tone for the result state.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PresentationStatusToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "description": "Scalar facts shown before the collection.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PresentationColumnToml"
+          }
+        },
+        "notices": {
+          "description": "Array of visible notices with text and severity.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PresentationNoticesToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "detail": {
+          "description": "Detail fields and optional Markdown or unified diff for the result.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PresentationDetailToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_detail": {
+          "description": "Detail fields for the selected collection row.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PresentationDetailToml"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "empty_message_pointer": {
+          "description": "Message for an empty source array, distinct from a search with no matches.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "additionalProperties": false,
@@ -691,6 +766,19 @@
         "pointer": {
           "description": "JSON Pointer from the current row to the displayed value.",
           "type": "string"
+        },
+        "tone_pointer": {
+          "description": "Optional pointer to a closed tone for this row cell.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "filterable": {
+          "description": "Whether the UI may offer an equality filter on this column.",
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false,
@@ -735,6 +823,22 @@
           "additionalProperties": {
             "$ref": "#/$defs/PresentationBindingToml"
           }
+        },
+        "enabled_pointer": {
+          "description": "Optional boolean pointer into the selected JSON output; missing is disabled.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "disabled_reason_pointer": {
+          "description": "String pointer displayed when the action is disabled.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "additionalProperties": false,
@@ -774,6 +878,82 @@
       ],
       "x-doc-reference": true,
       "x-doc-order": 18
+    },
+    "PresentationStatusToml": {
+      "type": "object",
+      "properties": {
+        "label_pointer": {
+          "description": "String pointer into the selected JSON output.",
+          "type": "string"
+        },
+        "tone_pointer": {
+          "description": "Pointer to `info`, `success`, `warning`, or `error`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "label_pointer",
+        "tone_pointer"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 19
+    },
+    "PresentationNoticesToml": {
+      "type": "object",
+      "properties": {
+        "rows_pointer": {
+          "description": "Pointer to an array within the selected JSON output.",
+          "type": "string"
+        },
+        "text_pointer": {
+          "description": "String pointer relative to one notice row.",
+          "type": "string"
+        },
+        "severity_pointer": {
+          "description": "Tone pointer relative to one notice row.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "rows_pointer",
+        "text_pointer",
+        "severity_pointer"
+      ],
+      "x-doc-reference": true,
+      "x-doc-order": 20
+    },
+    "PresentationDetailToml": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "description": "Ordered scalar fields in the selected result or row.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PresentationColumnToml"
+          }
+        },
+        "markdown_pointer": {
+          "description": "Optional Markdown string pointer.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "diff_pointer": {
+          "description": "Optional unified diff string pointer.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "x-doc-reference": true,
+      "x-doc-order": 21
     },
     "ToolSetupToml": {
       "description": "Optional, display-only setup guidance for an External tool.",
