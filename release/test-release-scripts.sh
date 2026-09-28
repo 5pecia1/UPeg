@@ -44,13 +44,20 @@ add_toolkit_assets() {
   shift
   local -n assets="$array_name"
   for target in "$@"; do
+    local extension=""
+    if [[ "$target" == "x86_64-pc-windows-msvc" ]]; then
+      extension=".exe"
+    fi
     assets+=("toolkits-$target-catalog.json")
     for id in "${toolkit_ids[@]}"; do
-      assets+=("toolkits-$target-$id-$VERSION.gz")
+      assets+=("toolkits-$target-$id-$VERSION$extension.gz")
     done
   done
 }
 add_toolkit_assets public x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-msvc
+[[ ${#public[@]} -eq 89 ]]
+[[ " ${public[*]} " == *" toolkits-x86_64-pc-windows-msvc-color-$VERSION.exe.gz "* ]]
+[[ " ${public[*]} " != *" toolkits-x86_64-pc-windows-msvc-color-$VERSION.gz "* ]]
 
 build_profile() {
   local profile="$1" payload

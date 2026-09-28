@@ -240,6 +240,18 @@ fn local_release_source_installs_and_bad_update_preserves_cached_catalog() {
         Some(source.path()),
     )
     .expect("install local pack with same verifier");
+    let windows_runner_path = artifact_dir(
+        Path::new(r"C:\Users\RUNNER~1\AppData\Local\Temp\tmp.gR8mDgVlg1"),
+        &abi,
+        &source_identity_for(Some(source.path())),
+        "num",
+        staged_artifact,
+    )
+    .join("upeg-toolkit-num.exe");
+    assert!(
+        windows_runner_path.to_string_lossy().len() < 260,
+        "cached Windows executable must fit the process launch path limit"
+    );
     assert_eq!(fs::read(&path).expect("cached executable"), expanded);
     let staged_catalog = source.path().join("catalog.json");
     fs::rename(&staged_catalog, source.path().join("catalog.held"))

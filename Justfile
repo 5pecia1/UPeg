@@ -883,8 +883,16 @@ package-macos-dmg: flutter-build-macos
 	mkdir -p "$out"
 	work="$(mktemp -d)"
 	trap 'rm -rf "$work"' EXIT
-	# Stage the .app plus the legal set side by side in the .dmg window.
-	cp -a "flutter_app/build/macos/Build/Products/Release/." "$work/dmg/"
+	products="flutter_app/build/macos/Build/Products/Release"
+	app_name="upeg.app"
+	app="$products/$app_name"
+	if [[ ! -d "$app" || -L "$app" || ! -f "$app/Contents/Info.plist" ]]; then
+	  echo "error: expected macOS app bundle at $app" >&2
+	  exit 1
+	fi
+	# Stage only the app users install plus the legal set in the .dmg window.
+	mkdir -p "$work/dmg"
+	cp -a "$app" "$work/dmg/"
 	bash packaging/release-files.sh stage "$work/dmg/licenses"
 	version="$(bash packaging/release-files.sh version)"
 	dmg="$out/upeg-${version}.dmg"

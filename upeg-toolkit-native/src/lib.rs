@@ -356,10 +356,13 @@ fn artifact_dir(
     id: &str,
     artifact: &NativeArtifact,
 ) -> PathBuf {
-    root.join(abi)
-        .join(sha256_hex(source_identity.as_bytes()))
+    root.join(artifact_scope(abi, source_identity))
         .join(id)
         .join(&artifact.sha256)
+}
+
+fn artifact_scope(abi: &str, source_identity: &str) -> String {
+    sha256_hex(format!("{abi}\0{source_identity}").as_bytes())
 }
 
 fn artifact_filename(id: &str) -> String {
@@ -481,12 +484,7 @@ fn last_compatible_from_source(
     source: Option<&Path>,
 ) -> Option<PathBuf> {
     let source_identity = source_identity_for(source);
-    let entries = fs::read_dir(
-        root.join(abi)
-            .join(sha256_hex(source_identity.as_bytes()))
-            .join(id),
-    )
-    .ok()?;
+    let entries = fs::read_dir(root.join(artifact_scope(abi, &source_identity)).join(id)).ok()?;
     for entry in entries.flatten() {
         let dir = entry.path();
         let Ok(bytes) = fs::read(dir.join("receipt.json")) else {
