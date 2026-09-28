@@ -56,8 +56,10 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
             files += [f'upeg-{tag}-web.tar.gz', f'upeg-{tag}-web.tar.gz.sha256']
         elif component == 'toolkits':
             for target in PUBLIC_TOOLKIT_TARGETS:
+                extension = '.exe.gz' if target == 'x86_64-pc-windows-msvc' else '.gz'
                 payloads = [f'toolkits-{target}-catalog.json',
-                            *(f'toolkits-{target}-{toolkit}-{version}.gz' for toolkit in TOOLKIT_IDS)]
+                            *(f'toolkits-{target}-{toolkit}-{version}{extension}'
+                              for toolkit in TOOLKIT_IDS)]
                 files.extend(payloads)
                 files.extend(f'{name}.sha256' for name in payloads)
         else:
