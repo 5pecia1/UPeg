@@ -14,6 +14,13 @@ section.
 - Mirrors verified release assets and their v2 manifest to the public
   repository.
 
+## v0.5.2
+
+- Downloads native toolkits on demand and caches verified packs for offline reuse.
+- Ships Windows desktop packages and a universal macOS app with Intel and Apple
+  Silicon toolkit packs.
+- Builds public release assets independently from the public source snapshot.
+
 Published packages are listed on [GitHub Releases](https://github.com/5pecia1/UPeg/releases).
 The [File wire format](https://github.com/5pecia1/UPeg/blob/main/README.md#file-input-wire)
 migration note documents a breaking change that applies where noted.

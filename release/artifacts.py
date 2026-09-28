@@ -19,7 +19,8 @@ COMPONENTS = ('cli', 'desktop', 'web')
 TOOLKIT_IDS = ('color', 'convert', 'csv', 'devcontainer', 'eth', 'hash', 'id', 'media',
                'net', 'num', 'qr', 'security', 'text', 'time', 'weather')
 PUBLIC_TOOLKIT_TARGETS = ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
-                          'aarch64-apple-darwin', 'x86_64-pc-windows-msvc')
+                          'aarch64-apple-darwin', 'x86_64-apple-darwin',
+                          'x86_64-pc-windows-msvc')
 SHA_PATTERN = re.compile(r'[0-9a-f]{40}\Z')
 DIGEST_PATTERN = re.compile(r'[0-9a-f]{64}\Z')
 

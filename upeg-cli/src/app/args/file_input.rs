@@ -35,8 +35,8 @@ struct DirectFile {
     path: PathBuf,
     size: u64,
     mime: Option<String>,
-    metadata: std::fs::Metadata,
-    file: std::fs::File,
+    metadata: cap_std::fs::Metadata,
+    file: cap_std::fs::File,
 }
 
 pub(super) fn file_value_from_cli_path(

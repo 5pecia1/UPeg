@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-27T11:59:10Z",
+  "generatedAt": "2026-09-27T23:20:47Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3492,
+      "total": 3493,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -699,6 +699,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "app::args::file_input::capability::tests::open_does_not_block_when_the_inspected_regular_file_is_swapped_for_a_fifo"
+        },
+        {
+          "className": "app::args::file_input::identity_tests",
+          "methodName": "reading_accepts_a_hard_link_to_the_inspected_file",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "app::args::file_input::identity_tests::reading_accepts_a_hard_link_to_the_inspected_file"
         },
         {
           "className": "app::args::file_input::identity_tests",

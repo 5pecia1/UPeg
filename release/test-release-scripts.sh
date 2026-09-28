@@ -50,7 +50,7 @@ add_toolkit_assets() {
     done
   done
 }
-add_toolkit_assets public x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-pc-windows-msvc
+add_toolkit_assets public x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-msvc
 
 build_profile() {
   local profile="$1" payload

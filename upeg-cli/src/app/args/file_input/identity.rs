@@ -1,6 +1,6 @@
-use std::fs::Metadata;
 use std::path::Path;
 
+use cap_std::fs::Metadata;
 use upeg_core::InputFieldSpec;
 
 use crate::CliError;
@@ -44,37 +44,20 @@ fn unsupported_identity_error(field: &InputFieldSpec, path: &Path) -> CliError {
     ))
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct FileIdentity {
     device: u64,
     inode: u64,
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn file_identity(metadata: &Metadata) -> Option<FileIdentity> {
-    use std::os::unix::fs::MetadataExt as _;
+    use cap_fs_ext::MetadataExt as _;
 
     Some(FileIdentity {
         device: metadata.dev(),
         inode: metadata.ino(),
-    })
-}
-
-#[cfg(windows)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct FileIdentity {
-    volume_serial_number: u32,
-    file_index: u64,
-}
-
-#[cfg(windows)]
-fn file_identity(metadata: &Metadata) -> Option<FileIdentity> {
-    use std::os::windows::fs::MetadataExt as _;
-
-    Some(FileIdentity {
-        volume_serial_number: metadata.volume_serial_number()?,
-        file_index: metadata.file_index()?,
     })
 }
 
