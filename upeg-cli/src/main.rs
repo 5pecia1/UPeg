@@ -47,6 +47,20 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
+    if matches!(
+        cli.command,
+        Some(upeg_cli::Command::Paths { .. } | upeg_cli::Command::Storage { .. })
+    ) {
+        return print_result(run(cli));
+    }
+    let _storage = match upeg_core::paths::StorageLease::acquire() {
+        Ok(lease) => lease,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
     // Install the Controlled Embed headless backend when compiled in.
     // The default `NoopControlledEmbedBackend` returns a friendly
     // "feature disabled" error otherwise.
@@ -67,7 +81,11 @@ fn main() -> ExitCode {
     upeg_sources::diagnostics::record_runtime_source_failures(&report);
     emit_runtime_source_report(&report, quiet);
 
-    match run(cli) {
+    print_result(run(cli))
+}
+
+fn print_result(result: Result<String, upeg_cli::CliError>) -> ExitCode {
+    match result {
         Ok(stdout) => {
             // CLI binary; stdout IS the payload that pipes / shell
             // redirection consume.

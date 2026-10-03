@@ -29,6 +29,8 @@ pub mod project;
 mod protocol;
 mod source_freshness;
 mod sources;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod storage;
 pub mod store;
 
 pub use source_freshness::{LoadedSourcesError, validate_loaded_sources};

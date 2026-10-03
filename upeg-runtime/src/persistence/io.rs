@@ -25,6 +25,14 @@ pub fn tweaks_path_in(dir: &Path) -> PathBuf {
 /// read-only mount, etc. Callers typically surface the error to the user
 /// as transient ("write failed: …") rather than retrying.
 pub fn save_to_path(path: &Path, value: &str) -> io::Result<()> {
+    let _storage = if path.file_name().is_some_and(|name| name == TWEAKS_FILENAME) {
+        Some(
+            upeg_core::paths::StorageLease::for_artifact(path, "config")
+                .map_err(io::Error::other)?,
+        )
+    } else {
+        None
+    };
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "description": "Canonical storage-marker/pending contract cases for UPeg's split-v2 storage layout. Owned by upeg-core; other ecosystem repos implementing or consuming the same on-disk contract (storage-layout.json / .storage-migration.json) vendor this directory and assert the same outcomes against their own reader/writer. UPeg's own ground truth for these cases is upeg-core/tests/storage_contract.rs, which loads this file and drives upeg_core::paths against real fixtures on disk.",
+  "constants": {
+    "storage_marker_filename": "storage-layout.json",
+    "migration_pending_filename": ".storage-migration.json"
+  },
+  "placeholders": {
+    "ROOT": "Replaced with the absolute path of the case's own fresh temporary root directory before the fixture JSON is parsed or written to disk.",
+    "TARGET": "Replaced with the absolute path of the case's own fresh temporary target directory. Only present in cases that also set target_marker."
+  },
+  "cases": [
+    {
+      "id": "split-v2-marker-resolves-directly",
+      "description": "A plain split-v2 marker with no target/migration_id (never migrated, or already the final destination of one) resolves to itself.",
+      "root_marker": { "kind": "marker", "file": "markers/split-v2.json" },
+      "expect": { "outcome": "ok", "layout": "split-v2", "resolved_root": "ROOT" }
+    },
+    {
+      "id": "redirect-with-migration-id-resolves-to-target",
+      "description": "A redirect-v2 marker at ROOT and a split-v2 marker at TARGET that share the same migration_id: resolving ROOT must follow the redirect and land on TARGET as split-v2.",
+      "root_marker": { "kind": "marker", "file": "markers/redirect-v2.json" },
+      "target_marker": { "kind": "marker", "file": "markers/split-v2-at-target.json" },
+      "expect": { "outcome": "ok", "layout": "split-v2", "resolved_root": "TARGET" }
+    },
+    {
+      "id": "redirect-migration-id-mismatch-is-rejected",
+      "description": "B1: a redirect-v2 marker whose migration_id does not match the target's split-v2 marker must be refused, not silently followed.",
+      "root_marker": { "kind": "marker", "file": "markers/redirect-v2-mismatched-migration-id.json" },
+      "target_marker": { "kind": "marker", "file": "markers/split-v2-at-target.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "orphan-split-artifacts-without-marker-is-rejected",
+      "description": "A root with split-layout content (data/toolkits) but no storage-layout.json marker is ambiguous and must be refused rather than silently adopted.",
+      "root_content": ["data/toolkits/.keep"],
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "flat-root-with-only-database-resolves-as-legacy",
+      "description": "A root with only a flat upeg.db and no marker and no split-layout artifacts resolves as an ordinary legacy-v1 root.",
+      "root_content": ["upeg.db"],
+      "expect": { "outcome": "ok", "layout": "legacy-v1", "resolved_root": "ROOT" }
+    },
+    {
+      "id": "inactive-pending-falls-back-to-normal-resolution",
+      "description": "B4: a pending sidecar whose status is \"inactive\" (a retired/rolled-back-or-aborted migration) must not block resolution; the root resolves normally, uniformly across platforms.",
+      "root_marker": { "kind": "pending", "file": "markers/pending-inactive.json" },
+      "expect": { "outcome": "ok", "layout": "legacy-v1", "resolved_root": "ROOT" }
+    },
+    {
+      "id": "in-progress-pending-blocks-resolution",
+      "description": "A pending sidecar with no status key (a live, in-progress migration) must block resolution with a dedicated pending error.",
+      "root_marker": { "kind": "pending", "file": "markers/pending-in-progress.json" },
+      "expect": { "outcome": "error", "error_kind": "pending" }
+    },
+    {
+      "id": "duplicate-json-keys-are-rejected",
+      "description": "A marker whose raw JSON text repeats an object key (here \"app\") is rejected outright rather than resolved by last-value-wins.",
+      "root_marker": { "kind": "marker", "file": "markers/duplicate-keys.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "schema-version-as-float-is-rejected",
+      "description": "schema_version must be the JSON integer 1, not a float that happens to print the same (1.0).",
+      "root_marker": { "kind": "marker", "file": "markers/invalid-schema-version-float.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "schema-version-as-bool-is-rejected",
+      "description": "schema_version must be the JSON integer 1, not a boolean.",
+      "root_marker": { "kind": "marker", "file": "markers/invalid-schema-version-bool.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "unknown-layout-value-is-rejected",
+      "description": "layout must be exactly \"split-v2\" or \"redirect-v2\"; any other value is rejected.",
+      "root_marker": { "kind": "marker", "file": "markers/unknown-layout.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "extra-unknown-field-is-rejected",
+      "description": "A marker object key outside the fixed allow-list (schema_version, app, layout, root, target, migration_id) is rejected.",
+      "root_marker": { "kind": "marker", "file": "markers/extra-unknown-field.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "root-field-mismatch-is-rejected",
+      "description": "The marker's own \"root\" field must equal the directory it was actually read from; a mismatch (stale copy, hand-edit, or move) is rejected.",
+      "root_marker": { "kind": "marker", "file": "markers/root-mismatch.json" },
+      "expect": { "outcome": "error", "error_kind": "marker" }
+    },
+    {
+      "id": "windows-backslash-root-path-shape",
+      "description": "Documents the expected marker shape for a Windows APPDATA-rooted legacy path. Not exercised by upeg-core/tests/storage_contract.rs, which runs on Unix CI only; a Windows-side consumer of this fixture set should assert this resolves as split-v2 with root equal to the literal backslash path.",
+      "platforms": ["windows"],
+      "root_marker": { "kind": "marker", "file": "markers/windows-backslash-root.json" },
+      "expect": { "outcome": "ok", "layout": "split-v2", "resolved_root": "ROOT" }
+    }
+  ]
+}

@@ -267,16 +267,21 @@ fn clear_sidecars(id: &'static str) {
 }
 
 #[cfg(test)]
+pub(crate) fn test_guard() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: Mutex<()> = Mutex::new(());
+    LOCK.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;
 
-    static TEST_LOCK: Mutex<()> = Mutex::new(());
-
     #[test]
     fn nested_catalog_read_remains_reentrant_when_transition_is_waiting() {
-        let _serial = TEST_LOCK.lock().expect("test lock");
+        let _serial = test_guard();
         let outer = catalog_read_guard();
         let (started_tx, started_rx) = mpsc::channel();
         let (done_tx, done_rx) = mpsc::channel();
@@ -307,7 +312,7 @@ mod tests {
 
     #[test]
     fn nested_dispatch_call_stays_valid_during_a_rejected_transition() {
-        let _serial = TEST_LOCK.lock().expect("test lock");
+        let _serial = test_guard();
         let outer = begin_call().expect("outer call");
         let worker = std::thread::spawn(begin_project_transition);
         assert!(worker.join().expect("transition worker").is_err());

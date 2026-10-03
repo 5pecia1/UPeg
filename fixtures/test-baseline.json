@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-27T23:20:47Z",
+  "generatedAt": "2026-10-03T14:43:30Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3493,
+      "total": 3554,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -2277,17 +2277,17 @@
         },
         {
           "className": "infrastructure::paths::tests",
-          "methodName": "server_json_path_sits_under_config_root",
+          "methodName": "server_json_path_sits_under_runtime_role",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
-          "fullName": "infrastructure::paths::tests::server_json_path_sits_under_config_root"
+          "fullName": "infrastructure::paths::tests::server_json_path_sits_under_runtime_role"
         },
         {
           "className": "infrastructure::paths::tests",
-          "methodName": "toolkit_subdirectory_paths_are_assembled_under_config_root",
+          "methodName": "toolkit_subdirectory_paths_are_assembled_under_storage_roles",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
-          "fullName": "infrastructure::paths::tests::toolkit_subdirectory_paths_are_assembled_under_config_root"
+          "fullName": "infrastructure::paths::tests::toolkit_subdirectory_paths_are_assembled_under_storage_roles"
         },
         {
           "className": "infrastructure::pause::tests",
@@ -9521,6 +9521,104 @@
           "fullName": "the_real_filesystem_server_answers_the_handshake_and_tool_list"
         },
         {
+          "className": "paths::tests/paths.rs",
+          "methodName": "absent_marker_and_user_root_are_not_created",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "absent_marker_and_user_root_are_not_created"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "all_existing_artifact_overrides_remain_verbatim_even_without_home",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "all_existing_artifact_overrides_remain_verbatim_even_without_home"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "environment_project_accepts_root_or_marker_and_preserves_provenance",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "environment_project_accepts_root_or_marker_and_preserves_provenance"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "explicit_project_beats_environment_selection_and_off",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "explicit_project_beats_environment_selection_and_off"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "global_config_marker_is_not_auto_discovered_as_a_project",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "global_config_marker_is_not_auto_discovered_as_a_project"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "human_output_labels_legacy_layout_and_separates_user_from_project",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "human_output_labels_legacy_layout_and_separates_user_from_project"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "library_paths_entrypoint_is_read_only",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "library_paths_entrypoint_is_read_only"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "off_and_missing_environment_project_do_not_fall_back_to_detection",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "off_and_missing_environment_project_do_not_fall_back_to_detection"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "outside_home_detection_does_not_adopt_an_ancestor",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "outside_home_detection_does_not_adopt_an_ancestor"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "paths_report_legacy_user_and_project_paths_without_loading_or_writing",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "paths_report_legacy_user_and_project_paths_without_loading_or_writing"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "project_namespace_depends_on_canonical_project_root_not_user_storage",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "project_namespace_depends_on_canonical_project_root_not_user_storage"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "relative_and_empty_user_home_are_not_rejected_or_normalized",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "relative_and_empty_user_home_are_not_rejected_or_normalized"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "unavailable_home_reports_null_and_missing_home_does_not_create_storage",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "unavailable_home_reports_null_and_missing_home_does_not_create_storage"
+        },
+        {
+          "className": "paths::tests/paths.rs",
+          "methodName": "within_home_detection_uses_nearest_marker_after_working_directory",
+          "status": "passed",
+          "target": "paths::tests/paths.rs",
+          "fullName": "within_home_detection_uses_nearest_marker_after_working_directory"
+        },
+        {
           "className": "plugin_install_list::tests/plugin_install_list.rs",
           "methodName": "a_valid_plugin_is_copied_after_validation_and_prints_its_tool_ids",
           "status": "passed",
@@ -9603,6 +9701,69 @@
           "status": "passed",
           "target": "project_commands::tests/project_commands.rs",
           "fullName": "cli_initializes_validates_and_resolves_a_duplicate_tool_choice"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_child_connection_anchors_storage_root_not_config_directory",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_child_connection_anchors_storage_root_not_config_directory"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_default_is_split_readonly_then_startup_pins_marker",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_default_is_split_readonly_then_startup_pins_marker"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_explicit_empty_root_stays_legacy_and_default_explicit_root_is_split",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_explicit_empty_root_stays_legacy_and_default_explicit_root_is_split"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_invalid_profile_home_never_uses_working_directory",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_invalid_profile_home_never_uses_working_directory"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_marker_errors_fail_before_loading_sources_or_creating_database",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_marker_errors_fail_before_loading_sources_or_creating_database"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_migrates_literal_files_keeps_projects_and_old_global_excluded",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_migrates_literal_files_keeps_projects_and_old_global_excluded"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_override_binding_changes_and_unacknowledged_apply_are_refused",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_override_binding_changes_and_unacknowledged_apply_are_refused"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_rebinds_only_literal_ecosystem_receipt_paths",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_rebinds_only_literal_ecosystem_receipt_paths"
+        },
+        {
+          "className": "storage::tests/storage.rs",
+          "methodName": "storage_cli_status_reports_source_drift_and_verify_fails_after_cutover",
+          "status": "passed",
+          "target": "storage::tests/storage.rs",
+          "fullName": "storage_cli_status_reports_source_drift_and_verify_fails_after_cutover"
         },
         {
           "className": "three_sources_e2e::tests/three_sources_e2e.rs",
@@ -11265,10 +11426,38 @@
         },
         {
           "className": "paths::tests",
+          "methodName": "default_split_roles_and_injected_legacy_selection_are_pure",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::default_split_roles_and_injected_legacy_selection_are_pure"
+        },
+        {
+          "className": "paths::tests",
+          "methodName": "directory_overrides_remain_verbatim_with_or_without_a_user_root",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::directory_overrides_remain_verbatim_with_or_without_a_user_root"
+        },
+        {
+          "className": "paths::tests",
+          "methodName": "markers_are_strict_one_hop_and_pending_targets_never_win",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::markers_are_strict_one_hop_and_pending_targets_never_win"
+        },
+        {
+          "className": "paths::tests",
           "methodName": "shared_file_paths_are_assembled_under_the_same_config_root",
           "status": "passed",
           "target": "upeg_core::src/lib.rs",
           "fullName": "paths::tests::shared_file_paths_are_assembled_under_the_same_config_root"
+        },
+        {
+          "className": "paths::tests",
+          "methodName": "unavailable_user_roots_stay_unavailable",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::unavailable_user_roots_stay_unavailable"
         },
         {
           "className": "paths::tests",
@@ -11286,10 +11475,24 @@
         },
         {
           "className": "paths::tests",
-          "methodName": "windows_uses_upeg_under_appdata_as_the_config_root",
+          "methodName": "user_roles_preserve_the_legacy_root_on_each_platform",
           "status": "passed",
           "target": "upeg_core::src/lib.rs",
-          "fullName": "paths::tests::windows_uses_upeg_under_appdata_as_the_config_root"
+          "fullName": "paths::tests::user_roles_preserve_the_legacy_root_on_each_platform"
+        },
+        {
+          "className": "paths::tests",
+          "methodName": "windows_profile_fallback_legacy_appdata_and_ambiguity_are_explicit",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::windows_profile_fallback_legacy_appdata_and_ambiguity_are_explicit"
+        },
+        {
+          "className": "paths::tests",
+          "methodName": "windows_uses_profile_home_not_appdata_for_new_storage",
+          "status": "passed",
+          "target": "upeg_core::src/lib.rs",
+          "fullName": "paths::tests::windows_uses_profile_home_not_appdata_for_new_storage"
         },
         {
           "className": "pin_span::tests",
@@ -12368,6 +12571,27 @@
           "status": "passed",
           "target": "search::tests/search.rs",
           "fullName": "search_surface_filter_is_applied_before_searching"
+        },
+        {
+          "className": "storage_contract::tests/storage_contract.rs",
+          "methodName": "storage_contract_cases_match_upeg_core_paths_resolution",
+          "status": "passed",
+          "target": "storage_contract::tests/storage_contract.rs",
+          "fullName": "storage_contract_cases_match_upeg_core_paths_resolution"
+        },
+        {
+          "className": "storage_home_symlinks::tests/storage_home_symlinks.rs",
+          "methodName": "a_symlink_at_the_app_root_itself_is_still_rejected",
+          "status": "passed",
+          "target": "storage_home_symlinks::tests/storage_home_symlinks.rs",
+          "fullName": "a_symlink_at_the_app_root_itself_is_still_rejected"
+        },
+        {
+          "className": "storage_home_symlinks::tests/storage_home_symlinks.rs",
+          "methodName": "home_reached_through_a_symlinked_ancestor_resolves_transparently",
+          "status": "passed",
+          "target": "storage_home_symlinks::tests/storage_home_symlinks.rs",
+          "fullName": "home_reached_through_a_symlinked_ancestor_resolves_transparently"
         },
         {
           "className": "toolbox::tests/toolbox.rs",
@@ -18922,6 +19146,195 @@
           "fullName": "sources::tests::runtime_source_load_treats_missing_directory_as_empty"
         },
         {
+          "className": "storage::tests",
+          "methodName": "storage_activation_and_same_root_rollback_interruption_are_recoverable",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_activation_and_same_root_rollback_interruption_are_recoverable"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_changed_input_tampered_plan_collision_and_runtime_are_refused",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_changed_input_tampered_plan_collision_and_runtime_are_refused"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_closed_wal_planning_does_not_create_sidecars_and_unknown_edits_block_rollback",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_closed_wal_planning_does_not_create_sidecars_and_unknown_edits_block_rollback"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_control_temp_files_at_storage_roots_are_excluded_from_inventories",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_control_temp_files_at_storage_roots_are_excluded_from_inventories"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_ecosystem_receipt_recovers_and_changes_only_owned_path_keys",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_ecosystem_receipt_recovers_and_changes_only_owned_path_keys"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_ecosystem_receipt_with_unrecognized_managed_by_is_refused_without_changes",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_ecosystem_receipt_with_unrecognized_managed_by_is_refused_without_changes"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_inactive_pending_marker_falls_back_to_normal_resolution_on_unix",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_inactive_pending_marker_falls_back_to_normal_resolution_on_unix"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_lease_reports_missing_journal_distinctly_from_generic_marker_errors",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_lease_reports_missing_journal_distinctly_from_generic_marker_errors"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_live_database_writer_and_shared_lease_refuse_cutover",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_live_database_writer_and_shared_lease_refuse_cutover"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_migrates_read_only_toolkit_directories_and_cleans_staging",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_migrates_read_only_toolkit_directories_and_cleans_staging"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_missing_marker_or_migrated_data_never_reopens_retained_flat_database",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_missing_marker_or_migrated_data_never_reopens_retained_flat_database"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_pending_marker_write_is_idempotent_and_survives_a_leftover_temp_file",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_pending_marker_write_is_idempotent_and_survives_a_leftover_temp_file"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_plan_does_not_conflict_after_same_root_rollback_of_active_migration",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_plan_does_not_conflict_after_same_root_rollback_of_active_migration"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_plan_is_readonly_and_leaves_unknown_files_outside_entries",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_plan_is_readonly_and_leaves_unknown_files_outside_entries"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_redirect_marker_carries_migration_id_matching_target_split_marker",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_redirect_marker_carries_migration_id_matching_target_split_marker"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_redirect_marker_is_rejected_when_migration_id_does_not_match_target",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_redirect_marker_is_rejected_when_migration_id_does_not_match_target"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_resume_refuses_changed_destination_directory_mode",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_resume_refuses_changed_destination_directory_mode"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_resumes_after_copy_and_before_marker_without_selecting_partial_target",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_resumes_after_copy_and_before_marker_without_selecting_partial_target"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_rollback_aborts_pre_activation_same_root_migration_without_touching_source",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_rollback_aborts_pre_activation_same_root_migration_without_touching_source"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_rollback_never_overwrites_new_destination_or_source_writes",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_rollback_never_overwrites_new_destination_or_source_writes"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_rollback_refuses_new_database_rows_and_marker_corruption",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_rollback_refuses_new_database_rows_and_marker_corruption"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_rollback_restores_ecosystem_receipt_when_aborting_before_activation",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_rollback_restores_ecosystem_receipt_when_aborting_before_activation"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_same_root_retains_flat_files_and_supports_immediate_rollback",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_same_root_retains_flat_files_and_supports_immediate_rollback"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_sqlite_backup_preserves_literal_wal_schema_device_and_project_namespaces",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_sqlite_backup_preserves_literal_wal_schema_device_and_project_namespaces"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_sqlite_backup_removes_stale_wal_journal_shm_siblings_before_copying",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_sqlite_backup_removes_stale_wal_journal_shm_siblings_before_copying"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_staging_copies_are_removed_after_activation",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_staging_copies_are_removed_after_activation"
+        },
+        {
+          "className": "storage::tests",
+          "methodName": "storage_symlink_ancestors_and_nested_toolkit_symlinks_fail_closed",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "storage::tests::storage_symlink_ancestors_and_nested_toolkit_symlinks_fail_closed"
+        },
+        {
           "className": "store::diagnostics::tests",
           "methodName": "diagnostics_are_redacted_and_retained_in_a_bounded_newest_window",
           "status": "passed",
@@ -24033,6 +24446,13 @@
         },
         {
           "className": "api::tools::gui_context::tests",
+          "methodName": "fresh_default_dev_pin_resolves_without_stored_layout",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::gui_context::tests::fresh_default_dev_pin_resolves_without_stored_layout"
+        },
+        {
+          "className": "api::tools::gui_context::tests",
           "methodName": "gui_surface_follows_this_builds_runtime_host",
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
@@ -24044,6 +24464,13 @@
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
           "fullName": "api::tools::gui_context::tests::invalid_board_key_is_rejected_with_canonical_error_envelope"
+        },
+        {
+          "className": "api::tools::gui_context::tests",
+          "methodName": "persisted_empty_layout_and_unknown_pin_do_not_fall_back_to_defaults",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tools::gui_context::tests::persisted_empty_layout_and_unknown_pin_do_not_fall_back_to_defaults"
         },
         {
           "className": "api::tools::gui_context::tests",

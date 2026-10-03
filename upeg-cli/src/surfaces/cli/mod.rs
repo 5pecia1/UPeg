@@ -3,6 +3,7 @@ pub(crate) mod completion;
 pub(crate) mod doctor;
 pub(crate) mod doctor_surfaces;
 pub(crate) mod formatters;
+pub(crate) mod paths;
 pub(crate) mod readiness;
 #[cfg(feature = "wasm-plugin")]
 pub(crate) mod wasm_template;
@@ -167,8 +168,23 @@ pub struct Cli {
     pub project: Option<std::path::PathBuf>,
 }
 
+mod storage;
+pub use storage::StorageAction;
+
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    #[command(about = "Inspect or explicitly migrate native storage without loading Tools")]
+    Storage {
+        #[command(subcommand)]
+        action: StorageAction,
+    },
+    #[command(
+        about = "Report current user storage and project declaration paths without loading them"
+    )]
+    Paths {
+        #[arg(long)]
+        json: bool,
+    },
     /// Inspect, validate, initialize, and resolve a `.upeg` project.
     Project {
         #[command(subcommand)]

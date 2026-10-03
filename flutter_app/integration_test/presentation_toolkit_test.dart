@@ -1,4 +1,4 @@
-/// Native presentation E2E against the installed my-ecosystem CLI.
+/// Native presentation E2E against the installed ecosystem CLI.
 ///
 /// This test deliberately avoids Dart resolver/dispatcher overrides. It
 /// proves the macOS runner inherits isolated runtime sources, Rust loads the
@@ -9,8 +9,8 @@
 ///
 /// ```sh
 /// lab="$(mktemp -d /private/tmp/ecosystem-upeg-presentation.XXXXXX)"
-/// bash /Users/sol/dev/src/github.com/5pecia1/my-ecosystem/install.sh \
-///   --source-root /Users/sol/dev/src/github.com/5pecia1/my-ecosystem \
+/// bash <path to your ecosystem checkout>/install.sh \
+///   --source-root <path to your ecosystem checkout> \
 ///   --prefix "$lab/prefix" --home "$lab/ecosystem-home" --runtime none
 /// mkdir -p "$lab/upeg-home/toolkits" "$lab/project2" "$lab/probe-skill"
 /// # Put a minimal SKILL.md in "$lab/probe-skill", then register/add it.

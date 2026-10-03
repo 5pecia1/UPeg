@@ -33,7 +33,7 @@ lto = "thin"
 # Single source of truth for workspace member versions. Each member opts in
 # via `version.workspace = true` in its own [package] block. Bump here for
 # any release — do not edit the seven member Cargo.toml files individually.
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 rust-version = "1.92"
 authors = ["upeg contributors"]

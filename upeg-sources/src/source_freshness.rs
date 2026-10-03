@@ -65,7 +65,7 @@ fn snapshots() -> &'static Mutex<HashMap<PathBuf, RecordedSnapshot>> {
 /// Called only at local runtime startup, before any declarations are loaded.
 /// Deferred MCP import loading must keep this original snapshot.
 pub(crate) fn record_loaded_sources(config: &RuntimeSourceConfig) {
-    if let Some(root) = upeg_core::paths::config_root() {
+    if let Some(root) = upeg_core::paths::storage_root() {
         record_sources_for_root(&root, config);
     }
 }
@@ -85,7 +85,7 @@ fn record_sources_for_root(root: &Path, config: &RuntimeSourceConfig) {
 /// # Errors
 /// Returns a changed source path or an I/O failure without revealing contents.
 pub fn validate_loaded_sources() -> Result<(), LoadedSourcesError> {
-    let Some(root) = upeg_core::paths::config_root() else {
+    let Some(root) = upeg_core::paths::storage_root() else {
         return Ok(());
     };
     validate_sources_for_root(&root, &RuntimeSourceConfig::from_env())
