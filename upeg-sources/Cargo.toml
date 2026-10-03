@@ -9,7 +9,8 @@ repository.workspace = true
 description = "Runtime source discovery and registration for upeg Toolkits, project manifests, WASM, and upstream MCP servers."
 
 [dependencies]
-rusqlite = { workspace = true }
+rusqlite = { workspace = true, features = ["backup"] }
+sha2.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -88,15 +88,23 @@ fn board_args_preset(
     let boards = upeg_pegboard_ui::features::boards::load_boards()
         .unwrap_or_else(upeg_pegboard_ui::features::boards::default_boards);
     let layouts = upeg_pegboard_ui::features::layouts::load_layouts(&boards);
-    let placement = layouts
-        .as_ref()
-        .and_then(|layouts| layouts.get(board))
-        .and_then(|layout| {
-            layout.iter().find(|placement| {
-                placement.tool_id == tool_id
-                    && pin_id.is_none_or(|id| placement.pin_id.as_str() == id)
-            })
-        });
+    board_args_preset_from_layouts(board, tool_id, pin_id, &boards, layouts)
+}
+
+fn board_args_preset_from_layouts(
+    board: &str,
+    tool_id: &str,
+    pin_id: Option<&str>,
+    boards: &[upeg_pegboard_ui::features::boards::Board],
+    layouts: Option<upeg_pegboard_ui::features::layouts::BoardLayouts>,
+) -> Result<Option<upeg_core::ArgsPreset>, Box<CanonicalToolResult>> {
+    let layouts =
+        layouts.unwrap_or_else(|| upeg_pegboard_ui::features::layouts::default_layouts(boards));
+    let placement = layouts.get(board).and_then(|layout| {
+        layout.iter().find(|placement| {
+            placement.tool_id == tool_id && pin_id.is_none_or(|id| placement.pin_id.as_str() == id)
+        })
+    });
     if pin_id.is_some() && placement.is_none() {
         return Err(Box::new(CanonicalToolResult::error(
             "invalid_pin_id",
@@ -173,6 +181,64 @@ fn with_project_directory(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fresh_default_dev_pin_resolves_without_stored_layout() {
+        let _ = upeg_toolkit_catalog::register_embedded_metadata();
+        let boards = upeg_pegboard_ui::features::boards::default_boards();
+
+        // A fresh browser has no localStorage entry; native storage already
+        // synthesizes defaults, so pass the missing value explicitly.
+        let preset = board_args_preset_from_layouts(
+            "dev",
+            "num.hex_to_decimal",
+            Some("num.hex_to_decimal"),
+            &boards,
+            None,
+        );
+
+        assert!(preset.is_ok(), "default dev pin should exist: {preset:?}");
+    }
+
+    #[test]
+    fn persisted_empty_layout_and_unknown_pin_do_not_fall_back_to_defaults() {
+        let _ = upeg_toolkit_catalog::register_embedded_metadata();
+        let boards = upeg_pegboard_ui::features::boards::default_boards();
+        let mut layouts = upeg_pegboard_ui::features::layouts::default_layouts(&boards);
+        layouts.get_mut("dev").expect("default dev board").clear();
+
+        for (pin_id, stored_layouts) in
+            [("num.hex_to_decimal", Some(layouts)), ("unknown.pin", None)]
+        {
+            let error = board_args_preset_from_layouts(
+                "dev",
+                "num.hex_to_decimal",
+                Some(pin_id),
+                &boards,
+                stored_layouts,
+            )
+            .expect_err("absent pin must remain invalid");
+            assert_eq!(
+                error.error.as_ref().map(|error| error.code.as_str()),
+                Some("invalid_pin_id")
+            );
+        }
+
+        let mismatch = board_args_preset_from_layouts(
+            "dev",
+            "text.word_count",
+            Some("num.hex_to_decimal"),
+            &boards,
+            Some(upeg_pegboard_ui::features::layouts::default_layouts(
+                &boards,
+            )),
+        )
+        .expect_err("pin for another tool must remain invalid");
+        assert_eq!(
+            mismatch.error.as_ref().map(|error| error.code.as_str()),
+            Some("invalid_pin_id")
+        );
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]

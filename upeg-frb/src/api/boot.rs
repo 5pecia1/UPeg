@@ -117,6 +117,31 @@ pub enum FrbError {
 /// the Dart UI isolate and would freeze the splash; the async surface runs
 /// it on an FRB worker so the splash stays responsive.
 pub fn init_app() -> Result<AppInitReport, FrbError> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        static STORAGE: std::sync::OnceLock<upeg_core::paths::StorageLease> =
+            std::sync::OnceLock::new();
+        if STORAGE.get().is_none() {
+            let lease =
+                upeg_core::paths::StorageLease::acquire().map_err(|error| FrbError::Io {
+                    message: error.to_string(),
+                })?;
+            let _ = STORAGE.set(lease);
+        }
+        if let Some(lease) = STORAGE.get() {
+            lease.validate().map_err(|error| FrbError::Io {
+                message: error.to_string(),
+            })?;
+            let current = upeg_core::paths::resolve_storage().map_err(|error| FrbError::Io {
+                message: error.to_string(),
+            })?;
+            if current.root != lease.location().root || current.layout != lease.location().layout {
+                return Err(FrbError::Io {
+                    message: "storage configuration changed; restart the desktop host".into(),
+                });
+            }
+        }
+    }
     super::tools::register_toolkit_runtime().map_err(|message| FrbError::Internal { message })?;
 
     // User-provided runtime sources must be registered before host

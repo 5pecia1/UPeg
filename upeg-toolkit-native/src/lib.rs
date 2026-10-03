@@ -38,6 +38,8 @@ type ManagedChild = Child;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeError {
+    #[error(transparent)]
+    Storage(#[from] upeg_core::paths::StoragePathError),
     #[error("toolkit cache root is unavailable")]
     CacheRoot,
     #[error("native toolkit catalog: {0}")]
@@ -137,10 +139,7 @@ pub fn register_native_toolkits() -> Result<(), String> {
 }
 
 fn cache_root() -> Result<PathBuf, NativeError> {
-    std::env::var_os("UPEG_TOOLKIT_CACHE_DIR")
-        .map(PathBuf::from)
-        .or_else(|| upeg_core::paths::config_root().map(|root| root.join("toolkit-packs")))
-        .ok_or(NativeError::CacheRoot)
+    upeg_core::paths::toolkit_packs_dir().ok_or(NativeError::CacheRoot)
 }
 
 fn catalog_url() -> String {
@@ -645,6 +644,11 @@ pub fn dispatch_native(
     tool_id: &str,
     args: &serde_json::Value,
 ) -> Result<ToolResult, NativeError> {
+    let _storage = if std::env::var_os(upeg_core::paths::env::TOOLKIT_CACHE_DIR).is_none() {
+        Some(upeg_core::paths::StorageLease::acquire()?)
+    } else {
+        None
+    };
     let abi = expected_abi()?;
     let root = cache_root()?;
     let path = select_artifact(&root, &abi, toolkit_id)?;

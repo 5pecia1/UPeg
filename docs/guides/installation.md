@@ -174,16 +174,18 @@ unsigned release assets, each with a `.sha256` sidecar:
 `upeg-v<ver>.dmg` (macOS desktop), `upeg-v<ver>-x86_64.msix` (Windows
 desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). It also publishes
 native toolkit catalogues and 15 versioned packs per target for Linux
-x86-64/ARM64, macOS ARM64, and Windows x86-64. The published release
-manifest requires every asset and SHA256 sidecar before publication.
+x86-64/ARM64, macOS ARM64/Intel x86-64, and Windows x86-64. The published
+release manifest requires every asset and SHA256 sidecar before publication.
 
 ## Verify the install
 
 ```bash
 upeg doctor                 # binary path, features, source dirs, toolbox counts
 upeg tool list              # every registered Tool
-upeg call num.hex_to_decimal -a input=0xff    # → 255, no network needed
+upeg call num.hex_to_decimal -a input=0xff    # → 255; first use may download its pack
 ```
+
+The verified pack is cached and can be used offline afterwards.
 
 If something is off, see [Troubleshooting](troubleshooting.md). For the dev
 workflow (`just check`, `just verify`, test tiers) see

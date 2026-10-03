@@ -196,6 +196,7 @@ impl ServerInfo {
 pub struct DiscoveryGuard {
     path: PathBuf,
     pid: u32,
+    _storage: Option<upeg_core::paths::StorageLease>,
 }
 
 impl Drop for DiscoveryGuard {
@@ -276,6 +277,7 @@ fn remove_if_unchanged(path: &Path, info: &ServerInfo) {
 /// a group/other-readable file, not even briefly. Windows: relies on the
 /// user's `%APPDATA%` ACL being user-only by default.
 pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
+    let storage = upeg_core::paths::StorageLease::acquire().map_err(std::io::Error::other)?;
     let path = paths::server_json_path().ok_or_else(|| {
         std::io::Error::new(
             ErrorKind::NotFound,
@@ -283,6 +285,9 @@ pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
         )
     })?;
     paths::ensure_config_root()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
 
     let content = serde_json::to_string_pretty(info).map_err(|e| {
         std::io::Error::new(
@@ -313,6 +318,7 @@ pub fn publish(info: &ServerInfo) -> std::io::Result<DiscoveryGuard> {
     Ok(DiscoveryGuard {
         path,
         pid: info.pid,
+        _storage: Some(storage),
     })
 }
 
@@ -532,6 +538,7 @@ mod tests {
         let guard = DiscoveryGuard {
             path: tmp.clone(),
             pid: std::process::id(),
+            _storage: None,
         };
         drop(guard);
         assert!(tmp.exists(), "must not delete a file owned by another pid");

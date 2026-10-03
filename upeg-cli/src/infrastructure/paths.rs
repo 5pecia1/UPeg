@@ -137,7 +137,7 @@ pub fn credentials_path() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os(env::CREDENTIALS_PATH) {
         return Some(PathBuf::from(p));
     }
-    config_root().map(|r| r.join(CREDENTIALS_FILE))
+    upeg_core::paths::user_paths().map(|paths| paths.config_dir.join(CREDENTIALS_FILE))
 }
 
 /// Database the execution log lives in: the shared SQLite store
@@ -152,7 +152,7 @@ pub fn execution_log_path() -> Option<PathBuf> {
 
 /// `<config_root>/server.json` — Discovery file (PRD §5.3).
 pub fn server_json_path() -> Option<PathBuf> {
-    config_root().map(|r| r.join(SERVER_DISCOVERY_FILE))
+    upeg_core::paths::user_paths().map(|paths| paths.runtime_dir.join(SERVER_DISCOVERY_FILE))
 }
 
 /// `<config_root>/upeg-http.log` — Default daemon log file (PRD §5.5).
@@ -161,7 +161,7 @@ pub fn http_log_path() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os(env::HTTP_LOG_PATH) {
         return Some(PathBuf::from(p));
     }
-    config_root().map(|r| r.join(HTTP_LOG_FILE))
+    upeg_core::paths::user_paths().map(|paths| paths.state_dir.join(HTTP_LOG_FILE))
 }
 
 /// Best-effort `create_dir_all` on the config root. Returns `Ok(())`
@@ -187,30 +187,33 @@ mod tests {
     }
 
     #[test]
-    fn server_json_path_sits_under_config_root() {
-        if let (Some(root), Some(path)) = (config_root(), server_json_path()) {
-            assert!(path.starts_with(&root));
+    fn server_json_path_sits_under_runtime_role() {
+        if let (Some(roles), Some(path)) = (upeg_core::paths::user_paths(), server_json_path()) {
+            assert!(path.starts_with(&roles.runtime_dir));
             assert!(path.ends_with(SERVER_DISCOVERY_FILE));
         }
     }
 
     #[test]
-    fn toolkit_subdirectory_paths_are_assembled_under_config_root() {
-        if let Some(root) = config_root() {
+    fn toolkit_subdirectory_paths_are_assembled_under_storage_roles() {
+        if let Some(roles) = upeg_core::paths::user_paths() {
             if std::env::var_os(env::TOOLKITS_DIR).is_none()
                 && let Some(p) = toolkits_dir()
             {
-                assert_eq!(p, root.join(upeg_core::paths::TOOLKITS_SUBDIR));
+                assert_eq!(p, roles.data_dir.join(upeg_core::paths::TOOLKITS_SUBDIR));
             }
             if std::env::var_os(env::WASM_DIR).is_none()
                 && let Some(p) = wasm_dir()
             {
-                assert_eq!(p, root.join(upeg_core::paths::WASM_SUBDIR));
+                assert_eq!(p, roles.data_dir.join(upeg_core::paths::WASM_SUBDIR));
             }
             if std::env::var_os(env::MCP_IMPORTS_DIR).is_none()
                 && let Some(p) = mcp_import_dir()
             {
-                assert_eq!(p, root.join(upeg_core::paths::MCP_IMPORTS_SUBDIR));
+                assert_eq!(
+                    p,
+                    roles.config_dir.join(upeg_core::paths::MCP_IMPORTS_SUBDIR)
+                );
             }
         }
     }

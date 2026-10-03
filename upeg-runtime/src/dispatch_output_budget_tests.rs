@@ -103,6 +103,7 @@ fn plugin_file_output_checks_aggregate_node_budget_before_decode() {
 
 #[test]
 fn external_typed_file_output_checks_budget_at_final_runtime_boundary() {
+    let _serial = crate::project_scope::test_guard();
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             EXTERNAL_TYPED_FILE_TOOL_ID,
@@ -124,6 +125,7 @@ fn external_typed_file_output_checks_budget_at_final_runtime_boundary() {
 
 #[test]
 fn chain_typed_file_output_checks_budget_at_final_runtime_boundary() {
+    let _serial = crate::project_scope::test_guard();
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             CHAIN_TYPED_FILE_TOOL_ID,
@@ -145,6 +147,7 @@ fn chain_typed_file_output_checks_budget_at_final_runtime_boundary() {
 
 #[test]
 fn trusted_native_typed_file_output_keeps_existing_behavior() {
+    let _serial = crate::project_scope::test_guard();
     let _registration = crate::toolbox_add_tool_with_dispatcher_managed(
         file_tool_meta(
             NATIVE_TYPED_FILE_TOOL_ID,

@@ -264,6 +264,17 @@ fn read_store(path: &Path) -> std::io::Result<CredentialStore> {
 }
 
 fn write_store(path: &Path, store: &CredentialStore) -> std::io::Result<()> {
+    let _storage = if path
+        .file_name()
+        .is_some_and(|name| name == "credentials.json")
+    {
+        Some(
+            upeg_core::paths::StorageLease::for_artifact(path, "config")
+                .map_err(std::io::Error::other)?,
+        )
+    } else {
+        None
+    };
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

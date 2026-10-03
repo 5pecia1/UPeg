@@ -52,7 +52,8 @@ pub use infrastructure::process::pid_alive;
 pub use surfaces::cli::WasmAction;
 pub use surfaces::cli::{
     BoardAction, Cli, Command, CredentialAction, DiagnosticAction, HostAction, HttpAction,
-    ProjectAction, ProjectChoiceArg, TagAction, ToolAction, ToolkitAction, TriggerAction,
+    ProjectAction, ProjectChoiceArg, StorageAction, TagAction, ToolAction, ToolkitAction,
+    TriggerAction,
 };
 pub use surfaces::http::router as http_router;
 pub use surfaces::mcp::handle as handle_mcp_message;
@@ -111,6 +112,7 @@ pub fn embedded_http_with_ready(
     notifications_enabled: bool,
     ready: std::sync::mpsc::Sender<std::io::Result<String>>,
 ) -> std::io::Result<()> {
+    let _storage = upeg_core::paths::StorageLease::acquire().map_err(std::io::Error::other)?;
     let opts = surfaces::http::ServerOptions::loopback_ephemeral()?
         .with_notifications(notifications_enabled);
     surfaces::http::serve_with_ready(opts, ready)
