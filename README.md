@@ -38,9 +38,10 @@ upeg is early-stage:
 
 - **Downloads vary by release.** See [GitHub Releases](https://github.com/5pecia1/UPeg/releases)
   for published packages. They are unsigned; building from source (below)
-  remains an alternative. The v0.5.1 Linux release artifacts contain x86_64
-  and ARM64 CLI archives, an x86_64 AppImage and Debian package, and a web
-  archive. It does not include macOS or Windows binaries.
+  remains an alternative. The latest release provides Linux x86_64 and ARM64
+  CLI archives, a macOS ARM64 CLI archive, a Windows x86_64 CLI archive, a
+  Linux Debian package and AppImage, a universal macOS DMG, a Windows MSIX,
+  and a web archive.
 - **This repository is a public mirror.** Development happens in a private
   source repository; updates arrive here as exported pull requests that
   merge like normal PRs. The development history is not mirrored — each
@@ -79,6 +80,59 @@ The Desktop app, PWA, and WASM plugins need more (Flutter SDK, `wasm-pack`,
 extra targets) — but not for the CLI. The full matrix, including optional
 packaging tools, is in the
 [Installation guide](docs/guides/installation.md).
+
+`upeg paths` (or `upeg paths --json`) reports paths without loading Tools or
+changing files. **Unreleased storage upgrade:** new native installations use
+`<profile-home>/.upeg` on every OS, with `config/` (tweaks, credentials, MCP
+imports), `data/` (the single SQLite database, toolkits, WASM), `state/` (HTTP
+log), `cache/toolkit-packs/`, and `runtime/` (discovery and desktop lock).
+Windows resolves profile home from `USERPROFILE`, then `HOMEDRIVE` + `HOMEPATH`,
+then `HOME`; XDG variables do not select the new default. Default home and
+migration roots must be absolute; an invalid home never falls back to the working
+directory.
+
+Existing flat home storage or Windows `%APPDATA%/upeg` remains `legacy-v1` until
+explicit migration. A custom `UPEG_HOME` remains flat even when its directory is
+empty; legacy relative/empty `UPEG_HOME` values retain their getter behavior.
+Pointing it at the default home root follows default selection. Lease/marker and
+child-process roots are always absolute and normalized. The `storage-layout.json` marker pins migrated/new split storage and old roots can
+redirect once to it. Malformed markers, ambiguous populated roots, unsafe paths,
+and incomplete migrations fail closed rather than silently selecting empty data.
+Per-artifact `UPEG_TOOLKITS_DIR`, `UPEG_WASM_DIR`, `UPEG_MCP_IMPORTS_DIR`, and
+`UPEG_TOOLKIT_CACHE_DIR` still win verbatim (including relative/empty values).
+Migration excludes overridden artifact directories; it does not move external
+paths or project `.upeg` declarations.
+
+Use `upeg storage status --json`, then `upeg storage plan --source /old/root
+--target /new/root --output /outside/plan.json --json`. Source and target may be
+the same root. Planning reads only and the optional output must be a new file.
+Stop **all old and new** CLI, desktop, MCP, and HTTP hosts before running
+`upeg storage apply --plan /outside/plan.json --yes --quiesced --json`.
+`--quiesced` acknowledges that old binaries cannot honor the new storage lease.
+Existing discovery/desktop-lock files block migration; investigate them and
+remove stale evidence only after confirming the corresponding host has stopped.
+
+Migration retains sources and private staging/journals in
+`<target>/state/migrations/`; it uses SQLite backup, including committed WAL
+rows, without splitting the schema. Reapply the same plan after an interrupted
+apply. `upeg storage verify --target /new/root --json` checks preservation;
+`upeg storage rollback --target /new/root --yes --quiesced --json` is refused
+after durable source or destination changes, and retains copied data inactive.
+There is no cleanup command. Relocating `toolkits/ecosystem.toml` requires
+`--ecosystem-prefix /installation/prefix` during planning: only the exact,
+owned `share/ecosystem/install.json` receipt is rebound, preserving toolkit bytes
+and other receipt keys. Receipt relocation currently requires the installer's
+Unix file-lock implementation; unsupported platforms refuse that operation.
+
+For example, `upeg --project /path/to/project paths --json` selects that project
+root, which must contain a `.upeg` directory, ahead of any environment override.
+Without `--project`, `UPEG_PROJECT_MANIFEST_PATH` takes precedence over automatic
+discovery (`off` disables discovery). Automatic discovery uses the nearest
+`.upeg` marker within the existing HOME boundary; outside HOME, only the current
+directory is checked. The user storage root is excluded from automatic project
+discovery. When no project is found, JSON reports `"project": null`. This command
+performs no migration or project edits: `.upeg/project.toml` and `.upeg/toolkits`
+remain project-local.
 
 ## First success
 

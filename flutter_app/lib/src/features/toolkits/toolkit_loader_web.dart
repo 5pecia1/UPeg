@@ -21,10 +21,12 @@ final class BrowserToolkitWorkerClient implements ToolkitWorkerClient {
     ).toDart;
     final response = _objectFromJs(value);
     final catalog = response['catalog'];
-    if (catalog is! Map<String, Object?>) {
+    if (catalog is! Map) {
       throw const FormatException('Invalid toolkit catalog.');
     }
-    return ToolkitCatalogDescriptor.fromJson(catalog);
+    return ToolkitCatalogDescriptor.fromJson(
+      Map<String, Object?>.from(catalog),
+    );
   }
 
   @override

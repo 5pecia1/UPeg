@@ -389,6 +389,7 @@ mod tests {
 
     #[test]
     fn managed_runtime_dispatcher_is_removed_on_drop() {
+        let _serial = crate::project_scope::test_guard();
         let id = "test.runtime.managed_dispatcher_drop";
         toolbox_add_tool(meta(id));
         {
@@ -425,6 +426,7 @@ mod tests {
 
     #[test]
     fn runtime_dispatch_validates_required_schema_args_before_calling_dispatcher() {
+        let _serial = crate::project_scope::test_guard();
         use std::sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
@@ -459,6 +461,7 @@ mod tests {
 
     #[test]
     fn runtime_dispatch_allows_required_boolean_false() {
+        let _serial = crate::project_scope::test_guard();
         use std::sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},

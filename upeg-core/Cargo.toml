@@ -22,6 +22,26 @@ upeg-macros = { workspace = true }
 # (`tests/crate_boundaries.rs`). Dev-only: it never enters a consumer's
 # graph, and `upeg-core` itself stays dependency-light.
 toml = { workspace = true }
+# Temp-directory fixtures for the storage-contract golden test
+# (`tests/storage_contract.rs`). Dev-only, mirroring upeg-sources'
+# use of the same crates for storage tests.
+tempfile = { workspace = true }
+uuid = { workspace = true }
+
+[[test]]
+name = "storage_contract"
+path = "tests/storage_contract.rs"
+# This golden test exercises `strict_marker_json`'s duplicate-key rejection,
+# which is only compiled in behind the "serde" feature (see its doc comment
+# in `src/storage_paths.rs`) so that a bare `cargo build -p upeg-core` stays
+# feature-minimal. Run it with `cargo test -p upeg-core --features serde
+# --test storage_contract`; every real consumer (upeg-cli, upeg-sources,
+# ...) always enables this feature, and a workspace-wide `cargo test
+# --workspace` / `cargo clippy --workspace --all-targets` unifies it in
+# automatically. Without the feature, `cargo test -p upeg-core` (which
+# builds every target implicitly) skips this target rather than exercising
+# the non-strict fallback and reporting a misleading pass.
+required-features = ["serde"]
 
 [features]
 # Opt-in serde derives. Default off so the core crate stays minimal for

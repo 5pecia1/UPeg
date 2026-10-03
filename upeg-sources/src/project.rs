@@ -205,11 +205,20 @@ fn manifest_candidate(dir: &Path) -> Option<PathBuf> {
     } else {
         dir.join(PROJECT_MANIFEST_FILE)
     };
-    let global = upeg_core::paths::config_root();
-    let is_global = global
-        .as_ref()
-        .is_some_and(|global| candidate.canonicalize().ok() == global.canonicalize().ok());
-    (candidate.is_dir() && !is_global).then_some(candidate)
+    let is_global = upeg_core::paths::global_storage_roots()
+        .iter()
+        .any(|global| {
+            candidate == *global
+                || candidate.canonicalize().ok().is_some_and(|path| {
+                    global
+                        .canonicalize()
+                        .ok()
+                        .is_some_and(|global| path == global)
+                })
+        });
+    let marked_global = candidate.join(upeg_core::paths::STORAGE_MARKER).exists()
+        || candidate.join(upeg_core::paths::MIGRATION_PENDING).exists();
+    (candidate.is_dir() && !is_global && !marked_global).then_some(candidate)
 }
 
 /// Walk `start → $HOME-bounded parents → $HOME` and return the first

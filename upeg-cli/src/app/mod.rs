@@ -20,8 +20,10 @@ mod call_output;
 mod diagnostics_command;
 mod dynamic_route;
 mod file_output;
+mod paths_command;
 mod plugin_command;
 mod project_command;
+mod storage_command;
 pub(crate) mod tool_readiness;
 
 use crate::domain::execution::dispatch;
@@ -314,11 +316,23 @@ fn dispatch_local_or_attached(
 /// [`run_no_command_with_terminal`] with `stdout_is_terminal=false`
 /// exercises the no-command path without spawning the TUI.
 pub fn run(cli: Cli) -> Result<String, CliError> {
-    upeg_toolkit_native::register_native_toolkits().map_err(CliError::tool_failed)?;
+    let _storage = if matches!(
+        cli.command,
+        Some(Command::Paths { .. } | Command::Storage { .. })
+    ) {
+        None
+    } else {
+        let lease = upeg_core::paths::StorageLease::acquire()
+            .map_err(|error| CliError::tool_failed(error.to_string()))?;
+        upeg_toolkit_native::register_native_toolkits().map_err(CliError::tool_failed)?;
+        Some(lease)
+    };
     let active_board = cli.board.as_deref();
     let active_tui_tag = cli.tui_tag.as_deref();
     match cli.command {
         None => run_no_command(active_board, active_tui_tag),
+        Some(Command::Paths { json }) => paths_command::run(cli.project.as_deref(), json),
+        Some(Command::Storage { action }) => storage_command::run(action),
         Some(Command::Interface { action }) => run_interface_command(action),
         Some(Command::Tool { action }) => run_tool_action(action, active_board),
         Some(Command::Toolkit { action }) => run_toolkit_action(action),

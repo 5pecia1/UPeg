@@ -56,7 +56,7 @@ pub fn board_connection_preview(
             },
         ),
     );
-    if let Some(root) = upeg_core::paths::config_root() {
+    if let Some(root) = upeg_core::paths::storage_root() {
         env.insert(
             "UPEG_HOME".into(),
             root.to_string_lossy().into_owned().into(),

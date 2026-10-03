@@ -61,6 +61,8 @@ const PRAGMA_FOREIGN_KEYS: &str = "foreign_keys";
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
+    #[error(transparent)]
+    Storage(#[from] upeg_core::paths::StoragePathError),
     #[error("config root unavailable; set UPEG_HOME, HOME, or APPDATA")]
     ConfigRootUnavailable,
     #[error("store I/O: {0}")]
@@ -81,24 +83,35 @@ pub enum StoreError {
 /// long-lived connection.
 pub struct Store {
     conn: Connection,
+    storage_lease: Option<upeg_core::paths::StorageLease>,
 }
 
 impl Store {
     /// Open the store at the default per-user path
     /// ([`upeg_core::paths::store_path`]).
     pub fn open() -> Result<Self, StoreError> {
-        let path = upeg_core::paths::store_path().ok_or(StoreError::ConfigRootUnavailable)?;
-        Self::open_at(&path)
+        let lease = upeg_core::paths::StorageLease::acquire()?;
+        let path = lease
+            .location()
+            .paths
+            .data_dir
+            .join(upeg_core::paths::STORE_FILE);
+        let mut store = Self::open_at(&path)?;
+        store.storage_lease = Some(lease);
+        Ok(store)
     }
 
     /// Open (creating if needed) the store at an explicit database path.
     /// First-class API for tests and for callers that already resolved a
     /// config root.
     pub fn open_at(path: &Path) -> Result<Self, StoreError> {
+        let lease = crate::storage::database_lease(path)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        Self::from_connection(Connection::open(path)?)
+        let mut store = Self::from_connection(Connection::open(path)?)?;
+        store.storage_lease = lease;
+        Ok(store)
     }
 
     /// In-memory store for unit tests only — nothing is shared across
@@ -118,7 +131,10 @@ impl Store {
         conn.busy_timeout(BUSY_TIMEOUT)?;
         schema::migrate(&mut conn)?;
         ensure_device_id(&conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            storage_lease: None,
+        })
     }
 
     /// Change revision of this database: `None` before the first write,
@@ -143,6 +159,9 @@ impl Store {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<T, StoreError>,
     ) -> Result<T, StoreError> {
+        if let Some(lease) = &self.storage_lease {
+            lease.validate()?;
+        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -157,6 +176,9 @@ impl Store {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<bool, StoreError>,
     ) -> Result<bool, StoreError> {
+        if let Some(lease) = &self.storage_lease {
+            lease.validate()?;
+        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
