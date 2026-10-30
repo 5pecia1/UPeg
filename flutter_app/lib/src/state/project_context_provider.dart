@@ -12,6 +12,8 @@ import 'package:upeg/src/rust/api/project.dart' as frb;
 import 'package:upeg/src/state/boards_provider.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/layout_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/state/tools_provider.dart';
 
@@ -188,6 +190,7 @@ class ProjectContextNotifier extends AsyncNotifier<ProjectDefinition?> {
   }
 
   Future<ProjectActivation> activate(String root) async {
+    _flushDraftsBeforeContextChange();
     final activation = await ref.read(projectContextApiProvider).activate(root);
     state = AsyncData(activation.project);
     _refreshProjectBoundViews();
@@ -199,6 +202,7 @@ class ProjectContextNotifier extends AsyncNotifier<ProjectDefinition?> {
     required String toolId,
     required ProjectToolChoice choice,
   }) async {
+    _flushDraftsBeforeContextChange();
     final activation = await ref
         .read(projectContextApiProvider)
         .setToolChoice(root: root, toolId: toolId, choice: choice);
@@ -208,15 +212,25 @@ class ProjectContextNotifier extends AsyncNotifier<ProjectDefinition?> {
   }
 
   Future<void> close() async {
+    _flushDraftsBeforeContextChange();
     await ref.read(projectContextApiProvider).close();
     state = const AsyncData(null);
     _refreshProjectBoundViews();
   }
 
+  /// Draft saves resolve their storage namespace from the process context at
+  /// write time, so pending ones must reach the old namespace before the
+  /// native call replaces it.
+  void _flushDraftsBeforeContextChange() =>
+      ref.read(inlineDraftProvider).flushAll();
+
   void _refreshProjectBoundViews() {
+    ref.read(lastOutcomeProvider.notifier).resetMemory();
+    ref.read(inlineDraftProvider).resetMemory();
     ref.invalidate(toolsProvider);
     ref.invalidate(boardsProvider);
     ref.invalidate(layoutProvider);
+    ref.invalidate(boardTagCountsProvider);
     ref.invalidate(tagOptionsForBoardProvider);
     ref.read(currentBoardKeyProvider.notifier).clear();
   }

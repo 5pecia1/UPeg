@@ -20,6 +20,7 @@ import 'api/palette.dart';
 import 'api/pause.dart';
 import 'api/pegboard.dart';
 import 'api/pin_activation.dart';
+import 'api/pin_drafts.dart';
 import 'api/project.dart';
 import 'api/readiness.dart';
 import 'api/shared_state.dart';
@@ -117,6 +118,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BoardDto dco_decode_board_dto(dynamic raw);
+
+  @protected
+  BoardTagCountDto dco_decode_board_tag_count_dto(dynamic raw);
 
   @protected
   BoardToolReadinessDto dco_decode_board_tool_readiness_dto(dynamic raw);
@@ -392,6 +396,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BoardDto> dco_decode_list_board_dto(dynamic raw);
 
   @protected
+  List<BoardTagCountDto> dco_decode_list_board_tag_count_dto(dynamic raw);
+
+  @protected
   List<CanonicalFileValue> dco_decode_list_canonical_file_value(dynamic raw);
 
   @protected
@@ -427,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PaletteHit> dco_decode_list_palette_hit(dynamic raw);
+
+  @protected
+  List<PinDraftDto> dco_decode_list_pin_draft_dto(dynamic raw);
 
   @protected
   List<PlacementDto> dco_decode_list_placement_dto(dynamic raw);
@@ -641,6 +651,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PinActivationDto dco_decode_pin_activation_dto(dynamic raw);
+
+  @protected
+  PinDraftDto dco_decode_pin_draft_dto(dynamic raw);
+
+  @protected
+  PinHandleStyleDto dco_decode_pin_handle_style_dto(dynamic raw);
 
   @protected
   PinKindDto dco_decode_pin_kind_dto(dynamic raw);
@@ -861,6 +877,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BoardDto sse_decode_board_dto(SseDeserializer deserializer);
+
+  @protected
+  BoardTagCountDto sse_decode_board_tag_count_dto(SseDeserializer deserializer);
 
   @protected
   BoardToolReadinessDto sse_decode_board_tool_readiness_dto(
@@ -1216,6 +1235,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BoardDto> sse_decode_list_board_dto(SseDeserializer deserializer);
 
   @protected
+  List<BoardTagCountDto> sse_decode_list_board_tag_count_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<CanonicalFileValue> sse_decode_list_canonical_file_value(
     SseDeserializer deserializer,
   );
@@ -1263,6 +1287,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<PaletteHit> sse_decode_list_palette_hit(SseDeserializer deserializer);
+
+  @protected
+  List<PinDraftDto> sse_decode_list_pin_draft_dto(SseDeserializer deserializer);
 
   @protected
   List<PlacementDto> sse_decode_list_placement_dto(
@@ -1517,6 +1544,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PinActivationDto sse_decode_pin_activation_dto(SseDeserializer deserializer);
+
+  @protected
+  PinDraftDto sse_decode_pin_draft_dto(SseDeserializer deserializer);
+
+  @protected
+  PinHandleStyleDto sse_decode_pin_handle_style_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PinKindDto sse_decode_pin_kind_dto(SseDeserializer deserializer);
@@ -1818,6 +1853,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_board_dto(BoardDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_board_tag_count_dto(
+    BoardTagCountDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_board_tool_readiness_dto(
@@ -2255,6 +2296,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_board_dto(List<BoardDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_board_tag_count_dto(
+    List<BoardTagCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_canonical_file_value(
     List<CanonicalFileValue> self,
     SseSerializer serializer,
@@ -2314,6 +2361,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_palette_hit(
     List<PaletteHit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pin_draft_dto(
+    List<PinDraftDto> self,
     SseSerializer serializer,
   );
 
@@ -2632,6 +2685,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_pin_activation_dto(
     PinActivationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pin_draft_dto(PinDraftDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pin_handle_style_dto(
+    PinHandleStyleDto self,
     SseSerializer serializer,
   );
 

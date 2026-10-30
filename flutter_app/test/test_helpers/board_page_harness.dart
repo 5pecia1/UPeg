@@ -49,6 +49,7 @@ import 'package:upeg/src/widgets/pin.dart';
 
 import 'fake_binding_catalog.dart';
 import 'pegboard_selection_overrides.dart';
+import 'pin_persistence_overrides.dart';
 import 'tool_fixture.dart';
 import 'i18n_test_catalog.dart';
 
@@ -148,6 +149,7 @@ Widget boardPageHarness({
 
   return ProviderScope(
     overrides: [
+      ...pinPersistenceTestOverrides,
       if (focusedToolId != null)
         focusedPinProvider.overrideWith(
           () => SeededFocusedPinNotifier(focusedToolId),
@@ -198,6 +200,11 @@ Widget boardPageHarness({
       ),
       tagOptionsLoaderProvider.overrideWithValue(() => tagOptions),
       boardTagOptionsLoaderProvider.overrideWithValue((_) => tagOptions),
+      boardTagCountsLoaderProvider.overrideWithValue(
+        (_) => [
+          for (final tag in tagOptions) BoardTagCountDto(tag: tag, count: 0),
+        ],
+      ),
       tagCountLoaderProvider.overrideWithValue((selection) => 0),
       boardTagCountLoaderProvider.overrideWithValue((_, selection) => 0),
       toolsLoaderProvider.overrideWithValue(() => tools),

@@ -414,7 +414,6 @@ fn the_detector_table_declares_pattern_label_key_and_tool_per_row_as_data() {
         "labelKey:",
         "normalize:",
         "preview:",
-        "tool: null,",
         "function detect(text)",
         "function dispatchArgsFor(detection)",
     ] {
@@ -501,7 +500,7 @@ fn content_js_puts_host_results_in_the_tooltip_and_falls_back_to_the_deep_link()
         // No host (or a refusing host) falls back to the offline preview
         // plus the Desktop deep link.
         "hosted === null ? previewFor(detection) : hosted",
-        "buildDeepLink({ board: CONTENT_SCRIPT_BOARD, toolId, input: detection.value }),",
+        "buildDeepLink({ board: CONTENT_SCRIPT_BOARD, toolId, input }),",
     ] {
         assert!(
             js.contains(marker),

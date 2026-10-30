@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/rust/api/pegboard.dart' show BoardTagCountDto;
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -25,6 +26,8 @@ ProviderContainer _container({
   required List<String> tags,
   required Map<String, int> counts,
   String boardKey = 'dev',
+  void Function()? onBatchLoad,
+  void Function()? onLegacyCountLoad,
 }) {
   return ProviderContainer(
     overrides: [
@@ -38,9 +41,20 @@ ProviderContainer _container({
           return tags;
         },
       ),
+      boardTagCountsLoaderProvider.overrideWith(
+        (ref) => (board) {
+          expect(board, BoardKey.parse(boardKey));
+          onBatchLoad?.call();
+          return [
+            for (final tag in tags)
+              BoardTagCountDto(tag: tag, count: counts[tag] ?? 0),
+          ];
+        },
+      ),
       boardTagCountLoaderProvider.overrideWith(
         (ref) => (board, sel) {
           expect(board, BoardKey.parse(boardKey));
+          onLegacyCountLoad?.call();
           return counts[sel.frbValue] ?? 0;
         },
       ),
@@ -75,6 +89,31 @@ Widget _harness({
 
 void main() {
   group('TagChipRow tag counts (G05)', () {
+    testWidgets('should read one snapshot for the whole tag row', (
+      tester,
+    ) async {
+      var batchLoads = 0;
+      var legacyCountLoads = 0;
+      final container = _container(
+        tags: const ['all', 'convert', 'id'],
+        counts: const {'all': 7, 'convert': 3, 'id': 2},
+        onBatchLoad: () => batchLoads += 1,
+        onLegacyCountLoad: () => legacyCountLoads += 1,
+      );
+
+      await tester.pumpWidget(
+        _harness(
+          tags: const ['all', 'convert', 'id'],
+          counts: const {'all': 7, 'convert': 3, 'id': 2},
+          container: container,
+        ),
+      );
+
+      expect(batchLoads, 1);
+      expect(legacyCountLoads, 0);
+      expect(find.text('convert 3'), findsOneWidget);
+    });
+
     testWidgets('TagChipRow_shows_the_count_for_each_tag', (tester) async {
       await tester.pumpWidget(
         _harness(

@@ -2,8 +2,7 @@
 /// board surface.
 ///
 /// Shows:
-///   * a network-reachability dot + label (color + text driven by the
-///     sealed `NetworkReachabilityDto` enum — no string discriminator),
+///   * a native MCP/HTTP reachability dot + localized label,
 ///   * the current board name + `X/Y pinned` summary,
 ///   * a paused chip when the host is paused,
 ///   * an imports chip: `imports loading…` while this process's MCP
@@ -27,6 +26,7 @@ import 'package:upeg/src/rust/api/pause.dart';
 import 'package:upeg/src/rust/api/status.dart'
     show McpImportPhaseDto, NetworkReachabilityDto;
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -40,6 +40,7 @@ class StatusBar extends ConsumerWidget {
     final boards = ref.watch(boardsProvider);
     final selectedKey = ref.watch(currentBoardKeyProvider);
     final status = ref.watch(statusSnapshotProvider);
+    final isWeb = ref.watch(isWasmRuntimeProvider);
     final layoutAsync = selectedKey == null
         ? const AsyncValue<LayoutSnapshotDto>.loading()
         : ref.watch(layoutProvider(LayoutQuery.all(selectedKey)));
@@ -65,17 +66,31 @@ class StatusBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: _dotColor(tokens, status.network.reachability),
-              shape: BoxShape.circle,
+          if (!isWeb) ...[
+            Tooltip(
+              key: const Key('status-network'),
+              message: _networkTooltip(ref, status.network.reachability),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _dotColor(tokens, status.network.reachability),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _networkLabel(ref, status.network.reachability),
+                    style: _baseTextStyle(tokens),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 5),
-          Text(status.network.label, style: _baseTextStyle(tokens)),
-          const SizedBox(width: 14),
+            const SizedBox(width: 14),
+          ],
           Text(
             t(ref, 'desktop.status.board_prefix'),
             style: _baseTextStyle(tokens),
@@ -114,7 +129,10 @@ class StatusBar extends ConsumerWidget {
             ),
           ],
           const SizedBox(width: 14),
-          const Expanded(child: _ProjectContextStatus()),
+          if (isWeb)
+            const Spacer()
+          else
+            const Expanded(child: _ProjectContextStatus()),
           Text('v${status.buildVersion}', style: _baseTextStyle(tokens)),
         ],
       ),
@@ -169,6 +187,35 @@ class StatusBar extends ConsumerWidget {
     }
     return null;
   }
+
+  String _networkLabel(WidgetRef ref, NetworkReachabilityDto reachability) =>
+      switch (reachability) {
+        NetworkReachabilityDto.loopbackOnly => t(
+          ref,
+          'desktop.status.network_loopback',
+        ),
+        NetworkReachabilityDto.remoteBindAllowed => t(
+          ref,
+          'desktop.status.network_non_loopback',
+        ),
+        NetworkReachabilityDto.offline => t(ref, 'desktop.status.network_off'),
+      };
+
+  String _networkTooltip(WidgetRef ref, NetworkReachabilityDto reachability) =>
+      switch (reachability) {
+        NetworkReachabilityDto.loopbackOnly => t(
+          ref,
+          'desktop.status.network_loopback_help',
+        ),
+        NetworkReachabilityDto.remoteBindAllowed => t(
+          ref,
+          'desktop.status.network_non_loopback_help',
+        ),
+        NetworkReachabilityDto.offline => t(
+          ref,
+          'desktop.status.network_off_help',
+        ),
+      };
 
   /// Reachability dot color is a total function over the sealed enum.
   /// Adding a new variant in `upeg-frb` is a compile error here until

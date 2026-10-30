@@ -47,6 +47,8 @@ applications rather than replacing them.
   and extension; optional packaging tools.
 - [Quick start](guides/quick-start.md) — first call, directory projects, boards and pins, MCP
   and HTTP, media tools, shell completion.
+- [Data tools](guides/data-tools.md) — JSON/YAML value comparison, sample schema
+  generation, and schema comparison through standalone Tools or Chains.
 - [Tool author guide](guides/tool-author.md) — the `#[tool(...)]` macro,
   TOML/External/WASM/MCP-import authoring, project boards.
 - [Development](guides/development.md) — the dev toolchain, `just` gates,

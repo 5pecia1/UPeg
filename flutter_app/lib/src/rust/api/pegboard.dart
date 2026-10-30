@@ -12,7 +12,7 @@ import 'tools/file_input_policy.dart';
 import 'tools/input_field.dart';
 
 // These functions are ignored because they are not marked as `pub`: `args_preset_error_to_frb`, `effective_span_width`, `is_project_declared_board`, `load_boards_and_layouts`, `mutate_layout`, `pin_color_error_to_frb`, `pin_span_error_to_frb`, `pinned_tools_for_board_in`, `placement_direction`, `placement_dto_from`, `placement_matches_tag`, `placements_for_board_and_tag_in_layouts`, `validated_pin_span`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Best-effort board list: persisted layout if present, else defaults.
 ///
@@ -75,6 +75,9 @@ int countForTag({required String tag}) =>
 /// with the `"all"` sentinel and then includes tags from the pinned tools only.
 List<String> tagOptionsForBoard({String? boardKey}) =>
     RustLib.instance.api.crateApiPegboardTagOptionsForBoard(boardKey: boardKey);
+
+List<BoardTagCountDto> boardTagCounts({String? boardKey}) =>
+    RustLib.instance.api.crateApiPegboardBoardTagCounts(boardKey: boardKey);
 
 /// Count pins on `board_key` whose tool carries `tag`.
 ///
@@ -358,6 +361,27 @@ class BoardDto {
           runtimeType == other.runtimeType &&
           key == other.key &&
           title == other.title;
+}
+
+/// Board-scoped tag labels and pin counts computed together.
+/// Loads boards and layouts once for all tags.
+/// `None` keeps the union-across-boards behavior of the existing tag APIs.
+class BoardTagCountDto {
+  final String tag;
+  final int count;
+
+  const BoardTagCountDto({required this.tag, required this.count});
+
+  @override
+  int get hashCode => tag.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BoardTagCountDto &&
+          runtimeType == other.runtimeType &&
+          tag == other.tag &&
+          count == other.count;
 }
 
 /// Snapshot of one board's placements, returned by [`load_layout_snapshot`].

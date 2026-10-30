@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
+import 'package:upeg/src/rust/api/pegboard.dart' show BoardTagCountDto;
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/layout_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart';
+import 'package:upeg/src/state/tag_provider.dart';
 
 final _board = BoardKey.parse('dev');
 final _first = (_board, PinId.parse('first-pin'));
@@ -22,6 +25,7 @@ ProviderContainer makeContainer(List<Override> overrides) {
           required pinId,
           required toolId,
           required result,
+          argsJson,
         }) {},
       ),
       lastOutcomeLoadProvider.overrideWithValue((_) => const []),
@@ -33,6 +37,35 @@ ProviderContainer makeContainer(List<Override> overrides) {
 }
 
 void main() {
+  test('pin mutation refreshes Board and union tag snapshots', () async {
+    var pins = 1;
+    final container = makeContainer([
+      boardTagCountsLoaderProvider.overrideWithValue(
+        (_) => [BoardTagCountDto(tag: 'all', count: pins)],
+      ),
+      addPinMutatorProvider.overrideWithValue((_, _) => 'added-${++pins}'),
+    ]);
+    expect(container.read(boardTagCountsProvider(_board)).single.count, 1);
+    expect(container.read(boardTagCountsProvider(null)).single.count, 1);
+
+    await container.read(pegboardMutationsProvider).add(_board, _tool);
+
+    expect(container.read(boardTagCountsProvider(_board)).single.count, 2);
+    expect(container.read(boardTagCountsProvider(null)).single.count, 2);
+  });
+
+  test('adding another placement refreshes the displayed tag count', () async {
+    var count = 10;
+    final container = makeContainer([
+      boardTagCountLoaderProvider.overrideWithValue((_, _) => count),
+      addPinMutatorProvider.overrideWithValue((_, _) => 'added-${++count}'),
+    ]);
+    final countProvider = countForBoardTagProvider((_board, const TagAll()));
+    expect(container.read(countProvider), 10);
+    await container.read(pegboardMutationsProvider).add(_board, _tool);
+    expect(container.read(countProvider), 11);
+  });
+
   test(
     'move reorder and span mutations forward exact pin and refresh',
     () async {

@@ -17,6 +17,7 @@ import 'package:upeg/src/rust/api/tools.dart' show PinKindDto, ToolDto;
 import 'package:upeg/src/rust/api/tools/input_field.dart'
     show InputFieldDto, InputFieldType_Text;
 import 'package:upeg/src/rust/api/pin_activation.dart';
+import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/launch_intent_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/tools_provider.dart';
@@ -275,84 +276,117 @@ void main() {
       },
     );
 
-    testWidgets('launchintentapplier_does_not_summon_for_an_empty_intent', (
-      tester,
-    ) async {
-      var summonCalls = 0;
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(const LaunchIntent.typed()),
-          ),
-          pinActivationProvider.overrideWithValue(
-            ({required ToolId toolId, required String argsJson}) =>
-                PinActivationDto.openModal(toolId: toolId.value),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'launchintentapplier_empty_intent_summons_once_and_clears_without_board_change',
+      (tester) async {
+        // A bare `upeg://open` (or the extension popup's
+        // `upeg://open?surface=ext`) parses to an all-null intent. It
+        // brings the window forward once and leaves the user on the
+        // board they were looking at; it never switches to a default.
+        var summonCalls = 0;
+        var selectionSaves = 0;
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(
+              boardKey: 'trading',
+              onSave: (_) => selectionSaves += 1,
+            ),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(const LaunchIntent.typed()),
+            ),
+            pinActivationProvider.overrideWithValue(
+              ({required ToolId toolId, required String argsJson}) =>
+                  PinActivationDto.openModal(toolId: toolId.value),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('trading'));
+        selectionSaves = 0;
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: Scaffold(
-              body: LaunchIntentApplier(
-                summonWindow: () async {
-                  summonCalls += 1;
-                },
-                child: const SizedBox.shrink(),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(
+                  summonWindow: () async {
+                    summonCalls += 1;
+                  },
+                  child: const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(summonCalls, 0);
-    });
+        expect(summonCalls, 1);
+        expect(container.read(launchIntentProvider), isNull);
+        expect(
+          container.read(currentBoardKeyProvider),
+          BoardKey.parse('trading'),
+        );
+        expect(selectionSaves, 0, reason: 'a summon-only link selects nothing');
+      },
+    );
 
-    testWidgets('launchintentapplier_treats_an_empty_intent_as_a_no_op', (
-      tester,
-    ) async {
-      // DD — coverage gap: board AND tool both null. `intent.isEmpty`
-      // short-circuits in `_maybeApply` before any side effect, so
-      // neither the activation closure nor the window-mode setter
-      // is invoked. The provider stays at its initial null because
-      // the observer never reaches the clear() call.
-      var activationCalls = 0;
-      final container = ProviderContainer(
-        overrides: [
-          ...i18nTestOverrides,
-          ...pegboardSelectionOverrides(boardKey: 'dev'),
-          launchIntentProvider.overrideWith(
-            () => _PrefilledLaunchIntentNotifier(const LaunchIntent.typed()),
+    testWidgets(
+      'launchintentapplier_empty_intent_never_activates_or_changes_window_mode',
+      (tester) async {
+        // DD — coverage gap: board AND tool both null. `intent.isEmpty`
+        // short-circuits in `_maybeApply` after the summon and the
+        // clear() call (covered by the test above), so neither the
+        // activation closure nor the window-mode setter is invoked.
+        var activationCalls = 0;
+        var summonCalls = 0;
+        final container = ProviderContainer(
+          overrides: [
+            ...i18nTestOverrides,
+            ...pegboardSelectionOverrides(boardKey: 'dev'),
+            windowModeProvider.overrideWith(
+              () => WindowModeNotifier(initial: WindowMode.popup),
+            ),
+            launchIntentProvider.overrideWith(
+              () => _PrefilledLaunchIntentNotifier(const LaunchIntent.typed()),
+            ),
+            pinActivationProvider.overrideWithValue(({
+              required ToolId toolId,
+              required String argsJson,
+            }) {
+              activationCalls += 1;
+              return PinActivationDto.openModal(toolId: toolId.value);
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: LaunchIntentApplier(
+                  // Record the summon instead of reaching `window_manager`.
+                  summonWindow: () async {
+                    summonCalls += 1;
+                  },
+                  child: const SizedBox.shrink(),
+                ),
+              ),
+            ),
           ),
-          pinActivationProvider.overrideWithValue(({
-            required ToolId toolId,
-            required String argsJson,
-          }) {
-            activationCalls += 1;
-            return PinActivationDto.openModal(toolId: toolId.value);
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: LaunchIntentApplier(child: SizedBox.shrink())),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(activationCalls, 0, reason: 'empty intent must not activate');
-    });
+        expect(activationCalls, 0, reason: 'empty intent must not activate');
+        expect(container.read(windowModeProvider), WindowMode.popup);
+        expect(summonCalls, 1);
+      },
+    );
 
     testWidgets(
       'launchintentapplier_silently_drops_a_tool_missing_from_the_catalogue',

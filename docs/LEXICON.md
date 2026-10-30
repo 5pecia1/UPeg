@@ -24,6 +24,7 @@ existence-checks this document's path. Moving it means fixing code too.
 | Term | Meaning |
 |---|---|
 | Universal Pegboard | The formal product name |
+| UPeg | The repository name and the product name in English prose; the wordmark and UI labels use lowercase `upeg` |
 | `upeg` | The CLI command, the crate/package prefix, the short product name |
 | Pegboard | The main canvas where pinned Tools are used |
 
@@ -81,13 +82,14 @@ HTTP/MCP.
 | `text` | diff / regex / case / slug / trim / split / join / replace / repeat / contains |
 | `hash` | MD5 / SHA-1 / SHA-256 / SHA-512 / CRC-32 |
 | `id` | UUID v4 / UUID v7 / NanoID generators |
-| `time` | Current Unix epoch and ISO 8601 timestamp helpers |
+| `time` | Unix epoch and RFC 3339 conversion, current time, and UTC cron analysis helpers |
 | `color` | Hex ↔ RGB conversion |
 | `security` | Password generator, strength estimation, random-byte generation |
 | `num` | Base conversion: `num.hex_to_decimal`, `num.decimal_to_hex`, `num.decimal_to_binary`, `num.binary_to_decimal` |
 | `qr` | QR generation (`qr.encode`, Unicode-block rendering) and decoding (`qr.decode`, image → text) |
 | `csv` | Row-wise diff (`csv.diff`), CSV→JSON (`csv.to_json`), column selection (`csv.select`) |
-| `media` | Image conversion (single/batch) and Image ↔ PDF (`media.image_convert`, `media.images_convert`, `media.image_to_pdf`, `media.pdf_to_images`, `media.pdf_extract_images`, `media.pptx_extract_images`, `media.pdf_inspect`, `media.pdf_to_markdown`) |
+| `data` | JSON/YAML value diff (`data.value_diff`), observed schema generation (`data.schema_generate`), and schema diff (`data.schema_diff`). See [Data tools](guides/data-tools.md). |
+| `media` | Image conversion (single/batch), Image ↔ PDF, and target-size PDF compression (`media.image_convert`, `media.images_convert`, `media.image_to_pdf`, `media.pdf_to_images`, `media.pdf_extract_images`, `media.pptx_extract_images`, `media.pdf_inspect`, `media.pdf_to_markdown`, `media.pdf_compress`) |
 | `eth` | Minimal Ethereum JSON-RPC reads: `eth.gas`, `eth.address_lookup`. Native only, with `endpoint` override on the keyless public-RPC default |
 
 There is no `timestamp` Toolkit — use `time`.

@@ -34,6 +34,8 @@ pub mod palette;
 pub mod pause;
 pub mod pegboard;
 pub mod pin_activation;
+pub mod pin_drafts;
+pub(crate) mod pin_web_storage;
 pub mod project;
 pub mod readiness;
 pub mod shared_state;

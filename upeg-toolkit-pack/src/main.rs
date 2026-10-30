@@ -134,12 +134,12 @@ fn saved_snapshot() -> Result<MetadataSnapshot, String> {
 fn prepare_web(out: &Path) -> Result<(), String> {
     let snapshot = source_snapshot()?;
     let bytes = serde_json::to_vec_pretty(&snapshot).map_err(|error| error.to_string())?;
-    write_bytes(
+    write_bytes_if_changed(
         &workspace_root().join("upeg-toolkit-catalog/src/metadata.snapshot.json"),
         &bytes,
     )?;
     let digest = abi_digest(&snapshot).map_err(|error| error.to_string())?;
-    write_bytes(out, format!("{digest}\n").as_bytes())?;
+    write_bytes_if_changed(out, format!("{digest}\n").as_bytes())?;
     writeln!(std::io::stdout().lock(), "{digest}").map_err(|error| error.to_string())?;
     Ok(())
 }
@@ -177,6 +177,13 @@ fn new_catalog(snapshot: MetadataSnapshot) -> Result<Catalog, String> {
         .digest_without_self()
         .map_err(|error| error.to_string())?;
     Ok(catalog)
+}
+
+fn write_bytes_if_changed(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    if fs::read(path).is_ok_and(|existing| existing == bytes) {
+        return Ok(());
+    }
+    write_bytes(path, bytes)
 }
 
 fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -535,17 +542,54 @@ mod tests {
     use super::*;
 
     #[test]
+    fn generated_input_writes_preserve_unchanged_files() {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("upeg-pack-{}-{unique}", std::process::id()));
+        let path = dir.join("generated/input.json");
+
+        write_bytes_if_changed(&path, b"original").unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+
+        let old_time = UNIX_EPOCH + Duration::from_secs(60);
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(old_time)
+            .unwrap();
+        let original_mtime = fs::metadata(&path).unwrap().modified().unwrap();
+        write_bytes_if_changed(&path, b"original").unwrap();
+        assert_eq!(
+            fs::metadata(&path).unwrap().modified().unwrap(),
+            original_mtime
+        );
+
+        write_bytes_if_changed(&path, b"changed").unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"changed");
+        assert_ne!(
+            fs::metadata(&path).unwrap().modified().unwrap(),
+            original_mtime
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn checked_in_metadata_matches_every_tool_annotation() {
         verify_metadata().expect("generated metadata must match all source annotations");
         let snapshot = saved_snapshot().expect("snapshot parses");
-        assert_eq!(snapshot.toolkits.len(), 17);
+        assert_eq!(snapshot.toolkits.len(), 18);
         assert_eq!(
             snapshot
                 .toolkits
                 .iter()
                 .map(|toolkit| toolkit.tools.len())
                 .sum::<usize>(),
-            73
+            80
         );
         for id in [
             "memo.scratch",

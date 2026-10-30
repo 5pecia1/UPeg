@@ -16,6 +16,7 @@ import 'package:upeg/src/rust/api/tools/presentation_view.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
+import 'package:upeg/src/widgets/copyable_outcome_text.dart';
 import 'package:upeg/src/widgets/expanded_modal/error_details_block.dart';
 import 'package:upeg/src/widgets/expanded_modal/structured_output.dart';
 import 'package:upeg/src/widgets/expanded_modal/presentation_collection.dart';
@@ -26,6 +27,10 @@ import 'package:upeg/src/state/presentation_resolver_provider.dart';
 class OutcomeBlock extends ConsumerWidget {
   const OutcomeBlock({
     required this.outcome,
+    this.stale = false,
+    this.inputUnknown = false,
+    this.restored = false,
+    this.truncated = false,
     required this.outputFields,
     required this.tool,
     required this.tokens,
@@ -36,6 +41,10 @@ class OutcomeBlock extends ConsumerWidget {
   });
 
   final CanonicalToolResult outcome;
+  final bool stale;
+  final bool inputUnknown;
+  final bool restored;
+  final bool truncated;
   final List<OutputFieldDto> outputFields;
   final ToolDto tool;
   final UpegTokens tokens;
@@ -52,6 +61,13 @@ class OutcomeBlock extends ConsumerWidget {
         ? t(ref, 'modal.outcome.ok')
         : t(ref, 'modal.outcome.error');
     final ClipboardWriter writer = ref.watch(clipboardWriterProvider);
+    final successKey = copySuccessKeyForRelation(
+      inputUnknown
+          ? ResultInputRelation.unknown
+          : stale
+          ? ResultInputRelation.previous
+          : ResultInputRelation.current,
+    );
     final outputRows = outcome.displayRows(outputFields);
     final resolvedView = tool.presentation == null || !outcome.ok
         ? null
@@ -111,6 +127,27 @@ class OutcomeBlock extends ConsumerWidget {
               ),
             ],
           ),
+          if (tool.id == 'num.hex_to_decimal')
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                t(ref, 'modal.hex.output_copy_hint'),
+                style: TextStyle(color: tokens.fg3, fontSize: 10),
+              ),
+            ),
+          for (final key in [
+            if (restored) 'modal.outcome.restored',
+            if (truncated) 'modal.outcome.truncated',
+            if (stale) 'modal.outcome.stale',
+            if (inputUnknown) 'modal.outcome.input_unknown',
+          ])
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                t(ref, key),
+                style: TextStyle(color: tokens.fg3, fontSize: 11),
+              ),
+            ),
           const SizedBox(height: 10),
           if (outcome.errorMessage != null && outcome.errorMessage!.isNotEmpty)
             _OutputBlock(
@@ -118,6 +155,7 @@ class OutcomeBlock extends ConsumerWidget {
               value: outcome.errorMessage!,
               tokens: tokens,
               writer: writer,
+              successKey: successKey,
             ),
           if (outcome.errorDetailsText case final details?)
             ErrorDetailsBlock(details: details, tokens: tokens),
@@ -146,6 +184,7 @@ class OutcomeBlock extends ConsumerWidget {
                   primary: row.isPrimary,
                   tokens: tokens,
                   writer: writer,
+                  successKey: successKey,
                 )
               else
                 _OutputBlock(
@@ -155,6 +194,10 @@ class OutcomeBlock extends ConsumerWidget {
                   primary: row.isPrimary,
                   tokens: tokens,
                   writer: writer,
+                  successKey: successKey,
+                  canCopy:
+                      row.entry.value is! CanonicalOutputValue_File &&
+                      row.entry.value is! CanonicalOutputValue_EmbeddedView,
                 ),
           PresentationCollection(
             tool: tool,
@@ -240,6 +283,8 @@ class _OutputBlock extends StatelessWidget {
     required this.tokens,
     required this.writer,
     this.primary = false,
+    this.successKey = 'clipboard.copied',
+    this.canCopy = true,
     super.key,
   });
 
@@ -248,6 +293,8 @@ class _OutputBlock extends StatelessWidget {
   final UpegTokens tokens;
   final ClipboardWriter writer;
   final bool primary;
+  final String successKey;
+  final bool canCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +307,11 @@ class _OutputBlock extends StatelessWidget {
             children: [
               _OutputLabel(label: label, primary: primary, tokens: tokens),
               const Spacer(),
-              CopyToClipboardButton(textToCopy: value, writer: writer),
+              CopyToClipboardButton(
+                textToCopy: canCopy ? value : '',
+                writer: writer,
+                successKey: successKey,
+              ),
             ],
           ),
           const SizedBox(height: 2),

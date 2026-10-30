@@ -288,6 +288,8 @@ mod image_pdf;
 mod images_convert;
 /// Resource caps applied to every media tool's untrusted `File` input.
 mod limits;
+/// Target-size PDF compression retaining original page content.
+mod pdf_compress;
 /// Pure-Rust embedded-image extraction backing [`pdf_extract_images`].
 mod pdf_extract;
 /// `media.pdf_to_images` — rasterize PDF pages to PNGs (hayro).
@@ -304,6 +306,7 @@ pub use image_conversion::{
 pub use image_convert::*;
 pub use image_pdf::*;
 pub use images_convert::*;
+pub use pdf_compress::*;
 pub use pdf_render::*;
 pub use pdf_text::*;
 pub use pptx::*;

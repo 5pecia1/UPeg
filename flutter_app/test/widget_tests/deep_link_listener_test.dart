@@ -39,6 +39,25 @@ void main() {
       expect(intent.board, 'dev');
     });
 
+    test('deep_link_listener_replaces_a_pending_cold_boot_intent', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      // `app.dart` seeds the argv intent before installing the listener, so
+      // a link another launch forwarded during boot arrives on top of it.
+      // The newer link must win, not be dropped behind the pending seed.
+      container
+          .read(launchIntentProvider.notifier)
+          .set(const LaunchIntent.typed(board: 'dev'));
+      DeepLinkListener.handleForTest(
+        container,
+        Uri.parse('upeg://open?board=trading'),
+        parser: (_) => const LaunchIntentDto(board: 'trading'),
+      );
+
+      expect(container.read(launchIntentProvider)?.board, 'trading');
+    });
+
     test('deep_link_listener_ignores_a_non_upeg_uri', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);

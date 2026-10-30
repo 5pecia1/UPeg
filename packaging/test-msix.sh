@@ -7,11 +7,15 @@ WORK="$(mktemp -d)"
 trap 'rm -rf -- "$WORK"' EXIT
 SRC="$WORK/source"
 mkdir -p "$SRC/flutter_app/fonts" "$SRC/flutter_app/rust_builder/cargokit" \
-  "$SRC/vendor/pdf-inspector" "$SRC/vendor/zxcvbn" "$SRC/flutter_app/build/windows/x64/runner/Release" \
+  "$SRC/vendor/pdf-inspector" "$SRC/vendor/zxcvbn" "$SRC/vendor/heic-rs" \
+  "$SRC/vendor/wasmtime-internal-cache" \
+  "$SRC/flutter_app/build/windows/x64/runner/Release" \
   "$WORK/bin" "$WORK/packages/windows"
 for path in LICENSE NOTICE flutter_app/fonts/OFL-D2Coding.txt \
   flutter_app/fonts/OFL-JetBrainsMono.txt vendor/pdf-inspector/LICENSE \
-  vendor/zxcvbn/LICENSE flutter_app/rust_builder/cargokit/LICENSE; do
+  vendor/zxcvbn/LICENSE vendor/heic-rs/LICENSE-MIT vendor/heic-rs/LICENSE-APACHE \
+  vendor/heic-rs/NOTICE vendor/wasmtime-internal-cache/LICENSE \
+  flutter_app/rust_builder/cargokit/LICENSE; do
   cp "$SOURCE/$path" "$SRC/$path"
 done
 printf '  msix: ^3.16.7\n' > "$SRC/flutter_app/pubspec.yaml"
@@ -52,6 +56,10 @@ done
 printf 'ok - zero, multiple, empty and failed generation reject stale output\n'
 
 run_case one || fail 'one package failed'
+[ -s "$SRC/flutter_app/build/windows/x64/runner/Release/licenses/heic-rs-LICENSE-MIT" ] || fail 'HEIC MIT license not staged'
+[ -s "$SRC/flutter_app/build/windows/x64/runner/Release/licenses/heic-rs-LICENSE-APACHE" ] || fail 'HEIC Apache license not staged'
+[ -s "$SRC/flutter_app/build/windows/x64/runner/Release/licenses/heic-rs-NOTICE" ] || fail 'HEIC upstream notice not staged'
+cmp -s "$SRC/vendor/wasmtime-internal-cache/LICENSE" "$SRC/flutter_app/build/windows/x64/runner/Release/licenses/wasmtime-internal-cache-LICENSE" || fail 'Wasmtime cache license not staged intact'
 [ "$(cat "$WORK/packages/windows/current.msix")" = 'new package' ] || fail 'current package not copied'
 if run_case one; then fail 'existing destination overwritten'; fi
 [ "$(cat "$WORK/packages/windows/current.msix")" = 'new package' ] || fail 'existing destination changed'

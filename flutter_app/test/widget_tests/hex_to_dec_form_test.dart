@@ -4,8 +4,7 @@
 /// Covers:
 /// - Live decode (every keystroke shows the decimal).
 /// - F1 → onSubmit with typed args (`{'input': '<hex>'}`).
-/// - F2 → copy the currently-decoded decimal to clipboard.
-/// - Invalid input surfaces an error message and disables F1/F2.
+/// - Invalid input surfaces an error message and disables F1.
 /// - Registry entry is present.
 library;
 
@@ -16,7 +15,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
-import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/hex_to_dec_form.dart';
 import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/registry.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
@@ -24,15 +22,6 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import '../test_helpers/tool_fixture.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
-
-class _RecordingClipboardWriter extends ClipboardWriter {
-  final List<String> writes = <String>[];
-
-  @override
-  Future<void> write(String text) async {
-    writes.add(text);
-  }
-}
 
 ToolDto _hexTool() => fixtureToolDto(
   id: 'num.hex_to_decimal',
@@ -69,6 +58,27 @@ void main() {
       await tester.pump();
       expect(find.text('255'), findsOneWidget);
     });
+
+    testWidgets(
+      'hextodecform_reports_raw_input_changes_including_invalid_text',
+      (tester) async {
+        ToolArgs? observedInput;
+        await tester.pumpWidget(
+          _harness(
+            form: HexToDecForm(
+              tool: _hexTool(),
+              onSubmit: (_) {},
+              onInputChanged: (args) => observedInput = args,
+            ),
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), ' 0xnot-hex ');
+        await tester.pump();
+
+        expect(observedInput?.toJsonObject(), {'input': ' 0xnot-hex '});
+      },
+    );
 
     testWidgets(
       'hextodecform_prefills_initialinput_into_the_input_and_decodes_immediately',
@@ -144,26 +154,6 @@ void main() {
       expect(observedArgs!.toJsonObject(), {'input': 'ff'});
     });
 
-    testWidgets('hextodecform_f2_copies_the_decoded_decimal_to_the_clipboard', (
-      tester,
-    ) async {
-      final writer = _RecordingClipboardWriter();
-      await tester.pumpWidget(
-        _harness(
-          form: HexToDecForm(
-            tool: _hexTool(),
-            onSubmit: (_) {},
-            clipboardWriter: writer,
-          ),
-        ),
-      );
-      await tester.enterText(find.byType(TextField), 'ff');
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
-      await tester.pumpAndSettle();
-      expect(writer.writes, ['255']);
-    });
-
     testWidgets('hextodecform_shows_an_error_message_for_invalid_input', (
       tester,
     ) async {
@@ -192,24 +182,6 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.f1);
       await tester.pumpAndSettle();
       expect(calls, 0);
-    });
-
-    testWidgets('hextodecform_ignores_f2_on_invalid_input', (tester) async {
-      final writer = _RecordingClipboardWriter();
-      await tester.pumpWidget(
-        _harness(
-          form: HexToDecForm(
-            tool: _hexTool(),
-            onSubmit: (_) {},
-            clipboardWriter: writer,
-          ),
-        ),
-      );
-      await tester.enterText(find.byType(TextField), 'xyz');
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
-      await tester.pumpAndSettle();
-      expect(writer.writes, isEmpty);
     });
   });
 

@@ -285,8 +285,13 @@ fn load_image_pages_from_archive(
         let entry = archive
             .by_index(index)
             .map_err(|e| format!("could not read zip entry {index}: {e}"))?;
-        if entry.is_file() && entry_has_extension(entry.name(), IMAGE_TO_PDF_EXTENSIONS) {
-            entries.push((entry.name().to_string(), index));
+        if entry.is_file() {
+            let name = entry
+                .name()
+                .map_err(|e| format!("could not read zip entry {index} name: {e}"))?;
+            if entry_has_extension(&name, IMAGE_TO_PDF_EXTENSIONS) {
+                entries.push((name.into_owned(), index));
+            }
         }
     }
     entries.sort();

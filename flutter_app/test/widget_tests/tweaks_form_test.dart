@@ -16,10 +16,13 @@ import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
 import 'package:upeg/src/rust/api/pause.dart' as services_frb;
 import 'package:upeg/src/rust/api/status.dart' as status_frb;
 import 'package:upeg/src/rust/api/tweaks.dart';
+import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/tweaks_form.dart';
+import 'package:upeg/src/widgets/host_attach_section.dart';
+import 'package:upeg/src/widgets/project_context_section.dart';
 
 class _FakeStatusNotifier extends StatusNotifier {
   @override
@@ -65,6 +68,9 @@ const Map<String, Map<LocaleDto, String>> _fakeCatalog = {
   'settings.radio.mode': {LocaleDto.en: 'mode', LocaleDto.ko: '모드'},
   'settings.radio.accent': {LocaleDto.en: 'accent', LocaleDto.ko: '강조색'},
   'settings.radio.locale': {LocaleDto.en: 'locale', LocaleDto.ko: '언어'},
+  'settings.radio.pin_handle': {LocaleDto.en: 'handle', LocaleDto.ko: '손잡이'},
+  'settings.pin_handle.peg': {LocaleDto.en: 'Peg', LocaleDto.ko: '페그'},
+  'settings.pin_handle.dots': {LocaleDto.en: '6 dots', LocaleDto.ko: '점 6개'},
   'settings.toggle.peg_holes': {
     LocaleDto.en: 'peg holes',
     LocaleDto.ko: '페그 구멍',
@@ -96,6 +102,7 @@ Widget _harness({
   List<String> locales = const <String>['En', 'Ko'],
   List<String> themes = const <String>['Light', 'Dark'],
   List<String> accents = const <String>['Green', 'Amber', 'Cyan', 'Pink'],
+  bool isWeb = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -119,6 +126,7 @@ Widget _harness({
       i18nTranslateOverride.overrideWithValue(_fakeTranslate),
       i18nTranslateArgsOverride.overrideWithValue(_fakeTranslateArgs),
       statusSnapshotProvider.overrideWith(() => _FakeStatusNotifier()),
+      isWasmRuntimeProvider.overrideWithValue(isWeb),
     ],
     child: MaterialApp(
       theme: UpegTheme.darkTheme(),
@@ -203,6 +211,54 @@ void main() {
       expect(saved!.showHoles, false);
     });
 
+    testWidgets('pin_handle_style_selection_saves_and_survives_hole_changes', (
+      tester,
+    ) async {
+      TweaksDto? saved;
+      await tester.pumpWidget(_harness(onSave: (next) => saved = next));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('$kPinHandleStyleRadioKeyName-dots')),
+      );
+      await tester.pumpAndSettle();
+      expect(saved!.pinHandleStyle, PinHandleStyleDto.dots);
+      expect(saved!.theme, 'Light');
+      expect(saved!.showHoles, isTrue);
+
+      await tester.tap(find.byKey(const Key('tweaks-show-holes-toggle')));
+      await tester.pumpAndSettle();
+      expect(saved!.showHoles, isFalse);
+      expect(saved!.pinHandleStyle, PinHandleStyleDto.dots);
+    });
+
+    testWidgets('selecting_peg_handle_saves_peg', (tester) async {
+      TweaksDto? saved;
+      await tester.pumpWidget(
+        _harness(
+          initial: const TweaksDto(
+            theme: 'Light',
+            accent: 'Green',
+            showHoles: true,
+            locale: 'En',
+            localHttpHost: false,
+            pinHandleStyle: PinHandleStyleDto.dots,
+          ),
+          onSave: (next) => saved = next,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('$kPinHandleStyleRadioKeyName-peg')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(saved!.pinHandleStyle, PinHandleStyleDto.peg);
+      expect(saved!.accent, 'Green');
+      expect(saved!.localHttpHost, isFalse);
+    });
+
     testWidgets('the_local_http_host_toggle_saves_immediately', (tester) async {
       // The single switch that replaced the service/source control
       // plane. With no state polling, the saved setting is the only
@@ -242,5 +298,24 @@ void main() {
 
       expect(find.byKey(kLocalHttpHostHelpKey), findsOneWidget);
     });
+
+    testWidgets('web settings hide native controls and keep Host attach', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_harness(isWeb: true));
+      await tester.pumpAndSettle();
+
+      const _WebSettingsRobot().expectNativeControlsHiddenAndAttachAvailable();
+    });
   });
+}
+
+class _WebSettingsRobot {
+  const _WebSettingsRobot();
+
+  void expectNativeControlsHiddenAndAttachAvailable() {
+    expect(find.byType(ProjectContextSection), findsNothing);
+    expect(find.byKey(kLocalHttpHostToggleKey), findsNothing);
+    expect(find.byType(HostAttachSection), findsOneWidget);
+  }
 }

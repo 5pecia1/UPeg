@@ -2,7 +2,7 @@
 use phf::{Map, phf_map};
 
 pub(super) static EN: Map<&'static str, &'static str> = phf_map! {
-    "media.convert.guidance" => "Choose an image and output format, then convert and save. SVG becomes pixels. Animated images and TIFF use the first frame/page; WebP is lossless.",
+    "media.convert.guidance" => "Choose an image and output format, then convert and save. PDF-compatible AI uses its first page. SVG input becomes pixels; SVG output vectorizes raster images, which may lose detail and create large files; complex images may exceed processing limits. Animated images and TIFF use the first frame/page; WebP is lossless.",
     "media.convert.advanced" => "Advanced settings",
     "media.convert.ico" => "ICO supports images up to 256 × 256 pixels. For SVG, set the output width to 256 or less.",
     "media.convert.input" => "Image",
@@ -11,6 +11,8 @@ pub(super) static EN: Map<&'static str, &'static str> = phf_map! {
     "media.convert.quality" => "JPEG quality",
     "media.convert.background" => "Background for transparent pixels (#RRGGBB)",
     "media.convert.svg_width" => "SVG width in pixels (0 = original)",
+    "media.convert.ai_dpi" => "AI rendering resolution (DPI)",
+    "media.convert.vector_preset" => "SVG vectorization preset",
     "media.convert.limit" => "Maximum output size in bytes",
     "media.file.preview" => "Converted image preview",
     "media.file.preview_unavailable" => "Preview unavailable. Save the file to view it.",
@@ -24,7 +26,7 @@ pub(super) static EN: Map<&'static str, &'static str> = phf_map! {
     "tool.media.images_convert.label" => "Batch convert images",
 };
 pub(super) static KO: Map<&'static str, &'static str> = phf_map! {
-    "media.convert.guidance" => "이미지와 출력 형식을 선택하고 변환한 뒤 저장하세요. SVG는 픽셀 이미지로 변환합니다. 애니메이션·TIFF는 첫 프레임/페이지만, WebP는 무손실로 변환합니다.",
+    "media.convert.guidance" => "이미지와 출력 형식을 선택하고 변환한 뒤 저장하세요. PDF 호환 AI는 첫 페이지만 사용합니다. SVG 입력은 픽셀로 변환하며, SVG 출력은 래스터 이미지를 벡터화하므로 세부 정보가 손실되거나 파일이 커질 수 있으며 복잡한 이미지는 처리 제한을 초과할 수 있습니다. 애니메이션·TIFF는 첫 프레임/페이지만, WebP는 무손실로 변환합니다.",
     "media.convert.advanced" => "고급 설정",
     "media.convert.ico" => "ICO는 최대 256 × 256 픽셀을 지원합니다. SVG는 출력 폭을 256 이하로 설정하세요.",
     "media.convert.input" => "이미지",
@@ -33,6 +35,8 @@ pub(super) static KO: Map<&'static str, &'static str> = phf_map! {
     "media.convert.quality" => "JPEG 품질",
     "media.convert.background" => "투명 영역의 배경색 (#RRGGBB)",
     "media.convert.svg_width" => "SVG 출력 폭 (픽셀, 0 = 원본)",
+    "media.convert.ai_dpi" => "AI 렌더링 해상도 (DPI)",
+    "media.convert.vector_preset" => "SVG 벡터화 프리셋",
     "media.convert.limit" => "최대 출력 크기 (바이트)",
     "media.file.preview" => "변환된 이미지 미리보기",
     "media.file.preview_unavailable" => "미리보기를 지원하지 않습니다. 파일을 저장하여 확인하세요.",

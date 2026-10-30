@@ -13,6 +13,7 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 rust.ToolDto _manualPairTool() => fixtureToolDto(
@@ -93,6 +94,7 @@ Widget _twoPinHarness({
 }) => ProviderScope(
   overrides: [
     ...i18nTestOverrides,
+    ...pinPersistenceTestOverrides,
     dispatchStreamFnProvider.overrideWithValue(dispatch),
   ],
   child: MaterialApp(

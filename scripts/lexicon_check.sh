@@ -9,16 +9,9 @@
 #   - docs/LEXICON.md (the deprecation table itself)
 #   - docs/rules/decisions.md (the rename decision and its rationale)
 #
-# Skipped trees: target/, node_modules/, .sisyphus/, .git/, .omx/, vendor/
-#
-# .omx/ holds historical setup backups (e.g. older AGENTS.md snapshots)
-# that legitimately contain retired identifiers — backups are frozen in
-# time and should not block the lexicon gate on current code.
-#
-# Note: bare "widget" / "registry" are NOT checked — too broad. They match
-# ratatui's widget API, Flutter widget classes, i18n keys, and the
-# dispatcher/trigger/embed "X registry poisoned" panic messages, none of
-# which are the lexicon's PinKind / Toolbox concept.
+# Git workspaces scan tracked files and non-ignored untracked files. This keeps
+# ignored generated recovery copies out while still checking new source files.
+# Source archives without .git scan the workspace and prune generated trees.
 
 set -euo pipefail
 
@@ -26,27 +19,58 @@ cd "$(dirname "$0")/.."
 
 EXIT=0
 
+source_files() {
+    local git_root
+    git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ -n "$git_root" ] && [ "$(cd "$git_root" && pwd -P)" = "$(pwd -P)" ]; then
+        git ls-files -z --cached --others --exclude-standard
+    else
+        find . \
+            -path './target' -prune -o \
+            -path './node_modules' -prune -o \
+            -path './tmp' -prune -o \
+            -path './.sisyphus' -prune -o \
+            -path './.git' -prune -o \
+            -path './.omx' -prune -o \
+            -path './vendor' -prune -o \
+            -type f -print0
+    fi
+}
+
+file_list="$(mktemp)"
+trap 'rm -f "$file_list"' EXIT
+if ! source_files > "$file_list"; then
+    echo "lexicon-check: failed to enumerate source files" >&2
+    exit 1
+fi
+
 scan() {
     local pattern="$1"
     local description="$2"
-    local matches
-    matches=$(grep -rln "$pattern" . \
-        --include="*.rs" --include="*.toml" --include="*.json" --include="*.md" \
-        2>/dev/null \
-        | grep -v '^\./target/' \
-        | grep -v '^\./node_modules/' \
-        | grep -v '^\./\.sisyphus/' \
-        | grep -v '^\./\.git/' \
-        | grep -v '^\./\.omx/' \
-        | grep -v '^\./vendor/' \
-        | grep -v '^\./docs/LEXICON\.md$' \
-        | grep -v '^\./docs/rules/decisions\.md$' \
-        || true)
+    local file
+    local matches=""
+    while IFS= read -r -d '' file; do
+        case "$file" in
+            *.rs|*.toml|*.json|*.md) ;;
+            *) continue ;;
+        esac
+        case "$file" in
+            vendor/*|./vendor/*) continue ;;
+        esac
+        case "$file" in
+            docs/LEXICON.md|./docs/LEXICON.md|docs/rules/decisions.md|./docs/rules/decisions.md) continue ;;
+        esac
+        # Deleted tracked paths and symlinks are not regular source files.
+        if [ ! -f "$file" ] || [ -L "$file" ]; then
+            continue
+        fi
+        if grep -q -- "$pattern" "$file" 2>/dev/null; then
+            matches+="${matches:+$'\n'}${file#./}"
+        fi
+    done < "$file_list"
+
     if [ -n "$matches" ]; then
         echo "FAIL: retired identifier \`$pattern\` ($description) found in:"
-        # Indent every hit two spaces. Bash parameter expansion rather
-        # than `sed` so shellcheck stays clean (SC2001) and the check
-        # spawns nothing per finding.
         echo "  ${matches//$'\n'/$'\n'  }"
         EXIT=1
     fi

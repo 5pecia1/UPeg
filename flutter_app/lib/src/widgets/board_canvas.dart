@@ -12,6 +12,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +43,9 @@ export 'package:upeg/src/widgets/board_canvas/pin_drag.dart';
 /// Empty-state copy. Extracted as a constant so widget tests can assert
 /// against it without coupling to the wording.
 const String emptyBoardHint = 'no pins on this board yet';
+const Key boardCanvasHorizontalScrollbarKey = Key(
+  'board-canvas-horizontal-scrollbar',
+);
 
 class BoardCanvas extends ConsumerWidget {
   const BoardCanvas({
@@ -276,26 +280,51 @@ class _BoardCanvasGridState extends ConsumerState<_BoardCanvasGrid> {
       // cells; the outer wallpaper layer would otherwise stay pinned to
       // the viewport and drift out of alignment as the user scrolls.
       paintDots: false,
-      child: SingleChildScrollView(
-        key: const Key('board-canvas-grid'),
-        scrollDirection: Axis.horizontal,
-        controller: _horizontalScrollController,
-        child: SingleChildScrollView(
-          key: const Key('board-canvas-vertical-scroll'),
-          controller: _verticalScrollController,
-          padding: const EdgeInsets.all(UpegSizing.pegboardPadding),
-          child: PegboardGridDots(
-            tokens: tokens,
-            child: AbsoluteGrid(
-              placements: placements,
-              columns: widget.snapshot.boardCols,
-              rows: rowsForLayout,
-              boardKey: effectiveBoardKey,
-              onPinTap: widget.onPinTap,
-              onEditPinColor: widget.onEditPinColor,
-              onOpenModal: widget.onOpenModal,
-              onMovePin: widget.onMovePin,
-              verticalScrollController: _verticalScrollController,
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, viewport) => Scrollbar(
+            key: boardCanvasHorizontalScrollbarKey,
+            controller: _horizontalScrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            interactive: true,
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            child: SingleChildScrollView(
+              key: const Key('board-canvas-grid'),
+              scrollDirection: Axis.horizontal,
+              controller: _horizontalScrollController,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: viewport.maxWidth),
+                child: SingleChildScrollView(
+                  key: const Key('board-canvas-vertical-scroll'),
+                  controller: _verticalScrollController,
+                  child: PegboardGridDots(
+                    tokens: tokens,
+                    viewportSize: Size(viewport.maxWidth, viewport.maxHeight),
+                    gridSize: Size(
+                      BoardGridMetrics.spanPixels(
+                        math.max(1, widget.snapshot.boardCols),
+                        BoardGridMetrics.cellWidth,
+                      ),
+                      BoardGridMetrics.spanPixels(
+                        rowsForLayout,
+                        BoardGridMetrics.cellHeight,
+                      ),
+                    ),
+                    child: AbsoluteGrid(
+                      placements: placements,
+                      columns: widget.snapshot.boardCols,
+                      rows: rowsForLayout,
+                      boardKey: effectiveBoardKey,
+                      onPinTap: widget.onPinTap,
+                      onEditPinColor: widget.onEditPinColor,
+                      onOpenModal: widget.onOpenModal,
+                      onMovePin: widget.onMovePin,
+                      verticalScrollController: _verticalScrollController,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),

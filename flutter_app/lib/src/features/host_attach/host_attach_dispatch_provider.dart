@@ -58,7 +58,12 @@ class HostAttachDispatchNotifier
     ToolId toolId,
     ToolArgs args, {
     PinKey? pinKey,
+    bool recordOutcome = true,
   }) async {
+    final recorder = ref.read(lastOutcomeProvider.notifier);
+    final runToken = pinKey == null || !recordOutcome
+        ? null
+        : recorder.beginRun(pinKey);
     ToolArgs effectiveArgs = args;
     if (pinKey != null) {
       try {
@@ -98,10 +103,14 @@ class HostAttachDispatchNotifier
     if (pinKey != null) {
       state = <PinKey, AttachDispatchResult>{...state, pinKey: result};
     }
-    if (result is AttachDispatchOk && pinKey != null) {
-      ref
-          .read(lastOutcomeProvider.notifier)
-          .record(pinKey, toolId, result.result);
+    if (result is AttachDispatchOk && pinKey != null && recordOutcome) {
+      recorder.record(
+        pinKey,
+        toolId,
+        result.result,
+        args: effectiveArgs,
+        runToken: runToken,
+      );
     }
     return result;
   }

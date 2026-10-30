@@ -33,6 +33,10 @@ NOTICE_SET=(
   "flutter_app/fonts/OFL-JetBrainsMono.txt|OFL-JetBrainsMono.txt|SIL Open Font License"
   "vendor/pdf-inspector/LICENSE|pdf-inspector-LICENSE|MIT License"
   "vendor/zxcvbn/LICENSE|zxcvbn-LICENSE|MIT License"
+  "vendor/wasmtime-internal-cache/LICENSE|wasmtime-internal-cache-LICENSE|LLVM Exceptions"
+  "vendor/heic-rs/LICENSE-MIT|heic-rs-LICENSE-MIT|MIT License"
+  "vendor/heic-rs/LICENSE-APACHE|heic-rs-LICENSE-APACHE|Apache License"
+  "vendor/heic-rs/NOTICE|heic-rs-NOTICE|heic-rs is an independent implementation"
   "flutter_app/rust_builder/cargokit/LICENSE|cargokit-LICENSE|MIT LICENSE"
 )
 

@@ -30,11 +30,14 @@ import 'package:upeg/src/rust/api/dispatch_stream.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
-import 'package:upeg/src/state/diagnostics_provider.dart';
 import 'package:upeg/src/widgets/diagnostics_section.dart';
 import 'package:upeg/src/state/external_readiness_provider.dart';
+import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/pin_activation_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/widgets/pin_save_status.dart';
 import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/presentation_call_origin.dart';
 import 'package:upeg/src/state/presentation_resolver_provider.dart';
@@ -42,8 +45,10 @@ import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/approval_confirm_dialog.dart';
 import 'package:upeg/src/widgets/controlled_embed/surface.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
+import 'package:upeg/src/widgets/copyable_outcome_text.dart';
 import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/registry.dart';
 import 'package:upeg/src/widgets/expanded_modal/generic_form.dart';
+import 'package:upeg/src/widgets/expanded_modal/image_conversion_form_policy.dart';
 import 'package:upeg/src/widgets/expanded_modal/external_readiness_panel.dart';
 import 'package:upeg/src/widgets/expanded_modal/external_run_controller.dart';
 import 'package:upeg/src/widgets/expanded_modal/live_output_tail.dart';
@@ -57,6 +62,7 @@ import 'package:upeg/src/widgets/settings_overlay.dart';
 
 part '../widgets/expanded_modal/live_run_block.dart';
 part '../widgets/expanded_modal/modal_shortcuts.dart';
+part '../widgets/expanded_modal/modal_frame.dart';
 
 /// Test seam for opening the Settings overlay from modal-level
 /// shortcuts. Production delegates to [showSettingsOverlay].
@@ -154,8 +160,26 @@ class ExpandedModalPage extends ConsumerStatefulWidget {
 }
 
 class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
-  final GenericFormController _controller = GenericFormController();
-  final PresentationCallOriginController _presentationCalls =
+  late final GenericFormController _controller;
+  late final InlineDraftStore _drafts;
+  late final int _draftGeneration;
+  PinKey? _editingPin;
+  ToolArgs? _bespokeInput;
+  ToolArgs? _outcomeArgs;
+  ToolArgs? _outcomeInput;
+  ToolArgs? _runInput;
+  bool _restoredOutcome = false;
+  bool _truncatedOutcome = false;
+  bool _savingDraft = false;
+  bool _publishingOutcome = false;
+  bool _pinPending = false;
+
+  void _updatePinState(VoidCallback change) {
+    if (mounted) setState(change);
+  }
+
+  int _formRevision = 0;
+  PresentationCallOriginController _presentationCalls =
       PresentationCallOriginController();
   PresentationCallIdentity? _presentationCall;
   CanonicalToolResult? _outcome;
@@ -184,25 +208,203 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   @override
   void initState() {
     super.initState();
-    // Apply the deep-link pre-fill before the form first renders — the
-    // GenericFormWidget reads through `controller.value(key)` for its
-    // initialValue so the user sees seeded text in the very first frame.
-    final initial = widget.initialInput;
-    if (initial != null && initial.isNotEmpty) {
-      _controller.seed(initial, fields: widget.tool.inputFields);
+    _controller = GenericFormController(onChanged: _handleInputChanged);
+    _drafts = ref.read(inlineDraftProvider);
+    _draftGeneration = _drafts.generation;
+    _editingPin = widget.pinKey;
+    final pin = _editingPin;
+    final saved = pin == null
+        ? null
+        : _drafts.read(pin, toolId: ToolId.parse(widget.tool.id));
+    final initial = widget.initialInput ?? saved;
+    if (initial != null) {
+      _seedInput(initial, preserveInvalidText: widget.initialInput == null);
+    }
+    _drafts.addListener(_handleSharedDraftChanged);
+    if (pin != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _projectChanged || _editingPin != pin) return;
+        ref.read(lastOutcomeProvider.notifier).hydrateForBoard(pin.$1);
+        _adoptOutcome(ref.read(pinLastOutcomeProvider(pin)));
+      });
     }
     if (_shouldAutoRunRead) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_dispatchToolArgs(_controller.snapshot()));
+        if (mounted) unawaited(_dispatchToolArgs(_currentInput));
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(ExpandedModalPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_projectChanged) return;
+    if (oldWidget.pinKey == widget.pinKey &&
+        oldWidget.tool.id == widget.tool.id) {
+      return;
+    }
+    _editingPin = widget.pinKey;
+    _outcome = null;
+    _outcomeArgs = null;
+    _outcomeInput = null;
+    _outcomeRunId = null;
+    _presentationCall = null;
+    _presentationCalls = PresentationCallOriginController();
+    _restoredOutcome = false;
+    _truncatedOutcome = false;
+    _formAllOk = false;
+    final pin = _editingPin;
+    final saved = pin == null
+        ? null
+        : _drafts.read(pin, toolId: ToolId.parse(widget.tool.id));
+    _seedInput(widget.initialInput ?? saved ?? ToolArgs.empty);
+    _formRevision++;
+    if (pin != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _projectChanged || _editingPin != pin) return;
+        ref.read(lastOutcomeProvider.notifier).hydrateForBoard(pin.$1);
+        _adoptOutcome(ref.read(pinLastOutcomeProvider(pin)));
       });
     }
   }
 
   bool get _shouldAutoRunRead =>
       widget.autoRunRead ||
-      (widget.tool.effect == ToolEffectDto.read &&
+      (_editingPin == null &&
+          widget.tool.effect == ToolEffectDto.read &&
           widget.tool.presentation != null &&
           !widget.tool.inputFields.any((field) => field.required_));
+
+  @override
+  void dispose() {
+    _drafts.removeListener(_handleSharedDraftChanged);
+    super.dispose();
+  }
+
+  bool get _projectChanged => _draftGeneration != _drafts.generation;
+
+  bool get _draftLoadFailed =>
+      _editingPin != null && _drafts.hasLoadFailure(_editingPin!);
+
+  ToolArgs get _currentInput => bespokeFor(ToolId.parse(widget.tool.id)) == null
+      ? _controller.snapshot()
+      : _bespokeInput ?? ToolArgs.empty;
+
+  ResultInputRelation get _outcomeInputRelation =>
+      resultInputRelation(_outcomeInput, _currentInput);
+
+  bool get _outcomeStale =>
+      _outcome != null && _outcomeInputRelation == ResultInputRelation.previous;
+
+  bool get _outcomeInputUnknown =>
+      _outcome != null && _outcomeInputRelation == ResultInputRelation.unknown;
+
+  void _seedInput(ToolArgs args, {bool preserveInvalidText = true}) {
+    _controller.seed(
+      args,
+      fields: widget.tool.inputFields,
+      preserveInvalidText: preserveInvalidText,
+    );
+    _bespokeInput = args;
+  }
+
+  void _handleInputChanged() => _saveInput(_controller.snapshot());
+
+  void _handleBespokeInputChanged(ToolArgs args) {
+    _bespokeInput = args;
+    _saveInput(args);
+  }
+
+  void _saveInput(ToolArgs args) {
+    if (_projectChanged || _draftLoadFailed) return;
+    final pin = _editingPin;
+    if (pin != null) {
+      _savingDraft = true;
+      try {
+        _drafts.set(pin, args, toolId: ToolId.parse(widget.tool.id));
+      } finally {
+        _savingDraft = false;
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _handleSharedDraftChanged() {
+    if (!mounted) return;
+    if (_projectChanged) {
+      _closeModalRoute(context);
+      return;
+    }
+    final pin = _editingPin;
+    if (_savingDraft || pin == null) return;
+    final args = _drafts.read(pin, toolId: ToolId.parse(widget.tool.id));
+    setState(() {
+      if (args != null && args != _currentInput) {
+        _seedInput(args);
+        _formRevision++;
+      }
+    });
+  }
+
+  void _adoptOutcome(PinOutcome? outcome) {
+    if (!mounted ||
+        _projectChanged ||
+        _publishingOutcome ||
+        outcome == null ||
+        _phase.blocksRun) {
+      return;
+    }
+    if (identical(_outcome, outcome.result)) return;
+    setState(() {
+      _outcome = outcome.result;
+      _outcomeArgs = outcome.args;
+      _outcomeInput = outcome.args;
+      _outcomeRunId = null;
+      _presentationCall = null;
+      _restoredOutcome = outcome is RestoredOutcome;
+      _truncatedOutcome = outcome is RestoredOutcome && outcome.truncated;
+    });
+  }
+
+  void _acceptOutcome(
+    CanonicalToolResult result,
+    ToolArgs args, {
+    DispatchRunId? runId,
+    PinKey? expectedPin,
+  }) {
+    if (!mounted || _projectChanged || expectedPin != _editingPin) return;
+    setState(() {
+      _outcome = result;
+      _outcomeArgs = args;
+      _outcomeInput = _runInput ?? args;
+      _outcomeRunId = runId;
+      _restoredOutcome = false;
+      _truncatedOutcome = false;
+    });
+  }
+
+  bool _persistOutcome(
+    LastOutcomeNotifier recorder,
+    PinKey? pin,
+    ToolId toolId,
+    CanonicalToolResult result,
+    ToolArgs args,
+    int? runToken,
+  ) {
+    if (pin == null) return true;
+    if (runToken != null && !recorder.isLatestRun(pin, runToken)) return false;
+    _publishingOutcome = true;
+    try {
+      recorder.record(pin, toolId, result, args: args, runToken: runToken);
+    } finally {
+      _publishingOutcome = false;
+    }
+    return true;
+  }
+
+  void _handleFormValidation(bool allOk) {
+    if (mounted) setState(() => _formAllOk = allOk);
+  }
 
   /// The one funnel every Run in this modal passes through: approval
   /// gate, then one streamed dispatch.
@@ -214,49 +416,75 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     // Single-flight: a second Run tap / F1 while the first request is
     // still resolving is ignored so the user can't double-fire a slow
     // tool — nor stack two approval dialogs on one barrier.
-    if (_phase.blocksRun) return;
+    if (_phase.blocksRun ||
+        _projectChanged ||
+        _draftLoadFailed ||
+        _pinPending) {
+      return;
+    }
+    _runInput = _currentInput;
     setState(() => _phase = _RunPhase.awaitingApproval);
-    final external = ExternalRunController(ref);
-    if (widget.tool.invoker == InvokerDto.external_) {
-      try {
-        final inspection = await external.inspect(widget.tool);
-        if (!mounted) return;
-        if (inspection is ExternalReadinessHostUnpaired ||
-            inspection is ExternalReadinessInspected && inspection.blocksRun) {
-          setState(() => _phase = _RunPhase.idle);
+    try {
+      final external = ExternalRunController(ref);
+      if (widget.tool.invoker == InvokerDto.external_) {
+        try {
+          final inspection = await external.inspect(widget.tool);
+          if (!mounted || _projectChanged) return;
+          if (inspection is ExternalReadinessHostUnpaired ||
+              inspection is ExternalReadinessInspected &&
+                  inspection.blocksRun) {
+            setState(() => _phase = _RunPhase.idle);
+            return;
+          }
+        } on Object {
+          if (mounted) setState(() => _phase = _RunPhase.idle);
           return;
         }
-      } on Object {
-        if (mounted) setState(() => _phase = _RunPhase.idle);
+      }
+      final verdict = await _askApproval();
+      if (!mounted || _projectChanged) return;
+      if (verdict is! ApprovalGranted) {
+        setState(() => _phase = _RunPhase.idle);
+        if (refreshRun != null) {
+          (widget.presentationCalls ?? _presentationCalls).refreshFailed(
+            refreshRun,
+          );
+        }
         return;
       }
-    }
-    final verdict = await _askApproval();
-    if (!mounted) return;
-    if (verdict is! ApprovalGranted) {
-      setState(() => _phase = _RunPhase.idle);
-      if (refreshRun != null) {
-        (widget.presentationCalls ?? _presentationCalls).refreshFailed(
-          refreshRun,
-        );
+      if (external.usesRemoteHost(widget.tool)) {
+        await _attachDispatch(external, args);
+        return;
       }
-      return;
+      if (ref.read(isWasmRuntimeProvider)) {
+        await _webDispatch(args, approve: verdict.approve);
+        return;
+      }
+      await _streamDispatch(
+        args,
+        approve: verdict.approve,
+        forcedCall: forcedCall,
+        refreshRun: refreshRun,
+      );
+    } on Object catch (error) {
+      _acceptOutcome(_failedDispatch(error), args, expectedPin: _editingPin);
+    } finally {
+      if (mounted) {
+        setState(() => _phase = _RunPhase.idle);
+        final pin = _editingPin;
+        if (pin != null) _adoptOutcome(ref.read(pinLastOutcomeProvider(pin)));
+      }
     }
-    if (external.usesRemoteHost(widget.tool)) {
-      await _attachDispatch(external, args);
-      return;
-    }
-    if (ref.read(isWasmRuntimeProvider)) {
-      await _webDispatch(args, approve: verdict.approve);
-      return;
-    }
-    await _streamDispatch(
-      args,
-      approve: verdict.approve,
-      forcedCall: forcedCall,
-      refreshRun: refreshRun,
-    );
   }
+
+  CanonicalToolResult _failedDispatch(Object error) => CanonicalToolResult(
+    ok: false,
+    outputs: const <CanonicalOutputEntry>[],
+    error: CanonicalToolError(
+      code: _dispatchStreamFailedCode,
+      message: '$error',
+    ),
+  );
 
   Future<ApprovalVerdict> _askApproval() => resolveApprovalBeforeDispatch(
     context: context,
@@ -268,38 +496,55 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     ExternalRunController external,
     ToolArgs args,
   ) async {
-    setState(() => _phase = _RunPhase.dispatching);
-    final result = await external.dispatchRemote(
-      widget.tool,
-      args,
-      pinKey: widget.pinKey,
-    );
-    if (mounted) {
-      setState(() {
-        _phase = _RunPhase.idle;
-        _outcome = result;
-        _outcomeRunId = null;
-      });
+    final pin = _editingPin;
+    final toolId = ToolId.parse(widget.tool.id);
+    final recorder = ref.read(lastOutcomeProvider.notifier);
+    final runToken = pin == null ? null : recorder.beginRun(pin);
+    setState(() {
+      _phase = _RunPhase.dispatching;
+      _runId = null;
+      _cancelRequested = false;
+      _tail = const LiveTail.empty(maxLines: modalLiveTailMaxLines);
+    });
+    CanonicalToolResult result;
+    try {
+      result = await external.dispatchRemote(widget.tool, args, pinKey: pin);
+    } on Object catch (error) {
+      result = _failedDispatch(error);
+    }
+    if (_persistOutcome(recorder, pin, toolId, result, args, runToken)) {
+      _acceptOutcome(result, args, expectedPin: pin);
     }
   }
 
   Future<void> _webDispatch(ToolArgs args, {required bool approve}) async {
-    setState(() => _phase = _RunPhase.dispatching);
-    final result = await ref.read(toolkitDispatchProvider)(
-      toolId: ToolId.parse(widget.tool.id),
-      args: args,
-      boardKey:
-          widget.pinKey?.$1.value ?? ref.read(currentBoardKeyProvider)?.value,
-      pinId: widget.pinKey?.$2.value,
-      approve: approve,
-    );
-    if (!mounted) return;
+    final pin = _editingPin;
+    final toolId = ToolId.parse(widget.tool.id);
+    final recorder = ref.read(lastOutcomeProvider.notifier);
+    final runToken = pin == null ? null : recorder.beginRun(pin);
+    final dispatch = ref.read(toolkitDispatchProvider);
+    final boardKey = pin?.$1.value ?? ref.read(currentBoardKeyProvider)?.value;
     setState(() {
-      _phase = _RunPhase.idle;
-      _outcome = result;
-      _outcomeRunId = null;
+      _phase = _RunPhase.dispatching;
       _runId = null;
+      _cancelRequested = false;
+      _tail = const LiveTail.empty(maxLines: modalLiveTailMaxLines);
     });
+    CanonicalToolResult result;
+    try {
+      result = await dispatch(
+        toolId: toolId,
+        args: args,
+        boardKey: boardKey,
+        pinId: pin?.$2.value,
+        approve: approve,
+      );
+    } on Object catch (error) {
+      result = _failedDispatch(error);
+    }
+    if (_persistOutcome(recorder, pin, toolId, result, args, runToken)) {
+      _acceptOutcome(result, args, expectedPin: pin);
+    }
   }
 
   Future<void> _streamDispatch(
@@ -309,6 +554,9 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     PresentationRefreshRun? refreshRun,
   }) async {
     final toolId = ToolId.parse(widget.tool.id);
+    final pin = _editingPin;
+    final recorder = ref.read(lastOutcomeProvider.notifier);
+    final runToken = pin == null ? null : recorder.beginRun(pin);
     final dispatch = ref.read(dispatchStreamFnProvider);
     final running = ref.read(runningToolsProvider.notifier);
     final runId = nextDispatchRunId();
@@ -342,35 +590,40 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     var streamFailed = false;
     // The modal can be opened from palette/deep links without a placement;
     // it intentionally does not claim a board-pin running indicator.
-    final runningLease = widget.pinKey == null
-        ? null
-        : running.begin(widget.pinKey!);
+    final runningLease = pin == null ? null : running.begin(pin);
     try {
       final events = dispatch(
-        pinKey: widget.pinKey,
+        pinKey: pin,
         toolId: toolId,
         args: args,
         approve: approve,
         runId: runId,
       );
       await for (final event in events) {
-        if (!mounted) continue;
         switch (event) {
           case DispatchStreamEventDto_Chunk(:final chunk):
-            setState(() => _tail = _tail.append(chunk));
+            if (mounted) setState(() => _tail = _tail.append(chunk));
           case DispatchStreamEventDto_Done(:final result):
             completed = result;
-            ExternalRunController(
-              ref,
-            ).invalidateReadinessOnMissing(widget.tool, result);
+            if (mounted) {
+              ExternalRunController(
+                ref,
+              ).invalidateReadinessOnMissing(widget.tool, result);
+            }
             final accepted = refreshRun == null
                 ? calls.acceptResult(call)
                 : calls.acceptRefresh(refreshRun);
             if (accepted && (refreshRun == null || result.ok)) {
-              setState(() {
-                _outcome = result;
-                _outcomeRunId = runId;
-              });
+              if (_persistOutcome(
+                recorder,
+                pin,
+                toolId,
+                result,
+                args,
+                runToken,
+              )) {
+                _acceptOutcome(result, args, runId: runId, expectedPin: pin);
+              }
             }
         }
       }
@@ -380,17 +633,11 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
       // channel broke). Nothing settled it, so the modal has to: an
       // unhandled async error would leave the person looking at a
       // spinner that never resolves.
-      if (mounted && refreshRun == null) {
-        setState(
-          () => _outcome = CanonicalToolResult(
-            ok: false,
-            outputs: const <CanonicalOutputEntry>[],
-            error: CanonicalToolError(
-              code: _dispatchStreamFailedCode,
-              message: '$err',
-            ),
-          ),
-        );
+      if (refreshRun == null) {
+        final failure = _failedDispatch(err);
+        if (_persistOutcome(recorder, pin, toolId, failure, args, runToken)) {
+          _acceptOutcome(failure, args, expectedPin: pin);
+        }
       }
     } finally {
       final action = widget.presentationAction;
@@ -427,11 +674,11 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   void _handleCancel() {
     final runId = _runId;
     if (runId == null) return;
-    _cancelRequested = true;
+    setState(() => _cancelRequested = true);
     ref.read(cancelDispatchFnProvider)(runId: runId);
   }
 
-  void _handleRun() => unawaited(_dispatchToolArgs(_controller.snapshot()));
+  void _handleRun() => unawaited(_dispatchToolArgs(_currentInput));
 
   void _handleBespokeSubmit(ToolArgs args) =>
       unawaited(_dispatchToolArgs(args));
@@ -487,7 +734,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     final resolved = ref.read(presentationBindingsResolverProvider)(
       toolId: widget.tool.id,
       actionId: action.id,
-      currentInputsJson: _controller.snapshot().encodeJson(),
+      currentInputsJson: (_outcomeArgs ?? ToolArgs.empty).encodeJson(),
       selectedRowJson: row?.rawJson,
       outputsJson: jsonEncode(outcome.jsonValues),
     );
@@ -604,24 +851,7 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
     if (calls.active == childCall) calls.replaceActive(parentCall);
   }
 
-  Future<void> _handleCopy() async {
-    final writer = ref.read(clipboardWriterProvider);
-    if (_outcome?.ok == false && _outcomeRunId != null) {
-      try {
-        final api = ref.read(diagnosticsApiProvider);
-        final report = await diagnosticForRun(api, _outcomeRunId!.value);
-        if (report != null) {
-          await writer.write(await api.export(report.id, debug: false));
-          return;
-        }
-      } on Object {
-        // Results can also come from a host without retained diagnostics.
-      }
-    }
-    final text = _copyTextForOutcome(_outcome);
-    if (text == null) return;
-    await writer.write(text);
-  }
+  Future<void> _handleCopy() => _copyModalOutcome(this);
 
   Future<void> _openPalette() {
     return showPaletteOverlay(context, onPick: _handlePaletteHit);
@@ -741,243 +971,5 @@ class _ExpandedModalPageState extends ConsumerState<ExpandedModalPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Presentation actions resolve a statically declared target synchronously
-    // on tap. Warm the cached catalogue while the form is visible so the
-    // first action cannot observe the FutureProvider's loading frame.
-    ref.watch(toolsProvider);
-    final tokens = context.upeg;
-    final tool = widget.tool;
-    final toolId = ToolId.parse(tool.id);
-    final bespoke = bespokeFor(toolId);
-    final readinessAllowsRun = tool.invoker != InvokerDto.external_
-        ? true
-        : externalReadinessAllowsRun(
-            ref.watch(
-              externalReadinessProvider(
-                readinessTargetFor(
-                  tool,
-                  boardKey: ref.watch(currentBoardKeyProvider),
-                ),
-              ),
-            ),
-          );
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Shortcuts(
-        shortcuts: const <ShortcutActivator, Intent>{
-          SingleActivator(LogicalKeyboardKey.f1): _RunIntent(),
-          SingleActivator(LogicalKeyboardKey.enter): _RunIntent(),
-          SingleActivator(LogicalKeyboardKey.f2): _CopyIntent(),
-          SingleActivator(LogicalKeyboardKey.escape): _CloseIntent(),
-          SingleActivator(LogicalKeyboardKey.f3): _PinIntent(),
-        },
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            _CopyIntent: CallbackAction<_CopyIntent>(
-              onInvoke: (_) {
-                _handleCopy();
-                return null;
-              },
-            ),
-            _RunIntent: CallbackAction<_RunIntent>(
-              onInvoke: (_) {
-                if ((tool.inputFields.isEmpty || _formAllOk) &&
-                    readinessAllowsRun) {
-                  _handleRun();
-                }
-                return null;
-              },
-            ),
-            _CloseIntent: CallbackAction<_CloseIntent>(
-              onInvoke: (_) {
-                Navigator.of(context).pop();
-                return null;
-              },
-            ),
-            _PinIntent: CallbackAction<_PinIntent>(
-              onInvoke: (_) {
-                // Fire-and-forget: `pinToolFromModal` awaits internally for
-                // the SnackBar gating, but the CallbackAction surface
-                // must return synchronously.
-                // ignore: discarded_futures — by design.
-                pinToolFromModal(context: context, ref: ref, tool: tool);
-                return null;
-              },
-            ),
-          },
-          child: Focus(
-            autofocus: true,
-            onKeyEvent: (_, event) => _handleAliasKey(event)
-                ? KeyEventResult.handled
-                : KeyEventResult.ignored,
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // A resolved collection needs enough room for its list and
-                  // selected detail. Plain forms retain the compact dialog.
-                  final presentationWidth = tool.presentation == null
-                      ? 560.0
-                      : 1000.0;
-                  final presentationHeight = tool.presentation == null
-                      ? 640.0
-                      : 720.0;
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: presentationWidth,
-                        maxHeight: presentationHeight,
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: tokens.surface,
-                          border: Border.all(color: tokens.line),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x66000000),
-                              blurRadius: 60,
-                              offset: Offset(0, 20),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ExpandedModalHeader(tokens: tokens, tool: tool),
-                            Flexible(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  14,
-                                  16,
-                                  14,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    if (tool.description.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: Text(
-                                          tool.description,
-                                          style: TextStyle(
-                                            color: tokens.fg3,
-                                            fontSize: 11,
-                                            height: 1.45,
-                                          ),
-                                        ),
-                                      ),
-                                    ExternalReadinessPanel(tool: tool),
-                                    if (bespoke != null)
-                                      bespoke(
-                                        context,
-                                        tool,
-                                        _handleBespokeSubmit,
-                                        _outcome?.primaryOutputText,
-                                        widget.initialInput,
-                                      )
-                                    else ...[
-                                      GenericFormWidget(
-                                        tool: tool,
-                                        controller: _controller,
-                                        boundInputKeys:
-                                            widget.collapseBoundInputs
-                                            ? widget
-                                                      .presentationAction
-                                                      ?.bindings
-                                                      .map(
-                                                        (binding) =>
-                                                            binding.target,
-                                                      )
-                                                      .toSet() ??
-                                                  const {}
-                                            : const {},
-                                        onValidationChanged: (allOk) =>
-                                            setState(() => _formAllOk = allOk),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: ExpandedModalPrimaryButton(
-                                          key: const Key(
-                                            'expanded-modal-run-btn',
-                                          ),
-                                          label: t(
-                                            ref,
-                                            'modal.action.run_short',
-                                          ),
-                                          trailingHint: '[F1]',
-                                          // Toolless tools (no required fields)
-                                          // can always Run; otherwise gate on the
-                                          // aggregate validation result. A request
-                                          // in flight also disables Run so a slow
-                                          // tool can't be double-fired.
-                                          enabled:
-                                              (tool.inputFields.isEmpty ||
-                                                  _formAllOk) &&
-                                              readinessAllowsRun &&
-                                              !_phase.blocksRun,
-                                          loading: _phase.showsSpinner,
-                                          onPressed: _handleRun,
-                                        ),
-                                      ),
-                                    ],
-                                    if (_phase.showsSpinner) ...[
-                                      const SizedBox(height: 12),
-                                      _LiveRunBlock(
-                                        tail: _tail,
-                                        tokens: tokens,
-                                        onCancel: _handleCancel,
-                                      ),
-                                    ],
-                                    if (_outcome != null) ...[
-                                      const SizedBox(height: 14),
-                                      OutcomeBlock(
-                                        outcome: _outcome!,
-                                        outputFields: tool.outputFields,
-                                        tool: tool,
-                                        tokens: tokens,
-                                        onRowAction: _handlePresentationAction,
-                                        onResultAction: (action) =>
-                                            _handlePresentationAction(
-                                              action,
-                                              null,
-                                            ),
-                                        onReadRowNavigate: (action, row) =>
-                                            _handlePresentationAction(
-                                              action,
-                                              row,
-                                              singleClick: true,
-                                            ),
-                                      ),
-                                      if (!_outcome!.ok &&
-                                          _outcomeRunId != null)
-                                        DiagnosticRunButton(
-                                          runId: _outcomeRunId!.value,
-                                        ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                            ExpandedModalFooter(tokens: tokens, tool: tool),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _buildModalFrame(this, context);
 }

@@ -1,8 +1,9 @@
 /// Derives the active [`ThemeMode`] from [`tweaksProvider`].
 ///
 /// `MaterialApp.themeMode` cannot wait on an `AsyncValue`, so this
-/// provider folds the loading + error cases into `ThemeMode.dark` —
-/// the app's dark-first default.
+/// provider folds the loading + error cases into [kDefaultThemeMode].
+/// `tweaksProvider` returns its value synchronously, so the first frame
+/// already paints the saved theme.
 /// Saving Tweaks → `tweaksProvider` re-emits → this re-emits →
 /// `UpegApp.build` re-renders with the new mode, no restart.
 library;
@@ -11,10 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 
-/// Default mode used before tweaks load and as the fallback for
-/// unknown variant strings. The app is dark-first — a default
-/// inherited from the retired Dioxus surface.
-const ThemeMode kDefaultThemeMode = ThemeMode.dark;
+/// Fallback mode when no tweaks value is available (a failed load) and
+/// for unknown variant strings. Same as the Rust default,
+/// `Tweaks::default_const` in `upeg-core/src/prefs/tweaks.rs` (Light).
+const ThemeMode kDefaultThemeMode = ThemeMode.light;
 
 /// Map a serialized Tweaks `theme` variant to a Flutter [`ThemeMode`].
 ///

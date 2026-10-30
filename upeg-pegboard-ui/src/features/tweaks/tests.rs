@@ -17,6 +17,7 @@ fn json_round_trip_preserves_every_field() {
         show_holes: false,
         local_http_host: false,
         locale: upeg_core::prefs::Locale::Ko,
+        ..Tweaks::default_const()
     };
     let json = serde_json::to_string(&original).expect("serialize");
     let back = parse_tweaks(&json).expect("parse");
@@ -65,6 +66,7 @@ fn native_save_then_load_round_trips_through_disk() {
         show_holes: false,
         local_http_host: false,
         locale: upeg_core::prefs::Locale::En,
+        ..Tweaks::default_const()
     };
     let json = serde_json::to_string(&probe).expect("serialize");
 
@@ -103,6 +105,7 @@ fn display_vars_hide_holes_when_show_holes_is_false() {
         show_holes: false,
         local_http_host: false,
         locale: upeg_core::prefs::Locale::En,
+        ..Tweaks::default_const()
     };
     let vars = display_vars_for(t);
     assert_eq!(vars.hole, "transparent");
@@ -117,6 +120,7 @@ fn display_vars_pick_dark_palette_holes_in_dark_theme() {
         show_holes: true,
         local_http_host: false,
         locale: upeg_core::prefs::Locale::En,
+        ..Tweaks::default_const()
     };
     let vars = display_vars_for(t);
     assert_eq!(vars.data_theme, "dark");
@@ -132,6 +136,7 @@ fn apply_tweaks_script_sets_all_three_css_vars_and_theme_attribute() {
         show_holes: true,
         local_http_host: false,
         locale: upeg_core::prefs::Locale::En,
+        ..Tweaks::default_const()
     };
     let script = apply_tweaks_script(t);
     // Every CSS variable + the data-theme attribute must appear in the

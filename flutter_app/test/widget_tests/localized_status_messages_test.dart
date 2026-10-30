@@ -19,6 +19,7 @@ import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 
 import '../test_helpers/dispatch_stream_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 const _statusMessages = <String, Map<LocaleDto, String>>{
@@ -57,6 +58,7 @@ final class _LocalizedStatusRobot {
     _container = ProviderContainer(
       overrides: [
         ...i18nTestOverrides,
+        ...pinPersistenceTestOverrides,
         tweaksLoaderProvider.overrideWithValue(() => _tweaks(LocaleDto.en)),
         tweaksSaverProvider.overrideWithValue((_) {}),
         if (dispatch != null) ...dispatchOverrides(dispatch),

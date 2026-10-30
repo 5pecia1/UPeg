@@ -18,13 +18,18 @@ members = [
     "upeg-tools",
     "upeg-wasm",
 ]
-exclude = ["upeg-wasm/tests/fixture-src", "vendor/extism", "vendor/pdf-inspector", "vendor/zxcvbn"]
+exclude = ["upeg-wasm/tests/fixture-src", "vendor/extism", "vendor/wasmtime-internal-cache", "vendor/heic-rs", "vendor/pdf-inspector", "vendor/zxcvbn", "vendor/vtracer"]
 resolver = "3"
 
-# Tighter release profile for shipped binaries. `strip = "symbols"` is
-# ~free at compile time and roughly halves the binary; `lto = "thin"`
-# trades modest compile-time for another ~20% size + faster cold start.
-# Override with `--profile=fastrel` if needed for development releases.
+# Avoid debug-info generation and disk I/O during routine builds and tests.
+# Opt in with CARGO_PROFILE_DEV_DEBUG=2 and CARGO_PROFILE_TEST_DEBUG=2.
+[profile.dev]
+debug = 0
+
+[profile.test]
+debug = 0
+
+# Strip shipped binaries and enable cross-crate ThinLTO for release builds.
 [profile.release]
 strip = "symbols"
 lto = "thin"
@@ -32,8 +37,8 @@ lto = "thin"
 [workspace.package]
 # Single source of truth for workspace member versions. Each member opts in
 # via `version.workspace = true` in its own [package] block. Bump here for
-# any release — do not edit the seven member Cargo.toml files individually.
-version = "0.5.3"
+# any release — do not edit member Cargo.toml files individually.
+version = "0.7.8"
 edition = "2024"
 rust-version = "1.92"
 authors = ["upeg contributors"]
@@ -47,9 +52,9 @@ base64 = "0.22"
 # Local-timezone offset for `upeg log`'s human timestamps (`Local::now()`,
 # libc `localtime_r` under the hood). MIT/Apache-2.0. Already resolved
 # transitively (`upeg-tools` → `lopdf` → `chrono`), so this pins no new
-# major version. `default-features = false` + `clock` skips `Local`'s
-# unused `wasmbind`/`serde` extras — `upeg-cli` is native-only.
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# major version. `wasmbind` enables the time toolkit clock in browsers.
+chrono = { version = "0.4", default-features = false, features = ["clock", "wasmbind"] }
+croner = "4.0.2"
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
 # `Stream` trait only, for the HTTP surface's NDJSON streaming body
@@ -105,6 +110,7 @@ schemars = { version = "1.2", features = ["preserve_order"] }
 sha1 = "0.10"
 sha2 = "0.10"
 similar = "2"
+yaml-rust2 = { version = "0.13", default-features = false }
 # Test-only: temp dirs for toolkit tests that exercise real filesystem layouts
 # (devcontainer's workspaceStorage scan). Already in the tree transitively.
 tempfile = "3"
@@ -137,13 +143,16 @@ jsonschema = { version = "0.45", default-features = false }
 # media: pptx (Office Open XML) is a ZIP archive; used natively to extract
 # embedded images from `ppt/media/*`. `deflate` covers the standard PPTX
 # compression method; no default features avoids pulling in bzip2/zstd/etc.
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.4", default-features = false, features = ["deflate"] }
 # Vendored to make the wasm timer compatible with FRB's atomics Worker build;
 # see vendor/zxcvbn/UPEG.md. The public API and all frequency-list data remain
 # the published 3.1.1 crate.
 zxcvbn = { path = "vendor/zxcvbn", version = "=3.1.1" }
 # media: permissive pure-Rust dependencies; no GPL/LGPL, all wasm-capable.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi"] }
+# HEIC/HEIF input decoder; serial no_std core also builds for the browser.
+heic-rs = { path = "vendor/heic-rs", version = "=0.1.1", default-features = false }
+vtracer = { path = "vendor/vtracer", version = "=0.6.5" }
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
 # `upeg-tools` only draws decoded raster pages (`Image::from_rgba8` +
 # `draw_image`); the default `simple-text` shaping feature is unused and is the
@@ -172,21 +181,21 @@ zune-jpeg = "0.5"
 # `hayro` resolves, rather than adding a second copy of the same decoder.
 # Its API takes PDF's `/DecodeParms` almost verbatim (see media/pdf_extract).
 hayro-ccitt = "0.3"
-upeg-cli = { path = "upeg-cli", version = "0.5" }
-upeg-core = { path = "upeg-core", version = "0.5" }
-upeg_frb = { path = "upeg-frb", version = "0.5" }
-upeg-loader = { path = "upeg-loader", version = "0.5" }
-upeg-macros = { path = "upeg-macros", version = "0.5" }
-upeg-pegboard-ui = { path = "upeg-pegboard-ui", version = "0.5" }
-upeg-plugin-api = { path = "upeg-plugin-api", version = "0.5" }
-upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.5" }
-upeg-runtime = { path = "upeg-runtime", version = "0.5" }
-upeg-sources = { path = "upeg-sources", version = "0.5" }
-upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.5" }
-upeg-tools = { path = "upeg-tools", version = "0.5" }
-upeg-toolkit-catalog = { path = "upeg-toolkit-catalog", version = "0.5" }
-upeg-toolkit-native = { path = "upeg-toolkit-native", version = "0.5" }
-upeg-wasm = { path = "upeg-wasm", version = "0.5" }
+upeg-cli = { path = "upeg-cli", version = "0.7" }
+upeg-core = { path = "upeg-core", version = "0.7" }
+upeg_frb = { path = "upeg-frb", version = "0.7" }
+upeg-loader = { path = "upeg-loader", version = "0.7" }
+upeg-macros = { path = "upeg-macros", version = "0.7" }
+upeg-pegboard-ui = { path = "upeg-pegboard-ui", version = "0.7" }
+upeg-plugin-api = { path = "upeg-plugin-api", version = "0.7" }
+upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.7" }
+upeg-runtime = { path = "upeg-runtime", version = "0.7" }
+upeg-sources = { path = "upeg-sources", version = "0.7" }
+upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.7" }
+upeg-tools = { path = "upeg-tools", version = "0.7" }
+upeg-toolkit-catalog = { path = "upeg-toolkit-catalog", version = "0.7" }
+upeg-toolkit-native = { path = "upeg-toolkit-native", version = "0.7" }
+upeg-wasm = { path = "upeg-wasm", version = "0.7" }
 
 [workspace.lints.rust]
 # >>> sol-platform workspace.lints.rust sha256=33c3f5358c6318ee3b880d075d72b0400a37676a0cb5b4cb5ef9f616aba9fb0a
@@ -409,3 +418,7 @@ multiple_crate_versions = "allow"
 # decide to publish.
 # Transitive dep version duplicates (e.g. syn 1 + syn 2) are out of our
 # control — `cargo update` decides the resolution, not us.
+
+[patch.crates-io]
+# Wasmtime 36 cache uses zstd 0.13, which has unfixed RustSec advisories.
+wasmtime-internal-cache = { path = "vendor/wasmtime-internal-cache" }

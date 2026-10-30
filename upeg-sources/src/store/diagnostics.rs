@@ -55,7 +55,10 @@ impl Store {
             "DELETE FROM {DIAGNOSTICS_TABLE} WHERE id NOT IN \
              (SELECT id FROM {DIAGNOSTICS_TABLE} ORDER BY occurred_at_ms DESC, id DESC LIMIT ?1)"
         );
-        self.write_tx(|tx| {
+        // Local history, not shared state: appending must not bump
+        // `change_rev` (see the table in `store/mod.rs`), or every failed run
+        // would make each surface reload every board.
+        self.write_local_cache_tx(|tx| {
             tx.execute(
                 &sql,
                 params![

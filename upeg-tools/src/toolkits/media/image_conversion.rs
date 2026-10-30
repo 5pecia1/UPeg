@@ -6,7 +6,10 @@ use image::{DynamicImage, GenericImageView, ImageEncoder, Pixel};
 use super::image_codec::{self, RasterFormat};
 use super::limits::{CappedBuffer, checked_pixel_area, image_decode_limits};
 
+mod ai;
+mod heif;
 mod svg;
+mod vectorize;
 
 pub const IMAGE_CONVERT_DEFAULT_QUALITY: usize = 90;
 pub const IMAGE_CONVERT_DEFAULT_BACKGROUND: &str = "#FFFFFF";
@@ -14,7 +17,8 @@ pub const IMAGE_CONVERT_DEFAULT_SVG_WIDTH: usize = 0;
 pub const IMAGE_CONVERT_MAX_SVG_WIDTH: usize = 8192;
 pub const IMAGE_CONVERT_MAX_INPUT_BYTES: usize = 50 << 20;
 pub(super) const INPUT_EXTENSIONS: &[&str] = &[
-    "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff", "ico", "qoi", "svg",
+    "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff", "ico", "qoi", "svg", "heic", "heif",
+    "ai",
 ];
 const ENCODED_IMAGE_LABEL: &str = "converted image";
 const ICO_MAX_DIMENSION: u32 = 256;
@@ -31,6 +35,7 @@ pub(super) enum ConversionFormat {
     Tiff,
     Ico,
     Qoi,
+    Svg,
 }
 
 impl ConversionFormat {
@@ -44,6 +49,7 @@ impl ConversionFormat {
             "tiff" => Ok(Self::Tiff),
             "ico" => Ok(Self::Ico),
             "qoi" => Ok(Self::Qoi),
+            "svg" => Ok(Self::Svg),
             _ => Err(format!("unsupported output format `{value}`")),
         }
     }
@@ -57,6 +63,7 @@ impl ConversionFormat {
             Self::Tiff => "tiff",
             Self::Ico => "ico",
             Self::Qoi => "qoi",
+            Self::Svg => "svg",
         }
     }
     pub(super) const fn mime_type(self) -> &'static str {
@@ -69,20 +76,29 @@ impl ConversionFormat {
             Self::Tiff => "image/tiff",
             Self::Ico => "image/x-icon",
             Self::Qoi => "image/qoi",
+            Self::Svg => "image/svg+xml",
         }
     }
-    const fn image_format(self) -> image::ImageFormat {
+    fn image_format(self) -> Option<image::ImageFormat> {
         match self {
-            Self::Png => image::ImageFormat::Png,
-            Self::Jpeg => image::ImageFormat::Jpeg,
-            Self::Webp => image::ImageFormat::WebP,
-            Self::Gif => image::ImageFormat::Gif,
-            Self::Bmp => image::ImageFormat::Bmp,
-            Self::Tiff => image::ImageFormat::Tiff,
-            Self::Ico => image::ImageFormat::Ico,
-            Self::Qoi => image::ImageFormat::Qoi,
+            Self::Png => Some(image::ImageFormat::Png),
+            Self::Jpeg => Some(image::ImageFormat::Jpeg),
+            Self::Webp => Some(image::ImageFormat::WebP),
+            Self::Gif => Some(image::ImageFormat::Gif),
+            Self::Bmp => Some(image::ImageFormat::Bmp),
+            Self::Tiff => Some(image::ImageFormat::Tiff),
+            Self::Ico => Some(image::ImageFormat::Ico),
+            Self::Qoi => Some(image::ImageFormat::Qoi),
+            Self::Svg => None,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum VectorPreset {
+    Poster,
+    Photo,
+    Bw,
 }
 
 /// Validated options shared by single and batch conversion.
@@ -92,6 +108,8 @@ pub struct ImageConversionOptions {
     jpeg_quality: u8,
     background: image::Rgba<u8>,
     svg_width: u32,
+    ai_dpi: f64,
+    vector_preset: VectorPreset,
 }
 
 impl ImageConversionOptions {
@@ -102,6 +120,23 @@ impl ImageConversionOptions {
         background: &str,
         svg_width: usize,
     ) -> Result<Self, String> {
+        Self::new_extended(format, jpeg_quality, background, svg_width, 144.0, "poster")
+    }
+    pub fn new_extended(
+        format: &str,
+        jpeg_quality: usize,
+        background: &str,
+        svg_width: usize,
+        ai_dpi: f64,
+        vector_preset: &str,
+    ) -> Result<Self, String> {
+        super::normalize_dpi(ai_dpi)?;
+        let vector_preset = match vector_preset {
+            "poster" => VectorPreset::Poster,
+            "photo" => VectorPreset::Photo,
+            "bw" => VectorPreset::Bw,
+            _ => return Err(format!("unsupported vector preset `{vector_preset}`")),
+        };
         if !(1..=100).contains(&jpeg_quality) {
             return Err("JPEG quality must be between 1 and 100".into());
         }
@@ -122,6 +157,8 @@ impl ImageConversionOptions {
             jpeg_quality: u8::try_from(jpeg_quality).map_err(|_| "invalid JPEG quality")?,
             background: image::Rgba([rgb[1], rgb[2], rgb[3], u8::MAX]),
             svg_width: u32::try_from(svg_width).map_err(|_| "invalid SVG width")?,
+            ai_dpi,
+            vector_preset,
         })
     }
     pub(super) fn defaults(format: &str) -> Result<Self, String> {
@@ -134,7 +171,12 @@ impl ImageConversionOptions {
     }
 }
 
-fn raster_format(name: &str, bytes: &[u8]) -> Result<image::ImageFormat, String> {
+enum InputFormat {
+    Raster(image::ImageFormat),
+    Heif,
+}
+
+fn input_format(name: &str, bytes: &[u8]) -> Result<InputFormat, String> {
     match image::guess_format(bytes) {
         Ok(
             format @ (image::ImageFormat::Png
@@ -145,11 +187,18 @@ fn raster_format(name: &str, bytes: &[u8]) -> Result<image::ImageFormat, String>
             | image::ImageFormat::Tiff
             | image::ImageFormat::Ico
             | image::ImageFormat::Qoi),
-        ) => Ok(format),
+        ) => Ok(InputFormat::Raster(format)),
+        _ if heif::is_heif(bytes) => Ok(InputFormat::Heif),
         _ => Err(format!(
             "could not decode `{name}`: unsupported image bytes"
         )),
     }
+}
+
+pub(super) fn is_ai(name: &str) -> bool {
+    name.rsplit('.')
+        .next()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("ai"))
 }
 
 fn is_svg(name: &str) -> bool {
@@ -163,11 +212,20 @@ pub(super) fn pixel_count(
     bytes: &[u8],
     options: ImageConversionOptions,
 ) -> Result<usize, String> {
+    if is_ai(name) {
+        if options.format == ConversionFormat::Svg {
+            return Err("AI input cannot be vectorized to SVG".into());
+        }
+        return ai::pixel_count(bytes, options.ai_dpi);
+    }
     if is_svg(name) {
         return svg::pixel_count(bytes, options.svg_width);
     }
-    let mut reader =
-        image::ImageReader::with_format(Cursor::new(bytes), raster_format(name, bytes)?);
+    let format = input_format(name, bytes)?;
+    let InputFormat::Raster(format) = format else {
+        return heif::pixel_count(name, bytes);
+    };
+    let mut reader = image::ImageReader::with_format(Cursor::new(bytes), format);
     reader.limits(image_decode_limits());
     let (width, height) = reader
         .into_dimensions()
@@ -180,13 +238,25 @@ pub(super) fn decode(
     bytes: &[u8],
     options: ImageConversionOptions,
 ) -> Result<DynamicImage, String> {
+    if is_ai(name) {
+        if options.format == ConversionFormat::Svg {
+            return Err("AI input cannot be vectorized to SVG".into());
+        }
+        return ai::decode(bytes, options.ai_dpi);
+    }
     if is_svg(name) {
+        if options.format == ConversionFormat::Svg {
+            return Err("SVG input cannot be vectorized to SVG".into());
+        }
         return svg::decode(bytes, options.svg_width);
     }
     // Check pixel count before decoding; some codecs only enforce axis/allocation limits.
     pixel_count(name, bytes, options)?;
-    let mut reader =
-        image::ImageReader::with_format(Cursor::new(bytes), raster_format(name, bytes)?);
+    let format = input_format(name, bytes)?;
+    let InputFormat::Raster(format) = format else {
+        return heif::decode(name, bytes);
+    };
+    let mut reader = image::ImageReader::with_format(Cursor::new(bytes), format);
     reader.limits(image_decode_limits());
     let mut decoder = reader
         .into_decoder()
@@ -206,6 +276,9 @@ pub(super) fn encode(
     options: ImageConversionOptions,
     limit: usize,
 ) -> Result<Vec<u8>, String> {
+    if options.format == ConversionFormat::Svg {
+        return vectorize::encode(raster, options, limit);
+    }
     if options.format == ConversionFormat::Png {
         return image_codec::encode_with_limit(raster, RasterFormat::Png, limit);
     }
@@ -235,7 +308,13 @@ pub(super) fn encode(
         // Normalize to RGBA8 so every encoder has a supported color type,
         // including high-bit-depth TIFF/PNG input.
         DynamicImage::ImageRgba8(raster.to_rgba8())
-            .write_to(&mut writer, options.format.image_format())
+            .write_to(
+                &mut writer,
+                options
+                    .format
+                    .image_format()
+                    .ok_or("SVG must be vectorized")?,
+            )
             .map_err(|error| format!("could not encode {}: {error}", options.format.extension()))?;
     }
     Ok(writer.into_bytes())

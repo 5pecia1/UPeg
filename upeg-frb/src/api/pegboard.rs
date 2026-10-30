@@ -16,11 +16,11 @@ use upeg_core::{
 };
 use upeg_pegboard_ui::features::boards::{
     Board, add_board as add_board_inner, default_boards, load_boards, remove_board,
-    rename_board as rename_board_inner, save_boards,
+    rename_board as rename_board_inner, try_save_boards,
 };
 use upeg_pegboard_ui::features::layouts::{
     ALL_TAG, BoardLayouts, count_for_tag as count_for_tag_inner, default_layouts, load_layouts,
-    save_layouts, tag_options as tag_options_inner, tool_is_pinned_in_layout,
+    tag_options as tag_options_inner, tool_is_pinned_in_layout, try_save_layouts,
 };
 use upeg_pegboard_ui::platform::storage::{self, PegboardSelectionValue};
 use upeg_runtime::pegboard::{
@@ -32,6 +32,11 @@ use upeg_runtime::{ToolMetaRuntimeExt, toolbox_tool, toolbox_tools};
 use super::boot::FrbError;
 use super::keyboard::OrderDirectionDto;
 use super::tools::ToolDto;
+
+mod persistence;
+use persistence::load_boards_and_layouts_for_mutation;
+#[cfg(not(target_arch = "wasm32"))]
+use persistence::save_boards_and_layouts;
 
 /// Cap on returned empty-board suggestions so the UI never paints more
 /// than three onboarding tiles.
@@ -286,6 +291,30 @@ pub fn tag_options_for_board(board_key: Option<String>) -> Vec<String> {
     tag_options_inner(&tools)
 }
 
+/// Board-scoped tag labels and pin counts computed together.
+/// Loads boards and layouts once for all tags.
+/// `None` keeps the union-across-boards behavior of the existing tag APIs.
+#[derive(Debug, Clone)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub struct BoardTagCountDto {
+    pub tag: String,
+    pub count: u32,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn board_tag_counts(board_key: Option<String>) -> Vec<BoardTagCountDto> {
+    let _catalog_read = upeg_runtime::project_scope::catalog_read_guard();
+    let (boards, layouts) = load_boards_and_layouts();
+    let tools = pinned_tools_for_board_in(&boards, &layouts, board_key.as_deref());
+    tag_options_inner(&tools)
+        .into_iter()
+        .map(|tag| BoardTagCountDto {
+            count: u32::try_from(count_for_tag_inner(&tools, &tag)).unwrap_or(u32::MAX),
+            tag,
+        })
+        .collect()
+}
+
 /// Count pins on `board_key` whose tool carries `tag`.
 ///
 /// `tag = "all"` counts every pinned tool for that board. `None` board means
@@ -432,7 +461,10 @@ pub fn add_pin(board_key: String, tool_id: String) -> Result<String, FrbError> {
 pub fn remove_pin(board_key: String, pin_id: String) -> Result<(), FrbError> {
     mutate_layout(&board_key, |layout| {
         remove_placement(layout, &pin_id);
-    })
+    })?;
+    #[cfg(target_arch = "wasm32")]
+    clear_web_pin_state(&board_key, &pin_id)?;
+    Ok(())
 }
 
 /// Remove every placement carrying `tool_id` from `board_key` and
@@ -440,9 +472,29 @@ pub fn remove_pin(board_key: String, pin_id: String) -> Result<(), FrbError> {
 /// [`FrbError::Validation`] when the board is unknown.
 #[flutter_rust_bridge::frb(sync)]
 pub fn unpin_tool(board_key: String, tool_id: String) -> Result<(), FrbError> {
+    #[cfg(target_arch = "wasm32")]
+    let mut removed_pin_ids = Vec::new();
     mutate_layout(&board_key, |layout| {
+        #[cfg(target_arch = "wasm32")]
+        removed_pin_ids.extend(
+            layout
+                .iter()
+                .filter(|pin| pin.tool_id == tool_id)
+                .map(|pin| pin.pin_id.to_string()),
+        );
         unpin_placement(layout, &tool_id);
-    })
+    })?;
+    #[cfg(target_arch = "wasm32")]
+    for pin_id in removed_pin_ids {
+        clear_web_pin_state(&board_key, &pin_id)?;
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn clear_web_pin_state(board_key: &str, pin_id: &str) -> Result<(), FrbError> {
+    super::pin_drafts::clear_web_pin_draft(board_key, pin_id)?;
+    super::last_outcomes::clear_web_pin_outcome(board_key, pin_id)
 }
 
 /// Swap the selected pin with its row-major neighbour in one persisted layout
@@ -606,7 +658,7 @@ fn mutate_layout<F>(board_key: &str, mut mutate: F) -> Result<(), FrbError>
 where
     F: FnMut(&mut Vec<Placement>),
 {
-    let (boards, mut layouts) = load_boards_and_layouts();
+    let (boards, mut layouts) = load_boards_and_layouts_for_mutation()?;
     let static_key: &'static str = boards
         .iter()
         .find(|b| b.key == board_key)
@@ -617,8 +669,9 @@ where
         })?;
     let layout = layouts.entry(static_key).or_default();
     mutate(layout);
-    save_layouts(&layouts);
-    Ok(())
+    try_save_layouts(&layouts).map_err(|_| FrbError::Io {
+        message: format!("save layout for board `{board_key}` failed"),
+    })
 }
 
 // ─── Board CRUD ────────────────────────────────────────────────────────
@@ -631,12 +684,14 @@ where
 /// whitespace, mirroring `add_board`'s `None` contract.
 #[flutter_rust_bridge::frb(sync)]
 pub fn create_board(title: String) -> Result<String, FrbError> {
-    let mut boards = load_boards().unwrap_or_else(default_boards);
+    let (mut boards, _) = load_boards_and_layouts_for_mutation()?;
     let key = add_board_inner(&mut boards, &title).ok_or_else(|| FrbError::Validation {
         field: "title".to_string(),
         reason: "board title must be non-empty".to_string(),
     })?;
-    save_boards(&boards);
+    try_save_boards(&boards).map_err(|_| FrbError::Io {
+        message: "save boards failed".to_string(),
+    })?;
     Ok(key.to_string())
 }
 
@@ -644,15 +699,16 @@ pub fn create_board(title: String) -> Result<String, FrbError> {
 /// when the title is blank or the board doesn't exist.
 #[flutter_rust_bridge::frb(sync)]
 pub fn rename_board(board_key: String, new_title: String) -> Result<(), FrbError> {
-    let mut boards = load_boards().unwrap_or_else(default_boards);
+    let (mut boards, _) = load_boards_and_layouts_for_mutation()?;
     if !rename_board_inner(&mut boards, &board_key, &new_title) {
         return Err(FrbError::Validation {
             field: "new_title".to_string(),
             reason: "board not found or title was blank".to_string(),
         });
     }
-    save_boards(&boards);
-    Ok(())
+    try_save_boards(&boards).map_err(|_| FrbError::Io {
+        message: "save boards failed".to_string(),
+    })
 }
 
 /// Whether the Project Manifest this process detected declares
@@ -691,20 +747,23 @@ pub fn delete_board(board_key: String) -> Result<(), FrbError> {
             ),
         });
     }
-    let mut boards = load_boards().unwrap_or_else(default_boards);
+    let (mut boards, layouts) = load_boards_and_layouts_for_mutation()?;
     if !remove_board(&mut boards, &board_key) {
         return Err(FrbError::Validation {
             field: "board_key".to_string(),
             reason: format!("unknown board `{board_key}`"),
         });
     }
-    save_boards(&boards);
-    // Drop the orphan layout entry to keep storage tidy.
-    let mut layouts: BoardLayouts =
-        load_layouts(&boards).unwrap_or_else(|| default_layouts(&boards));
-    layouts.retain(|k, _| *k != board_key);
-    save_layouts(&layouts);
-    Ok(())
+    #[cfg(target_arch = "wasm32")]
+    {
+        return persistence::delete_board_web(&board_key, &boards, layouts);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut layouts = layouts;
+        layouts.retain(|k, _| *k != board_key);
+        save_boards_and_layouts(&boards, &layouts)
+    }
 }
 
 // ─── Drag-and-drop / move ──────────────────────────────────────────────

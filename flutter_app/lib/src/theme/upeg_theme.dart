@@ -91,10 +91,10 @@ enum UpegPinKind {
   }
 }
 
-/// Short-form invoker label rendered in the Pin footer. Mirrors
-/// `upeg_core::Invoker::label()` — kept in Dart so a new Rust variant
-/// rolls in via codegen without forcing every widget to know how to
-/// stringify it.
+/// Short-form invoker label rendered in the expanded modal's footer.
+/// Mirrors `upeg_core::Invoker::label()` — kept in Dart so a new Rust
+/// variant rolls in via codegen without forcing every widget to know how
+/// to stringify it.
 String invokerDtoLabel(rust_tools.InvokerDto invoker) {
   switch (invoker) {
     case rust_tools.InvokerDto.function:
@@ -305,7 +305,7 @@ class UpegTokens extends ThemeExtension<UpegTokens> {
     pin: Color(0xFFE89478),
     // Top of the dark fg ramp — ≥15:1 against bg/surface.
     focusRing: Color(0xFFE8EBEF),
-    hole: Color(0x0DFFFFFF), // rgba(255,255,255,0.05)
+    hole: Color(0xFF30363D),
     holeDeep: Color(0x73000000), // rgba(0,0,0,0.45)
     // PinKind palette — see tool_meta::pin_color
     pinInline: Color(0xFF5BD16C), // var(--accent)
@@ -345,7 +345,7 @@ class UpegTokens extends ThemeExtension<UpegTokens> {
     pin: Color(0xFFBA5832),
     // Top of the light fg ramp — ≥14:1 against bg/surface.
     focusRing: Color(0xFF1A1A18),
-    hole: Color(0x12000000), // rgba(0,0,0,0.07)
+    hole: Color(0xFFD0CEC7),
     holeDeep: Color(0x99FFFFFF), // rgba(255,255,255,0.6)
     pinInline: Color(0xFF2E8C44),
     pinLauncher: Color(0xFF9A4FB0),
@@ -483,7 +483,7 @@ class UpegSizing {
   static const double pinGap = 8;
 
   /// Tab bar height.
-  static const double tabBarHeight = 38;
+  static const double tabBarHeight = 48;
 
   /// Tag chip strip height.
   static const double tagRowHeight = 34;

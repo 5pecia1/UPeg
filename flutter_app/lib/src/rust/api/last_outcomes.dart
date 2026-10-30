@@ -8,6 +8,7 @@ import 'boot.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'tools.dart';
 
+// These functions are ignored because they are not marked as `pub`: `validated_args_json`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Persist `result` as the last outcome of `pin_id` / `tool_id` on
@@ -19,19 +20,20 @@ void recordLastOutcome({
   required String boardKey,
   required String pinId,
   required String toolId,
+  String? argsJson,
   required CanonicalToolResult result,
 }) => RustLib.instance.api.crateApiLastOutcomesRecordLastOutcome(
   boardKey: boardKey,
   pinId: pinId,
   toolId: toolId,
+  argsJson: argsJson,
   result: result,
 );
 
 /// All persisted outcomes for `board_key`, sorted by pin id.
 ///
-/// Best-effort read (mirrors `list_boards`): an unopenable store or a
-/// corrupt row yields an empty / shorter list instead of an error —
-/// hydration is a cache warm-up, never a boot blocker.
+/// Storage failures reach the caller for retry. Corrupt result payload rows
+/// are skipped so one bad pin does not hide its healthy neighbors.
 List<LastOutcomeDto> loadLastOutcomes({required String boardKey}) => RustLib
     .instance
     .api
@@ -44,11 +46,14 @@ class LastOutcomeDto {
   final String pinId;
   final String toolId;
 
+  /// Input snapshot that produced this result. `None` for pre-v8 rows.
+  final String? argsJson;
+
   /// The canonical result as recorded (minus `error.details`, which
   /// the store does not persist).
   final CanonicalToolResult result;
 
-  /// `true` when the store's size cap dropped output entries.
+  /// `true` for an older row whose outputs were truncated.
   final bool truncated;
 
   /// Epoch milliseconds of the recording write (store clock).
@@ -57,6 +62,7 @@ class LastOutcomeDto {
   const LastOutcomeDto({
     required this.pinId,
     required this.toolId,
+    this.argsJson,
     required this.result,
     required this.truncated,
     required this.updatedAtMs,
@@ -66,6 +72,7 @@ class LastOutcomeDto {
   int get hashCode =>
       pinId.hashCode ^
       toolId.hashCode ^
+      argsJson.hashCode ^
       result.hashCode ^
       truncated.hashCode ^
       updatedAtMs.hashCode;
@@ -77,6 +84,7 @@ class LastOutcomeDto {
           runtimeType == other.runtimeType &&
           pinId == other.pinId &&
           toolId == other.toolId &&
+          argsJson == other.argsJson &&
           result == other.result &&
           truncated == other.truncated &&
           updatedAtMs == other.updatedAtMs;

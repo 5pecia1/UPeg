@@ -578,9 +578,9 @@ sealed class SourceDto with _$SourceDto {
 /// the `output_spec` the same way.
 ///
 /// Batch 1 added `pin_kind` / `invoker` / `pegboard_units` so the Dart
-/// Pin widget can drive its kind-coloured accent dot, kind badge,
-/// invoker label, and multi-unit cell size without crossing the FFI
-/// boundary again per pin.
+/// side can drive a Pin's kind-coloured header icon and accent, the
+/// expanded modal's kind badge and invoker label, and the multi-unit
+/// cell size without crossing the FFI boundary again per Pin.
 class ToolDto {
   final String id;
   final String toolkit;
@@ -594,12 +594,14 @@ class ToolDto {
   /// summaries and typed result renderers.
   final List<OutputFieldDto> outputFields;
 
-  /// Mirror of [`upeg_core::PinKind`] — drives the kind-coloured
-  /// header dot + footer KindBadge on the Dart Pin widget.
+  /// Mirror of [`upeg_core::PinKind`] — drives the kind-coloured header
+  /// icon, accent and Semantics label of the Dart Pin widget, and the
+  /// `KindBadge` in the expanded modal header.
   final PinKindDto pinKind;
 
-  /// Mirror of [`upeg_core::Invoker`] — short footer label on the
-  /// Dart Pin widget ("function", "external", …).
+  /// Mirror of [`upeg_core::Invoker`] — the short invoker label in the
+  /// expanded modal footer ("function", "external", …); the Dart side
+  /// also branches on it (External readiness, inline eligibility).
   final InvokerDto invoker;
 
   /// Mirror of [`upeg_core::PegboardUnits`] — drives the Dart

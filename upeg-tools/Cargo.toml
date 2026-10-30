@@ -11,6 +11,8 @@ description = "Built-in Tool implementations selected one Toolkit feature at a t
 [dependencies]
 base32 = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+croner = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
@@ -26,6 +28,7 @@ unicode-normalization = { workspace = true, optional = true }
 upeg-core = { workspace = true }
 upeg-runtime = { workspace = true }
 urlencoding = { workspace = true, optional = true }
+yaml-rust2 = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 zxcvbn = { workspace = true, optional = true }
 
@@ -39,7 +42,9 @@ zxcvbn = { workspace = true, optional = true }
 #           — media.pdf_extract_images codecs
 zip = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+heic-rs = { workspace = true, optional = true }
 resvg = { workspace = true, optional = true }
+vtracer = { workspace = true, optional = true }
 krilla = { workspace = true, optional = true }
 hayro = { workspace = true, optional = true }
 rqrr = { workspace = true, optional = true }
@@ -53,6 +58,7 @@ hayro-ccitt = { workspace = true, optional = true }
 # WASM targets need the JavaScript-backed RNG so `uuid::Uuid::now_v7()` works
 # in browsers (STACK.md §3 — Desktop+PWA+Ext share the same bin via WASM).
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+vtracer = { workspace = true, optional = true, features = ["wasm"] }
 getrandom = { workspace = true, features = ["wasm_js"], optional = true }
 uuid = { workspace = true, features = ["v4", "v7", "js"], optional = true }
 
@@ -65,21 +71,22 @@ ureq = { workspace = true, optional = true }
 
 [features]
 default = []
-all-toolkits = ["color", "convert", "csv", "devcontainer", "eth", "hash", "id", "media", "net", "num", "qr", "security", "text", "time", "weather"]
+all-toolkits = ["color", "convert", "csv", "data", "devcontainer", "eth", "hash", "id", "media", "net", "num", "qr", "security", "text", "time", "weather"]
 color = []
 convert = ["dep:base32", "dep:base64", "dep:unicode-normalization", "dep:urlencoding"]
 csv = ["dep:csv", "dep:similar"]
+data = ["dep:similar", "dep:yaml-rust2"]
 devcontainer = ["dep:dirs", "dep:rusqlite", "dep:regex", "dep:urlencoding"]
 eth = ["dep:ureq"]
 hash = ["dep:crc32fast", "dep:md-5", "dep:sha1", "dep:sha2"]
 id = ["dep:getrandom", "dep:uuid"]
-media = ["dep:zip", "dep:image", "dep:resvg", "dep:krilla", "dep:hayro", "dep:lopdf", "dep:pdf-inspector", "dep:flate2", "dep:weezl", "dep:zune-jpeg", "dep:hayro-ccitt"]
+media = ["dep:zip", "dep:image", "dep:heic-rs", "dep:resvg", "dep:vtracer", "dep:krilla", "dep:hayro", "dep:lopdf", "dep:pdf-inspector", "dep:flate2", "dep:weezl", "dep:zune-jpeg", "dep:hayro-ccitt"]
 net = []
 num = []
 qr = ["dep:qrcode", "dep:rqrr", "dep:image"]
 security = ["dep:getrandom", "dep:zxcvbn"]
 text = ["dep:regex", "dep:similar"]
-time = []
+time = ["dep:chrono", "dep:croner"]
 weather = ["dep:ureq", "dep:urlencoding"]
 
 # `unsafe_code = "deny"` is inherited from `[workspace.lints.rust]` via
@@ -92,5 +99,6 @@ workspace = true
 # Test-only. `rusqlite` is re-declared here (native-gated above) so tests can
 # seed a real `state.vscdb`; `tempfile` builds throwaway storage-root layouts.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+jsonschema = { workspace = true }
 rusqlite = { workspace = true }
 tempfile = { workspace = true }

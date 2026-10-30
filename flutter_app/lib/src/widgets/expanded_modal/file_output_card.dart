@@ -1,8 +1,11 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:xml/xml.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/i18n/t.dart';
@@ -18,6 +21,7 @@ abstract final class FileOutputKeys {
 
 const double _previewExtent = 220;
 const int _previewCacheWidth = 480;
+const int _maxSvgPreviewBytes = 2 * 1024 * 1024;
 const double _spacing = 8;
 const Set<String> _previewMimes = {
   'image/png',
@@ -26,6 +30,39 @@ const Set<String> _previewMimes = {
   'image/gif',
   'image/bmp',
 };
+
+// Generated SVGs consist solely of paths; reject external-resource markup.
+bool _safeSvgPreview(Uint8List bytes) {
+  if (bytes.length > _maxSvgPreviewBytes) return false;
+  try {
+    final document = XmlDocument.parse(utf8.decode(bytes));
+    if (document.children.whereType<XmlDoctype>().isNotEmpty) return false;
+    final root = document.rootElement;
+    if (root.name.qualified != 'svg') return false;
+    for (final element in root.descendants.whereType<XmlElement>()) {
+      if (element.name.qualified != 'path') return false;
+    }
+    for (final element in [root, ...root.descendants.whereType<XmlElement>()]) {
+      for (final attribute in element.attributes) {
+        if (!{
+          'xmlns',
+          'width',
+          'height',
+          'viewBox',
+          'd',
+          'fill',
+          'transform',
+        }.contains(attribute.name.qualified)) {
+          return false;
+        }
+        if (attribute.value.toLowerCase().contains('url(')) return false;
+      }
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /// Shared File output UX, including a bounded preview and recoverable save errors.
 class FileOutputCard extends ConsumerStatefulWidget {
@@ -91,11 +128,15 @@ class _FileOutputCardState extends ConsumerState<FileOutputCard> {
   @override
   Widget build(BuildContext context) {
     final bytes = widget.bytes;
-    final preview = bytes != null && _previewMimes.contains(widget.mime);
+    final rasterPreview = bytes != null && _previewMimes.contains(widget.mime);
+    final svgPreview =
+        bytes != null &&
+        widget.mime == 'image/svg+xml' &&
+        _safeSvgPreview(bytes);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (preview)
+        if (rasterPreview || svgPreview)
           Padding(
             padding: const EdgeInsets.only(bottom: _spacing),
             child: Container(
@@ -104,17 +145,32 @@ class _FileOutputCardState extends ConsumerState<FileOutputCard> {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(UpegSizing.radius2),
               ),
-              child: Image.memory(
-                bytes,
-                key: FileOutputKeys.preview,
-                fit: BoxFit.contain,
-                cacheWidth: _previewCacheWidth,
-                semanticLabel: t(ref, 'media.file.preview'),
-                errorBuilder: (_, _, _) => Center(
-                  child: Text(t(ref, 'media.file.preview_unavailable')),
-                ),
-              ),
+              child: svgPreview
+                  ? SvgPicture.memory(
+                      bytes,
+                      key: FileOutputKeys.preview,
+                      fit: BoxFit.contain,
+                      semanticsLabel: t(ref, 'media.file.preview'),
+                      errorBuilder: (_, _, _) => Center(
+                        child: Text(t(ref, 'media.file.preview_unavailable')),
+                      ),
+                    )
+                  : Image.memory(
+                      bytes,
+                      key: FileOutputKeys.preview,
+                      fit: BoxFit.contain,
+                      cacheWidth: _previewCacheWidth,
+                      semanticLabel: t(ref, 'media.file.preview'),
+                      errorBuilder: (_, _, _) => Center(
+                        child: Text(t(ref, 'media.file.preview_unavailable')),
+                      ),
+                    ),
             ),
+          ),
+        if (bytes != null && widget.mime == 'image/svg+xml' && !svgPreview)
+          Padding(
+            padding: const EdgeInsets.only(bottom: _spacing),
+            child: Text(t(ref, 'media.file.preview_unavailable')),
           ),
         Row(
           children: [

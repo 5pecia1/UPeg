@@ -16,6 +16,8 @@ pub mod color;
 pub mod convert;
 #[cfg(feature = "csv")]
 pub mod csv;
+#[cfg(feature = "data")]
+pub mod data;
 // Like `eth`/`weather`, `devcontainer`'s `#[tool]`-annotated functions emit
 // their own `StaticToolMeta` that must exist on every target (including
 // `wasm32`) so the tools stay discoverable there for host-attach; only the

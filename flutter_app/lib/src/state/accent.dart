@@ -6,9 +6,9 @@
 /// the single boundary that decodes it into the typed enum, and the
 /// downstream theme/palette code switches on the variant.
 ///
-/// Unknown variants fall back to [Accent.cyan] (the historical default
-/// accent, same as `kDefaultAccent`) so a future FRB-side enum addition
-/// degrades gracefully instead of crashing the UI.
+/// Unknown variants fall back to [kDefaultAccent] (the Rust default) so a
+/// future FRB-side enum addition degrades gracefully instead of crashing
+/// the UI.
 library;
 
 enum Accent {
@@ -24,12 +24,17 @@ enum Accent {
   final String frbName;
 
   /// Decode the FRB-side variant string into the typed enum. Unknown
-  /// inputs fall back to [Accent.cyan]; callers that need to reject
+  /// inputs fall back to [kDefaultAccent]; callers that need to reject
   /// invalid input should validate before calling.
   static Accent fromFrb(String s) {
     for (final a in values) {
       if (a.frbName == s) return a;
     }
-    return Accent.cyan;
+    return kDefaultAccent;
   }
 }
+
+/// Accent used when no tweaks value is available (a failed load) and for
+/// unknown FRB variant strings. Same as the Rust default,
+/// `Tweaks::default_const` in `upeg-core/src/prefs/tweaks.rs`.
+const Accent kDefaultAccent = Accent.green;

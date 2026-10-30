@@ -5,7 +5,10 @@
 //! The [`InstanceLock`] guard lives in a `OnceLock<Mutex<Option<...>>>`
 //! so the caller does NOT hold a stack-local guard — `init_app` is a
 //! single sync FRB call and the lock has to live for the whole process
-//! up until `shutdown` drops it.
+//! up until `shutdown` drops it. `init_app` takes it right after the
+//! storage lease and before any Toolkit registration, so the losing
+//! process of a double launch registers no Toolkits, loads no runtime
+//! sources and writes no diagnostics.
 //!
 //! Format: a one-line PID, atomically created. On start:
 //!   1. try `create_new` — success → we own the slot.
@@ -93,8 +96,9 @@ pub fn drop_global() {
     }
 }
 
-/// Try to take the desktop instance lock at `~/.upeg/desktop.lock`.
-/// Cleans up a stale lock from a crashed prior process.
+/// Try to take the desktop instance lock: `desktop.lock` in the runtime
+/// dir Rust resolved (see `lock_path`). Cleans up a stale lock from a
+/// crashed prior process.
 pub fn acquire() -> std::io::Result<AcquireOutcome> {
     let path = lock_path().ok_or_else(|| {
         std::io::Error::new(
@@ -107,7 +111,7 @@ pub fn acquire() -> std::io::Result<AcquireOutcome> {
 
 /// Path-injected variant of [`acquire`] — used by tests so they can
 /// exercise the atomic-create / stale-cleanup logic without touching
-/// the user's `~/.upeg/desktop.lock`.
+/// the user's real `desktop.lock`.
 pub fn acquire_at(path: PathBuf) -> std::io::Result<AcquireOutcome> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -140,7 +144,7 @@ pub fn acquire_at(path: PathBuf) -> std::io::Result<AcquireOutcome> {
     ))
 }
 
-/// `<config_root>/desktop.lock`. The path constant lives in
+/// `<runtime_dir>/desktop.lock`. The path constant lives in
 /// `upeg-core::paths` (the workspace's config-root owner), not in a
 /// surface crate — see the crate-boundaries gate's module docs
 /// (`upeg-core/tests/crate_boundaries.rs`).

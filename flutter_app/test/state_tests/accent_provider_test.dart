@@ -44,9 +44,10 @@ void main() {
       expect(Accent.fromFrb('Pink'), Accent.pink);
     });
 
-    test('Accent_fromFrb_falls_back_to_cyan_for_unknown_values', () {
-      expect(Accent.fromFrb('Magenta'), Accent.cyan);
-      expect(Accent.fromFrb(''), Accent.cyan);
+    test('Accent_fromFrb_falls_back_to_default_green_for_unknown_values', () {
+      expect(kDefaultAccent, Accent.green);
+      expect(Accent.fromFrb('Magenta'), kDefaultAccent);
+      expect(Accent.fromFrb(''), kDefaultAccent);
     });
 
     test('Accent_frbName_returns_each_variant_FRB_label', () {
@@ -77,23 +78,25 @@ void main() {
       },
     );
 
-    test('accentProvider_falls_back_to_cyan_default_before_load', () {
-      final container = ProviderContainer(
-        overrides: [
-          // Never-completing loader keeps the AsyncNotifier in loading.
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => throw UnimplementedError('loader not invoked in test'),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'accentProvider_falls_back_to_default_green_when_the_loader_throws',
+      () {
+        final container = ProviderContainer(
+          overrides: [
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => throw UnimplementedError('loader failure in test'),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // Read synchronously while tweaksProvider is still in `loading`
-      // (the loader is never invoked here because we never await the
-      // future); the fallback must kick in instead of throwing.
-      expect(container.read(accentProvider), Accent.cyan);
-    });
+        // `build` is synchronous, so the first read calls the loader at once
+        // and its error lands as AsyncError; the fallback must kick in
+        // instead of throwing.
+        expect(container.read(accentProvider), Accent.green);
+      },
+    );
   });
 
   group('showHolesProvider', () {
@@ -127,19 +130,22 @@ void main() {
       expect(container.read(showHolesProvider), isTrue);
     });
 
-    test('showHolesProvider_falls_back_to_true_default_before_load', () {
-      final container = ProviderContainer(
-        overrides: [
-          tweaksLoaderProvider.overrideWith(
-            (ref) =>
-                () => throw UnimplementedError('loader not invoked in test'),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'showHolesProvider_falls_back_to_true_default_when_the_loader_throws',
+      () {
+        final container = ProviderContainer(
+          overrides: [
+            tweaksLoaderProvider.overrideWith(
+              (ref) =>
+                  () => throw UnimplementedError('loader failure in test'),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // Default matches the Rust default (show_holes: true).
-      expect(container.read(showHolesProvider), isTrue);
-    });
+        // Default matches the Rust default (show_holes: true).
+        expect(container.read(showHolesProvider), isTrue);
+      },
+    );
   });
 }

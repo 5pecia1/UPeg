@@ -16,9 +16,44 @@ import 'package:upeg/src/widgets/tag_chips.dart';
 import '../test_helpers/pegboard_selection_overrides.dart';
 import '../test_helpers/i18n_test_catalog.dart';
 import '../test_helpers/board_canvas_harness.dart';
+import '../test_helpers/board_canvas_navigation_robot.dart';
 
 void main() {
   group('BoardCanvas', () {
+    testWidgets('should retain centered six-column placement on a wide board', (
+      tester,
+    ) async {
+      final robot = BoardCanvasNavigationRobot(tester);
+      await robot.pumpWideBoard();
+
+      robot.expectFirstTileCentered();
+    });
+
+    testWidgets('should reach the JSON column with a horizontal wheel event', (
+      tester,
+    ) async {
+      final robot = BoardCanvasNavigationRobot(tester);
+      await robot.pumpNarrowBoard();
+      robot.expectJsonClipped();
+
+      await robot.wheelOnBase64();
+
+      robot.expectJsonReached();
+    });
+
+    testWidgets(
+      'should expose a draggable horizontal scrollbar on a narrow board',
+      (tester) async {
+        final robot = BoardCanvasNavigationRobot(tester);
+        await robot.pumpNarrowBoard();
+        robot.expectJsonClipped();
+        robot.expectHorizontalScrollbarVisible();
+
+        await robot.dragHorizontalScrollbarToEnd();
+
+        robot.expectJsonReached();
+      },
+    );
     testWidgets('BoardCanvas_shows_hint_text_for_an_empty_layout', (
       tester,
     ) async {
@@ -65,11 +100,9 @@ void main() {
       );
 
       expect(find.byType(Pin), findsNWidgets(2));
-      // The Pin header renders the canonical id in upper case
-      // (typography inherited from the retired Dioxus surface). The
-      // body label falls back to the id when the catalog is empty.
-      expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
-      expect(find.text('CONVERT.BASE64_DECODE'), findsOneWidget);
+      // The header falls back to the canonical id with an empty catalogue.
+      expect(find.text('num.hex_to_decimal'), findsOneWidget);
+      expect(find.text('convert.base64_decode'), findsOneWidget);
     });
 
     testWidgets(
@@ -306,8 +339,8 @@ void main() {
       );
 
       expect(find.byType(Pin), findsNWidgets(2));
-      expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
-      expect(find.text('CONVERT.BASE64_DECODE'), findsOneWidget);
+      expect(find.text('num.hex_to_decimal'), findsOneWidget);
+      expect(find.text('convert.base64_decode'), findsOneWidget);
 
       // Canvas width must be exactly 6 columns, NOT wider due to row extent.
       final canvasSize = tester.getSize(
@@ -364,6 +397,12 @@ void main() {
             ),
             boardTagOptionsLoaderProvider.overrideWithValue(
               (_) => const ['all', 'pure'],
+            ),
+            boardTagCountsLoaderProvider.overrideWithValue(
+              (_) => const [
+                BoardTagCountDto(tag: 'all', count: 2),
+                BoardTagCountDto(tag: 'pure', count: 1),
+              ],
             ),
             boardTagCountLoaderProvider.overrideWithValue((_, _) => 0),
             layoutLoaderProvider.overrideWithValue((query) {

@@ -21,6 +21,12 @@ TOOLKIT_IDS = ('color', 'convert', 'csv', 'devcontainer', 'eth', 'hash', 'id', '
 PUBLIC_TOOLKIT_TARGETS = ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
                           'aarch64-apple-darwin', 'x86_64-apple-darwin',
                           'x86_64-pc-windows-msvc')
+DATA_TOOLKIT_RELEASE = (0, 6, 0)
+VERSION_PATTERN = re.compile(
+    r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)'
+    r'(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?'
+    r'(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+)
 SHA_PATTERN = re.compile(r'[0-9a-f]{40}\Z')
 DIGEST_PATTERN = re.compile(r'[0-9a-f]{64}\Z')
 
@@ -39,6 +45,14 @@ def safe_name(name: object) -> str:
 
 def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
     files: list[str] = []
+    version_match = VERSION_PATTERN.fullmatch(version)
+    if version_match is None:
+        raise GateError(f'invalid release version: {version!r}')
+    version_core = tuple(int(version_match.group(index)) for index in range(1, 4))
+    toolkit_ids = TOOLKIT_IDS
+    # Prerelease/build suffixes do not change which toolkits a release family builds.
+    if version_core >= DATA_TOOLKIT_RELEASE:
+        toolkit_ids = (*TOOLKIT_IDS, 'data')
     for component in components:
         if component == 'cli':
             for target in ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
@@ -59,7 +73,7 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
                 extension = '.exe.gz' if target == 'x86_64-pc-windows-msvc' else '.gz'
                 payloads = [f'toolkits-{target}-catalog.json',
                             *(f'toolkits-{target}-{toolkit}-{version}{extension}'
-                              for toolkit in TOOLKIT_IDS)]
+                              for toolkit in toolkit_ids)]
                 files.extend(payloads)
                 files.extend(f'{name}.sha256' for name in payloads)
         else:
@@ -67,15 +81,27 @@ def expected_files(version: str, tag: str, components: list[str]) -> list[str]:
     return sorted(files)
 
 
-def profile_files(version: str, tag: str, profile: str) -> set[str]:
+def profile_files(version: str, tag: str, profile: str, include_rpm: bool = False) -> set[str]:
     if profile == 'public':
-        return set(expected_files(version, tag, [*COMPONENTS, 'toolkits']))
+        files = set(expected_files(version, tag, [*COMPONENTS, 'toolkits']))
+        if include_rpm:
+            rpm = f'upeg-{version}-1.x86_64.rpm'
+            files.update((rpm, f'{rpm}.sha256'))
+        return files
     if profile == 'linux':
         payloads = {
             f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz',
             f'upeg-{tag}-aarch64-unknown-linux-gnu.tar.gz',
             f'upeg-{tag}-web.tar.gz', f'upeg_{version}_amd64.deb',
             f'upeg-{tag}-x86_64.AppImage',
+        }
+    elif profile == 'linux-macos':
+        payloads = {
+            f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-aarch64-unknown-linux-gnu.tar.gz',
+            f'upeg-{tag}-aarch64-apple-darwin.tar.gz',
+            f'upeg_{version}_amd64.deb', f'upeg-{tag}-x86_64.AppImage',
+            f'upeg-{tag}-web.tar.gz', f'upeg-{tag}.dmg',
         }
     elif profile == 'full':
         payloads = {
@@ -89,6 +115,8 @@ def profile_files(version: str, tag: str, profile: str) -> set[str]:
         }
     else:
         raise GateError(f'unknown release profile: {profile!r}')
+    if include_rpm:
+        payloads.add(f'upeg-{version}-1.x86_64.rpm')
     return payloads | {f'{name}.sha256' for name in payloads}
 
 
@@ -112,12 +140,13 @@ def regular_files(dist_dir: Path) -> dict[str, Path]:
     return files
 
 
-def manifest_v2(dist_dir: Path, out_json: Path, tag: str, commit: str, profile: str) -> dict:
+def manifest_v2(dist_dir: Path, out_json: Path, tag: str, commit: str, profile: str,
+                include_rpm: bool = False) -> dict:
     version = tag.removeprefix('v')
     if not tag.startswith('v') or not version or not SHA_PATTERN.fullmatch(commit):
         raise GateError('v2 manifest needs a v-prefixed tag and full build commit SHA')
     files = regular_files(dist_dir)
-    if set(files) != profile_files(version, tag, profile):
+    if set(files) != profile_files(version, tag, profile, include_rpm):
         raise GateError('release files differ from the selected profile')
     entries = [{'name': name, 'sha256': sha256(files[name]), 'bytes': files[name].stat().st_size}
                for name in sorted(files)]
@@ -146,7 +175,9 @@ def verify_mirror(dist_dir: Path, manifest_json: Path, tag: str) -> dict:
         names.append(safe_name(entry.get('name')))
     if len(names) != len(set(names)):
         raise GateError('duplicate release manifest file name')
-    if set(names) != profile_files(document['version'], tag, document.get('profile')):
+    rpm = f"upeg-{document['version']}-1.x86_64.rpm"
+    include_rpm = rpm in names or f'{rpm}.sha256' in names
+    if set(names) != profile_files(document['version'], tag, document.get('profile'), include_rpm):
         raise GateError('release manifest files differ from selected profile')
     actual = regular_files(dist_dir)
     if set(actual) != set(names):
@@ -173,7 +204,8 @@ def main() -> int:
     man.add_argument('out_json', type=Path)
     man.add_argument('--tag', required=True)
     man.add_argument('--commit', required=True)
-    man.add_argument('--profile', required=True, choices=('linux', 'public', 'full'))
+    man.add_argument('--profile', required=True, choices=('linux', 'linux-macos', 'public', 'full'))
+    man.add_argument('--include-rpm', action='store_true')
     chk = sub.add_parser('verify-mirror')
     chk.add_argument('dist_dir', type=Path)
     chk.add_argument('manifest_json', type=Path)
@@ -183,7 +215,8 @@ def main() -> int:
         if args.command == 'expected-files':
             print('\n'.join(expected_files(args.version, args.tag, args.components or list(COMPONENTS))))
         elif args.command == 'manifest-v2':
-            document = manifest_v2(args.dist_dir, args.out_json, args.tag, args.commit, args.profile)
+            document = manifest_v2(args.dist_dir, args.out_json, args.tag, args.commit,
+                                   args.profile, args.include_rpm)
             print(f"[PASS] release manifest: {len(document['files'])} files, tag {document['tag']}")
         else:
             document = verify_mirror(args.dist_dir, args.manifest_json, args.tag)

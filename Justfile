@@ -30,7 +30,10 @@ fix:
 # drift fixtures (~2–3 minutes warm). Run before every commit; the full
 # closure is `just verify`.
 # Pre-commit gate: fast, read-only, Rust-only. Run before every commit.
-check: fmt-check clippy-native file-size-budget lexicon-check test-unit
+check:
+	python3 scripts/local-target-budget.py -- bash packaging/test-toolkit-run.sh just _check
+
+_check: fmt-check clippy-native file-size-budget lexicon-check test-unit
 	@printf '\033[1;32m  ok (check)\033[0m\n'
 
 # ─── Full verification closure ──────────────────────────────────────
@@ -48,6 +51,9 @@ check: fmt-check clippy-native file-size-budget lexicon-check test-unit
 #
 # Full verification closure: the four CI lanes. The canonical entry point.
 verify:
+	python3 scripts/local-target-budget.py -- bash packaging/test-toolkit-run.sh just _verify
+
+_verify:
 	bash scripts/verify_public.sh all
 	@printf '\033[1;32m  ok (verify)\033[0m\n'
 
@@ -66,7 +72,10 @@ ci-preflight: require-wasm-target fmt-check flutter-fmt-check actionlint license
 # the generated-artifact drift gates and native clippy.
 #
 # CI lane 2/4 — the whole test corpus (once) + drift gates + native clippy.
-ci-core: test-baseline-check interface-inventory-check toolkit-schema-check toolkit-metadata-check frb-codegen-check test-chrome-ext-file-input test-controlled-embed flutter-analyze clippy-native
+ci-core:
+	bash packaging/test-toolkit-run.sh just _ci-core
+
+_ci-core: test-baseline-check interface-inventory-check toolkit-schema-check toolkit-metadata-check frb-codegen-check test-chrome-ext-file-input test-controlled-embed flutter-analyze clippy-native
 	@printf '\033[1;32m  ok (ci-core)\033[0m\n'
 
 # CI lane 3/4 — wasm32 clippy for every crate that ships into the PWA.
@@ -88,16 +97,16 @@ ci-wasm: require-wasm-target clippy-tools-wasm clippy-core-wasm clippy-frb-wasm
 # ci-smoke` for a local machine that genuinely can't build web. Absence
 # of a binary is not an escape hatch.
 #
-# CI lane 4/4 — release build, CLI smoke, and the headless web boot check.
+# CI lane 4/4 — release build, CLI smoke, web boot, and toolkit worker checks.
 ci-smoke:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just smoke
 	just mcp-import-real-smoke
 	if [ "${UPEG_SKIP_WEB_SMOKE:-0}" = "1" ]; then
-	  printf '\033[1;33m  skip\033[0m flutter-web-smoke (UPEG_SKIP_WEB_SMOKE=1)\n'
+	  printf '\033[1;33m  skip\033[0m web smoke checks (UPEG_SKIP_WEB_SMOKE=1)\n'
 	else
-	  just flutter-web-smoke
+	  just flutter-web-smoke toolkit-web-loader-smoke
 	fi
 	printf '\033[1;32m  ok (ci-smoke)\033[0m\n'
 
@@ -128,6 +137,7 @@ ci-smoke:
 mcp-import-real-smoke:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just mcp-import-real-smoke; fi
 	printf '\n\033[1;36m[smoke]\033[0m cargo test -p upeg-cli --test mcp_import_real_server -- --ignored\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -282,6 +292,7 @@ file-size-budget:
 test-unit:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-unit; fi
 	printf '\n\033[1;36m[check]\033[0m cargo test --workspace --lib\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -295,6 +306,7 @@ test-unit:
 test-workspace:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-workspace; fi
 	printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --all-targets\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -303,6 +315,7 @@ test-workspace:
 test-docs:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-docs; fi
 	printf '\n\033[1;36m[dev]\033[0m cargo test --workspace --doc\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -320,6 +333,7 @@ test-chrome-ext-file-input:
 test-controlled-embed:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-controlled-embed; fi
 	printf '\n\033[1;36m[verify]\033[0m cargo test -p upeg-cli --features controlled-embed\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -336,6 +350,7 @@ test-baseline-self-test:
 test-baseline:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-baseline; fi
 	printf '\n\033[1;36m[test-baseline]\033[0m python3 scripts/test_baseline.py write --output fixtures/test-baseline.json\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -344,6 +359,7 @@ test-baseline:
 test-baseline-check:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then exec bash packaging/test-toolkit-run.sh just test-baseline-check; fi
 	printf '\n\033[1;36m[verify]\033[0m python3 scripts/test_baseline.py compare --baseline fixtures/test-baseline.json --current-output target/test-baseline/current.json --diff-output target/test-baseline/diff.json\n'
 	source packaging/test-toolkit-env.sh
 	prepare_test_toolkit_env
@@ -607,6 +623,34 @@ flutter-build-linux: flutter-pub-get
 	@printf '\n\033[1;36m[flutter]\033[0m flutter build linux --release\n'
 	cd flutter_app && flutter build linux --release
 
+# Linux host only: register the local release bundle with the desktop so the
+# window (app_id / WM_CLASS io.github._5pecia1.upeg) gets the upeg icon,
+# launchers show startup feedback, and upeg:// links open this build.
+# Run it on the desktop host that launches upeg, after `just flutter-build-linux`
+# (GLib ignores desktop entries whose Exec binary does not exist), never inside
+# a container. Delete the installed file before installing a deb/rpm package.
+flutter-desktop-entry-linux:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	src=packaging/linux/io.github._5pecia1.upeg.desktop
+	root="$(pwd)"
+	case "$root" in
+	    *[[:space:]\"\'\\\<\>~\|\&\;\$\*\?\#\(\)\`%]*)
+	        echo "error: repository path has characters a desktop entry Exec cannot hold unquoted: $root" >&2
+	        exit 1 ;;
+	esac
+	grep -q '^Exec=upeg %u$' "$src"
+	grep -q '^Icon=upeg$' "$src"
+	bundle="$root/flutter_app/build/linux/x64/release/bundle/upeg"
+	[ -x "$bundle" ] || { echo "error: $bundle is missing; run just flutter-build-linux first (GLib ignores desktop entries whose Exec does not exist)" >&2; exit 1; }
+	dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+	mkdir -p "$dir"
+	sed -e "s|^Exec=upeg %u$|Exec=$bundle %u|" \
+	    -e "s|^Icon=upeg$|Icon=$root/flutter_app/web/icons/Icon-512.png|" \
+	    "$src" > "$dir/io.github._5pecia1.upeg.desktop"
+	if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$dir"; fi
+	echo "installed $dir/io.github._5pecia1.upeg.desktop"
+
 flutter-build-macos: flutter-pub-get
 	@printf '\n\033[1;36m[flutter]\033[0m flutter build macos --release\n'
 	cd flutter_app && flutter build macos --release
@@ -619,10 +663,9 @@ flutter-run-macos:
 	set -euo pipefail
 	flutter_display="${UPEG_FLUTTER:-flutter}"
 	read -r -a flutter_cmd <<< "$flutter_display"
-	printf '\n\033[1;36m[flutter]\033[0m %s run -d macos\n' "$flutter_display"
+	printf '\n\033[1;36m[flutter]\033[0m %s run -d macos --debug\n' "$flutter_display"
 	cd flutter_app
-	"${flutter_cmd[@]}" pub get
-	"${flutter_cmd[@]}" run -d macos
+	"${flutter_cmd[@]}" run -d macos --debug
 
 flutter-build-windows: flutter-pub-get
 	@printf '\n\033[1;36m[flutter]\033[0m flutter build windows --release\n'
@@ -666,12 +709,11 @@ toolkit-web-packs:
 	cargo run -p upeg-toolkit-pack -- verify-web --root "$web_root" --app-version "$version"
 
 # Release web bundle. Leave the service-worker flags alone (see above).
-flutter-build-web: toolkit-web-abi
+flutter-build-web: build-frb-wasm
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[flutter]\033[0m flutter build web --release --no-wasm-dry-run\n'
 	abi_digest="$(cat target/toolkits/abi_digest.txt)"
-	just build-frb-wasm
 	cd flutter_app && flutter build web --release --no-wasm-dry-run --dart-define="UPEG_TOOLKIT_ABI_DIGEST=$abi_digest"
 	just toolkit-web-packs
 
@@ -688,7 +730,9 @@ flutter-web-smoke: flutter-build-web
 
 # Downloaded-toolkit worker contract. This is intentionally separate from the
 # app-shell smoke: it mutates a local artifact response to prove integrity,
-# cache reuse, retry, concurrent-load, and offline behavior.
+# cache reuse, retry, concurrent-load, offline behavior, and PDF compression
+# File/report output including a browser download. ci-smoke runs both web
+# recipes in one invocation so their shared build dependency runs once.
 toolkit-web-loader-smoke: flutter-build-web
 	@printf '\n\033[1;36m[toolkits]\033[0m browser loader contract (headless Chromium)\n'
 	UPEG_TOOLKIT_WEB_BUILD_DIR=flutter_app/build/web \
@@ -766,53 +810,14 @@ package-linux-deb: flutter-build-linux
 	#!/usr/bin/env bash
 	set -euo pipefail
 	printf '\n\033[1;36m[package]\033[0m linux .deb (fpm)\n'
-	if ! command -v fpm >/dev/null 2>&1; then
-	  echo "error: fpm not installed (gem install fpm)" >&2
-	  exit 1
-	fi
-	out="${UPEG_PACKAGE_OUT:-target/packages}/linux"
-	mkdir -p "$out"
-	rm -f "$out"/upeg_*.deb
-	stage="$(mktemp -d)"
-	trap 'rm -rf "$stage"' EXIT
-	mkdir -p \
-	    "$stage/opt/upeg" \
-	    "$stage/usr/bin" \
-	    "$stage/usr/share/applications" \
-	    "$stage/usr/share/icons/hicolor/512x512/apps" \
-	    "$stage/usr/share/metainfo"
-	cp -a flutter_app/build/linux/x64/release/bundle/. "$stage/opt/upeg/"
-	ln -s /opt/upeg/upeg "$stage/usr/bin/upeg-app"
-	sed 's|^Exec=upeg %u$|Exec=/opt/upeg/upeg %u|' packaging/linux/upeg.desktop \
-	    > "$stage/usr/share/applications/upeg.desktop"
-	cp packaging/linux/io.github._5pecia1.upeg.metainfo.xml "$stage/usr/share/metainfo/io.github._5pecia1.upeg.metainfo.xml"
-	cp flutter_app/web/icons/Icon-512.png "$stage/usr/share/icons/hicolor/512x512/apps/upeg.png"
-	bash packaging/release-files.sh stage "$stage/usr/share/doc/upeg"
-	version="$(bash packaging/release-files.sh version)"
-	version="${version#v}"
-	case "$version" in
-	  [0-9]*) ;;
-	  *) version="0.0.0+$version" ;;
-	esac
-	fpm -s dir -t deb \
-	    -n upeg -v "$version" --architecture amd64 \
-	    --depends libgtk-3-0 \
-	    --depends libkeybinder-3.0-0 \
-	    --depends libayatana-appindicator3-1 \
-	    --depends libwebkit2gtk-4.1-0 \
-	    --description "Universal Pegboard" \
-	    --license "Apache-2.0" \
-	    --maintainer "upeg contributors" \
-	    --url "https://github.com/5pecia1/UPeg" \
-	    -C "$stage" \
-	    --package "$out/" \
-	    .
-	deb="$out/upeg_${version}_amd64.deb"
-	if command -v dpkg-deb >/dev/null 2>&1; then
-	  dpkg-deb -c "$deb" | grep 'usr/share/doc/upeg/NOTICE' \
-	    || { echo "error: $deb lacks staged notices" >&2; exit 1; }
-	fi
-	ls -la "$out"
+	bash packaging/package-linux-fpm.sh deb
+
+# Linux .rpm via fpm and rpmbuild. Shares the DEB package layout.
+package-linux-rpm: flutter-build-linux
+	#!/usr/bin/env bash
+	set -euo pipefail
+	printf '\n\033[1;36m[package]\033[0m linux .rpm (fpm)\n'
+	bash packaging/package-linux-fpm.sh rpm
 
 # Linux .AppImage via appimagetool. Requires: just flutter-build-linux.
 # `appimagetool` itself is shipped as an AppImage; run it in extract-and-run
@@ -842,8 +847,8 @@ package-linux-appimage: flutter-build-linux
 	mkdir -p "$tmp"
 	cp -a flutter_app/build/linux/x64/release/bundle/. "$tmp/"
 	mkdir -p "$tmp/usr/share/applications" "$tmp/usr/share/metainfo"
-	cp packaging/linux/upeg.desktop "$tmp/upeg.desktop"
-	cp packaging/linux/upeg.desktop "$tmp/usr/share/applications/upeg.desktop"
+	cp packaging/linux/io.github._5pecia1.upeg.desktop "$tmp/io.github._5pecia1.upeg.desktop"
+	cp packaging/linux/io.github._5pecia1.upeg.desktop "$tmp/usr/share/applications/io.github._5pecia1.upeg.desktop"
 	cp packaging/linux/io.github._5pecia1.upeg.metainfo.xml "$tmp/usr/share/metainfo/io.github._5pecia1.upeg.metainfo.xml"
 	cp flutter_app/web/icons/Icon-512.png "$tmp/upeg.png"
 	bash packaging/release-files.sh stage "$tmp/usr/share/doc/upeg"
@@ -939,5 +944,5 @@ package-web: flutter-build-web
 	echo "web bundle: $out"
 
 # Build all linux artifacts on this host. macOS/Windows skipped (need the OS).
-package-linux: package-linux-deb package-linux-appimage
+package-linux: package-linux-deb package-linux-rpm package-linux-appimage
 package: package-linux package-web

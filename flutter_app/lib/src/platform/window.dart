@@ -61,9 +61,13 @@ class _WindowManagerDriver implements WindowModeDriver {
   Future<void> show() => windowManager.show();
 }
 
-/// Whether the current build/target supports `window_manager`. Tests
-/// and the web build short-circuit through this gate so the platform
-/// channels never get touched.
+/// Whether the current build/target supports `window_manager`. Only the web
+/// build short-circuits through this gate: it is also true under a desktop
+/// host's `flutter test`, where the first `windowManager` access asserts
+/// without a Flutter binding. Tests that run without a binding must not reach
+/// `windowManager`; they override the injection seams (`WindowHider`,
+/// `WindowSummonDriver`, `WindowModeDriver`, `WindowVisibilitySource`)
+/// instead.
 bool get isWindowManagerSupported {
   if (kIsWeb) return false;
   try {

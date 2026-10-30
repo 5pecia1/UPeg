@@ -8,7 +8,7 @@ import 'boot.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `accent_to_str`, `locale_to_str`, `parse_accent`, `parse_locale`, `parse_theme`, `theme_to_str`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `try_from`
 
 /// Shipping locale set. Returned to Dart for the Settings dropdown so
 /// the value list stays in sync with the Rust catalog parity tests.
@@ -31,18 +31,19 @@ TweaksDto loadTweaks() => RustLib.instance.api.crateApiTweaksLoadTweaks();
 void saveTweaks({required TweaksDto tweaks}) =>
     RustLib.instance.api.crateApiTweaksSaveTweaks(tweaks: tweaks);
 
+/// Dart-mirrored appearance of the pin's drag handle.
+enum PinHandleStyleDto { peg, dots }
+
 /// Dart-mirrored view of [`Tweaks`].
 ///
-/// Every field is an owned `String` so it crosses the FFI boundary
-/// without lifetime acrobatics. The enum-shaped fields (`theme`,
-/// `accent`, `locale`) carry the serde-encoded variant name —
-/// `LOCALE_VALUES`, `THEME_VALUES`, `ACCENT_VALUES` enumerate the
-/// shipping set so Dart can build dropdowns without re-encoding the
-/// list.
+/// Theme, accent and locale carry their serde variant names; their
+/// `supported_*` functions enumerate the shipping choices. Handle styles
+/// use the generated enum's values directly.
 class TweaksDto {
   final String theme;
   final String accent;
   final bool showHoles;
+  final PinHandleStyleDto pinHandleStyle;
   final String locale;
 
   /// Desktop "Local HTTP host" switch. When on, the app embeds an
@@ -54,6 +55,7 @@ class TweaksDto {
     required this.theme,
     required this.accent,
     required this.showHoles,
+    this.pinHandleStyle = PinHandleStyleDto.peg,
     required this.locale,
     required this.localHttpHost,
   });
@@ -63,6 +65,7 @@ class TweaksDto {
       theme.hashCode ^
       accent.hashCode ^
       showHoles.hashCode ^
+      pinHandleStyle.hashCode ^
       locale.hashCode ^
       localHttpHost.hashCode;
 
@@ -74,6 +77,7 @@ class TweaksDto {
           theme == other.theme &&
           accent == other.accent &&
           showHoles == other.showHoles &&
+          pinHandleStyle == other.pinHandleStyle &&
           locale == other.locale &&
           localHttpHost == other.localHttpHost;
 }

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Shared by the public CI and the private export's candidate verification jobs.
 set -euo pipefail
+if [ -z "${UPEG_TOOLKIT_RUN_ROOT:-}" ]; then
+  exec bash "$(dirname -- "${BASH_SOURCE[0]}")/../packaging/test-toolkit-run.sh" bash "$0" "$@"
+fi
 readonly RUST_VERSION=1.92.0
 readonly FLUTTER_VERSION=3.44.0
 readonly CARGO_DENY_VERSION=0.18.9

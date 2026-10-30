@@ -23,8 +23,10 @@ import 'package:upeg/src/widgets/embed_iframe_factory.dart';
 import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/pin.dart';
+import 'package:upeg/src/widgets/pin/pin_move_handle.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_handle_test_overrides.dart';
 import '../test_helpers/board_canvas_harness.dart';
 import '../test_helpers/controlled_embed_tile_harness.dart' as controlled;
 
@@ -70,6 +72,7 @@ void main() {
         ProviderScope(
           overrides: [
             ...i18nTestOverrides,
+            ...pinHandleTestOverrides,
             toolsLoaderProvider.overrideWith(
               (ref) =>
                   () => [embedTool],
@@ -170,6 +173,7 @@ void main() {
         ProviderScope(
           overrides: [
             ...i18nTestOverrides,
+            ...pinHandleTestOverrides,
             toolsLoaderProvider.overrideWith(
               (ref) =>
                   () => [embedTool],
@@ -234,6 +238,9 @@ void main() {
       // (b) The pin is still draggable — from the move handle.
       final handle = find.byKey(pinMoveHandleKey);
       expect(handle, findsOneWidget);
+      final painter =
+          tester.widget<CustomPaint>(handle).painter! as PinMoveHandlePainter;
+      expect(painter.stem, UpegTheme.darkTheme().extension<UpegTokens>()!.fg3);
       final gesture = await tester.startGesture(tester.getCenter(handle));
       final step = Offset(UpegSizing.pinCellWidth + UpegSizing.pinGap, 0);
       for (int i = 1; i <= 6; i++) {
@@ -400,7 +407,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(Pin), findsOneWidget);
-      expect(find.text('EMBED.URLLESS_TOOL'), findsOneWidget);
+      expect(find.text(embedTool.label), findsWidgets);
 
       // URL-less embed should be tappable
       await tester.tap(find.byType(Pin));

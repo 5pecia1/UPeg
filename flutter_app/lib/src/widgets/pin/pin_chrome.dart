@@ -1,4 +1,4 @@
-/// The `.cell` shell of a pin: border, corner holes, keyboard focus
+/// The `.cell` shell of a pin: border, keyboard focus
 /// ring, and the per-kind silhouette treatment applied to the body slot.
 library;
 
@@ -32,7 +32,7 @@ const double _frameStripAlpha = 0.16;
 /// Border width around the `frame` variant's body wrapper.
 const double _frameBorderWidth = 1;
 
-/// The `.cell` shell — surface + line border + 4 corner-hole dots.
+/// The `.cell` shell — surface and line border.
 class PinChrome extends StatelessWidget {
   const PinChrome({
     required this.tokens,
@@ -78,12 +78,6 @@ class PinChrome extends StatelessWidget {
             ],
           ),
         ),
-        // Four corner-hole indicators (mirrors `cell::before / ::after /
-        // .holeBL / .holeBR` in input.css).
-        const _CornerHole(top: 5, left: 5),
-        const _CornerHole(top: 5, right: 5),
-        const _CornerHole(bottom: 5, left: 5),
-        const _CornerHole(bottom: 5, right: 5),
         // Keyboard-focus ring: ≥2px, offset outside the pin border, in
         // a token whose contrast against the board background is
         // guaranteed for both themes — independent of both the accent
@@ -167,35 +161,5 @@ Widget pinBodyChrome({
     case PinChromeVariant.live:
     case null:
       return child;
-  }
-}
-
-class _CornerHole extends StatelessWidget {
-  const _CornerHole({this.top, this.bottom, this.left, this.right});
-  final double? top;
-  final double? bottom;
-  final double? left;
-  final double? right;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.upeg;
-    return Positioned(
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
-      child: IgnorePointer(
-        child: Container(
-          width: 4,
-          height: 4,
-          decoration: BoxDecoration(
-            color: tokens.holeDeep,
-            shape: BoxShape.circle,
-            border: Border.all(color: tokens.line, width: 0.5),
-          ),
-        ),
-      ),
-    );
   }
 }

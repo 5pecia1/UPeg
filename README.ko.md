@@ -105,7 +105,7 @@ MCP 클라이언트 설정, 파일 입력은
 | Surface | 시작 |
 |---|---|
 | 터미널 (TUI / CLI) | `upeg` · `upeg call <toolkit>.<tool>` |
-| Desktop 앱 | `cd flutter_app && flutter run -d linux` |
+| Desktop 앱 | macOS: `cd flutter_app && flutter run -d macos --release`; Linux: `cd flutter_app && flutter run -d linux --release` |
 | MCP (에이전트) | `upeg board dev connect` · `upeg mcp --board dev` |
 | HTTP host | `upeg http --addr 127.0.0.1:7173` |
 | PWA | `just package-web` |

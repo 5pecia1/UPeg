@@ -35,6 +35,7 @@ nav = [
   { "Guides" = [
     { "Installation" = "guides/installation.md" },
     { "Quick start" = "guides/quick-start.md" },
+    { "Data tools" = "guides/data-tools.md" },
     { "Troubleshooting" = "guides/troubleshooting.md" },
     { "Development" = "guides/development.md" },
     { "Tool author guide" = "guides/tool-author.md" },

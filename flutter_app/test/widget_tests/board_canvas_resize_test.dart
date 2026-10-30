@@ -159,6 +159,11 @@ void main() {
         find.byTooltip(i18nEn('pin.resize.handle_tooltip')),
         findsOneWidget,
       );
+      // Handles are chrome, not content: muted (fg3), never the accent.
+      expect(
+        tester.widget<Icon>(find.byKey(pinResizeHandleKey)).color,
+        UpegTheme.darkTheme().extension<UpegTokens>()!.fg3,
+      );
       // The handle sits in the bottom-right corner of the pin rect.
       final handleCenter = tester.getCenter(find.byKey(pinResizeHandleKey));
       final pinRect = tester.getRect(find.byType(Pin));

@@ -3,7 +3,7 @@
 /// pushes the parsed [LaunchIntent] into [launchIntentProvider].
 ///
 /// One provider, three sources (Batch E):
-///   1. Cold-boot argv (`AppInitReport.launch` → `app.dart` seeds the
+///   1. Cold-boot argv (`currentLaunchIntent()` → `app.dart` seeds the
 ///      provider on startup).
 ///   2. Second-instance `app_links` event (this listener).
 ///   3. In-process popup encode (popup writes directly via the

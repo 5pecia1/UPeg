@@ -297,7 +297,7 @@ jobs:
             python3 unzip xz-utils clang cmake ninja-build libglu1-mesa \
             libgtk-3-dev libkeybinder-3.0-dev libayatana-appindicator3-dev \
             libsecret-1-dev libwebkit2gtk-4.1-dev libjsoncpp-dev libsqlite3-dev \
-            appstream ruby ruby-dev libasound2t64 libgbm1 libnss3 libcups2t64 \
+            appstream ruby ruby-dev rpm libasound2t64 libgbm1 libnss3 libcups2t64 \
             fonts-liberation
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
@@ -339,7 +339,7 @@ jobs:
           CHROME_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
         run: |
           set -euo pipefail
-          just package-linux-deb package-linux-appimage package-web
+          just package-linux-deb package-linux-rpm package-linux-appimage package-web
           scripts/flutter_web_smoke.sh
       - name: Stage release files
         run: |
@@ -347,6 +347,7 @@ jobs:
           version="${RELEASE_TAG#v}"
           mkdir -p dist
           cp "target/packages/linux/upeg_${version}_amd64.deb" dist/
+          cp "target/packages/linux/upeg-${version}-1.x86_64.rpm" dist/
           cp "target/packages/linux/upeg-${RELEASE_TAG}-x86_64.AppImage" dist/
           tar -C target/packages -czf "dist/upeg-${RELEASE_TAG}-web.tar.gz" web
           ( cd dist && for f in *; do sha256sum "$f" > "$f.sha256"; done )
@@ -357,6 +358,8 @@ jobs:
           path: |
             dist/upeg_*.deb
             dist/upeg_*.deb.sha256
+            dist/upeg-*.x86_64.rpm
+            dist/upeg-*.x86_64.rpm.sha256
             dist/upeg-*-x86_64.AppImage
             dist/upeg-*-x86_64.AppImage.sha256
           if-no-files-found: error
@@ -566,7 +569,7 @@ jobs:
         run: |
           mkdir -p release-manifest
           python3 release/artifacts.py manifest-v2 dist release-manifest/release-manifest.json \
-            --tag "$RELEASE_TAG" --commit "${{ needs.preflight.outputs.public_sha }}" --profile public
+            --tag "$RELEASE_TAG" --commit "${{ needs.preflight.outputs.public_sha }}" --profile public --include-rpm
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-manifest

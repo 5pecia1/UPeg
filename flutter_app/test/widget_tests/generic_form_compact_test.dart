@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:upeg/src/rust/api/tools.dart' show ToolDto;
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/rust/api/tools/file_input_policy.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/generic_form.dart';
 
 import '../test_helpers/fake_keyboard_resolver.dart';
+import '../test_helpers/field_placeholder.dart';
 import '../test_helpers/i18n_test_catalog.dart';
 import '../test_helpers/color_contrast.dart';
 import '../test_helpers/tool_fixture.dart';
@@ -328,4 +330,276 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'the_compact_placeholder_prefers_the_description_and_keeps_the_required_marker',
+    (tester) async {
+      await _pumpCompactForm(tester, _placeholderTool());
+
+      // A macro-declared input's label is just its key ("input"); the
+      // description says what to enter. The required marker survives.
+      expect(drawnPlaceholder(tester, 'described'), 'UTF-8 string to encode *');
+      expect(drawnPlaceholder(tester, 'optional'), 'Shown when empty');
+      expect(drawnPlaceholder(tester, 'plain'), 'Plain *');
+    },
+  );
+
+  testWidgets('the_compact_placeholder_is_announced_as_one_label', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await _pumpCompactForm(tester, _placeholderTool());
+
+      // The marker is drawn as its own piece but read together with the text.
+      String announced(String key) =>
+          tester.getSemantics(find.byKey(Key('field-$key'))).label;
+      expect(announced('described'), 'UTF-8 string to encode *');
+      expect(announced('optional'), 'Shown when empty');
+      expect(announced('plain'), 'Plain *');
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('a_semantics_hint_is_announced_by_each_field_and_never_drawn', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await _pumpCompactForm(
+        tester,
+        _placeholderTool(),
+        semanticsHint: 'announced only',
+      );
+
+      expect(find.text('announced only'), findsNothing);
+      for (final key in <String>['described', 'optional', 'plain']) {
+        expect(
+          tester.getSemantics(find.byKey(Key('field-$key'))).hint,
+          'announced only',
+          reason: key,
+        );
+      }
+
+      await _pumpCompactForm(tester, _placeholderTool());
+
+      expect(
+        tester.getSemantics(find.byKey(const Key('field-plain'))).hint,
+        isEmpty,
+      );
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('a_semantics_hint_reaches_the_own_node_of_every_field_type', (
+    tester,
+  ) async {
+    // Tall enough that no field is clipped out of the semantics tree.
+    await tester.binding.setSurfaceSize(
+      const Size(UpegSizing.pinCellWidth, 1600),
+    );
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final semantics = tester.ensureSemantics();
+    try {
+      final fields = _oneFieldOfEveryType();
+      await _pumpCompactForm(
+        tester,
+        fixtureToolDto(
+          id: 'fixture.compact-hint-every-type',
+          inputFields: fields,
+        ),
+        semanticsHint: 'announced only',
+      );
+
+      expect(tester.takeException(), isNull);
+      for (final field in fields) {
+        final finder = find.byKey(Key('field-${field.key}'));
+        final node = tester.getSemantics(finder);
+
+        expect(node.hint, 'announced only', reason: field.key);
+        // `getSemantics` climbs to the nearest ancestor that has a node, so a
+        // field without a node of its own would pass the line above by
+        // reading its ancestor's hint. That node outgrows the field.
+        expect(
+          node.rect.height,
+          lessThanOrEqualTo(tester.getSize(finder).height),
+          reason: '${field.key} has no semantics node of its own',
+        );
+      }
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets(
+    'a_long_description_placeholder_ellipsizes_instead_of_growing_the_field',
+    (tester) async {
+      Future<double> fieldHeight(String? description) async {
+        await _pumpCompactForm(
+          tester,
+          fixtureToolDto(
+            id: 'fixture.compact-long-placeholder',
+            inputFields: [
+              InputFieldDto(
+                key: 'text',
+                label: 'input',
+                description: description,
+                fieldType: const InputFieldType_Text(),
+                required_: true,
+              ),
+            ],
+          ),
+        );
+        return tester.getSize(find.byKey(const Key('field-text'))).height;
+      }
+
+      final labelOnly = await fieldHeight(null);
+      final longDescription = await fieldHeight('Explains at length. ' * 12);
+
+      // A wrapped placeholder would push the Run button out of the pin.
+      expect(longDescription, labelOnly);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a_compact_select_without_a_value_draws_its_placeholder_inside_the_field',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await _pumpCompactForm(
+          tester,
+          fixtureToolDto(
+            id: 'fixture.compact-select-placeholder',
+            inputFields: const [
+              InputFieldDto(
+                key: 'choice',
+                label: 'Choice',
+                fieldType: InputFieldType_Select(
+                  options: <ChoiceOptionDto>[
+                    ChoiceOptionDto(value: 'alpha', label: 'alpha'),
+                    ChoiceOptionDto(value: 'beta', label: 'beta'),
+                  ],
+                ),
+                required_: true,
+              ),
+            ],
+          ),
+        );
+
+        final field = find.byKey(const Key('field-choice'));
+        final box = tester.getRect(
+          find.descendant(of: field, matching: find.byType(InputDecorator)),
+        );
+        final placeholder = tester.getRect(
+          find.descendant(of: field, matching: find.text('Choice')),
+        );
+
+        // A dropdown has no baseline for the decorator's own hint slot to
+        // align with: a placeholder drawn there drops onto the underline.
+        expect(placeholder.top, greaterThanOrEqualTo(box.top));
+        expect(placeholder.bottom, lessThanOrEqualTo(box.bottom));
+        expect(drawnPlaceholder(tester, 'choice'), 'Choice *');
+        expect(tester.getSemantics(field).label, 'Choice *');
+      } finally {
+        semantics.dispose();
+      }
+    },
+  );
+}
+
+List<InputFieldDto> _oneFieldOfEveryType() => [
+  for (final (key, type) in <(String, InputFieldType)>[
+    ('text', const InputFieldType_Text()),
+    ('multiline', const InputFieldType_Multiline()),
+    ('number', const InputFieldType_Number()),
+    ('integer', const InputFieldType_Integer()),
+    ('boolean', const InputFieldType_Boolean()),
+    (
+      'file',
+      const InputFieldType_File(
+        policy: FileInputPolicyDto(
+          extensions: <String>[],
+          maxCount: 1,
+          maxFileBytes: null,
+          maxTotalBytes: null,
+        ),
+      ),
+    ),
+    (
+      'select',
+      const InputFieldType_Select(
+        options: <ChoiceOptionDto>[
+          ChoiceOptionDto(value: 'alpha', label: 'alpha'),
+          ChoiceOptionDto(value: 'beta', label: 'beta'),
+        ],
+      ),
+    ),
+    (
+      'multi',
+      const InputFieldType_MultiOptions(
+        options: <ChoiceOptionDto>[
+          ChoiceOptionDto(value: 'one', label: 'one'),
+          ChoiceOptionDto(value: 'two', label: 'two'),
+        ],
+      ),
+    ),
+    ('datetime', const InputFieldType_DateTime()),
+    ('markdown', const InputFieldType_Markdown()),
+    ('filepath', const InputFieldType_FilePath()),
+    ('url', const InputFieldType_Url()),
+  ])
+    InputFieldDto(key: key, label: key, fieldType: type, required_: false),
+];
+
+ToolDto _placeholderTool() => fixtureToolDto(
+  id: 'fixture.compact-placeholder',
+  inputFields: const [
+    InputFieldDto(
+      key: 'described',
+      label: 'input',
+      description: 'UTF-8 string to encode',
+      fieldType: InputFieldType_Text(),
+      required_: true,
+    ),
+    InputFieldDto(
+      key: 'optional',
+      label: 'Note',
+      description: 'Shown when empty',
+      fieldType: InputFieldType_Text(),
+      required_: false,
+    ),
+    InputFieldDto(
+      key: 'plain',
+      label: 'Plain',
+      fieldType: InputFieldType_Text(),
+      required_: true,
+    ),
+  ],
+);
+
+Future<void> _pumpCompactForm(
+  WidgetTester tester,
+  ToolDto tool, {
+  String? semanticsHint,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [fakeKeyboardResolverOverride, ...i18nTestOverrides],
+      child: MaterialApp(
+        theme: UpegTheme.darkTheme(),
+        home: Scaffold(
+          body: GenericFormWidget(
+            tool: tool,
+            controller: GenericFormController(),
+            compact: true,
+            semanticsHint: semanticsHint,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }

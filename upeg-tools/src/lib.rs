@@ -53,6 +53,8 @@ pub use toolkits::color::*;
 pub use toolkits::convert::*;
 #[cfg(feature = "csv")]
 pub use toolkits::csv::*;
+#[cfg(feature = "data")]
+pub use toolkits::data::*;
 // `devcontainer`'s functions compile on every target (their `StaticToolMeta`
 // must stay discoverable on wasm32 too — see `toolkits::devcontainer`'s module
 // doc), so this re-export is unconditional, exactly like `eth`/`weather`.
@@ -172,6 +174,14 @@ const _: () = ();
 )]
 const _: () = ();
 
+#[cfg(feature = "data")]
+#[upeg_core::toolkit(
+    id = "data",
+    tags = ["pure", "data", "schema"],
+    description = "Structured data comparison and schema utilities."
+)]
+const _: () = ();
+
 #[cfg(feature = "num")]
 #[upeg_core::toolkit(
     id = "num",
@@ -259,6 +269,7 @@ mod consistency_drift_tests {
         "parse",
         "format",
         "minify",
+        "compress",
         "match",
         "diff",
         "lowercase",
@@ -301,7 +312,10 @@ mod consistency_drift_tests {
         "epoch",
         "scratch",
         "transform_tools",
+        // Directional conversions follow the existing `to_json` convention.
         "to_json",
+        "from_epoch",
+        "to_epoch",
         "nfc",
         "nfd",
         // `<subject>_extract_images` — the trailing `images` noun keeps the
@@ -336,9 +350,14 @@ mod consistency_drift_tests {
         ("text.contains", StaticOutputKind::Boolean),
         ("text.split", StaticOutputKind::Json),
         ("security.password_estimate", StaticOutputKind::Json),
+        ("time.to_epoch", StaticOutputKind::Number),
+        ("time.cron_inspect", StaticOutputKind::Json),
         ("color.contrast", StaticOutputKind::Json),
         ("csv.diff", StaticOutputKind::Json),
         ("csv.to_json", StaticOutputKind::Json),
+        ("data.value_diff", StaticOutputKind::Json),
+        ("data.schema_generate", StaticOutputKind::Json),
+        ("data.schema_diff", StaticOutputKind::Json),
         ("eth.gas", StaticOutputKind::Number),
         ("weather.lookup", StaticOutputKind::Json),
         ("weather.forecast", StaticOutputKind::Json),

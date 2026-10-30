@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request
 
 sys.path.insert(0, str(Path(__file__).parent))
-from artifacts import GateError, manifest_v2
+from artifacts import GateError, PUBLIC_TOOLKIT_TARGETS, expected_files, manifest_v2
 from github_release import APIError, Client, PrivateRedirect, digest, finalize, stage
 
 REPO = '5pecia1/UPeg'
@@ -84,6 +84,35 @@ class FakeClient:
             self.bytes.pop(asset_id, None)
             return b''
         raise AssertionError((method, url, data))
+
+
+class PublicToolkitVersionTest(unittest.TestCase):
+    def test_v055_public_profile_keeps_the_historical_toolkit_set(self):
+        files = expected_files('0.5.5', 'v0.5.5', ['toolkits'])
+
+        for target in PUBLIC_TOOLKIT_TARGETS:
+            extension = '.exe.gz' if target == 'x86_64-pc-windows-msvc' else '.gz'
+            data_pack = f'toolkits-{target}-data-0.5.5{extension}'
+            self.assertNotIn(data_pack, files)
+            self.assertNotIn(f'{data_pack}.sha256', files)
+
+    def test_v060_public_profile_includes_the_data_pack_for_every_target(self):
+        files = expected_files('0.6.0', 'v0.6.0', ['toolkits'])
+
+        for target in PUBLIC_TOOLKIT_TARGETS:
+            with self.subTest(target=target):
+                extension = '.exe.gz' if target == 'x86_64-pc-windows-msvc' else '.gz'
+                data_pack = f'toolkits-{target}-data-0.6.0{extension}'
+                self.assertIn(data_pack, files)
+                self.assertIn(f'{data_pack}.sha256', files)
+
+    def test_prerelease_and_build_suffixes_keep_the_same_toolkit_inventory(self):
+        for version, has_data in [('0.5.5-rc.1', False), ('0.6.0-rc.1', True),
+                                  ('0.6.0+build.1', True), ('0.10.0', True)]:
+            with self.subTest(version=version):
+                files = expected_files(version, f'v{version}', ['toolkits'])
+                data_pack = f'toolkits-x86_64-unknown-linux-gnu-data-{version}.gz'
+                self.assertEqual(data_pack in files, has_data)
 
 
 class ReleaseProtocolTest(unittest.TestCase):

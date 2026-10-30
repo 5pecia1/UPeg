@@ -197,7 +197,8 @@ class _ResizeHandleState extends ConsumerState<ResizeHandle> {
             Icons.south_east,
             key: pinResizeHandleKey,
             size: _resizeHandleIconSize,
-            color: tokens.accent,
+            // Muted like the move handle: chrome, not content.
+            color: tokens.fg3,
           ),
         ),
       ),

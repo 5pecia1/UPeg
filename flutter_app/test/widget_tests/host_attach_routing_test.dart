@@ -196,6 +196,7 @@ void main() {
               required pinId,
               required toolId,
               required result,
+              argsJson,
             }) {},
           ),
         ],

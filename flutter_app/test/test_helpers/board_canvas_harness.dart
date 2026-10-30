@@ -21,6 +21,7 @@ import 'package:upeg/src/widgets/pin.dart';
 import 'i18n_test_catalog.dart';
 import 'tool_fixture.dart';
 import 'dispatch_stream_fixture.dart';
+import 'pin_persistence_overrides.dart';
 
 /// Wraps the pure-grid renderer with a `ProviderScope` that injects an
 /// empty tools list — so the `toolByIdProvider` lookup resolves to `null`
@@ -110,6 +111,7 @@ Widget genericInlineHarness({
       // catalog or Pin.build throws "flutter_rust_bridge has not been
       // initialized".
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       toolsLoaderProvider.overrideWith(
         (ref) =>
             () => tools,

@@ -16,6 +16,7 @@ import 'package:upeg/src/rust/api/status.dart'
     show McpImportPhaseDto, NetworkReachabilityDto, NetworkStatusDto;
 import 'package:upeg/src/rust/api/tweaks.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
@@ -63,6 +64,7 @@ ProviderContainer _scope({
   String? selectedKey,
   StatusSnapshotDto status = _defaultStatus,
   ProjectDefinition? project,
+  bool isWeb = false,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -87,6 +89,7 @@ ProviderContainer _scope({
             ),
       ),
       statusSnapshotProvider.overrideWith(() => _FakeStatusNotifier(status)),
+      isWasmRuntimeProvider.overrideWithValue(isWeb),
       projectContextApiProvider.overrideWithValue(_ProjectApi(project)),
     ],
   );
@@ -192,7 +195,7 @@ void main() {
       },
     );
 
-    testWidgets('StatusBar_renders_the_network_label_from_the_provider_value', (
+    testWidgets('native status names the MCP/HTTP surface, not internet', (
       tester,
     ) async {
       final container = _scope(
@@ -219,9 +222,69 @@ void main() {
       await tester.pumpWidget(_harness(container));
       await tester.pumpAndSettle();
 
-      expect(find.text('remote-bind allowed'), findsOneWidget);
-      // The stale hardcoded label must be GONE.
-      expect(find.text('loopback-only'), findsNothing);
+      const _StatusNetworkRobot().expectStatus(
+        label: i18nEn('desktop.status.network_non_loopback'),
+        tooltip: i18nEn('desktop.status.network_non_loopback_help'),
+      );
+      const _StatusNetworkRobot().expectRawLabelHidden('remote-bind allowed');
+    });
+
+    testWidgets('native status explains local and inactive MCP/HTTP', (
+      tester,
+    ) async {
+      for (final reachability in <NetworkReachabilityDto>[
+        NetworkReachabilityDto.loopbackOnly,
+        NetworkReachabilityDto.offline,
+      ]) {
+        final container = _scope(
+          boards: const <BoardDto>[_dev],
+          layouts: const <String, List<PlacementDto>>{},
+          selectedKey: 'dev',
+          status: StatusSnapshotDto(
+            network: NetworkStatusDto(
+              reachability: reachability,
+              label: 'offline',
+            ),
+            paused: PausedStateDto.running,
+            mcpImportCount: 0,
+            mcpImportPhase: McpImportPhaseDto.done,
+            buildVersion: '0.0.0',
+          ),
+        );
+        await container.read(boardsProvider.future);
+        await container.read(
+          layoutProvider(LayoutQuery.all(BoardKey.parse('dev'))).future,
+        );
+        await tester.pumpWidget(_harness(container));
+        await tester.pumpAndSettle();
+        final key = reachability == NetworkReachabilityDto.loopbackOnly
+            ? 'loopback'
+            : 'off';
+        const _StatusNetworkRobot().expectStatus(
+          label: i18nEn('desktop.status.network_$key'),
+          tooltip: i18nEn('desktop.status.network_${key}_help'),
+        );
+        const _StatusNetworkRobot().expectRawLabelHidden('offline');
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      }
+    });
+
+    testWidgets('web status omits native host and project indicators', (
+      tester,
+    ) async {
+      final container = _scope(
+        boards: const <BoardDto>[_dev],
+        layouts: const <String, List<PlacementDto>>{},
+        selectedKey: 'dev',
+        isWeb: true,
+      );
+      addTearDown(container.dispose);
+      await container.read(boardsProvider.future);
+      await tester.pumpWidget(_harness(container));
+      await tester.pumpAndSettle();
+
+      const _StatusNetworkRobot().expectWebIndicatorsHidden();
     });
 
     testWidgets(
@@ -281,7 +344,7 @@ void main() {
         for (final label in [
           'paused',
           'imports 3',
-          'loopback-only',
+          i18nEn('desktop.status.network_loopback'),
           'v0.0.0',
         ]) {
           final text = tester.widget<Text>(find.text(label));
@@ -661,7 +724,36 @@ void main() {
           find.text(i18nKo('desktop.status.pinned_count', {'count': '2'})),
           findsOneWidget,
         );
+        expect(
+          find.text(i18nKo('desktop.status.network_loopback')),
+          findsOneWidget,
+        );
       },
     );
   });
+}
+
+class _StatusNetworkRobot {
+  const _StatusNetworkRobot();
+
+  void expectStatus({required String label, required String tooltip}) {
+    expect(find.text(label), findsOneWidget);
+    expect(find.byKey(const Key('status-network')), findsOneWidget);
+    final widget = find
+        .byKey(const Key('status-network'))
+        .evaluate()
+        .single
+        .widget;
+    expect((widget as Tooltip).message, tooltip);
+  }
+
+  void expectWebIndicatorsHidden() {
+    expect(find.byKey(const Key('status-network')), findsNothing);
+    expect(find.byKey(const Key('status-project-context')), findsNothing);
+    expect(find.text('offline'), findsNothing);
+  }
+
+  void expectRawLabelHidden(String label) {
+    expect(find.text(label), findsNothing);
+  }
 }

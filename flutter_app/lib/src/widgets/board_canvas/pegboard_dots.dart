@@ -51,45 +51,61 @@ class BoardCanvasPegboardForTesting extends ConsumerWidget {
     return DecoratedBox(
       decoration: BoxDecoration(color: tokens.bg),
       child: CustomPaint(
-        painter: PegboardDotsPainter(
-          hole: tokens.hole,
-          holeDeep: tokens.holeDeep,
-          showHoles: showHoles,
-        ),
+        painter: PegboardDotsPainter(hole: tokens.hole, showHoles: showHoles),
         child: child,
       ),
     );
   }
 }
 
-/// Wraps [AbsoluteGrid] (the scrollable, padded grid content) with the
-/// peg-hole dots painter so the holes scroll with the cells instead of
-/// staying pinned to the viewport. Nested inside the same padded scroll
-/// child as `AbsoluteGrid` so its local coordinate frame IS the grid's
-/// frame — cell (0, 0)'s top-left corner is local `(0, 0)` here too, so
-/// [PegboardDotsPainter.holeX]/[PegboardDotsPainter.holeY] need no extra
-/// origin correction.
+/// Paints a viewport-sized board inside the scroll content, so the holes
+/// follow the cells while covering space around a small grid. The pin grid
+/// stays top-centred inside its original padding; the painter receives that
+/// grid origin to keep each hole on a cell-gap intersection.
 class PegboardGridDots extends ConsumerWidget {
   const PegboardGridDots({
     required this.tokens,
+    required this.viewportSize,
+    required this.gridSize,
     required this.child,
     super.key,
   });
 
   final UpegTokens tokens;
+  final Size viewportSize;
+  final Size gridSize;
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showHoles = ref.watch(showHolesProvider);
-    return CustomPaint(
-      key: const Key('board-canvas-grid-dots'),
-      painter: PegboardDotsPainter(
-        hole: tokens.hole,
-        holeDeep: tokens.holeDeep,
-        showHoles: showHoles,
+    const padding = UpegSizing.pegboardPadding;
+    final paintSize = Size(
+      gridSize.width + 2 * padding > viewportSize.width
+          ? gridSize.width + 2 * padding
+          : viewportSize.width,
+      gridSize.height + 2 * padding > viewportSize.height
+          ? gridSize.height + 2 * padding
+          : viewportSize.height,
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: paintSize.width,
+        minHeight: paintSize.height,
       ),
-      child: child,
+      child: CustomPaint(
+        key: const Key('board-canvas-grid-dots'),
+        painter: PegboardDotsPainter(
+          hole: tokens.hole,
+          showHoles: showHoles,
+          gridOriginX: (paintSize.width - gridSize.width) / 2,
+          gridOriginY: padding,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(padding),
+          child: Align(alignment: Alignment.topCenter, child: child),
+        ),
+      ),
     );
   }
 }
@@ -101,66 +117,67 @@ class PegboardGridDots extends ConsumerWidget {
 /// behaviour directly and widget tests can cast `CustomPaint.painter`
 /// without `as dynamic`.
 ///
-/// Pegboard contract — "holes are the coordinate system": the dot pitch is derived from the
-/// SAME cell constants [AbsoluteGrid] uses to place pins, so a hole
-/// always sits at the gap-centred intersection between two adjacent
-/// cell slots. No independent magic-number spacing.
+/// The pattern places one small hole at each grid-slot intersection,
+/// while the persisted pin coordinates still use the original cell geometry.
 class PegboardDotsPainter extends CustomPainter {
   PegboardDotsPainter({
     required this.hole,
-    required this.holeDeep,
     required this.showHoles,
+    this.gridOriginX = 0,
+    this.gridOriginY = 0,
   });
 
   final Color hole;
-  final Color holeDeep;
   final bool showHoles;
 
-  /// Horizontal dot pitch — one pin cell width plus one gap. Derived
-  /// (not hardcoded) from [BoardGridMetrics] so the hole grid always
-  /// lines up with the columns the grid positions pins into.
-  static const double pitchX =
+  /// Horizontal location of the grid's first cell within the painted board.
+  final double gridOriginX;
+  final double gridOriginY;
+
+  /// Full horizontal cell-slot pitch, derived from [BoardGridMetrics].
+  static const double slotPitchX =
       BoardGridMetrics.cellWidth + BoardGridMetrics.gap;
 
-  /// Vertical dot pitch — one pin cell height plus one gap. Derived from
-  /// [BoardGridMetrics] so the hole grid always lines up with the rows
-  /// the grid positions pins into.
-  static const double pitchY =
+  /// Full vertical cell-slot pitch, derived from [BoardGridMetrics].
+  static const double slotPitchY =
       BoardGridMetrics.cellHeight + BoardGridMetrics.gap;
+
+  static const double pitchX = slotPitchX;
+  static const double pitchY = slotPitchY;
 
   /// Half a cell-gap — the offset from a cell-slot boundary to the hole
   /// that sits centred on it.
   static const double _holeInset = BoardGridMetrics.gap / 2;
 
-  static const double _highlightRadius = 1.0;
-  static const double _shadowRadius = 0.5;
-  static const Offset _shadowOffset = Offset(1.0, 1.0);
+  static const double holeRadius = 1.25;
 
   /// x-position of the k-th vertical hole line (k = 0..cols). Sits at
   /// the gap-centred intersection between cell `k-1` and cell `k`, so
   /// `holeX(0)` lands half a gap to the left of the first cell's left
   /// edge — the outer corner of the (0, *) cell slots.
-  static double holeX(int k) => k * pitchX - _holeInset;
+  static double holeX(int k) => k * slotPitchX - _holeInset;
 
   /// y-position of the k-th horizontal hole line (k = 0..rows). See
   /// [holeX].
-  static double holeY(int k) => k * pitchY - _holeInset;
+  static double holeY(int k) => k * slotPitchY - _holeInset;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (!showHoles) return;
-    final highlightPaint = Paint()..color = hole;
-    final shadowPaint = Paint()..color = holeDeep;
-    for (double y = -_holeInset; y <= size.height + _holeInset; y += pitchY) {
-      for (double x = -_holeInset; x <= size.width + _holeInset; x += pitchX) {
-        // Mirrors the two stacked radial-gradients in input.css:
-        // a light dot on the top-left, a darker dot offset by 1px so
-        // the hole looks recessed.
-        canvas.drawCircle(Offset(x, y), _highlightRadius, highlightPaint);
+    final paint = Paint()..color = hole;
+    final minX = ((_holeInset - gridOriginX) / pitchX).ceil();
+    final minY = ((_holeInset - gridOriginY) / pitchY).ceil();
+    final maxX = ((size.width + _holeInset - gridOriginX) / pitchX).floor();
+    final maxY = ((size.height + _holeInset - gridOriginY) / pitchY).floor();
+    for (int row = minY; row <= maxY; row++) {
+      for (int col = minX; col <= maxX; col++) {
         canvas.drawCircle(
-          Offset(x, y) + _shadowOffset,
-          _shadowRadius,
-          shadowPaint,
+          Offset(
+            gridOriginX + col * pitchX - _holeInset,
+            gridOriginY + row * pitchY - _holeInset,
+          ),
+          holeRadius,
+          paint,
         );
       }
     }
@@ -169,6 +186,7 @@ class PegboardDotsPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant PegboardDotsPainter old) =>
       old.hole != hole ||
-      old.holeDeep != holeDeep ||
-      old.showHoles != showHoles;
+      old.showHoles != showHoles ||
+      old.gridOriginX != gridOriginX ||
+      old.gridOriginY != gridOriginY;
 }

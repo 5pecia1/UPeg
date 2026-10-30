@@ -70,14 +70,12 @@ test('epoch_seconds_and_millis_preview_as_utc_iso_strings', () => {
   assert.equal(previewFor(millis), '2023-11-14T22:13:19.123Z');
 });
 
-test('the_epoch_row_has_no_host_tool_so_it_builds_no_dispatch_args', () => {
-  // `time.epoch_now`/`time.iso_now` take no epoch input and no other tool
-  // converts one, so this row is preview-only by design — content.js must
-  // not be able to build a dead deep link out of it.
-  const [detection] = detect('1699999999');
-  assert.equal(toolIdFor(detection), null);
-  assert.equal(dispatchArgsFor(detection), null);
-  assert.notEqual(previewFor(detection), null);
+test('epoch_dispatch_preserves_seconds_and_milliseconds', () => {
+  for (const [value, unit] of [['1699999999', 'seconds'], ['1699999999123', 'milliseconds']]) {
+    const [detection] = detect(value);
+    assert.equal(toolIdFor(detection), 'time.from_epoch');
+    assert.deepEqual(dispatchArgsFor(detection), { input: value, unit });
+  }
 });
 
 test('a_base64_blob_routes_to_convert_base64_decode_with_no_offline_preview', () => {

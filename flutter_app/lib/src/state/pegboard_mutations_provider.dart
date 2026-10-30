@@ -12,6 +12,7 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/keyboard.dart' show OrderDirectionDto;
 import 'package:upeg/src/rust/api/pegboard.dart' as frb;
 import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
 import 'package:upeg/src/state/layout_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
@@ -92,9 +93,7 @@ class PegboardMutations {
     }
   }
 
-  Future<void> pin(BoardKey boardKey, ToolId toolId) async {
-    await add(boardKey, toolId);
-  }
+  Future<PinId?> pin(BoardKey boardKey, ToolId toolId) => add(boardKey, toolId);
 
   /// Legacy tool-wide removal is retained only for obsolete callers. Pin
   /// surfaces use [remove], which targets exactly one placement.
@@ -121,6 +120,7 @@ class PegboardMutations {
       // re-pin never resurrects a result the store no longer has. A
       // board switch re-hydrates any outcome still persisted elsewhere.
       ref.read(lastOutcomeProvider.notifier).clear(pinKey);
+      ref.read(inlineDraftProvider).clear(pinKey);
       _refreshBoard(pinKey.$1);
     }
   }
@@ -223,7 +223,10 @@ class PegboardMutations {
   }
 
   void _refreshBoard(BoardKey boardKey) {
+    // A pin on this board also changes the cross-board union (`null`).
+    ref.invalidate(boardTagCountsProvider);
     ref.invalidate(tagOptionsForBoardProvider(boardKey));
+    ref.invalidate(countForBoardTagProvider);
     bumpLayoutRevisionRef(ref, boardKey);
   }
 }

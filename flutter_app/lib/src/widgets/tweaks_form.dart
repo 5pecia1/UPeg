@@ -19,6 +19,7 @@ import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/tweaks.dart';
+import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/backup_section.dart';
@@ -32,6 +33,7 @@ import 'package:upeg/src/widgets/project_context_section.dart';
 const String kLocalHttpHostToggleKeyName = 'tweaks-local-http-host-toggle';
 const Key kLocalHttpHostToggleKey = Key(kLocalHttpHostToggleKeyName);
 const Key kLocalHttpHostHelpKey = Key('tweaks-local-http-host-help');
+const String kPinHandleStyleRadioKeyName = 'tweaks-pin-handle-style-radio';
 
 class TweaksForm extends ConsumerWidget {
   const TweaksForm({super.key});
@@ -76,17 +78,20 @@ class _TweaksFormBodyState extends ConsumerState<_TweaksFormBody> {
 
   @override
   Widget build(BuildContext context) {
+    final isWeb = ref.watch(isWasmRuntimeProvider);
     final accents = ref.watch(supportedAccentsProvider)();
     final themes = ref.watch(supportedThemesProvider)();
     final locales = ref.watch(supportedLocalesProvider)();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Section(
-          label: t(ref, 'settings.section.project').toUpperCase(),
-          child: const ProjectContextSection(),
-        ),
-        const SizedBox(height: 14),
+        if (!isWeb) ...[
+          _Section(
+            label: t(ref, 'settings.section.project').toUpperCase(),
+            child: const ProjectContextSection(),
+          ),
+          const SizedBox(height: 14),
+        ],
         _Section(
           label: t(ref, 'settings.section.diagnostics').toUpperCase(),
           child: const DiagnosticsSection(),
@@ -118,13 +123,39 @@ class _TweaksFormBodyState extends ConsumerState<_TweaksFormBody> {
         const SizedBox(height: 14),
         _Section(
           label: t(ref, 'settings.section.layout').toUpperCase(),
-          child: _ToggleRow(
-            label: t(ref, 'settings.toggle.peg_holes'),
-            onLabel: t(ref, 'settings.toggle.on'),
-            offLabel: t(ref, 'settings.toggle.off'),
-            value: _current.showHoles,
-            keyName: 'tweaks-show-holes-toggle',
-            onChanged: (v) => _apply(_copyWith(_current, showHoles: v)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RadioRow(
+                label: t(ref, 'settings.radio.pin_handle'),
+                value: _current.pinHandleStyle.name,
+                options: PinHandleStyleDto.values
+                    .map((style) => style.name)
+                    .toList(growable: false),
+                optionLabels: {
+                  'peg': t(ref, 'settings.pin_handle.peg'),
+                  'dots': t(ref, 'settings.pin_handle.dots'),
+                },
+                keyName: kPinHandleStyleRadioKeyName,
+                onChanged: (v) => _apply(
+                  _copyWith(
+                    _current,
+                    pinHandleStyle: PinHandleStyleDto.values.firstWhere(
+                      (style) => style.name == v,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              _ToggleRow(
+                label: t(ref, 'settings.toggle.peg_holes'),
+                onLabel: t(ref, 'settings.toggle.on'),
+                offLabel: t(ref, 'settings.toggle.off'),
+                value: _current.showHoles,
+                keyName: 'tweaks-show-holes-toggle',
+                onChanged: (v) => _apply(_copyWith(_current, showHoles: v)),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -132,29 +163,32 @@ class _TweaksFormBodyState extends ConsumerState<_TweaksFormBody> {
         // the local HTTP host at next boot, OFF leaves it a pure client
         // that attaches to whatever host is already running. Nothing to
         // poll — the preference is the state.
-        _Section(
-          label: t(ref, 'settings.section.host').toUpperCase(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _ToggleRow(
-                label: t(ref, 'settings.toggle.local_http_host'),
-                onLabel: t(ref, 'settings.toggle.on'),
-                offLabel: t(ref, 'settings.toggle.off'),
-                value: _current.localHttpHost,
-                keyName: kLocalHttpHostToggleKeyName,
-                onChanged: (v) => _apply(_copyWith(_current, localHttpHost: v)),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                key: kLocalHttpHostHelpKey,
-                t(ref, 'settings.toggle.local_http_host_help'),
-                style: TextStyle(fontSize: 10.5, color: context.upeg.fg3),
-              ),
-            ],
+        if (!isWeb) ...[
+          _Section(
+            label: t(ref, 'settings.section.host').toUpperCase(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ToggleRow(
+                  label: t(ref, 'settings.toggle.local_http_host'),
+                  onLabel: t(ref, 'settings.toggle.on'),
+                  offLabel: t(ref, 'settings.toggle.off'),
+                  value: _current.localHttpHost,
+                  keyName: kLocalHttpHostToggleKeyName,
+                  onChanged: (v) =>
+                      _apply(_copyWith(_current, localHttpHost: v)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  key: kLocalHttpHostHelpKey,
+                  t(ref, 'settings.toggle.local_http_host_help'),
+                  style: TextStyle(fontSize: 10.5, color: context.upeg.fg3),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
+          const SizedBox(height: 14),
+        ],
         _Section(
           label: t(ref, 'settings.section.language').toUpperCase(),
           child: _RadioRow(
@@ -215,6 +249,7 @@ class _RadioRow extends ConsumerStatefulWidget {
     required this.options,
     required this.keyName,
     required this.onChanged,
+    this.optionLabels = const {},
   });
 
   final String label;
@@ -222,6 +257,7 @@ class _RadioRow extends ConsumerStatefulWidget {
   final List<String> options;
   final String keyName;
   final ValueChanged<String> onChanged;
+  final Map<String, String> optionLabels;
 
   @override
   ConsumerState<_RadioRow> createState() => _RadioRowState();
@@ -313,7 +349,7 @@ class _RadioRowState extends ConsumerState<_RadioRow> {
                   for (final option in widget.options)
                     _OptionChip(
                       key: Key('${widget.keyName}-$option'),
-                      label: option,
+                      label: widget.optionLabels[option] ?? option,
                       selected: option == widget.value,
                       onTap: () => widget.onChanged(option),
                     ),
@@ -479,6 +515,7 @@ TweaksDto _copyWith(
   String? locale,
   bool? showHoles,
   bool? localHttpHost,
+  PinHandleStyleDto? pinHandleStyle,
 }) {
   return TweaksDto(
     theme: theme ?? src.theme,
@@ -486,5 +523,6 @@ TweaksDto _copyWith(
     showHoles: showHoles ?? src.showHoles,
     locale: locale ?? src.locale,
     localHttpHost: localHttpHost ?? src.localHttpHost,
+    pinHandleStyle: pinHandleStyle ?? src.pinHandleStyle,
   );
 }
