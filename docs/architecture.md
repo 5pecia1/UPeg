@@ -13,6 +13,12 @@ Chrome extension, MCP, HTTP). Every non-UI protocol call travels in one
 shared envelope. This document keeps the map; the contracts live in each
 module's rustdoc.
 
+The `time` toolkit covers Unix conversions and five-field UTC cron analysis,
+not scheduling. `time.from_epoch` and `time.to_epoch` accept `input` and a
+`unit` of `seconds` (default) or `milliseconds`; conversion to epoch returns
+a signed integer. `time.cron_inspect` returns the next five UTC occurrences
+strictly after its reference instant, within years 1–5000.
+
 ## Layers
 
 Dependencies always point inward: `surface → adapter → runtime → domain`.
@@ -152,7 +158,9 @@ extension — layout differs per medium, but verbs, activation, capability
 rendering, and approval policy are shared contracts decided once in Rust.
 
 - Seven lifecycle verbs: Open `o` · Run `Enter` · Copy `F2` · Pin `p` ·
-  Back `Esc` · Search `/` · Clear `Ctrl`+`U` — `Enter` always means Run.
+  Back `Esc` · Search `/` · Clear `Ctrl`+`U`. In Flutter text editors
+  that accept multiple lines, `Enter` inserts a newline instead; Run
+  remains available through its button or `F1`.
 - Modeless: no edit mode; per-pin keys gate only on focus; `?` renders
   the binding catalog, so cheatsheets cannot drift.
 - Activation is inline-first: runnable pins with no required input
@@ -190,6 +198,44 @@ Details: `upeg_core::presentation` rustdoc and the generated
 Details: `upeg_core::keyboard_catalog`, `upeg_core::capability`,
 `upeg_frb::api::pin_activation`, `upeg_runtime::{approval, progress}`,
 `upeg_core::ux` rustdoc
+
+### Saved pin work
+
+Flutter Desktop and PWA keep each pin's current form values separately from
+the input snapshot and result of its last recorded run. Editing values are
+not an executable argument preset. Native storage uses the shared SQLite
+store; PWA storage belongs to the browser origin. Both survive application
+reloads.
+Repeated placements of one Tool have independent saved work. For the same
+pin in multiple tabs or app processes, the last storage write wins for each
+draft or result; edits are not merged and open forms do not synchronize live.
+
+Inline and expanded forms share the editing values within the app. Restoring
+values does not itself run a tool. Timer Tools retain their normal polling,
+input-validation and approval rules; live polling keeps the last successful
+readout when a poll fails. A restored result is labeled as saved; editing its
+inputs marks it as a previous result while preserving it for comparison and
+copying. Result actions bind to the inputs captured by that execution; a
+restored result does not authorize a follow-up action.
+
+Explicit pin or board deletion removes its saved work. Temporary filtering
+does not. Saving failures leave the current values visible with a retry
+action. If saved inputs cannot be loaded, editing and execution stay locked
+until retry succeeds. Successful result writes keep complete outputs; a
+browser storage quota failure is reported rather than silently storing a
+shortened result. Partial results saved by older versions remain labeled
+incomplete. Saved errors retain their code and message, but omit
+`error.details`. A File result's Save button opens the native save dialog or
+starts a browser download.
+
+The environment backup format covers personal boards, layouts, settings and
+memos; it does not export these per-pin working values or cached results.
+Their automatic restoration is local to the same native profile or browser
+origin; the configuration backup does not transfer them to another
+installation.
+
+Details: `upeg_frb::api::{pin_drafts, last_outcomes}` and
+`upeg_sources::store::{pin_drafts, last_outcomes}` rustdoc.
 
 ## Hosts
 

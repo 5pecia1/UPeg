@@ -64,6 +64,9 @@ class _RecordingWindowHider extends WindowHider {
   Future<void> hide() async {
     hideCount += 1;
   }
+
+  @override
+  Future<bool> isFocused() async => false;
 }
 
 PaletteHit _hit(String id, [String? label]) => PaletteHit(

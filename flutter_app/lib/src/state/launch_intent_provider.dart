@@ -1,7 +1,7 @@
 /// Pending [LaunchIntent] Riverpod provider.
 ///
 /// Single observer pattern: cold-boot argv parsing
-/// (`AppInitReport.launch`), the `app_links` second-instance event
+/// (`currentLaunchIntent()`), the `app_links` second-instance event
 /// stream, and the in-process popup encode all converge here. The
 /// [`LaunchIntentApplier`] root widget reacts to non-null state by
 /// dispatching the tool activation, then calling [clear] so a stale
@@ -51,9 +51,9 @@ class LaunchIntent {
     inputJson: dto.inputJson,
   );
 
-  /// `true` when every field is empty — the observer treats this as a
-  /// no-op so callers don't have to special-case "intent with nothing
-  /// to do".
+  /// `true` when every field is empty — a summon-only intent (a bare
+  /// `upeg://open`): the observer only brings the window forward and
+  /// leaves the current board alone.
   bool get isEmpty => board == null && tool == null && inputJson == null;
 }
 

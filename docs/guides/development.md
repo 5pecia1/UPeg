@@ -42,7 +42,38 @@ rustup override set 1.92.0
 rustup target add wasm32-unknown-unknown
 ```
 
+## Rust debug information
+
+Routine Cargo builds and tests use `debug = 0` to reduce compiler output and
+disk I/O. Debug assertions and integer overflow checks remain enabled. Full
+Rust debug information is opt-in for source-line backtraces and inspecting
+variables in a debugger:
+
+```bash
+CARGO_PROFILE_DEV_DEBUG=2 CARGO_PROFILE_TEST_DEBUG=2 \
+  UPEG_HOME="$(mktemp -d)" UPEG_PROJECT_MANIFEST_PATH=off \
+  cargo test -p upeg-core --lib
+```
+
+`cargo test` selects the test profile; `cargo build` selects dev. To enable
+the dev profile's full debug information in the native Flutter Rust bridge:
+
+```bash
+cd flutter_app
+CARGO_PROFILE_DEV_DEBUG=2 CARGO_PROFILE_TEST_DEBUG=2 \
+  flutter run -d linux --debug
+```
+
+Use `-d macos` on macOS. These settings affect Rust dev/test builds only;
+release builds and macOS dSYM settings are unchanged.
+
 ## Gates
+
+While editing Rust, `cargo check -p upeg-core --all-targets` checks that package
+without linking app or test executables; substitute the package you changed.
+`just clippy-native` checks and lints the workspace without linking those
+executables. Keep the `just check` and `just verify` gates below for tests and
+full verification.
 
 Two tiers:
 
@@ -78,6 +109,26 @@ verification needs Linux plus the native dependencies for the Linux Flutter
 build listed in `.github/actions/verify/action.yml`; the Rust lane also
 needs Chrome or Chromium.
 
+## Local desktop runs
+
+On Linux, two runs using the same storage root (`UPEG_HOME`, or a root derived
+from `HOME` when it is unset) share one desktop instance. The second run forwards
+its launch request to the existing window, prints
+`upeg: already running; activated the existing window` to stderr, and exits.
+Use a separate `UPEG_HOME` when testing an independent development instance.
+
+For everyday macOS development, run `just flutter-run-macos`, or
+`cd flutter_app && flutter run -d macos --debug`. The recipe supports
+`UPEG_FLUTTER='fvm flutter'` and lets Flutter resolve dependencies when needed.
+Keep the debug session open for Dart hot reload; Rust changes require a native
+rebuild. Debug and release builds both include the app icon and menu bar assets.
+Use `flutter run -d macos --release` from `flutter_app`, or
+`just flutter-build-macos`, to check release behavior before packaging a DMG.
+
+After building a Linux release bundle, run `just flutter-desktop-entry-linux`
+on the desktop host to register the local app icon, launch notification, and
+`upeg://` links. Rerun it if the bundle path changes.
+
 ## Generated artifacts and drift gates
 
 Generated artifacts — Tool manifests, interface metadata, schemas, FRB
@@ -105,6 +156,22 @@ test name and an output excerpt directly; you don't need a second
 The generation lanes run hermetically: they point the runtime source dirs at
 empty paths and set `UPEG_PROJECT_MANIFEST_PATH=off` so your personal
 toolkits and this repo's own `.upeg/toolkits/dev.toml` don't leak into generated fixtures.
+
+The Toolkit-backed test recipes (`just check`, `just verify`, and the
+standalone workspace test and baseline recipes) use a temporary run owner.
+Packs are built once and reused within the run; each preparation gets a fresh
+home, cache, and mutable test state. Changes to pack inputs, including workspace
+manifests, Rust sources, vendor files, toolchain configuration, and the bundled
+font, are detected during the run. `UPEG_TOOLKIT_TEST_ROOT` places packs in an
+explicit persistent location, which is retained. The owner cleans its temporary
+directory on success or failure. It forwards INT, TERM, and HUP to its child
+process group and escalates to KILL after one second if needed before cleanup.
+
+Local `just check` and `just verify` check the Cargo target directory against a
+150 GiB budget before and after the command; set `UPEG_LOCAL_TARGET_MAX_GIB`
+to change it. This is a non-deleting boundary check, not a disk quota. Direct
+Cargo and other commands are outside this guard. Free space manually when it
+fails. CI has a separate 40 GiB target sweep that removes old build state.
 
 ## Conventions
 
@@ -137,8 +204,8 @@ owning module's rustdoc.
 
 ## Project and diagnostic verification
 
-`just check` and the baseline runner keep test state under
-`target/hermetic-sources/state`, with project auto-detection disabled. When
-running individual native test commands, set an isolated `UPEG_HOME`; failure
+`just check` and the baseline runner use isolated test state with project
+auto-detection disabled. When running individual native test commands, set an
+isolated `UPEG_HOME`; failure
 capture deliberately persists diagnostics and must not write a developer's
 personal store. The browser debug workbench has separate integration tests.

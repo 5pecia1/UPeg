@@ -1,14 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="UPeg">
-  <rect x="2" y="2" width="20" height="20" rx="4" fill="#174ea6"/>
-  <g fill="#ffffff" opacity="0.45">
-    <circle cx="7" cy="7" r="1.4"/>
-    <circle cx="12" cy="7" r="1.4"/>
-    <circle cx="7" cy="12" r="1.4"/>
-    <circle cx="12" cy="12" r="1.4"/>
-    <circle cx="17" cy="12" r="1.4"/>
-    <circle cx="7" cy="17" r="1.4"/>
-    <circle cx="12" cy="17" r="1.4"/>
-    <circle cx="17" cy="17" r="1.4"/>
-  </g>
-  <rect x="13.5" y="4.5" width="6" height="6" rx="1.6" fill="#ff7a45"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="upeg">
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#14171C"/>
+  <path fill="#F4F3EE" fill-rule="evenodd" d="M14.457 280.989A14.847 14.847 0 0 1 16.105 260.057L83.843 202.203A14.847 14.847 0 0 1 104.775 203.85L210.841 328.038A59.388 59.388 0 0 0 301.159 250.899L195.093 126.711A14.847 14.847 0 0 1 196.74 105.779L264.479 47.925A14.847 14.847 0 0 1 285.411 49.573L497.543 297.947A14.847 14.847 0 0 1 495.895 318.879L416.867 386.376L410.25 378.628A178.164 178.164 0 0 1 120.523 405.176Z"/>
+  <circle cx="269.179" cy="122.011" r="42.667" fill="#FF7A45"/>
 </svg>

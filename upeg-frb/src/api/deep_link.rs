@@ -26,11 +26,12 @@ use upeg_pegboard_ui::deep_link::{desktop_deep_link, desktop_launch_from_url_may
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct LaunchIntentDto {
-    /// Static board key (e.g. `"dev"`). `None` ⇒ leave the
-    /// currently-selected board alone.
+    /// Static board key (e.g. `"dev"`). `None` ⇒ the link names no known
+    /// board (absent, blank or unknown); leave the currently-selected
+    /// board alone.
     pub board: Option<String>,
     /// Tool id (e.g. `"num.hex_to_decimal"`). `None` ⇒ no tool
-    /// activation; only board switch.
+    /// activation; at most a board switch.
     pub tool: Option<String>,
     /// Pre-fill inputs for the tool, encoded as a JSON object string.
     /// `None` ⇒ activate with `"{}"`.
@@ -39,15 +40,19 @@ pub struct LaunchIntentDto {
 
 /// Parse a single `upeg://open?...` URL into a [`LaunchIntentDto`].
 ///
-/// Returns `None` for any URL that doesn't begin with the `upeg://open?`
-/// prefix so non-upeg deep-link schemes (e.g. `https://`) can be
-/// dropped silently by the Dart listener.
+/// Returns `None` for any URL that is neither `upeg://open` nor starts
+/// with `upeg://open?`, so non-upeg deep-link schemes (e.g. `https://`)
+/// can be dropped silently by the Dart listener.
+///
+/// A bare `upeg://open` parses to a summon-only intent (every field
+/// `None`): the app comes to the front and keeps its current board. A
+/// blank or unknown `board` value is dropped the same way.
 #[cfg(not(target_arch = "wasm32"))]
 #[flutter_rust_bridge::frb(sync)]
 pub fn parse_launch_intent(uri: String) -> Option<LaunchIntentDto> {
     let launch = desktop_launch_from_url_maybe(&uri)?;
     Some(LaunchIntentDto {
-        board: Some(launch.board.to_string()),
+        board: launch.board.map(str::to_string),
         tool: launch.tool.map(|t| t.to_string()),
         input_json: launch.input,
     })
@@ -104,9 +109,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_launch_intent_parses_queryless_open_uri_as_default_board_intent() {
+    fn parse_launch_intent_parses_queryless_open_uri_as_summon_only_intent() {
         let parsed = parse_launch_intent("upeg://open".into()).expect("explicit open");
-        assert_eq!(parsed.board.as_deref(), Some("dev"));
+        assert_eq!(parsed.board, None);
         assert_eq!(parsed.tool, None);
         assert_eq!(parsed.input_json, None);
     }

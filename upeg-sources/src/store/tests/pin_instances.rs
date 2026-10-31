@@ -77,7 +77,7 @@ fn v7_migrates_v5_rows_with_all_placement_fields_and_outcomes() {
     let store = Store::open_at(&path).expect("migrate v5 database");
     assert_eq!(
         schema::user_version(store.connection()).expect("version"),
-        7
+        schema::MIGRATIONS.len()
     );
 
     let live = store.load_state_global().expect("load migrated state");
@@ -159,7 +159,7 @@ fn v7_migrates_existing_v6_diagnostics_without_losing_reports() {
     let store = Store::open_at(&path).expect("migrate v6 database");
     assert_eq!(
         schema::user_version(store.connection()).expect("version"),
-        7
+        schema::MIGRATIONS.len()
     );
     let diagnostic: (String, String) = store
         .connection()

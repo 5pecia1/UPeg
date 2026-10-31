@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/pin_provider.dart';
+import 'package:upeg/src/state/layout_provider.dart';
 import 'package:upeg/src/state/suggestions_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/empty_board.dart';
@@ -135,6 +136,62 @@ void main() {
 
       expect(gotBoard, BoardKey.parse('dev'));
       expect(gotTool, ToolId.parse('num.hex_to_decimal'));
+    });
+
+    testWidgets('suggestion_pin_failure_is_reported_and_can_be_retried', (
+      tester,
+    ) async {
+      var shouldFail = true;
+      var attempts = 0;
+      final boardKey = BoardKey.parse('dev');
+      final container = ProviderContainer(
+        overrides: [
+          ...i18nTestOverrides,
+          suggestionsLoaderProvider.overrideWith(
+            (ref) =>
+                (_) => [_toolA],
+          ),
+          isPinnedLoaderProvider.overrideWith(
+            (ref) =>
+                (_, _) => false,
+          ),
+          addPinMutatorProvider.overrideWith(
+            (ref) => (_, _) {
+              attempts += 1;
+              if (shouldFail) throw StateError('store unavailable');
+              return 'retry-pin';
+            },
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          boardKey: boardKey.value,
+          suggestions: [_toolA],
+          onOpenPalette: () {},
+          container: container,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final suggestion = find.byKey(
+        const Key('empty-board-suggestion-num.hex_to_decimal'),
+      );
+
+      await tester.tap(suggestion);
+      await tester.pumpAndSettle();
+
+      expect(find.text(i18nEn('modal.pin.failed_generic')), findsOneWidget);
+      expect(find.byKey(const Key('empty-board-pin-feedback')), findsOneWidget);
+
+      shouldFail = false;
+      await tester.tap(suggestion);
+      await tester.pumpAndSettle();
+
+      expect(find.text(i18nEn('modal.pin.failed_generic')), findsNothing);
+      expect(container.read(layoutRevisionProvider(boardKey)), 1);
+      expect(attempts, 2);
     });
 
     testWidgets('EmptyBoard_hides_suggestions_without_a_boardKey', (

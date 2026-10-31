@@ -53,6 +53,35 @@ void main() {
       expect(value, _initial);
     });
 
+    test('first_read_is_AsyncData_without_loading', () {
+      final container = _container();
+      addTearDown(container.dispose);
+
+      // No `await`: the loader is synchronous, so `build` returns the value
+      // itself and the very first read must already be data (no loading
+      // frame before the saved theme and accent can paint).
+      final first = container.read(tweaksProvider);
+
+      expect(first, isA<AsyncData<TweaksDto>>());
+      expect(first.value, _initial);
+    });
+
+    test('first_read_is_AsyncError_when_the_loader_throws', () {
+      final container = ProviderContainer(
+        overrides: [
+          tweaksLoaderProvider.overrideWith(
+            (ref) =>
+                () => throw StateError('tweaks unreadable'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final first = container.read(tweaksProvider);
+
+      expect(first, isA<AsyncError<TweaksDto>>());
+    });
+
     test('TweaksController_save_updates_provider_state', () async {
       TweaksDto? saved;
       final container = _container(onSave: (t) => saved = t);

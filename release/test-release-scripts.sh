@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise the public, Linux, and full v2 profiles with literal asset fixtures.
+# Exercise the public, Linux, Linux/macOS, and full v2 profiles with literal asset fixtures.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK="$(mktemp -d)"
@@ -25,6 +25,15 @@ linux=(
   "upeg-$TAG-web.tar.gz"
   "upeg_${VERSION}_amd64.deb"
   "upeg-$TAG-x86_64.AppImage"
+)
+linux_macos=(
+  "upeg-$TAG-x86_64-unknown-linux-gnu.tar.gz"
+  "upeg-$TAG-aarch64-unknown-linux-gnu.tar.gz"
+  "upeg-$TAG-aarch64-apple-darwin.tar.gz"
+  "upeg_${VERSION}_amd64.deb"
+  "upeg-$TAG-x86_64.AppImage"
+  "upeg-$TAG-web.tar.gz"
+  "upeg-$TAG.dmg"
 )
 full=(
   "upeg-$TAG-x86_64-unknown-linux-gnu.tar.gz"
@@ -60,27 +69,35 @@ add_toolkit_assets public x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aar
 [[ " ${public[*]} " != *" toolkits-x86_64-pc-windows-msvc-color-$VERSION.gz "* ]]
 
 build_profile() {
-  local profile="$1" payload
+  local profile="$1" include_rpm="${2:-false}" payload variant="$1"
   local -a names
+  local -a rpm_flag=()
   case "$profile" in
     public) names=("${public[@]}") ;;
     linux) names=("${linux[@]}") ;;
+    linux-macos) names=("${linux_macos[@]}") ;;
     full) names=("${full[@]}") ;;
   esac
-  local files="$WORK/$profile/files"
+  if [ "$include_rpm" = true ]; then
+    variant="$profile-rpm"
+    rpm_flag=(--include-rpm)
+    names+=("upeg-${VERSION}-1.x86_64.rpm")
+  fi
+  local files="$WORK/$variant/files"
   mkdir -p "$files"
   for payload in "${names[@]}"; do
     printf 'payload %s\n' "$payload" > "$files/$payload"
     ( cd "$files" && sha256sum -b "$payload" > "$payload.sha256" )
   done
-  python3 "$HERE/artifacts.py" manifest-v2 "$files" "$WORK/$profile/manifest.json" \
-    --tag "$TAG" --commit "$COMMIT" --profile "$profile" >/dev/null
-  python3 "$HERE/artifacts.py" verify-mirror "$files" "$WORK/$profile/manifest.json" --tag "$TAG" >/dev/null
-  PROFILE="$profile" COUNT="$((${#names[@]} * 2))" MANIFEST="$WORK/$profile/manifest.json" \
+  python3 "$HERE/artifacts.py" manifest-v2 "$files" "$WORK/$variant/manifest.json" \
+    --tag "$TAG" --commit "$COMMIT" --profile "$profile" "${rpm_flag[@]}" >/dev/null
+  python3 "$HERE/artifacts.py" verify-mirror "$files" "$WORK/$variant/manifest.json" --tag "$TAG" >/dev/null
+  PROFILE="$profile" COUNT="$((${#names[@]} * 2))" MANIFEST="$WORK/$variant/manifest.json" \
     python3 - <<'PY'
 import json, os
 doc = json.load(open(os.environ['MANIFEST']))
 assert doc['schema'] == 'upeg-release-manifest/v2'
+assert set(doc) == {'schema', 'tag', 'version', 'profile', 'build_commit', 'files'}
 assert doc['profile'] == os.environ['PROFILE']
 assert doc['build_commit'] == 'd173ad2452c2df052afb54749d42677593252998'
 assert len(doc['files']) == int(os.environ['COUNT'])
@@ -98,6 +115,42 @@ expect_failure() {
 build_profile public
 build_profile linux
 build_profile full
+build_profile linux-macos
+build_profile public true
+build_profile linux true
+build_profile linux-macos true
+build_profile full true
+
+# Old manifests remain valid, while new release profiles require the RPM.
+rpm="upeg-${VERSION}-1.x86_64.rpm"
+mv "$WORK/linux-rpm/files/$rpm" "$WORK/missing-rpm"
+expect_failure python3 "$HERE/artifacts.py" manifest-v2 "$WORK/linux-rpm/files" \
+  "$WORK/linux-rpm/missing.json" --tag "$TAG" --commit "$COMMIT" --profile linux --include-rpm
+mv "$WORK/missing-rpm" "$WORK/linux-rpm/files/$rpm"
+expect_failure python3 "$HERE/artifacts.py" manifest-v2 "$WORK/linux-rpm/files" \
+  "$WORK/linux-rpm/old-profile.json" --tag "$TAG" --commit "$COMMIT" --profile linux
+mkdir "$WORK/partial-rpm"
+cp "$WORK/linux-rpm/files/"* "$WORK/partial-rpm/"
+rm "$WORK/partial-rpm/$rpm.sha256"
+python3 - "$WORK/linux-rpm/manifest.json" "$WORK/partial-rpm.json" "$rpm.sha256" <<'PY'
+import json, sys
+doc = json.load(open(sys.argv[1]))
+doc['files'] = [item for item in doc['files'] if item['name'] != sys.argv[3]]
+json.dump(doc, open(sys.argv[2], 'w'))
+PY
+expect_failure python3 "$HERE/artifacts.py" verify-mirror "$WORK/partial-rpm" \
+  "$WORK/partial-rpm.json" --tag "$TAG"
+
+# Private releases must still fail closed on missing macOS assets.
+mv "$WORK/linux-macos/files/upeg-$TAG.dmg" "$WORK/private.dmg"
+expect_failure python3 "$HERE/artifacts.py" manifest-v2 "$WORK/linux-macos/files" \
+  "$WORK/private-missing.json" --tag "$TAG" --commit "$COMMIT" --profile linux-macos
+mv "$WORK/private.dmg" "$WORK/linux-macos/files/upeg-$TAG.dmg"
+# Windows artifacts cannot silently enter the reduced private profile.
+printf unexpected > "$WORK/linux-macos/files/upeg-$TAG-x86_64.msix"
+expect_failure python3 "$HERE/artifacts.py" manifest-v2 "$WORK/linux-macos/files" \
+  "$WORK/private-extra.json" --tag "$TAG" --commit "$COMMIT" --profile linux-macos
+rm "$WORK/linux-macos/files/upeg-$TAG-x86_64.msix"
 
 # The public profile must fail closed if either desktop package is missing.
 for package in "upeg-$TAG.dmg" "upeg-$TAG-x86_64.msix"; do

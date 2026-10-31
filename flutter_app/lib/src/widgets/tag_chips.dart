@@ -22,7 +22,8 @@ class TagChipRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.upeg;
     final boardKey = ref.watch(currentBoardKeyProvider);
-    final tags = ref.watch(tagOptionsForBoardProvider(boardKey));
+    final tagCounts = ref.watch(boardTagCountsProvider(boardKey));
+    final tags = [for (final entry in tagCounts) entry.tag];
     final selected = ref.watch(selectedTagProvider);
     return Focus(
       onKeyEvent: (_, event) => handleFilterBarKey<TagSelection>(
@@ -59,15 +60,14 @@ class TagChipRow extends ConsumerWidget {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    for (final tag in tags) ...[
+                    for (final entry in tagCounts) ...[
                       _TagChip(
-                        key: Key('tag-chip-${tag.frbValue}'),
-                        label:
-                            '${tag.frbValue} ${ref.watch(countForBoardTagProvider((boardKey, tag)))}',
-                        selected: tag == selected,
+                        key: Key('tag-chip-${entry.tag.frbValue}'),
+                        label: '${entry.tag.frbValue} ${entry.count}',
+                        selected: entry.tag == selected,
                         onTap: () => ref
                             .read(selectedTagProvider.notifier)
-                            .setSelection(tag),
+                            .setSelection(entry.tag),
                       ),
                       const SizedBox(width: 6),
                     ],

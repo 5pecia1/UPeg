@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:upeg/src/brand/startup_logo.dart';
 
 import 'package:upeg/src/theme/upeg_theme.dart';
 
@@ -29,6 +30,8 @@ class SplashPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            UpegStartupLogo(),
+            SizedBox(height: 20),
             Text(
               splashWordmark,
               key: splashWordmarkKey,

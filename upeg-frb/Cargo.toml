@@ -20,6 +20,7 @@ description = "flutter_rust_bridge cdylib for upeg's Flutter frontend (Phase 2 f
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
+base64.workspace = true
 flutter_rust_bridge = "=2.12.0"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -37,18 +38,28 @@ upeg-cli.workspace = true
 upeg-loader.workspace = true
 upeg-toolkit-native.workspace = true
 # `upeg-sources` transitively pulls in `tokio[net]`/`mio` which has no
-# wasm32 backend. Gate it to native; upeg-frb itself doesn't use the
-# crate (host bootstrap delegates through upeg-cli), so wasm32 simply
+# wasm32 backend. Gate it to native. upeg-frb calls it directly on native
+# (runtime source loading in `api::boot`, plus the Pegboard, project and
+# diagnostics APIs); those paths are compiled out on wasm32, which simply
 # omits source-loading. Phase 8 web build path keeps working.
 upeg-sources.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
+js-sys = "0.3"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 uuid = { workspace = true, features = ["js"] }
 
 [features]
-default = []
+# On by default so the feature-gated code in this crate (the `api::boot`
+# WASM end-to-end tests) is built and run in the configuration that ships.
+# `upeg-cli` is a native dependency with its default features (see the
+# `upeg-cli` entry above), and those include `wasm-plugin`, so every
+# native build of this crate already links the WASM plugin host whether
+# or not this feature is on. The default only decides whether the gated
+# tests run in the standard lane (`cargo test --workspace`). On wasm32 the
+# feature is inert (see below).
+default = ["wasm-plugin"]
 # Loads WASM Toolkit plugins (extism-hosted) through `upeg-sources`'
 # `load_local_runtime_sources` (called from `api::boot::init_app`), and
 # switches the TOML `wasm_path` invoker (`upeg-loader`'s dispatcher)
@@ -61,19 +72,6 @@ default = []
 # path). Cargo's default-features cannot be scoped per target, so
 # "native-only" is expressed by gating the dependency itself rather
 # than the feature flag.
-#
-# Deliberately NOT a default feature (mirrors `upeg-cli`'s own
-# `wasm-plugin`, which is also opt-in): (1) it pulls in the
-# wasmtime/extism dependency tax for every desktop build, not just ones
-# that use WASM plugins; (2) Cargo unifies features across a single
-# build graph, so defaulting it on here would also flip
-# `upeg-loader`'s `wasm` feature on for *any* workspace-wide build that
-# includes `upeg_frb` (e.g. `cargo clippy --workspace`) — during
-# development this transiently surfaced an unrelated dead-code lint in
-# `upeg-loader`'s `not(feature = "wasm")` stub arm before that arm's
-# only constant was `cfg`-gated to match. Defaulting a feature on here
-# reaches further than `upeg_frb` alone; keep it an explicit opt-in via
-# `--features wasm-plugin` so its blast radius stays intentional.
 wasm-plugin = ["upeg-sources/wasm-plugin"]
 
 # Native integration tests exercise the real HTTP router and loaded tools.

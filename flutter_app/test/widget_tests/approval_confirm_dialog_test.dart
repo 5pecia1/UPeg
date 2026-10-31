@@ -22,6 +22,7 @@ import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 
 import '../test_helpers/dispatch_stream_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 const _success = CanonicalToolResult(ok: true, outputs: []);
@@ -74,6 +75,7 @@ Widget _modalHarness({
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(stubDispatchStream(log.call)),
       if (confirm != null) approvalConfirmFnProvider.overrideWithValue(confirm),
     ],
@@ -88,6 +90,7 @@ Widget _inlineHarness({required _DispatchLog log, required ToolDto tool}) {
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(stubDispatchStream(log.call)),
     ],
     child: MaterialApp(

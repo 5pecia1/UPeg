@@ -10,6 +10,7 @@ import 'package:upeg/src/rust/api/tools.dart' as rust_tools;
 
 import '../test_helpers/color_contrast.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_handle_test_overrides.dart';
 
 void main() {
   group('Pin', () {
@@ -51,30 +52,24 @@ void main() {
       );
     }
 
-    testWidgets(
-      'a_pin_draws_the_toolid_as_the_header_label_and_the_label_in_the_body',
-      (tester) async {
-        await tester.pumpWidget(
-          harness(const Pin(placement: placement, toolLabel: 'hex → dec')),
-        );
+    testWidgets('a_pin_draws_the_tool_label_once_in_the_header', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        harness(const Pin(placement: placement, toolLabel: 'hex → dec')),
+      );
 
-        // The Pin renders the canonical id uppercased in the header;
-        // the human label sits in the body (layout inherited from the
-        // retired Dioxus surface).
-        expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
-        expect(find.text('hex → dec'), findsOneWidget);
-      },
-    );
+      expect(find.text('hex → dec'), findsOneWidget);
+      expect(find.byTooltip('num.hex_to_decimal'), findsOneWidget);
+    });
 
-    testWidgets('a_pin_without_a_label_shows_nothing_in_the_body', (
+    testWidgets('a_pin_without_a_label_shows_the_id_in_the_header_only', (
       tester,
     ) async {
       await tester.pumpWidget(harness(const Pin(placement: placement)));
 
-      // Header still has the uppercased id.
-      expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
-      // Body label is omitted when the catalog hasn't loaded yet.
-      expect(find.text('num.hex_to_decimal'), findsNothing);
+      // The canonical id remains visible until the catalogue loads.
+      expect(find.text('num.hex_to_decimal'), findsOneWidget);
     });
 
     testWidgets('a_pin_invokes_the_ontap_callback_when_tapped', (tester) async {
@@ -93,24 +88,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tapped, equals(placement));
-    });
-
-    testWidgets('a_pin_shows_the_pinkind_embed_badge', (tester) async {
-      await tester.pumpWidget(
-        harness(
-          const Pin(
-            placement: placement,
-            toolLabel: 'hex → dec',
-            // Use the Dart-side enum directly (mapped from PinKindDto by
-            // BoardCanvas in production). G2 wired this path so a kind
-            // → badge mapping doesn't require a string parse.
-            pinKind: UpegPinKind.embed,
-          ),
-        ),
-      );
-
-      // The KindBadge in the Pin footer renders the variant uppercase.
-      expect(find.text('EMBED'), findsOneWidget);
     });
 
     testWidgets(
@@ -162,23 +139,6 @@ void main() {
       );
 
       expect(find.text('shown when no fields'), findsOneWidget);
-    });
-
-    testWidgets('a_pin_shows_the_invoker_external_label', (tester) async {
-      await tester.pumpWidget(
-        harness(
-          Pin(
-            placement: placement,
-            toolLabel: 'hex → dec',
-            pinKind: UpegPinKind.embed,
-            // Mirrors `upeg_core::Invoker::label()` short form. The
-            // production wire-up passes the string from `invokerDtoLabel`.
-            invokerLabel: invokerDtoLabel(rust_tools.InvokerDto.external_),
-          ),
-        ),
-      );
-
-      expect(find.text('external'), findsOneWidget);
     });
 
     testWidgets('a_pin_exposes_the_tool_name_and_kind_to_screen_readers', (
@@ -600,9 +560,7 @@ void main() {
       expect(find.text('32.5'), findsNothing);
     });
 
-    testWidgets('a_stale_pin_shows_a_small_dot_beside_the_kind', (
-      tester,
-    ) async {
+    testWidgets('a_stale_pin_shows_a_small_dot_in_the_footer', (tester) async {
       await tester.pumpWidget(
         harness(
           const Pin(
@@ -666,7 +624,7 @@ void main() {
     );
 
     testWidgets(
-      'the_light_pin_footer_kind_invoker_and_stale_markers_contrast_with_the_real_background',
+      'the_light_pin_footer_stale_and_restored_markers_contrast_with_the_real_background',
       (tester) async {
         for (final kind in UpegPinKind.values) {
           await tester.pumpWidget(
@@ -681,7 +639,10 @@ void main() {
                     child: Pin(
                       placement: placement,
                       pinKind: kind,
-                      invokerLabel: 'function',
+                      outputResult: canonicalGasResult(),
+                      restoredAt: DateTime.now().subtract(
+                        const Duration(minutes: 5),
+                      ),
                       stale: true,
                     ),
                   ),
@@ -694,12 +655,8 @@ void main() {
             find.byKey(pinChromeContainerKey),
           );
           final background = (chrome.decoration! as BoxDecoration).color!;
-          final kindColor = tester
-              .widget<Text>(find.text(kind.label))
-              .style!
-              .color!;
-          final invokerColor = tester
-              .widget<Text>(find.text('function'))
+          final restoredColor = tester
+              .widget<Text>(find.byKey(pinRestoredBadgeKey))
               .style!
               .color!;
           final stale = tester.widget<Container>(
@@ -707,11 +664,7 @@ void main() {
           );
           final staleColor = (stale.decoration! as BoxDecoration).color!;
 
-          for (final foreground in <Color>[
-            kindColor,
-            invokerColor,
-            staleColor,
-          ]) {
+          for (final foreground in <Color>[restoredColor, staleColor]) {
             expect(
               colorContrastRatio(foreground, background),
               greaterThanOrEqualTo(minimumNormalTextContrastRatio),
@@ -735,29 +688,30 @@ void main() {
         ),
       );
 
-      expect(find.text('NUM.HEX_TO_DECIMAL'), findsOneWidget);
+      expect(find.byTooltip('num.hex_to_decimal'), findsOneWidget);
     });
 
-    testWidgets('a_restored_result_renders_the_last_run_timestamp_badge', (
+    testWidgets('a_restored_result_renders_the_saved_timestamp_badge', (
       tester,
     ) async {
+      final robot = _PinFooterRobot(tester, placement);
       await tester.pumpWidget(
         harness(
-          Pin(
-            placement: placement,
-            toolLabel: 'eth gas',
-            pinKind: UpegPinKind.live,
-            outputResult: canonicalGasResult(),
-            restoredAt: DateTime.now().subtract(const Duration(minutes: 5)),
+          SizedBox(
+            width: 168,
+            child: Pin(
+              placement: placement,
+              toolLabel: 'eth gas',
+              pinKind: UpegPinKind.live,
+              outputResult: canonicalGasResult(),
+              restoredAt: DateTime.now().subtract(const Duration(minutes: 5)),
+            ),
           ),
         ),
       );
 
-      expect(find.byKey(pinRestoredBadgeKey), findsOneWidget);
-      expect(
-        find.text(i18nEn('pin.last_run.minutes_ago', {'minutes': '5'})),
-        findsOneWidget,
-      );
+      robot.expectSavedBadgeForFiveMinutes();
+      robot.expectNoFlutterException();
     });
 
     testWidgets('a_fresh_result_has_no_timestamp_badge', (tester) async {
@@ -832,7 +786,7 @@ void main() {
           final expectedValue = [
             i18nEn('a11y.pin.result_ok', {'preview': '32.5'}),
             i18nEn('a11y.pin.restored'),
-            i18nEn('pin.last_run.minutes_ago', {'minutes': '5'}),
+            i18nEn('pin.result_saved.minutes_ago', {'minutes': '5'}),
           ].join(' · ');
           expect(
             tester.getSemantics(find.bySemanticsLabel(label)),
@@ -855,7 +809,7 @@ class _PinInteractionRobot {
   Future<void> pumpInteractivePin({required VoidCallback onTap}) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [...i18nTestOverrides],
+        overrides: [...i18nTestOverrides, ...pinHandleTestOverrides],
         child: MaterialApp(
           theme: UpegTheme.darkTheme(),
           home: Scaffold(
@@ -910,7 +864,7 @@ class _PinInteractionRobot {
   }
 
   Future<void> tapHeader() async {
-    await tester.tap(find.text(placement.toolId.toUpperCase()));
+    await tester.tap(find.byTooltip(placement.toolId));
     await tester.pump();
   }
 
@@ -942,7 +896,6 @@ class _PinFooterRobot {
                 placement: placement,
                 toolLabel: 'inline tool',
                 pinKind: UpegPinKind.inline,
-                invokerLabel: 'function',
                 running: true,
               ),
             ),
@@ -954,6 +907,12 @@ class _PinFooterRobot {
 
   void expectRunningIndicatorVisible() {
     expect(find.byKey(const Key('pin-running-indicator')), findsOneWidget);
+  }
+
+  void expectSavedBadgeForFiveMinutes() {
+    expect(find.byKey(pinRestoredBadgeKey), findsOneWidget);
+    expect(find.text('result saved · 5m ago'), findsOneWidget);
+    expect(find.byTooltip('result saved · 5m ago'), findsOneWidget);
   }
 
   void expectNoFlutterException() {

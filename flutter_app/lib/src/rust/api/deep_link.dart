@@ -10,9 +10,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Parse a single `upeg://open?...` URL into a [`LaunchIntentDto`].
 ///
-/// Returns `None` for any URL that doesn't begin with the `upeg://open?`
-/// prefix so non-upeg deep-link schemes (e.g. `https://`) can be
-/// dropped silently by the Dart listener.
+/// Returns `None` for any URL that is neither `upeg://open` nor starts
+/// with `upeg://open?`, so non-upeg deep-link schemes (e.g. `https://`)
+/// can be dropped silently by the Dart listener.
+///
+/// A bare `upeg://open` parses to a summon-only intent (every field
+/// `None`): the app comes to the front and keeps its current board. A
+/// blank or unknown `board` value is dropped the same way.
 LaunchIntentDto? parseLaunchIntent({required String uri}) =>
     RustLib.instance.api.crateApiDeepLinkParseLaunchIntent(uri: uri);
 
@@ -30,12 +34,13 @@ String encodeLaunchIntent({required LaunchIntentDto intent}) =>
 /// nullable fields as `String?` on the Dart side, which the
 /// `LaunchIntent` Dart class consumes directly without a sentinel.
 class LaunchIntentDto {
-  /// Static board key (e.g. `"dev"`). `None` ⇒ leave the
-  /// currently-selected board alone.
+  /// Static board key (e.g. `"dev"`). `None` ⇒ the link names no known
+  /// board (absent, blank or unknown); leave the currently-selected
+  /// board alone.
   final String? board;
 
   /// Tool id (e.g. `"num.hex_to_decimal"`). `None` ⇒ no tool
-  /// activation; only board switch.
+  /// activation; at most a board switch.
   final String? tool;
 
   /// Pre-fill inputs for the tool, encoded as a JSON object string.

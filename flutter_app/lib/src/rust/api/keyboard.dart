@@ -242,9 +242,7 @@ sealed class KeyboardCommandDto with _$KeyboardCommandDto {
   /// shared binding.
   const factory KeyboardCommandDto.clearInput() = KeyboardCommandDto_ClearInput;
 
-  /// F2 — copy the current output. Never returned by
-  /// [`keyboard_command_for`] (GUI copy is modal-local); exists so the
-  /// cheatsheet catalog can display the shared binding.
+  /// F2 — copy the focused pin's current output on the board.
   const factory KeyboardCommandDto.copy() = KeyboardCommandDto_Copy;
 }
 

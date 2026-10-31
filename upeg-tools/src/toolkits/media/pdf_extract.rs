@@ -845,7 +845,7 @@ fn predictor_stride(spec: RasterSpec, colors: i64, columns: i64) -> Result<usize
 ///
 /// `stride` must come from [`predictor_stride`], which bounds it well below
 /// `usize::MAX`, so the `stride + 1` row length below cannot overflow.
-fn unpredict_png(data: &[u8], stride: usize, bpp: usize) -> Result<Vec<u8>, String> {
+pub(super) fn unpredict_png(data: &[u8], stride: usize, bpp: usize) -> Result<Vec<u8>, String> {
     let row_len = stride + 1;
     if !data.len().is_multiple_of(row_len) {
         return Err(format!(

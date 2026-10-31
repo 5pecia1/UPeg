@@ -226,7 +226,9 @@ fn images_convert_meta_exposes_file_policy_and_output_format() {
                     .iter()
                     .map(|option| option.value)
                     .collect::<Vec<_>>(),
-                ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi"]
+                [
+                    "png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi", "svg"
+                ]
             );
         }
         other => panic!("expected Options, got {other:?}"),

@@ -11,21 +11,323 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/pages/board_page.dart';
 import 'package:upeg/src/pages/expanded_modal_page.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/rust/api/pin_activation.dart';
+import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/rust/api/tools/input_field.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/state/focused_pin_provider.dart';
+import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart';
+import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
+import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/board_page_harness.dart';
+import '../test_helpers/dispatch_stream_fixture.dart';
+
+class _RecordingWriter extends ClipboardWriter {
+  final writes = <String>[];
+
+  @override
+  Future<void> write(String text) async => writes.add(text);
+}
 
 void main() {
   group('BoardPage keyboard wiring', () {
+    testWidgets(
+      'new modal pin remains the board F2 target after layout reload',
+      (tester) async {
+        final writer = _RecordingWriter();
+        var added = false;
+        final board = BoardKey.parse('dev');
+        final oldPin = PinId.parse('old-pin');
+        final newPin = PinId.parse('new-pin');
+        final tool = fixtureToolDto(
+          id: 'fixture.modal_copy',
+          label: 'Modal copy',
+          source: const SourceDto.manual(),
+          inputFields: const [],
+        );
+        await tester.pumpWidget(
+          boardPageHarness(
+            currentBoardKey: board.value,
+            focusedToolId: oldPin.value,
+            tools: [tool],
+            layoutLoader: (query) => LayoutSnapshotDto(
+              boardKey: query.boardKey.value,
+              boardCols: 6,
+              placements: [
+                PlacementDto(
+                  toolId: tool.id,
+                  pinId: oldPin.value,
+                  x: 0,
+                  y: 0,
+                  w: 1,
+                  h: 1,
+                ),
+                if (added)
+                  PlacementDto(
+                    toolId: tool.id,
+                    pinId: newPin.value,
+                    x: 1,
+                    y: 0,
+                    w: 1,
+                    h: 1,
+                  ),
+              ],
+            ),
+            extraOverrides: [
+              clipboardWriterProvider.overrideWithValue(writer),
+              addPinMutatorProvider.overrideWithValue((_, _) {
+                added = true;
+                return newPin.value;
+              }),
+              dispatchStreamFnProvider.overrideWithValue(
+                stubDispatchStream(
+                  ({required toolId, required args, required approve}) async =>
+                      const CanonicalToolResult(
+                        ok: true,
+                        primaryOutputId: 'result',
+                        outputs: [
+                          CanonicalOutputEntry(
+                            id: 'result',
+                            kind: 'string',
+                            value: CanonicalOutputValue.string(
+                              value: 'new pin output',
+                            ),
+                          ),
+                        ],
+                      ),
+                ),
+              ),
+            ],
+            resolver:
+                ({
+                  required key,
+                  required ctrl,
+                  required meta,
+                  required shift,
+                  required alt,
+                  required scope,
+                  required hasToolFocus,
+                }) => switch (key) {
+                  'o' => const KeyboardCommandDto.open(),
+                  'F2' => const KeyboardCommandDto.copy(),
+                  _ => null,
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(BoardPage)),
+        );
+        container
+            .read(lastOutcomeProvider.notifier)
+            .record(
+              (board, oldPin),
+              ToolId.parse(tool.id),
+              const CanonicalToolResult(
+                ok: true,
+                primaryOutputId: 'result',
+                outputs: [
+                  CanonicalOutputEntry(
+                    id: 'result',
+                    kind: 'string',
+                    value: CanonicalOutputValue.string(value: 'old pin output'),
+                  ),
+                ],
+              ),
+            );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyO);
+        await tester.pumpAndSettle();
+        expect(find.byType(ExpandedModalPage), findsOneWidget);
+        await tester.tap(find.byKey(const Key('expanded-modal-pin-btn')));
+        await tester.pumpAndSettle();
+        expect(container.read(focusedPinProvider), newPin);
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('expanded-modal-close-btn')));
+        await tester.pumpAndSettle();
+        expect(container.read(focusedPinProvider), newPin);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+        await tester.pump();
+        expect(writer.writes, ['new pin output']);
+      },
+    );
+
+    testWidgets('F2 copies the focused pin result while its input has focus', (
+      tester,
+    ) async {
+      final writer = _RecordingWriter();
+      const pinId = 'fixture.manual';
+      final tool = fixtureToolDto(
+        id: pinId,
+        label: 'Manual',
+        source: const SourceDto.manual(),
+        inputFields: const [
+          InputFieldDto(
+            key: 'input',
+            label: 'Input',
+            fieldType: InputFieldType.text(),
+            required_: true,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        boardPageHarness(
+          currentBoardKey: 'dev',
+          focusedToolId: pinId,
+          tools: [tool],
+          layoutLoader: (query) => LayoutSnapshotDto(
+            boardKey: query.boardKey.value,
+            boardCols: 6,
+            placements: const [
+              PlacementDto(toolId: pinId, pinId: pinId, x: 0, y: 0, w: 2, h: 2),
+            ],
+          ),
+          extraOverrides: [clipboardWriterProvider.overrideWithValue(writer)],
+          resolver:
+              ({
+                required key,
+                required ctrl,
+                required meta,
+                required shift,
+                required alt,
+                required scope,
+                required hasToolFocus,
+              }) => switch (key) {
+                'F2' => const KeyboardCommandDto.copy(),
+                'Backspace' => const KeyboardCommandDto.backspace(),
+                'PageDown' => const KeyboardCommandDto.page(
+                  direction: PageDirectionDto.down,
+                ),
+                _ => null,
+              },
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      expect(writer.writes, isEmpty);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(BoardPage)),
+      );
+      container
+          .read(lastOutcomeProvider.notifier)
+          .record(
+            (BoardKey.parse('dev'), PinId.parse(pinId)),
+            ToolId.parse(pinId),
+            const CanonicalToolResult(
+              ok: true,
+              primaryOutputId: 'result',
+              outputs: [
+                CanonicalOutputEntry(
+                  id: 'result',
+                  kind: 'string',
+                  value: CanonicalOutputValue.string(value: 'saved result'),
+                ),
+              ],
+            ),
+            args: ToolArgs.fromJsonObject(const {'input': 'old input'}),
+          );
+      await tester.enterText(find.byKey(const Key('field-input')), 'new draft');
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      expect(writer.writes, isEmpty);
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.writes, ['saved result']);
+      expect(find.text('Copied previous result'), findsOneWidget);
+      expect(find.byType(ExpandedModalPage), findsNothing);
+
+      container
+          .read(lastOutcomeProvider.notifier)
+          .record(
+            (BoardKey.parse('dev'), PinId.parse(pinId)),
+            ToolId.parse(pinId),
+            const CanonicalToolResult(
+              ok: true,
+              primaryOutputId: 'result',
+              outputs: [
+                CanonicalOutputEntry(
+                  id: 'result',
+                  kind: 'string',
+                  value: CanonicalOutputValue.string(value: 'legacy result'),
+                ),
+              ],
+            ),
+          );
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.writes, ['saved result', 'legacy result']);
+      expect(
+        find.text('Copied result; its input history is unavailable'),
+        findsOneWidget,
+      );
+
+      container
+          .read(lastOutcomeProvider.notifier)
+          .record(
+            (BoardKey.parse('dev'), PinId.parse(pinId)),
+            ToolId.parse(pinId),
+            const CanonicalToolResult(
+              ok: false,
+              outputs: [],
+              error: CanonicalToolError(
+                code: 'failed',
+                message: '/private/hidden-error.txt',
+              ),
+            ),
+          );
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.writes, ['saved result', 'legacy result']);
+      expect(
+        find.text(
+          'No text result to copy. Run the tool or use its file action.',
+        ),
+        findsWidgets,
+      );
+
+      await tester.enterText(find.byKey(const Key('field-input')), ' 0xff ');
+      await tester.pump();
+      container
+          .read(lastOutcomeProvider.notifier)
+          .record(
+            (BoardKey.parse('dev'), PinId.parse(pinId)),
+            ToolId.parse(pinId),
+            const CanonicalToolResult(
+              ok: true,
+              primaryOutputId: 'result',
+              outputs: [
+                CanonicalOutputEntry(
+                  id: 'result',
+                  kind: 'string',
+                  value: CanonicalOutputValue.string(value: '16'),
+                ),
+              ],
+            ),
+            args: ToolArgs.fromJsonObject(const {'input': ' 0xff '}),
+          );
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.writes, ['saved result', 'legacy result', '16']);
+      expect(find.text('Copied'), findsWidgets);
+    });
+
     testWidgets('BoardPage_unpins_the_focused_pin_on_the_TogglePin_command', (
       tester,
     ) async {
@@ -421,38 +723,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(pinColorDialogKey), findsOneWidget);
-    });
-
-    testWidgets('the_color_button_opens_a_dialog_when_a_pin_is_focused', (
-      tester,
-    ) async {
-      await pumpBoardPageWithPinnedTool(
-        tester,
-        focusedToolId: contextMenuToolId,
-      );
-
-      await tester.tap(find.byKey(const Key('edit-pin-color-btn')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(pinColorDialogKey), findsOneWidget);
-    });
-
-    testWidgets('the_color_button_is_disabled_without_a_focused_pin', (
-      tester,
-    ) async {
-      await pumpBoardPageWithPinnedTool(tester);
-
-      final buttonFinder = find.byKey(const Key('edit-pin-color-btn'));
-      expect(buttonFinder, findsOneWidget);
-      expect(
-        find.descendant(of: buttonFinder, matching: find.byType(Opacity)),
-        findsOneWidget,
-      );
-
-      await tester.tap(buttonFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(pinColorDialogKey), findsNothing);
     });
 
     testWidgets('pressing_c_opens_the_focused_pin_color_dialog', (

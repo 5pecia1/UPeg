@@ -30,6 +30,8 @@ fn default_images_convert(
         IMAGE_CONVERT_DEFAULT_BACKGROUND,
         IMAGE_CONVERT_DEFAULT_SVG_WIDTH,
         limit,
+        144.0,
+        "poster",
     )
 }
 
@@ -144,7 +146,10 @@ fn zip_entries(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     (0..archive.len())
         .map(|index| {
             let mut entry = archive.by_index(index).unwrap();
-            let name = entry.name().to_string();
+            let name = entry
+                .name()
+                .expect("ZIP entry name must decode")
+                .into_owned();
             let mut buffer = Vec::new();
             entry.read_to_end(&mut buffer).unwrap();
             (name, buffer)

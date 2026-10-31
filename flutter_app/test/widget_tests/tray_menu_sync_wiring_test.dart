@@ -50,6 +50,11 @@ void main() {
   testWidgets(
     'TrayMenuSync_subscribes_before_UpegTray_install_and_reenables_Pause_on_the_embedded_transition',
     (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       final controller = StreamController<HostStateEvent>();
       addTearDown(controller.close);
       final container = ProviderContainer(

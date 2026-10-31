@@ -21,6 +21,7 @@ import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/primary_button.dart';
@@ -187,6 +188,8 @@ Future<void> _pump(WidgetTester tester, _AttachRecorder client) async {
     ProviderScope(
       overrides: [
         ...i18nTestOverrides,
+        pinDraftLoadProvider.overrideWithValue((_) => const []),
+        pinDraftSaveProvider.overrideWithValue((pin, tool, args) {}),
         isWasmRuntimeProvider.overrideWithValue(true),
         hostAttachStoreProvider.overrideWithValue(_MemoryStore()),
         attachClientProvider.overrideWithValue(client),
@@ -198,6 +201,7 @@ Future<void> _pump(WidgetTester tester, _AttachRecorder client) async {
             required pinId,
             required toolId,
             required result,
+            argsJson,
           }) {},
         ),
         toolsLoaderProvider.overrideWithValue(() => [_externalTool]),
@@ -221,6 +225,8 @@ ProviderContainer _duplicatePinContainer(_AttachRecorder client) =>
     ProviderContainer(
       overrides: [
         ...i18nTestOverrides,
+        pinDraftLoadProvider.overrideWithValue((_) => const []),
+        pinDraftSaveProvider.overrideWithValue((pin, tool, args) {}),
         isWasmRuntimeProvider.overrideWithValue(true),
         hostAttachStoreProvider.overrideWithValue(_MemoryStore()),
         attachClientProvider.overrideWithValue(client),
@@ -256,6 +262,7 @@ ProviderContainer _duplicatePinContainer(_AttachRecorder client) =>
             required pinId,
             required toolId,
             required result,
+            argsJson,
           }) {},
         ),
         toolsLoaderProvider.overrideWithValue(() => [_externalTool]),
@@ -267,6 +274,11 @@ ProviderContainer _duplicatePinContainer(_AttachRecorder client) =>
         ),
       ],
     );
+
+/// The test-owned container outlives the widget tree, so the draft save timer
+/// armed by typing has to be flushed before the test ends.
+void _flushDrafts(ProviderContainer container) =>
+    container.read(inlineDraftProvider).flushAll();
 
 Future<void> _pumpModalForPin(
   WidgetTester tester,
@@ -297,6 +309,21 @@ final class _ExternalModalPinRobot {
     await tester.pumpAndSettle();
   }
 
+  void expectCachedFailure({
+    required ProviderContainer container,
+    required PinKey pin,
+    required String message,
+  }) {
+    final cached = container.read(lastOutcomeProvider)[pin];
+    expect(cached?.result.ok, isFalse);
+    expect(cached?.result.error?.code, 'remote_tool_failed');
+    expect(cached?.result.errorMessage, message);
+    expect(cached?.args, ToolArgs.fromJsonObject({'message': 'failed input'}));
+    expect(find.text(message), findsOneWidget);
+    expect(find.text('ok'), findsNothing);
+    expect(find.byKey(const Key('expanded-modal-outcome')), findsOneWidget);
+  }
+
   void expectCachedResults({
     required ProviderContainer container,
     required PinKey firstPinKey,
@@ -314,6 +341,33 @@ final class _ExternalModalPinRobot {
 }
 
 void main() {
+  testWidgets(
+    'should display and cache a pinned remote tool failure as an error',
+    (tester) async {
+      const message = 'Remote command refused the request';
+      final client = _AttachRecorder(
+        [const AttachReadinessNotApplicable()],
+        dispatchResult: const AttachDispatchToolError(
+          CanonicalToolError(code: 'remote_tool_failed', message: message),
+        ),
+      );
+      final pin = (BoardKey.parse('dev'), PinId.parse('pin-one'));
+      final container = _duplicatePinContainer(client);
+      addTearDown(container.dispose);
+      final robot = _ExternalModalPinRobot(tester);
+      await _pumpModalForPin(tester, container, pin);
+
+      await robot.enterAndRun('failed input');
+
+      robot.expectCachedFailure(
+        container: container,
+        pin: pin,
+        message: message,
+      );
+      expect(client.dispatchCalls, 1);
+      _flushDrafts(container);
+    },
+  );
   testWidgets(
     'should block missing setup then preserve entered args and dispatch once after recheck',
     (tester) async {
@@ -425,6 +479,7 @@ void main() {
         firstPinKey: firstPinKey,
         secondPinKey: secondPinKey,
       );
+      _flushDrafts(container);
     },
   );
 }

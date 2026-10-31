@@ -39,14 +39,14 @@ Widget _harness({required LayoutSnapshotDto snapshot}) {
 
 void main() {
   group('PegboardDotsPainter pitch', () {
-    test('pitchX_is_derived_from_the_cell_width_plus_gap', () {
+    test('pitchX_is_one_cell_width_plus_gap', () {
       expect(
         PegboardDotsPainter.pitchX,
         UpegSizing.pinCellWidth + UpegSizing.pinGap,
       );
     });
 
-    test('pitchY_is_derived_from_the_cell_height_plus_gap', () {
+    test('pitchY_is_one_cell_height_plus_gap', () {
       expect(
         PegboardDotsPainter.pitchY,
         boardCanvasPinCellHeight + UpegSizing.pinGap,
@@ -74,7 +74,7 @@ void main() {
       for (final k in [1, 2, 3, 6]) {
         expect(
           PegboardDotsPainter.holeX(k),
-          k * PegboardDotsPainter.pitchX - UpegSizing.pinGap / 2,
+          k * PegboardDotsPainter.slotPitchX - UpegSizing.pinGap / 2,
         );
       }
     });
@@ -83,7 +83,7 @@ void main() {
       for (final k in [1, 2, 3, 6]) {
         expect(
           PegboardDotsPainter.holeY(k),
-          k * PegboardDotsPainter.pitchY - UpegSizing.pinGap / 2,
+          k * PegboardDotsPainter.slotPitchY - UpegSizing.pinGap / 2,
         );
       }
     });
@@ -91,11 +91,11 @@ void main() {
     test('the_gap_between_two_consecutive_holes_equals_the_pitch', () {
       expect(
         PegboardDotsPainter.holeX(3) - PegboardDotsPainter.holeX(2),
-        PegboardDotsPainter.pitchX,
+        PegboardDotsPainter.slotPitchX,
       );
       expect(
         PegboardDotsPainter.holeY(4) - PegboardDotsPainter.holeY(3),
-        PegboardDotsPainter.pitchY,
+        PegboardDotsPainter.slotPitchY,
       );
     });
 
@@ -193,5 +193,36 @@ void main() {
         expect(pegboard.paintDots, isFalse);
       },
     );
+
+    testWidgets('a_small_populated_grid_paints_the_whole_viewport', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _harness(
+          snapshot: const LayoutSnapshotDto(
+            boardKey: 'dev',
+            boardCols: 1,
+            placements: [
+              PlacementDto(
+                toolId: 'num.hex_to_decimal',
+                pinId: 'num.hex_to_decimal',
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dots = find.byKey(const Key('board-canvas-grid-dots'));
+      expect(tester.getSize(dots), const Size(800, 600));
+      final painter =
+          tester.widget<CustomPaint>(dots).painter! as PegboardDotsPainter;
+      expect(painter.gridOriginX, (800 - UpegSizing.pinCellWidth) / 2);
+      expect(painter.gridOriginY, UpegSizing.pegboardPadding);
+    });
   });
 }

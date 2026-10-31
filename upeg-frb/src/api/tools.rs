@@ -18,6 +18,7 @@ use upeg_runtime::ToolMetaRuntimeExt;
 
 mod approval_args;
 mod dispatch;
+mod file_bytes_serde;
 pub mod file_input_policy;
 mod gui_context;
 pub mod input_field;
@@ -84,9 +85,9 @@ impl From<&'static ToolkitMeta> for ToolkitDto {
 /// the `output_spec` the same way.
 ///
 /// Batch 1 added `pin_kind` / `invoker` / `pegboard_units` so the Dart
-/// Pin widget can drive its kind-coloured accent dot, kind badge,
-/// invoker label, and multi-unit cell size without crossing the FFI
-/// boundary again per pin.
+/// side can drive a Pin's kind-coloured header icon and accent, the
+/// expanded modal's kind badge and invoker label, and the multi-unit
+/// cell size without crossing the FFI boundary again per Pin.
 #[derive(Debug, Clone)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct ToolDto {
@@ -100,11 +101,13 @@ pub struct ToolDto {
     /// This is the bridge-level schema Flutter needs for compact Pin
     /// summaries and typed result renderers.
     pub output_fields: Vec<OutputFieldDto>,
-    /// Mirror of [`upeg_core::PinKind`] — drives the kind-coloured
-    /// header dot + footer KindBadge on the Dart Pin widget.
+    /// Mirror of [`upeg_core::PinKind`] — drives the kind-coloured header
+    /// icon, accent and Semantics label of the Dart Pin widget, and the
+    /// `KindBadge` in the expanded modal header.
     pub pin_kind: PinKindDto,
-    /// Mirror of [`upeg_core::Invoker`] — short footer label on the
-    /// Dart Pin widget ("function", "external", …).
+    /// Mirror of [`upeg_core::Invoker`] — the short invoker label in the
+    /// expanded modal footer ("function", "external", …); the Dart side
+    /// also branches on it (External readiness, inline eligibility).
     pub invoker: InvokerDto,
     /// Mirror of [`upeg_core::PegboardUnits`] — drives the Dart
     /// `BoardCanvas` cell footprint via `placement.w` / `placement.h`.
@@ -666,7 +669,7 @@ pub fn list_tools(toolkit: Option<String>) -> Vec<ToolDto> {
 /// are canonical [`OutputValue`] mirrors and `primary_output_id` points to
 /// one of their `id`s. Failure carries a structured [`ToolError`]. No field
 /// is reconstructed from legacy stdout text.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct CanonicalToolResult {
     pub ok: bool,
@@ -817,8 +820,13 @@ impl From<FileValue> for CanonicalFileValue {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub enum CanonicalFileContent {
-    Bytes { bytes: Vec<u8> },
-    Directory { entries: Vec<CanonicalFileValue> },
+    Bytes {
+        #[serde(with = "file_bytes_serde")]
+        bytes: Vec<u8>,
+    },
+    Directory {
+        entries: Vec<CanonicalFileValue>,
+    },
 }
 
 impl From<FileContent> for CanonicalFileContent {
@@ -833,7 +841,7 @@ impl From<FileContent> for CanonicalFileContent {
 }
 
 /// Structured failure details emitted by a tool dispatch.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct CanonicalToolError {
     pub code: String,

@@ -67,7 +67,7 @@ const DOM_SNAPSHOT_FILE = 'dom.html';
 const CHROMIUM_LOG_FILE = 'chromium.log';
 const SERVER_LOG_FILE = 'server.log';
 const APP_READY_LOG_FRAGMENT =
-  'upeg: appInitProvider — desktop integrations done, painting BoardPage';
+  'upeg: appInitProvider — routing prerequisites ready, painting BoardPage';
 const APP_FATAL_LOG_FRAGMENTS = [
   'fail to create WorkerPool',
   'RuntimeError: unreachable',

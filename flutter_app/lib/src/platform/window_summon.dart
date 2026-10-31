@@ -1,10 +1,17 @@
 /// Launcher-immediacy window summoning (summon / toggle), separate
 /// from the popup ↔ full geometry logic in `window.dart` (SoC).
 ///
-/// Three entry points converge here:
+/// Four entry points converge here:
 ///   * the global hotkey (`platform/global_hotkey.dart`),
 ///   * the tray icon left click (`platform/tray.dart`),
+///   * the tray menu "Open Pegboard" (`openPegboardFromTray` in
+///     `platform/tray.dart`),
 ///   * an incoming deep link (`widgets/launch_intent_applier.dart`).
+///
+/// On Linux a relaunch is forwarded over D-Bus and the runner
+/// (`linux/runner/my_application.cc`) shows and presents the window
+/// natively; that activation never reaches this file, and Dart only sees
+/// the resulting window 'show' event (`platform/window_visibility.dart`).
 ///
 /// The mode-change pipeline (`windowModeProvider` →
 /// `WindowModeApplier`) deliberately no-ops when the mode is unchanged,
@@ -112,8 +119,8 @@ Future<WindowSnapshot> captureWindowSnapshot(WindowSummonDriver driver) async {
 }
 
 /// Resolve the driver, gating the production default behind
-/// `isWindowManagerSupported` so web/tests never touch the channel.
-/// An explicitly injected driver always wins (tests).
+/// `isWindowManagerSupported`, which only the web build fails; desktop-host
+/// tests must inject a driver. An explicitly injected driver always wins.
 WindowSummonDriver? _resolveDriver(WindowSummonDriver? driver) {
   if (driver != null) return driver;
   if (!isWindowManagerSupported) return null;
@@ -149,8 +156,8 @@ Future<void> summonWindow({WindowSummonDriver? driver}) async {
 }
 
 /// Launcher toggle: shown → hide; hidden/minimized → force popup mode
-/// and summon. Shared by the global hotkey and the tray left click so
-/// both surfaces stay behaviorally identical. No-op on unsupported
+/// and summon. Used by the global hotkey; tray left click calls
+/// [summonWindow] so it preserves the current mode. No-op on unsupported
 /// platforms.
 Future<void> runSummonToggle(
   ProviderContainer container, {

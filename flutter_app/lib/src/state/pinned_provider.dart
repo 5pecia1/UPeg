@@ -2,7 +2,7 @@
 ///
 /// `pinnedProvider` is the single source of truth for whether the
 /// popup window should suppress auto-hide on focus loss. The tray
-/// "Toggle pin" menu item writes here via [PinnedNotifier.toggle];
+/// "Keep popup open" menu item writes here via [PinnedNotifier.toggle];
 /// `PopupAutoHideObserver` reads from here to gate `windowManager.hide`.
 ///
 /// Type system note: `bool` is acceptable because the state is

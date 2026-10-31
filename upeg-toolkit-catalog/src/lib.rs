@@ -25,12 +25,14 @@ pub const GUEST_ABI: &str = include_str!("guest_abi.txt");
 pub const SCHEMA_VERSION: u32 = 1;
 pub const EMBEDDED_METADATA: &str = include_str!("metadata.snapshot.json");
 pub const WEB_PACK_TOOLKITS: &[&str] = &[
-    "color", "convert", "csv", "hash", "id", "media", "num", "qr", "security", "text", "time",
+    "color", "convert", "csv", "data", "hash", "id", "media", "num", "qr", "security", "text",
+    "time",
 ];
 pub const NATIVE_PACK_TOOLKITS: &[&str] = &[
     "color",
     "convert",
     "csv",
+    "data",
     "devcontainer",
     "eth",
     "hash",

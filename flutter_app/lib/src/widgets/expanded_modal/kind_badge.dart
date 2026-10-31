@@ -1,8 +1,8 @@
 /// Small coloured chip rendering [`PinKindDto`].
 ///
-/// Lives next to the modal because the header is its sole caller —
-/// the Pin widget already has its own footer-baked KindBadge surface
-/// (see `widgets/pin.dart`). Both copies share the colour table in
+/// Lives next to the modal; the modal header and the palette rows draw it,
+/// while the Pin widget shows its kind as a header icon instead (see
+/// `widgets/pin.dart`). Both share the colour table in
 /// `UpegTokens.pinKindColor` so a future palette change touches one
 /// place.
 ///

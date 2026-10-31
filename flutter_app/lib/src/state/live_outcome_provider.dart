@@ -7,6 +7,10 @@
 /// `static`) keep the state at [`LiveOutcomePending`] and never start a
 /// timer — they are user-driven.
 ///
+/// While the window is hidden or minimized ([windowShownProvider]) ticks are
+/// skipped, and the first tick after it is shown again fires immediately.
+/// Only Timer pins read the window state; user-driven pins never do.
+///
 /// SoC: this provider owns only the timer + outcome cache. The board
 /// canvas Pin widget feeds the cached outcome into the shared canonical
 /// presenter for compact label/value rendering.
@@ -20,9 +24,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/platform/window_visibility.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/pin_provider.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
@@ -59,12 +65,14 @@ final liveDispatchToolFnProvider = Provider<LiveDispatchFn>(
 
 /// Sealed result of one live polling slot.
 ///
-/// - [`LiveOutcomePending`]: no outcome yet (cold start, or source is
-///   non-Timer so polling never fires).
+/// - [`LiveOutcomePending`]: no outcome yet (cold start, hidden window, or
+///   source is non-Timer so polling never fires).
 /// - [`LiveOutcomeFresh`]: most recent dispatch succeeded — render the
 ///   outcome's structured content.
 /// - [`LiveOutcomeStale`]: a prior dispatch succeeded but the latest
 ///   one failed — render `lastOutcome` with a stale indicator.
+/// - [`LiveOutcomeFailed`]: dispatches have failed and none ever
+///   succeeded, so there is nothing to render but the failure itself.
 sealed class LiveOutcomeState {
   const LiveOutcomeState();
   const factory LiveOutcomeState.pending() = LiveOutcomePending;
@@ -74,6 +82,8 @@ sealed class LiveOutcomeState {
     CanonicalToolResult lastOutcome,
     String errorMessage,
   ) = LiveOutcomeStale;
+  const factory LiveOutcomeState.failed(String errorMessage) =
+      LiveOutcomeFailed;
 }
 
 final class LiveOutcomePending extends LiveOutcomeState {
@@ -88,6 +98,11 @@ final class LiveOutcomeFresh extends LiveOutcomeState {
 final class LiveOutcomeStale extends LiveOutcomeState {
   const LiveOutcomeStale(this.lastOutcome, this.errorMessage);
   final CanonicalToolResult lastOutcome;
+  final String errorMessage;
+}
+
+final class LiveOutcomeFailed extends LiveOutcomeState {
+  const LiveOutcomeFailed(this.errorMessage);
   final String errorMessage;
 }
 
@@ -110,6 +125,7 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
   Timer? _ticker;
   bool _disposed = false;
   bool _inFlight = false;
+  LastOutcomeNotifier? _lastOutcomes;
 
   @override
   LiveOutcomeState build() {
@@ -125,6 +141,20 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
     if (interval == null) return const LiveOutcomeState.pending();
 
     final dispatch = ref.read(liveDispatchToolFnProvider);
+    final lastOutcomes = ref.read(lastOutcomeProvider.notifier);
+    _lastOutcomes = lastOutcomes;
+    final saved = ref.read(pinLastOutcomeProvider(pinKey));
+    final initialState = saved != null && saved.result.ok
+        ? LiveOutcomeState.stale(saved.result, 'saved')
+        : const LiveOutcomeState.pending();
+    scheduleMicrotask(() {
+      if (_disposed || !ref.mounted) return;
+      lastOutcomes.ensureHydrated(pinKey.$1);
+      final hydrated = ref.read(pinLastOutcomeProvider(pinKey));
+      if (state is LiveOutcomePending && hydrated?.result.ok == true) {
+        state = LiveOutcomeState.stale(hydrated!.result, 'saved');
+      }
+    });
 
     ref.onDispose(() {
       _disposed = true;
@@ -134,12 +164,19 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
       _ticker = null;
     });
 
+    // Ticks are skipped while the window is hidden, so catch up as soon as
+    // it is shown again. Read only here, past the Timer-source early return:
+    // user-driven pins never depend on the window state.
+    ref.listen<bool>(windowShownProvider, (previous, shown) {
+      if (previous == false && shown) unawaited(_fire(dispatch));
+    });
+
     // Schedule the cold-start fire on a cancellable zero-delay timer so
     // subscribers observe `pending` for one frame before the first dispatch
     // result overwrites it, and autoDispose can cancel it before it fires.
     _coldStartTimer = Timer(Duration.zero, () => _fire(dispatch));
     _ticker = Timer.periodic(interval, (_) => _fire(dispatch));
-    return const LiveOutcomeState.pending();
+    return initialState;
   }
 
   Duration? _intervalFor(SourceDto source) {
@@ -153,15 +190,34 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
 
   Future<void> _fire(LiveDispatchFn dispatch) async {
     if (_disposed || _inFlight) return;
+    // Nothing is on screen to update; the re-show listener in build() fires
+    // the catch-up dispatch.
+    if (!ref.read(windowShownProvider)) return;
 
     _inFlight = true;
+    final lastOutcomes = _lastOutcomes!;
+    final runToken = lastOutcomes.beginRun(pinKey);
     try {
       final outcome = await dispatch(
         pinKey: pinKey,
         toolId: toolId,
         args: ToolArgs.empty,
       );
-      if (_disposed) return;
+      if (outcome.ok) {
+        if (!lastOutcomes.isLatestRun(pinKey, runToken)) return;
+        lastOutcomes.record(
+          pinKey,
+          toolId,
+          outcome,
+          args: ToolArgs.empty,
+          runToken: runToken,
+        );
+      }
+      if (_disposed ||
+          !ref.mounted ||
+          !lastOutcomes.isLatestRun(pinKey, runToken)) {
+        return;
+      }
 
       _applyOutcome(outcome);
     } finally {
@@ -174,19 +230,18 @@ class LiveOutcomeNotifier extends Notifier<LiveOutcomeState> {
       state = LiveOutcomeState.fresh(outcome);
       return;
     }
+    final errorMessage = outcome.errorMessage ?? 'dispatch failed';
     final last = switch (state) {
       LiveOutcomeFresh(:final outcome) => outcome,
       LiveOutcomeStale(:final lastOutcome) => lastOutcome,
-      LiveOutcomePending() => null,
+      LiveOutcomePending() || LiveOutcomeFailed() => null,
     };
     if (last == null) {
-      // First call failed; keep pending until at least one success.
-      state = const LiveOutcomeState.pending();
+      // No success to fall back on: surface the failure instead of staying
+      // pending until one arrives.
+      state = LiveOutcomeState.failed(errorMessage);
       return;
     }
-    state = LiveOutcomeState.stale(
-      last,
-      outcome.errorMessage ?? 'dispatch failed',
-    );
+    state = LiveOutcomeState.stale(last, errorMessage);
   }
 }

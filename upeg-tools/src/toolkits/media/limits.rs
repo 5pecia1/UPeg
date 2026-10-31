@@ -49,6 +49,17 @@ pub(super) const MAX_PDF_FORM_DEPTH: usize = 64;
 pub(super) const MAX_PDF_EXTRACTED_IMAGE_BYTES: usize = 64 << 20;
 pub(super) const MAX_PDF_EXTRACT_ZIP_BYTES: usize = MAX_ENCODED_OUTPUT_BYTES;
 
+/// Compression decodes image objects one at a time. Input shares Core's file
+/// budget; parser stream limits are per stream and image work is cumulative.
+pub(super) const MAX_PDF_COMPRESSION_INPUT_BYTES: usize =
+    upeg_core::MAX_FILE_INPUT_RAW_BYTES as usize;
+pub(super) const MAX_PDF_COMPRESSION_IMAGES: usize = MAX_PDF_EXTRACTED_IMAGES;
+pub(super) const MAX_PDF_COMPRESSION_OBJECTS: usize = 100_000;
+pub(super) const MAX_PDF_COMPRESSION_DECODED_TOTAL_BYTES: usize = 256 << 20;
+pub(super) const MAX_PDF_COMPRESSION_OBJECT_STREAM_BYTES: usize = 16 << 20;
+/// Per-image decode/resize work, including the resampler's RGBA32F scratch.
+pub(super) const MAX_PDF_COMPRESSION_IMAGE_WORK_BYTES: usize = 128 << 20;
+
 /// Upper bound on the total bytes read out of one input archive, so that a zip
 /// of many individually-legal entries cannot add up to a bomb.
 pub(super) const MAX_ARCHIVE_TOTAL_BYTES: u64 = 512 << 20;

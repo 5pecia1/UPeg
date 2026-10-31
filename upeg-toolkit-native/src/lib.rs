@@ -75,6 +75,40 @@ static CATALOG_CACHE: Mutex<Option<(String, Catalog)>> = Mutex::new(None);
 // rename the same PID-scoped atomic-write temporary file.
 static CATALOG_LOAD_LOCK: Mutex<()> = Mutex::new(());
 
+/// How long a failed remote catalog fetch suppresses further fetches of the
+/// same source. A Live Pin resolves its Toolkit on every tick, so without this
+/// an offline machine (or a build whose default catalog URL 404s) would
+/// download again on each tick.
+const CATALOG_FAILURE_BACKOFF: Duration = Duration::from_secs(30);
+
+/// The most recent failed remote catalog fetch.
+struct CatalogFailure {
+    identity: String,
+    at: Instant,
+    message: String,
+}
+
+impl CatalogFailure {
+    fn new(identity: &str, error: &NativeError) -> Self {
+        // A replay is reported as a download error, so keep a download
+        // error's own text bare instead of repeating its "toolkit download:"
+        // prefix.
+        let message = match error {
+            NativeError::Download(message) => message.clone(),
+            other => other.to_string(),
+        };
+        Self {
+            identity: identity.to_owned(),
+            at: Instant::now(),
+            message,
+        }
+    }
+}
+
+// Only the last failure is kept: a process reads one catalog source. It lives
+// in memory only, so a restart retries immediately.
+static CATALOG_FAILURE: Mutex<Option<CatalogFailure>> = Mutex::new(None);
+
 #[derive(Debug)]
 pub enum RegisteredDispatch {
     NotFound,
@@ -239,38 +273,79 @@ fn load_catalog(root: &Path, expected_abi: &str) -> Result<Catalog, NativeError>
     if let Some(source) = local_source_dir() {
         return load_catalog_from_local(root, expected_abi, &source);
     }
+    load_remote_catalog(
+        root,
+        expected_abi,
+        &catalog_url(),
+        &source_identity_for(None),
+    )
+}
+
+/// The recorded failure's message while its back-off window is still open for
+/// `identity`; `None` for another source or once the window has passed.
+fn backoff_message(
+    failure: Option<&CatalogFailure>,
+    identity: &str,
+    now: Instant,
+) -> Option<String> {
+    failure
+        .filter(|failure| {
+            failure.identity == identity
+                && now.saturating_duration_since(failure.at) < CATALOG_FAILURE_BACKOFF
+        })
+        .map(|failure| failure.message.clone())
+}
+
+fn set_catalog_failure(failure: Option<CatalogFailure>) {
+    if let Ok(mut slot) = CATALOG_FAILURE.lock() {
+        *slot = failure;
+    }
+}
+
+/// Resolve the catalog of the remote source `url` (named `identity`): memory
+/// cache, then the verified disk cache, then one download. A failed download
+/// is remembered and, until [`CATALOG_FAILURE_BACKOFF`] has passed, returned
+/// again without touching the network. Cache hits never consult the failure.
+fn load_remote_catalog(
+    root: &Path,
+    expected_abi: &str,
+    url: &str,
+    identity: &str,
+) -> Result<Catalog, NativeError> {
     let _guard = CATALOG_LOAD_LOCK
         .lock()
         .map_err(|_| NativeError::Catalog("catalog load lock poisoned".into()))?;
-    let url = catalog_url();
-    let identity = source_identity_for(None);
     if let Ok(guard) = CATALOG_CACHE.lock()
         && let Some((cached_identity, catalog)) = guard.as_ref()
-        && cached_identity == &identity
+        && cached_identity == identity
     {
         return Ok(catalog.clone());
     }
-    let cached = catalog_cache_path(root, &identity);
+    let cached = catalog_cache_path(root, identity);
     if let Ok(bytes) = fs::read(&cached)
         && let Ok(catalog) = parse_catalog(&bytes, expected_abi)
     {
         if let Ok(mut guard) = CATALOG_CACHE.lock() {
-            *guard = Some((identity, catalog.clone()));
+            *guard = Some((identity.to_owned(), catalog.clone()));
         }
         return Ok(catalog);
     }
-    let fetched = read_url(&url, MAX_CATALOG_BYTES)
-        .and_then(|bytes| parse_catalog(&bytes, expected_abi).map(|catalog| (catalog, bytes)));
-    let catalog = match fetched {
-        Ok((catalog, bytes)) => {
+    if let Ok(failure) = CATALOG_FAILURE.lock()
+        && let Some(message) = backoff_message(failure.as_ref(), identity, Instant::now())
+    {
+        return Err(NativeError::Download(message));
+    }
+    let catalog = read_url(url, MAX_CATALOG_BYTES)
+        .and_then(|bytes| parse_catalog(&bytes, expected_abi).map(|catalog| (catalog, bytes)))
+        .and_then(|(catalog, bytes)| {
             atomic_write(&cached, &bytes)
                 .map_err(|error| NativeError::Catalog(error.to_string()))?;
-            catalog
-        }
-        Err(download_error) => return Err(download_error),
-    };
+            Ok(catalog)
+        })
+        .inspect_err(|error| set_catalog_failure(Some(CatalogFailure::new(identity, error))))?;
+    set_catalog_failure(None);
     if let Ok(mut guard) = CATALOG_CACHE.lock() {
-        *guard = Some((identity, catalog.clone()));
+        *guard = Some((identity.to_owned(), catalog.clone()));
     }
     Ok(catalog)
 }

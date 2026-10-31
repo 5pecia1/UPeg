@@ -31,6 +31,7 @@ import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 import 'package:upeg/src/widgets/pin.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
 
@@ -189,6 +190,7 @@ Widget _harness({
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       toolsLoaderProvider.overrideWith(
         (ref) =>
             () => <ToolDto>[tool],

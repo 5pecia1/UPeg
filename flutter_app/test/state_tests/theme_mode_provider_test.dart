@@ -63,13 +63,27 @@ void main() {
       expect(themeModeFromTweakValue('System'), ThemeMode.system);
     });
 
-    test('unknown_values_fall_back_to_default_dark_mode', () {
+    test('unknown_values_fall_back_to_default_light_mode', () {
       expect(themeModeFromTweakValue('Magenta'), kDefaultThemeMode);
-      expect(kDefaultThemeMode, ThemeMode.dark);
+      expect(kDefaultThemeMode, ThemeMode.light);
     });
   });
 
   group('themeModeProvider', () {
+    test('themeModeProvider_falls_back_to_light_when_the_loader_throws', () {
+      final container = ProviderContainer(
+        overrides: [
+          tweaksLoaderProvider.overrideWith(
+            (ref) =>
+                () => throw StateError('tweaks unreadable'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(themeModeProvider), ThemeMode.light);
+    });
+
     testWidgets('MaterialApp_themeMode_is_light_for_Light_tweaks', (
       tester,
     ) async {

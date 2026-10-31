@@ -6,5 +6,6 @@ Exec=upeg %u
 Icon=upeg
 Categories=Utility;
 Terminal=false
-StartupWMClass=upeg
+StartupWMClass=io.github._5pecia1.upeg
+StartupNotify=true
 MimeType=x-scheme-handler/upeg;

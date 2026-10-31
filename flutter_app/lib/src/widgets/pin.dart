@@ -3,11 +3,12 @@
 /// Visual contract:
 ///   * `.cell` chrome: surface + line border, 6px radius, hole-corner
 ///     decoration on all four corners,
-///   * `.cell-hd`: 6px 8px header with kind-coloured icon, tool id
-///     (uppercase), toolkit on the right,
+///   * `.cell-hd`: 6px 8px header with kind-coloured icon, the tool title
+///     (its label, else its id), toolkit (uppercase) on the right,
 ///   * `.cell-bd`: body — either field-list summary OR a
-///     description fallback,
-///   * footer with `KindBadge` + invoker label aligned right.
+///     description fallback (the title is drawn once, in the header),
+///   * footer with the running spinner, stale dot and restored-result
+///     badge; the kind and invoker are not repeated there.
 ///
 /// `Pin` is rendering-only: the host page wires the
 /// `onTap` callback to whatever side-effects (modal open, FRB
@@ -21,7 +22,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:upeg/src/i18n/relative_time.dart' show lastRunAgoLabel;
+import 'package:upeg/src/i18n/relative_time.dart' show resultSavedAgoLabel;
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/keyboard/binding_catalog.dart';
@@ -61,7 +62,6 @@ class Pin extends ConsumerWidget {
     this.toolDescription,
     this.toolkit,
     this.pinKind,
-    this.invokerLabel,
     this.outputFields = const <OutputFieldDto>[],
     this.outputResult,
     this.restoredAt,
@@ -74,6 +74,7 @@ class Pin extends ConsumerWidget {
     this.cursor = SystemMouseCursors.click,
     this.pinColorOverride,
     this.onTap,
+    this.tapHintKey = 'a11y.pin.hint_run',
     this.bodyOverride,
     this.exposeBodySemantics = false,
     this.onEditColor,
@@ -81,10 +82,10 @@ class Pin extends ConsumerWidget {
     super.key,
   });
 
-  /// When non-null, replaces the default text body (label/description/
-  /// outputs) with a caller-supplied widget. Used for Embed-kind pins
+  /// When non-null, replaces the default text body (description/outputs)
+  /// with a caller-supplied widget. Used for Embed-kind pins
   /// where the body is a live `WebViewPanel` rather than text. Header
-  /// (toolkit/id) and footer (kind/invoker/stale) chrome stay the same.
+  /// (toolkit/id) and footer (running/stale/restored) chrome stay the same.
   final Widget? bodyOverride;
 
   /// Whether an interactive [bodyOverride] keeps its descendant semantics.
@@ -103,15 +104,11 @@ class Pin extends ConsumerWidget {
   /// `tool.toolkit` — rendered on the right side of the header.
   final String? toolkit;
 
-  /// Typed pin kind. Drives the `KindBadge` colour + label at the
-  /// bottom of the pin. Null means "kind not yet resolved" (tools
+  /// Typed pin kind. Drives the header icon, the accent colour and the
+  /// Semantics label. Null means "kind not yet resolved" (tools
   /// catalogue still loading) — the renderer falls back to the
   /// default chrome.
   final UpegPinKind? pinKind;
-
-  /// `tool.invoker.label()` — short string ("function", "shell", …)
-  /// rendered in the footer.
-  final String? invokerLabel;
 
   /// Ordered output fields sourced from the tool's `output_spec.fields`.
   /// Drives compact Pin auto-render from typed schema metadata.
@@ -124,8 +121,8 @@ class Pin extends ConsumerWidget {
 
   /// Non-null when [outputResult] was restored from the persisted
   /// last-outcome store rather than produced this session: the instant
-  /// it was originally recorded. Drives the "last run · N ago" badge
-  /// under the output rows and the matching Semantics value part.
+  /// its row was last saved. Drives the "result saved · N ago" badge
+  /// in the footer and the matching Semantics value part.
   final DateTime? restoredAt;
 
   /// True when the persisted result's outputs were truncated by the
@@ -133,7 +130,7 @@ class Pin extends ConsumerWidget {
   final bool outputTruncated;
 
   /// True when the most-recent dispatch failed but a prior success is
-  /// still being shown — drives a muted dot next to the kind label.
+  /// still being shown — drives a muted dot in the footer.
   final bool stale;
 
   /// True while this pin's tool has a dispatch in flight — drives a small
@@ -164,6 +161,10 @@ class Pin extends ConsumerWidget {
   final String? pinColorOverride;
 
   final PinTapCallback? onTap;
+
+  /// Semantics hint for the pin's primary tap action. Inline forms open
+  /// their full view from the non-input chrome; plain pins run the tool.
+  final String tapHintKey;
 
   final PinTapCallback? onEditColor;
 
@@ -325,7 +326,6 @@ class Pin extends ConsumerWidget {
     final bodyContent = bodyOverride == null
         ? PinBody(
             tokens: tokens,
-            label: toolLabel,
             description: toolDescription,
             outputFields: outputFields,
             outputResult: outputResult,
@@ -357,7 +357,7 @@ class Pin extends ConsumerWidget {
         explicitChildNodes: exposesInteractiveBodySemantics,
         label: _semanticsLabel(ref),
         value: semanticsValue.isEmpty ? null : semanticsValue,
-        hint: onTap == null ? null : t(ref, 'a11y.pin.hint_run'),
+        hint: onTap == null ? null : t(ref, tapHintKey),
         button: onTap != null,
         enabled: onTap != null,
         focusable: true,
@@ -417,9 +417,14 @@ class Pin extends ConsumerWidget {
                 accentColor: accentColor,
                 chrome: chrome,
                 toolId: placement.toolId,
+                toolLabel: toolLabel,
                 toolkit: toolkitLabel,
                 showMoveHandle: showMoveHandle,
                 moveHandle: moveHandle,
+                onOpen: onOpenModal == null
+                    ? null
+                    : () => onOpenModal!(placement),
+                openLabel: onOpenModal == null ? null : t(ref, 'pin.menu.open'),
               ),
               body: pinBodyChrome(
                 variant: chrome?.variant,
@@ -429,8 +434,6 @@ class Pin extends ConsumerWidget {
               ),
               footer: PinFooter(
                 tokens: tokens,
-                kind: pinKind,
-                invokerLabel: invokerLabel,
                 restoredLabel: _restoredLabel(ref),
                 stale: stale,
                 running: running,
@@ -482,7 +485,7 @@ class Pin extends ConsumerWidget {
         );
       }
       // A restored (previous-session) result reads differently from a
-      // fresh one: announce it plus the same "last run · N ago" label
+      // fresh one: announce it plus the same "result saved · N ago" label
       // the badge shows.
       final restoredLabel = _restoredLabel(ref);
       if (restoredLabel != null) {
@@ -495,12 +498,12 @@ class Pin extends ConsumerWidget {
     return parts.join(' · ');
   }
 
-  /// "last run · N ago" copy for a restored result, or `null` when the
+  /// "result saved · N ago" copy for a restored result, or `null` when the
   /// rendered result is session-fresh (or absent).
   String? _restoredLabel(WidgetRef ref) {
     final restoredAt = this.restoredAt;
     if (restoredAt == null || outputResult == null) return null;
-    final label = lastRunAgoLabel(DateTime.now().difference(restoredAt));
+    final label = resultSavedAgoLabel(DateTime.now().difference(restoredAt));
     return t(ref, label.key, label.args);
   }
 }

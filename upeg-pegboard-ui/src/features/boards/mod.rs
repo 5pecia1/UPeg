@@ -85,8 +85,17 @@ pub fn deserialize_boards(json: &str) -> Option<Vec<Board>> {
 }
 
 pub fn save_boards(boards: &[Board]) {
+    let _ = try_save_boards(boards);
+}
+
+/// Save board edits and report storage failures to callers that promise a
+/// durable mutation to the user.
+pub fn try_save_boards(
+    boards: &[Board],
+) -> Result<(), crate::platform::storage::StorageWriteError> {
     let json = serialize_boards(boards);
-    let _ = crate::platform::storage::set_item(crate::platform::storage::BOARDS_KEY, &json);
+    crate::platform::storage::set_item(crate::platform::storage::BOARDS_KEY, &json)
+        .map_err(|()| crate::platform::storage::StorageWriteError)
 }
 
 pub fn load_boards() -> Option<Vec<Board>> {

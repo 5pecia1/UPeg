@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/tools.dart' as rust;
 import 'package:upeg/src/rust/api/tools/input_field.dart' as rust;
+import 'package:upeg/src/rust/api/last_outcomes.dart';
 import 'package:upeg/src/state/inline_draft_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/state/live_outcome_provider.dart' show LiveDispatchFn;
 import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/state/running_tools_provider.dart';
@@ -20,6 +22,7 @@ import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/color_contrast.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pegboard_selection_overrides.dart';
 
 /// A two-required-input pure function tool (like text.diff): the generic
 /// form renders both fields by type; the body runs on-change once both
@@ -86,7 +89,9 @@ Widget _harness(
   InlineDraftStore? draftStore,
   BoardKey? boardKey,
   double height = 200,
+  double width = 240,
   ThemeData? theme,
+  List<LastOutcomeDto> restoredOutcomes = const [],
 }) {
   final pinKey = (boardKey ?? BoardKey.parse('dev'), PinId.parse(tool.id));
   return ProviderScope(
@@ -94,14 +99,27 @@ Widget _harness(
       // The in-flight strip labels its Cancel affordance through `t()`,
       // so the FRB i18n seam needs the test catalog here too.
       ...i18nTestOverrides,
+      ...pegboardSelectionOverrides(
+        boardKey: (boardKey ?? BoardKey.parse('dev')).value,
+      ),
       ...dispatchOverrides(dispatch),
-      if (draftStore != null) inlineDraftProvider.overrideWithValue(draftStore),
+      inlineDraftProvider.overrideWithValue(draftStore ?? InlineDraftStore()),
+      lastOutcomeLoadProvider.overrideWithValue((_) => restoredOutcomes),
+      lastOutcomePersistProvider.overrideWithValue(
+        ({
+          required boardKey,
+          required pinId,
+          required toolId,
+          required result,
+          argsJson,
+        }) {},
+      ),
     ],
     child: MaterialApp(
       theme: theme ?? UpegTheme.darkTheme(),
       home: Scaffold(
         body: SizedBox(
-          width: 240,
+          width: width,
           height: height,
           child: GenericInlinePinBody(tool: tool, pinKey: pinKey),
         ),
@@ -183,6 +201,31 @@ final class _InlineBodyRobot {
     expect(find.text(value), findsNothing);
   }
 
+  void expectStaleOutput(String value) {
+    expect(find.text(value), findsOneWidget);
+    expect(find.byKey(const Key('inline-result-stale')), findsOneWidget);
+  }
+
+  void expectPair(String left, String right) {
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('field-left')))
+          .initialValue,
+      left,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('field-right')))
+          .initialValue,
+      right,
+    );
+  }
+
+  void expectRestoredOutput(String value) {
+    expect(find.text(value), findsOneWidget);
+    expect(find.byKey(const Key('inline-result-restored')), findsOneWidget);
+  }
+
   void expectLoading({required bool visible}) {
     expect(
       find.byKey(inlineLoadingIndicatorKey),
@@ -208,6 +251,107 @@ final class _InlineBodyRobot {
 
 void main() {
   group('GenericInlinePinBody', () {
+    testWidgets('file-path input keeps its controls when a result exists', (
+      tester,
+    ) async {
+      final tool = fixtureToolDto(
+        id: 'fixture.file_path',
+        source: const rust.SourceDto.userInput(),
+        inputFields: const [
+          rust.InputFieldDto(
+            key: 'path',
+            label: 'Path',
+            fieldType: rust.InputFieldType.filePath(),
+            required_: true,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _harness(
+          tool,
+          width: 168,
+          height: 100,
+          dispatch: ({pinKey, required toolId, required args}) async =>
+              _success('saved result'),
+          restoredOutcomes: [
+            LastOutcomeDto(
+              pinId: tool.id,
+              toolId: tool.id,
+              result: _success('saved result'),
+              argsJson: null,
+              truncated: false,
+              updatedAtMs: 100,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      final field = find.byKey(const Key('field-path'));
+      expect(tester.getSize(field).width, greaterThan(120));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('saved_draft_and_result_restore_without_running_the_tool', (
+      tester,
+    ) async {
+      final pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
+      final store = InlineDraftStore()
+        ..set(
+          pinKey,
+          ToolArgs.fromJsonObject({'left': 'saved', 'right': 'input'}),
+        );
+      final calls = <String>[];
+      final robot = _InlineBodyRobot(tester);
+      await tester.pumpWidget(
+        _harness(
+          _pairTool(),
+          draftStore: store,
+          dispatch: _joinDispatch(calls),
+          restoredOutcomes: [
+            LastOutcomeDto(
+              pinId: pinKey.$2.value,
+              toolId: 'text.pair',
+              result: _success('saved|input'),
+              argsJson: '{"left":"saved","right":"input"}',
+              truncated: false,
+              updatedAtMs: 100,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await robot.waitForDebounce();
+      robot.expectPair('saved', 'input');
+      robot.expectRestoredOutput('saved|input');
+      robot.expectNoAutoDispatch(calls);
+    });
+
+    testWidgets(
+      'edits_from_another_surface_replace_fields_without_auto_execution',
+      (tester) async {
+        final pinKey = (BoardKey.parse('dev'), PinId.parse('text.pair'));
+        final store = InlineDraftStore();
+        final calls = <String>[];
+        final robot = _InlineBodyRobot(tester);
+        await tester.pumpWidget(
+          _harness(
+            _pairTool(),
+            draftStore: store,
+            dispatch: _joinDispatch(calls),
+          ),
+        );
+        await tester.pump();
+        store.set(
+          pinKey,
+          ToolArgs.fromJsonObject({'left': 'modal', 'right': 'edit'}),
+        );
+        await tester.pumpAndSettle();
+        await robot.waitForDebounce();
+        robot.expectPair('modal', 'edit');
+        robot.expectNoAutoDispatch(calls);
+      },
+    );
+
     testWidgets(
       'the_run_enabled_and_disabled_colors_contrast_in_every_light_theme_accent',
       (tester) async {
@@ -288,12 +432,11 @@ void main() {
       tester,
     ) async {
       final calls = <String>[];
-      final robot = _InlineBodyRobot(tester);
       await tester.pumpWidget(
         _harness(_pairTool(), dispatch: _joinDispatch(calls)),
       );
       await tester.pump(); // first-frame validation
-      robot.expectHint(inlineUserInputSourceHint);
+      expect(find.text(inlineUserInputSourceHint), findsNothing);
 
       await tester.enterText(find.byKey(const Key('field-left')), 'a');
       await tester.pump();
@@ -461,7 +604,7 @@ void main() {
         _harness(_pairTool(), dispatch: _joinDispatch(calls)),
       );
       await tester.pump();
-      robot.expectHint(inlineUserInputSourceHint);
+      expect(find.text(inlineUserInputSourceHint), findsNothing);
       await robot.fillPair('a', 'b');
 
       await tester.pumpWidget(
@@ -475,7 +618,7 @@ void main() {
       robot.expectNoAutoDispatch(calls);
     });
 
-    testWidgets('unmounting_the_pin_body_clears_its_board_draft', (
+    testWidgets('temporarily_unmounting_the_pin_body_preserves_its_draft', (
       tester,
     ) async {
       final store = InlineDraftStore();
@@ -495,11 +638,11 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      expect(store.read(pinKey), isNull);
+      expect(store.read(pinKey)?.toJsonObject(), {'left': 'a', 'right': 'b'});
     });
 
     testWidgets(
-      'invalidating_the_input_while_running_discards_the_previous_result',
+      'invalidating_input_keeps_the_completed_result_marked_as_previous_input',
       (tester) async {
         final dispatch = _DeferredDispatch();
         final robot = _InlineBodyRobot(tester);
@@ -513,7 +656,7 @@ void main() {
         dispatch.complete(0, _success('a|b'));
         await tester.pump();
 
-        robot.expectOutputHidden('a|b');
+        robot.expectStaleOutput('a|b');
         expect(dispatch.calls, hasLength(1));
       },
     );

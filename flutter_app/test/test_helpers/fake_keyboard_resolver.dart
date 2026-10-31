@@ -74,6 +74,7 @@ KeyboardCommandDto? _boardCommand(
     'J' => const KeyboardCommandDto.move(direction: DirectionDto.down),
     'Enter' => const KeyboardCommandDto.open(),
     ' ' || 'F1' => const KeyboardCommandDto.run(),
+    'F2' => const KeyboardCommandDto.copy(),
     'Escape' => const KeyboardCommandDto.close(),
     '/' => const KeyboardCommandDto.search(),
     '?' => const KeyboardCommandDto.showCheatsheet(),

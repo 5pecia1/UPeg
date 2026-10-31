@@ -46,6 +46,9 @@ class RecordingWindowHider extends WindowHider {
   Future<void> hide() async {
     hideCount += 1;
   }
+
+  @override
+  Future<bool> isFocused() async => false;
 }
 
 StatusSnapshotDto statusWithVersion(String version) => StatusSnapshotDto(

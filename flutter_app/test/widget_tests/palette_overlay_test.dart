@@ -19,6 +19,14 @@ import '../test_helpers/fake_keyboard_resolver.dart';
 import '../test_helpers/pegboard_selection_overrides.dart';
 
 const Map<String, Map<LocaleDto, String>> _fakeCatalog = {
+  'modal.pin.failed_generic': {
+    LocaleDto.en: 'Could not pin tool. Try again.',
+    LocaleDto.ko: '도구를 핀으로 추가하지 못했습니다. 다시 시도하세요.',
+  },
+  'modal.pin.no_active_board': {
+    LocaleDto.en: 'no active board to pin into',
+    LocaleDto.ko: '핀할 활성 보드가 없습니다',
+  },
   'palette.placeholder': {
     LocaleDto.en: 'search tools, paste, or type a command…',
     LocaleDto.ko: '도구 검색, 붙여넣기 또는 명령 입력…',
@@ -61,6 +69,16 @@ String _fakeTranslateArgs(
     return switch (locale) {
       LocaleDto.en => '$count tools · $total boards',
       LocaleDto.ko => '도구 $count개 · 보드 $total개',
+    };
+  }
+  if (key == 'modal.pin.success') {
+    final toolIdx = argKeys.indexOf('tool_id');
+    final boardIdx = argKeys.indexOf('board');
+    final tool = toolIdx >= 0 ? argVals[toolIdx] : '';
+    final board = boardIdx >= 0 ? argVals[boardIdx] : '';
+    return switch (locale) {
+      LocaleDto.en => 'pinned $tool to $board',
+      LocaleDto.ko => '$tool을(를) $board에 핀했습니다',
     };
   }
   return key;
@@ -285,6 +303,89 @@ void main() {
         );
       },
     );
+
+    testWidgets('pin_failure_stays_visible_and_the_row_action_can_retry', (
+      tester,
+    ) async {
+      var shouldFail = true;
+      var attempts = 0;
+      PaletteHit? picked;
+      const hits = [
+        PaletteHit(
+          id: 'num.hex_to_decimal',
+          label: 'hex → dec',
+          description: '',
+          score: 1.0,
+          pinKind: PinKindDto.inline,
+        ),
+      ];
+      await tester.pumpWidget(
+        _harness(
+          hits: hits,
+          onPick: (hit) => picked = hit,
+          currentBoardKey: 'dev',
+          addPin: (_, _) {
+            attempts += 1;
+            if (shouldFail) throw StateError('store unavailable');
+            return 'retry-pin';
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final addButton = find.byKey(const Key('palette-add-num.hex_to_decimal'));
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not pin tool. Try again.'), findsOneWidget);
+      expect(find.byKey(const Key('palette-pin-feedback')), findsOneWidget);
+      expect(find.byType(PaletteOverlay), findsOneWidget);
+      expect(picked, isNull);
+
+      shouldFail = false;
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('pinned num.hex_to_decimal to Dev'), findsOneWidget);
+      expect(find.byKey(const Key('palette-pin-feedback')), findsOneWidget);
+      expect(attempts, 2);
+      expect(picked, isNull, reason: 'the row pin action does not open a tool');
+    });
+
+    testWidgets('failed_open_and_pin_keeps_the_tool_unopened_for_retry', (
+      tester,
+    ) async {
+      PaletteHit? picked;
+      const hits = [
+        PaletteHit(
+          id: 'num.hex_to_decimal',
+          label: 'hex → dec',
+          description: '',
+          score: 1.0,
+          pinKind: PinKindDto.inline,
+        ),
+      ];
+      await tester.pumpWidget(
+        _harness(
+          hits: hits,
+          onPick: (hit) => picked = hit,
+          currentBoardKey: 'dev',
+          addPin: (_, _) => throw StateError('store unavailable'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'hex');
+      await tester.pumpAndSettle();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+
+      expect(picked, isNull, reason: 'a failed add must not dispatch the hit');
+      expect(find.byType(PaletteOverlay), findsOneWidget);
+      expect(find.text('Could not pin tool. Try again.'), findsOneWidget);
+    });
 
     testWidgets(
       'paletteoverlay_shows_a_korean_search_placeholder_in_locale_ko',
@@ -714,6 +815,32 @@ void main() {
         isNull,
         reason: 'with no pin there is nothing to focus',
       );
+    });
+
+    testWidgets('open_and_pin_reports_when_no_board_is_active', (tester) async {
+      PaletteHit? picked;
+      const hits = [
+        PaletteHit(
+          id: 'num.hex_to_decimal',
+          label: 'hex → dec',
+          description: '',
+          score: 1.0,
+          pinKind: PinKindDto.inline,
+        ),
+      ];
+      await tester.pumpWidget(
+        _harness(hits: hits, onPick: (hit) => picked = hit),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+
+      expect(picked, isNull);
+      expect(find.byType(PaletteOverlay), findsOneWidget);
+      expect(find.text('no active board to pin into'), findsOneWidget);
     });
   });
 }

@@ -8,6 +8,8 @@
 /// can show them inline.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/rust/api/tweaks.dart';
 import 'package:upeg/src/state/accent.dart';
@@ -47,8 +49,13 @@ final supportedAccentsProvider = Provider<AccentListProvider>(
 /// so listeners re-render.
 class TweaksController extends AsyncNotifier<TweaksDto> {
   @override
-  Future<TweaksDto> build() async {
+  FutureOr<TweaksDto> build() {
     final load = ref.watch(tweaksLoaderProvider);
+    // The loader is synchronous, so return its value instead of wrapping
+    // it in a Future. A non-Future return makes the very first read
+    // `AsyncData`, so the first frame paints the saved theme and accent
+    // with no loading frame. A throwing loader becomes `AsyncError` and
+    // consumers fall back to their defaults.
     return load();
   }
 
@@ -71,13 +78,9 @@ final tweaksProvider = AsyncNotifierProvider<TweaksController, TweaksDto>(
   TweaksController.new,
 );
 
-/// Default accent painted before tweaks load. Cyan was the canonical
-/// accent in the original CSS design tokens — a default inherited from
-/// the retired Dioxus surface.
-const Accent kDefaultAccent = Accent.cyan;
-
-/// Default `show_holes` flag painted before tweaks load. Matches the
-/// Rust default (`Tweaks::default().show_holes == true`).
+/// Fallback `show_holes` flag when no tweaks value is available (a
+/// failed load). Matches the Rust default
+/// (`Tweaks::default().show_holes == true`).
 const bool kDefaultShowHoles = true;
 
 /// Typed accent for consumer widgets. Decodes the stringly-typed
@@ -102,5 +105,15 @@ final showHolesProvider = Provider<bool>((ref) {
   return asyncTweaks.maybeWhen(
     data: (tweaks) => tweaks.showHoles,
     orElse: () => kDefaultShowHoles,
+  );
+});
+
+/// Saved pin move affordance, with the product default used while tweaks
+/// are loading or unavailable.
+final pinHandleStyleProvider = Provider<PinHandleStyleDto>((ref) {
+  final asyncTweaks = ref.watch(tweaksProvider);
+  return asyncTweaks.maybeWhen(
+    data: (tweaks) => tweaks.pinHandleStyle,
+    orElse: () => PinHandleStyleDto.peg,
   );
 });

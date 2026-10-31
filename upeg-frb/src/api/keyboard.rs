@@ -199,9 +199,7 @@ pub enum KeyboardCommandDto {
     /// shortcuts); exists so the cheatsheet catalog can display the
     /// shared binding.
     ClearInput,
-    /// F2 — copy the current output. Never returned by
-    /// [`keyboard_command_for`] (GUI copy is modal-local); exists so the
-    /// cheatsheet catalog can display the shared binding.
+    /// F2 — copy the focused pin's current output on the board.
     Copy,
 }
 
@@ -267,15 +265,11 @@ fn keyboard_command_dto_from(cmd: KeyboardCommand) -> KeyboardCommandDto {
 
 /// Whether a resolved command should be *returned* to the Dart event
 /// loop. `ClearInput` (Flutter text fields already get native platform
-/// editing shortcuts) and `Copy` (GUI copy is modal-local F2, not
-/// routed through this keyboard policy) stay display-only:
-/// [`keyboard_command_for`] maps them back to `None`, which Dart treats
+/// editing shortcuts) stays display-only:
+/// [`keyboard_command_for`] maps it back to `None`, which Dart treats
 /// as "let the event propagate".
 const fn resolves_in_gui(cmd: &KeyboardCommandDto) -> bool {
-    !matches!(
-        cmd,
-        KeyboardCommandDto::ClearInput | KeyboardCommandDto::Copy
-    )
+    !matches!(cmd, KeyboardCommandDto::ClearInput)
 }
 
 /// Resolve a stroke into a [`KeyboardCommandDto`].
@@ -617,11 +611,9 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_command_for_does_not_return_display_only_commands() {
-        // F2 (Copy) is handled modal-locally, so the event must keep
-        // propagating.
+    fn keyboard_command_for_returns_copy_and_yields_text_editing() {
         let cmd = keyboard_command_for("F2".to_string(), false, false, false, false, None, false);
-        assert_eq!(cmd, None);
+        assert_eq!(cmd, Some(KeyboardCommandDto::Copy));
         // Ctrl+U (ClearInput) also yields to the text field's native
         // editing.
         let cmd = keyboard_command_for(
@@ -672,9 +664,7 @@ mod tests {
     }
 
     #[test]
-    fn binding_catalog_also_exposes_display_only_copy_binding() {
-        // Filtered out on the resolution path (F2 → None) but must
-        // still appear on the cheatsheet.
+    fn binding_catalog_exposes_copy_binding() {
         let catalog = keyboard_binding_catalog();
         let board = catalog
             .iter()

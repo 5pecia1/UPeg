@@ -9,7 +9,9 @@
 /// (because a new `HostStateEvent` arrived), the observer re-sets the
 /// tray context menu with the Pause item's `disabled` flag following
 /// suit — so the tray menu never lags a stale controllability after a
-/// host-state change.
+/// host-state change. The "Keep popup open" check mark follows
+/// `pinnedProvider` the same way, and every re-set carries the latest
+/// value of both inputs.
 library;
 
 import 'dart:async';
@@ -22,6 +24,42 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:upeg/src/platform/tray.dart';
 import 'package:upeg/src/rust/api/events.dart';
 import 'package:upeg/src/state/host_state_provider.dart';
+import 'package:upeg/src/state/pinned_provider.dart';
+
+MenuItem _itemFor(Menu menu, TrayCommand command) =>
+    (menu.items ?? const <MenuItem>[]).firstWhere(
+      (item) => item.key == command.menuItemKey,
+    );
+
+/// Mounts [TrayMenuSync] over a container whose host-state stream is
+/// [hostState]; every context-menu re-set it makes lands in [resets].
+Future<ProviderContainer> _mountSync(
+  WidgetTester tester, {
+  required StreamController<HostStateEvent> hostState,
+  required List<Menu> resets,
+}) async {
+  final container = ProviderContainer(
+    overrides: [
+      hostStateStreamProvider.overrideWith((ref) => hostState.stream),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: TrayMenuSync(
+          setContextMenu: (menu) async {
+            resets.add(menu);
+          },
+          child: const SizedBox.shrink(),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container;
+}
 
 void main() {
   group('TrayMenuSync', () {
@@ -87,6 +125,68 @@ void main() {
         );
       },
     );
+
+    testWidgets('TrayMenuSync_resets_the_context_menu_when_pinned_changes', (
+      tester,
+    ) async {
+      final hostState = StreamController<HostStateEvent>();
+      addTearDown(hostState.close);
+      final resets = <Menu>[];
+      final container = await _mountSync(
+        tester,
+        hostState: hostState,
+        resets: resets,
+      );
+      expect(resets, isEmpty);
+
+      // Tray "Keep popup open" is clicked: pinned false -> true.
+      container.read(pinnedProvider.notifier).toggle();
+      await tester.pump();
+
+      expect(resets, hasLength(1));
+      expect(_itemFor(resets[0], TrayCommand.togglePin).checked, isTrue);
+
+      // Clicked again: pinned true -> false clears the check mark.
+      container.read(pinnedProvider.notifier).toggle();
+      await tester.pump();
+
+      expect(resets, hasLength(2));
+      expect(_itemFor(resets[1], TrayCommand.togglePin).checked, isFalse);
+    });
+
+    testWidgets('TrayMenuSync_rebuilds_the_menu_from_both_inputs', (
+      tester,
+    ) async {
+      final hostState = StreamController<HostStateEvent>();
+      addTearDown(hostState.close);
+      final resets = <Menu>[];
+      final container = await _mountSync(
+        tester,
+        hostState: hostState,
+        resets: resets,
+      );
+
+      // Pin first, then flip controllability: the second menu must not
+      // forget the check mark.
+      container.read(pinnedProvider.notifier).toggle();
+      await tester.pump();
+      hostState.add(const HostStateEvent.embedded(endpoint: 'unix:/tmp/e'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(resets, hasLength(2));
+      expect(_itemFor(resets[1], TrayCommand.togglePin).checked, isTrue);
+      expect(_itemFor(resets[1], TrayCommand.togglePause).disabled, isFalse);
+
+      // Unpin afterwards: the third menu must not forget that Pause is
+      // controllable.
+      container.read(pinnedProvider.notifier).toggle();
+      await tester.pump();
+
+      expect(resets, hasLength(3));
+      expect(_itemFor(resets[2], TrayCommand.togglePin).checked, isFalse);
+      expect(_itemFor(resets[2], TrayCommand.togglePause).disabled, isFalse);
+    });
 
     testWidgets('TrayMenuSync_isolates_platform_call_exceptions', (
       tester,

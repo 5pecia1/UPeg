@@ -88,6 +88,30 @@ final tagOptionsForBoardProvider =
       ];
     });
 
+typedef BoardTagCount = ({TagSelection tag, int count});
+typedef BoardTagCountsLoader =
+    List<BoardTagCountDto> Function(BoardKey? boardKey);
+
+final boardTagCountsLoaderProvider = Provider<BoardTagCountsLoader>(
+  (ref) =>
+      (boardKey) => boardTagCounts(boardKey: boardKey?.value),
+);
+
+/// One native call supplies both labels and counts for the tag chip row.
+final boardTagCountsProvider = Provider.family<List<BoardTagCount>, BoardKey?>((
+  ref,
+  boardKey,
+) {
+  final load = ref.watch(boardTagCountsLoaderProvider);
+  return [
+    for (final entry in load(boardKey))
+      (
+        tag: TagSelection.fromPersisted(_unwrapSentinel(entry.tag)),
+        count: entry.count,
+      ),
+  ];
+});
+
 typedef BoardTagCountLoader =
     int Function(BoardKey? boardKey, TagSelection selection);
 

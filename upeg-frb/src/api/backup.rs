@@ -210,7 +210,7 @@ mod tests {
 
     use crate::api::test_support::run_with_storage_backup;
     use upeg_core::Placement;
-    use upeg_core::prefs::{Accent, Locale, Theme, Tweaks};
+    use upeg_core::prefs::{Accent, Locale, PinHandleStyle, Theme, Tweaks};
     use upeg_pegboard_ui::features::backup::{BACKUP_VERSION, EnvironmentBackup};
     use upeg_pegboard_ui::features::boards::BoardData;
 
@@ -257,6 +257,7 @@ mod tests {
                     theme: Theme::Light,
                     accent: Accent::Pink,
                     show_holes: true,
+                    pin_handle_style: PinHandleStyle::Dots,
                     local_http_host: false,
                     locale: Locale::Ko,
                 },

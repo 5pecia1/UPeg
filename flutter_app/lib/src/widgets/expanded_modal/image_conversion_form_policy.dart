@@ -12,6 +12,8 @@ abstract final class ImageConversionFields {
   static const quality = 'jpeg_quality';
   static const background = 'background';
   static const svgWidth = 'svg_width';
+  static const aiDpi = 'ai_dpi';
+  static const vectorPreset = 'vector_preset';
   static const outputLimit = 'max_output_bytes';
 }
 
@@ -25,23 +27,40 @@ bool imageConversionFieldVisible(
   FormValue? Function(String) value,
 ) {
   if (!isImageConversionTool(toolId)) return true;
-  if (key == ImageConversionFields.quality ||
-      key == ImageConversionFields.background) {
+  if (key == ImageConversionFields.quality) {
     return value(ImageConversionFields.format) == const OptionValue('jpeg');
   }
-  if (key == ImageConversionFields.svgWidth) {
+  if (key == ImageConversionFields.background) {
+    final format = value(ImageConversionFields.format);
+    return format == const OptionValue('jpeg') ||
+        format == const OptionValue('svg');
+  }
+  if (key == ImageConversionFields.vectorPreset) {
+    return value(ImageConversionFields.format) == const OptionValue('svg');
+  }
+  if (key == ImageConversionFields.svgWidth ||
+      key == ImageConversionFields.aiDpi) {
     final input = value(
       toolId == ImageConversionFields.singleTool ? 'input' : 'images',
     );
-    return input is FileFormValue && _containsSvg(input.value);
+    return input is FileFormValue &&
+        _containsExtension(
+          input.value,
+          key == ImageConversionFields.svgWidth ? '.svg' : '.ai',
+        );
   }
   return true;
 }
 
-bool _containsSvg(CanonicalFileValue file) => switch (file.content) {
-  CanonicalFileContent_Bytes() => file.name.toLowerCase().endsWith('.svg'),
-  CanonicalFileContent_Directory(:final entries) => entries.any(_containsSvg),
-};
+bool _containsExtension(CanonicalFileValue file, String extension) =>
+    switch (file.content) {
+      CanonicalFileContent_Bytes() => file.name.toLowerCase().endsWith(
+        extension,
+      ),
+      CanonicalFileContent_Directory(:final entries) => entries.any(
+        (entry) => _containsExtension(entry, extension),
+      ),
+    };
 
 String? imageConversionLabelKey(String field) => switch (field) {
   'input' => 'media.convert.input',
@@ -50,6 +69,8 @@ String? imageConversionLabelKey(String field) => switch (field) {
   ImageConversionFields.quality => 'media.convert.quality',
   ImageConversionFields.background => 'media.convert.background',
   ImageConversionFields.svgWidth => 'media.convert.svg_width',
+  ImageConversionFields.aiDpi => 'media.convert.ai_dpi',
+  ImageConversionFields.vectorPreset => 'media.convert.vector_preset',
   ImageConversionFields.outputLimit => 'media.convert.limit',
   _ => null,
 };
@@ -59,4 +80,6 @@ abstract final class ImageConversionKeys {
   static const quality = Key('field-jpeg_quality');
   static const background = Key('field-background');
   static const svgWidth = Key('field-svg_width');
+  static const aiDpi = Key('field-ai_dpi');
+  static const vectorPreset = Key('field-vector_preset');
 }

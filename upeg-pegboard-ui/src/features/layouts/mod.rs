@@ -49,8 +49,17 @@ pub fn deserialize_layouts(json: &str, valid_boards: &[Board]) -> Option<BoardLa
 }
 
 pub fn save_layouts(layouts: &BoardLayouts) {
+    let _ = try_save_layouts(layouts);
+}
+
+/// Save a layout edit and report quota/I/O failures to callers that need a
+/// durable mutation before clearing the pin's saved work.
+pub fn try_save_layouts(
+    layouts: &BoardLayouts,
+) -> Result<(), crate::platform::storage::StorageWriteError> {
     let json = serialize_layouts(layouts);
-    let _ = crate::platform::storage::set_item(crate::platform::storage::LAYOUTS_KEY, &json);
+    crate::platform::storage::set_item(crate::platform::storage::LAYOUTS_KEY, &json)
+        .map_err(|()| crate::platform::storage::StorageWriteError)
 }
 
 pub fn load_layouts(valid_boards: &[Board]) -> Option<BoardLayouts> {

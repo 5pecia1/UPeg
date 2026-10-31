@@ -32,6 +32,15 @@ pub enum Accent {
     Pink,
 }
 
+/// Appearance of the pin's drag handle.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum PinHandleStyle {
+    #[default]
+    Peg,
+    Dots,
+}
+
 /// Persistent user-preference record shared across surfaces.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -40,6 +49,9 @@ pub struct Tweaks {
     pub theme: Theme,
     pub accent: Accent,
     pub show_holes: bool,
+    /// Missing in older preferences and backups; preserve their other fields.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub pin_handle_style: PinHandleStyle,
     pub locale: Locale,
     /// Desktop only: run an in-process HTTP host at app start.
     ///
@@ -48,8 +60,8 @@ pub struct Tweaks {
     /// else started; it just never becomes one. Surfaces that are not
     /// the desktop ignore this field.
     ///
-    /// `#[serde(default)]` because the switch is the newest field on a
-    /// record users already have on disk; a preferences file without it
+    /// `#[serde(default)]` because the switch was added after the initial
+    /// preferences record; a preferences file without it
     /// must keep its theme instead of resetting to defaults.
     #[cfg_attr(feature = "serde", serde(default))]
     pub local_http_host: bool,
@@ -63,6 +75,7 @@ impl Tweaks {
             theme: Theme::Light,
             accent: Accent::Green,
             show_holes: true,
+            pin_handle_style: PinHandleStyle::Peg,
             locale: Locale::En,
             local_http_host: false,
         }
@@ -98,6 +111,7 @@ mod tests {
         assert_eq!(t.theme, Theme::Light);
         assert_eq!(t.accent, Accent::Green);
         assert!(t.show_holes);
+        assert_eq!(t.pin_handle_style, PinHandleStyle::Peg);
         assert_eq!(t.locale, Locale::En);
         assert!(
             !t.local_http_host,
@@ -106,17 +120,45 @@ mod tests {
     }
 
     #[test]
-    fn json_round_trip_preserves_every_field_including_locale() {
-        let original = Tweaks {
-            theme: Theme::Dark,
-            accent: Accent::Cyan,
-            show_holes: false,
-            locale: Locale::Ko,
-            local_http_host: true,
-        };
-        let json = serde_json::to_string(&original).expect("serialize");
-        let back = parse_tweaks(&json).expect("parse");
-        assert_eq!(back, original);
+    fn json_round_trip_preserves_every_field_for_each_handle_style() {
+        for (pin_handle_style, expected_json) in
+            [(PinHandleStyle::Peg, "Peg"), (PinHandleStyle::Dots, "Dots")]
+        {
+            let original = Tweaks {
+                theme: Theme::Dark,
+                accent: Accent::Cyan,
+                show_holes: false,
+                pin_handle_style,
+                locale: Locale::Ko,
+                local_http_host: true,
+            };
+            let json = serde_json::to_string(&original).expect("serialize");
+            let value: serde_json::Value = serde_json::from_str(&json).expect("JSON object");
+            assert_eq!(value["pin_handle_style"], expected_json);
+            assert_eq!(parse_tweaks(&json).expect("parse"), original);
+        }
+    }
+
+    #[test]
+    fn records_without_handle_style_preserve_existing_preferences() {
+        let json = r#"{"theme":"Dark","accent":"Pink","show_holes":false,"locale":"Ko","local_http_host":true}"#;
+        assert_eq!(
+            parse_tweaks(json).expect("parse older preferences"),
+            Tweaks {
+                theme: Theme::Dark,
+                accent: Accent::Pink,
+                show_holes: false,
+                pin_handle_style: PinHandleStyle::Peg,
+                locale: Locale::Ko,
+                local_http_host: true,
+            }
+        );
+    }
+
+    #[test]
+    fn settings_parse_rejects_unknown_handle_style() {
+        let json = r#"{"theme":"Dark","accent":"Pink","show_holes":false,"locale":"Ko","local_http_host":true,"pin_handle_style":"Unknown"}"#;
+        assert!(parse_tweaks(json).is_none());
     }
 
     #[test]

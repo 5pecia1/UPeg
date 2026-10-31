@@ -27,6 +27,7 @@ import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import '../test_helpers/fake_keyboard_resolver.dart';
 import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
 
 /// Synchronous fake dispatch used by the harnesses below; the harness
@@ -57,6 +58,58 @@ final _fixtureTool = fixtureToolDto(
       key: 'result',
       label: 'Result',
       fieldType: OutputFieldType_Text(),
+    ),
+  ],
+);
+
+final _hexTool = fixtureToolDto(
+  id: 'num.hex_to_decimal',
+  toolkit: 'num',
+  label: 'Hex to decimal',
+  inputFields: const [
+    InputFieldDto(
+      key: 'input',
+      label: 'hex',
+      fieldType: InputFieldType_Text(),
+      required_: true,
+    ),
+  ],
+  outputFields: const [
+    OutputFieldDto(
+      key: 'result',
+      label: 'Result',
+      fieldType: OutputFieldType_Text(),
+    ),
+  ],
+);
+
+final _valueDiffTool = fixtureToolDto(
+  id: 'data.value_diff',
+  toolkit: 'data',
+  label: 'Value diff',
+  inputFields: const [
+    InputFieldDto(
+      key: 'left',
+      label: 'Left source',
+      fieldType: InputFieldType_Text(),
+      required_: true,
+    ),
+    InputFieldDto(
+      key: 'right',
+      label: 'Right source',
+      fieldType: InputFieldType_Text(),
+      required_: true,
+    ),
+    InputFieldDto(
+      key: 'right_format',
+      label: 'Right format',
+      fieldType: InputFieldType.select(
+        options: [
+          ChoiceOptionDto(value: 'json', label: 'JSON'),
+          ChoiceOptionDto(value: 'yaml', label: 'YAML'),
+        ],
+      ),
+      required_: false,
     ),
   ],
 );
@@ -163,6 +216,7 @@ Widget _harness({
         ),
       ),
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       boardsLoaderProvider.overrideWith(
         (ref) =>
             () => const <BoardDto>[BoardDto(key: 'dev', title: 'Dev')],
@@ -222,6 +276,7 @@ Widget _routeHarness({required _SyncDispatch dispatch}) {
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(
         stubDispatchStream(
           ({required toolId, required args, required approve}) async =>
@@ -252,6 +307,71 @@ Widget _routeHarness({required _SyncDispatch dispatch}) {
 
 void main() {
   group('ExpandedModalPage', () {
+    testWidgets('Hex F2 and OUTPUT Copy keep the last run after input edits', (
+      tester,
+    ) async {
+      final writer = _RecordingClipboardWriter();
+      var runs = 0;
+      await tester.pumpWidget(
+        _harness(
+          tool: _hexTool,
+          clipboardWriter: writer,
+          dispatch: ({required toolId, required args}) {
+            runs++;
+            final input = args.toJsonObject()['input'] as String;
+            return _textSuccess(int.parse(input).toString());
+          },
+        ),
+      );
+
+      await tester.enterText(find.byKey(const Key('hex-to-dec-input')), '0x10');
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.text, isNull);
+      expect(runs, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+      await tester.pumpAndSettle();
+      expect(runs, 1);
+      expect(find.text('16'), findsWidgets);
+
+      await tester.enterText(find.byKey(const Key('hex-to-dec-input')), '0x20');
+      await tester.pump();
+      expect(find.text('32'), findsOneWidget);
+      expect(find.textContaining('Result from previous input'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pump();
+      expect(writer.text, '16');
+      expect(runs, 1);
+      await tester.pump();
+      expect(find.text('Copied previous result'), findsOneWidget);
+
+      await tester.tap(find.byType(CopyToClipboardButton).first);
+      await tester.pump();
+      expect(writer.text, '16');
+      expect(runs, 1);
+    });
+
+    testWidgets(
+      'should copy the last Hex run after the draft becomes invalid',
+      (tester) async {
+        final robot = _HexInvalidDraftCopyRobot(tester);
+        await robot.pumpModal();
+
+        await robot.enterInvalidDraft();
+        await robot.pressF2();
+        robot.expectNoCopyOrRun();
+
+        await robot.enterValidDraftAndRun();
+        robot.expectOneRunWithResult();
+
+        await robot.enterInvalidDraft();
+        robot.expectRunDisabled();
+        await robot.pressF2();
+        robot.expectPreviousResultCopiedWithoutRun();
+      },
+    );
+
     testWidgets('ExpandedModalPage_shows_the_tool_header_and_run_button', (
       tester,
     ) async {
@@ -305,6 +425,40 @@ void main() {
       },
     );
 
+    testWidgets(
+      'Run_preserves_multiline_JSON_and_YAML_sources_in_data_value_diff_args',
+      (tester) async {
+        ToolArgs? capturedArgs;
+        const left = '{\n  "name": "Ada",\n  "active": true\n}';
+        const right = 'name: Ada\nactive: true\nroles:\n  - admin';
+        await tester.pumpWidget(
+          _harness(
+            tool: _valueDiffTool,
+            dispatch: ({pinKey, required toolId, required args}) {
+              capturedArgs = args;
+              return _emptySuccess;
+            },
+          ),
+        );
+
+        await tester.enterText(find.byKey(const Key('field-left')), left);
+        await tester.enterText(find.byKey(const Key('field-right')), right);
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('field-right_format')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('YAML').last);
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+        await tester.pumpAndSettle();
+
+        expect(capturedArgs?.toJsonObject(), {
+          'left': left,
+          'right': right,
+          'right_format': 'yaml',
+        });
+      },
+    );
+
     testWidgets('ExpandedModalPage_F1_runs_the_generic_form', (tester) async {
       String? capturedToolId;
       String? capturedArgs;
@@ -327,26 +481,48 @@ void main() {
       expect(capturedArgs, contains('"value":"0xff"'));
     });
 
-    testWidgets('ExpandedModalPage_Enter_runs_a_valid_generic_form', (
-      tester,
-    ) async {
-      String? capturedArgs;
-      await tester.pumpWidget(
-        _harness(
-          dispatch: ({pinKey, required toolId, required args}) {
-            capturedArgs = args.encodeJson();
-            return _emptySuccess;
-          },
-        ),
-      );
+    testWidgets(
+      'ExpandedModalPage_Enter_in_a_text_field_inserts_a_newline_without_running',
+      (tester) async {
+        String? capturedArgs;
+        await tester.pumpWidget(
+          _harness(
+            dispatch: ({pinKey, required toolId, required args}) {
+              capturedArgs = args.encodeJson();
+              return _emptySuccess;
+            },
+          ),
+        );
 
-      await tester.enterText(find.byKey(const Key('field-value')), 'hello');
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(const Key('field-value')), 'hello');
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
 
-      expect(capturedArgs, contains('"value":"hello"'));
-    });
+        expect(capturedArgs, isNull);
+        // Hardware keys do not synthesize IME text deltas in widget tests.
+        tester.testTextInput.updateEditingValue(
+          const TextEditingValue(
+            text: 'hello\n',
+            selection: TextSelection.collapsed(offset: 6),
+          ),
+        );
+        await tester.pump();
+        expect(capturedArgs, isNull);
+        expect(
+          tester
+              .widget<TextField>(
+                find.descendant(
+                  of: find.byKey(const Key('field-value')),
+                  matching: find.byType(TextField),
+                ),
+              )
+              .controller
+              ?.text,
+          'hello\n',
+        );
+      },
+    );
 
     testWidgets('ExpandedModalPage_F2_copies_the_latest_generic_output', (
       tester,
@@ -737,4 +913,65 @@ void main() {
       },
     );
   });
+}
+
+class _HexInvalidDraftCopyRobot {
+  _HexInvalidDraftCopyRobot(this.tester);
+
+  final WidgetTester tester;
+  final _RecordingClipboardWriter writer = _RecordingClipboardWriter();
+  int runs = 0;
+
+  Future<void> pumpModal() async {
+    await tester.pumpWidget(
+      _harness(
+        tool: _hexTool,
+        clipboardWriter: writer,
+        dispatch: ({required toolId, required args}) {
+          runs++;
+          final input = args.toJsonObject()['input'] as String;
+          return _textSuccess(int.parse(input).toString());
+        },
+      ),
+    );
+  }
+
+  Future<void> enterInvalidDraft() async {
+    await tester.enterText(find.byKey(const Key('hex-to-dec-input')), '0xGG');
+    await tester.pump();
+  }
+
+  Future<void> enterValidDraftAndRun() async {
+    await tester.enterText(find.byKey(const Key('hex-to-dec-input')), '0x10');
+    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pressF2() async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+  }
+
+  void expectNoCopyOrRun() {
+    expect(writer.text, isNull);
+    expect(runs, 0);
+  }
+
+  void expectOneRunWithResult() {
+    expect(runs, 1);
+    expect(find.text('16'), findsWidgets);
+  }
+
+  void expectRunDisabled() {
+    final run = tester.widget<TextButton>(
+      find.byKey(const Key('hex-to-dec-run-btn')),
+    );
+    expect(run.onPressed, isNull);
+  }
+
+  void expectPreviousResultCopiedWithoutRun() {
+    expect(writer.text, '16');
+    expect(runs, 1);
+    expect(find.text('Copied previous result'), findsOneWidget);
+  }
 }

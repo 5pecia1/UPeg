@@ -124,7 +124,8 @@ async fn converting_canonical_file_value_png_and_jpeg_over_http_returns_a_canoni
                 .by_index(index)
                 .expect("must read the ZIP entry")
                 .name()
-                .to_string()
+                .expect("ZIP entry name must decode")
+                .into_owned()
         })
         .collect::<Vec<_>>();
     assert_eq!(names, EXPECTED_ZIP_ENTRIES);

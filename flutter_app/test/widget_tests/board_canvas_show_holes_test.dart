@@ -74,10 +74,16 @@ PegboardDotsPainter _painterFor(WidgetTester tester) {
 /// pure painter test can assert "zero draws when showHoles=false".
 class _CallCountCanvas implements Canvas {
   int drawCircleCalls = 0;
+  final centers = <Offset>[];
+  final radii = <double>[];
+  final colors = <Color>[];
 
   @override
   void drawCircle(Offset c, double radius, Paint paint) {
     drawCircleCalls++;
+    centers.add(c);
+    radii.add(radius);
+    colors.add(paint.color);
   }
 
   @override
@@ -89,7 +95,6 @@ void main() {
     test('PegboardDotsPainter_paint_is_a_no_op_when_showHoles_is_false', () {
       final painter = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
-        holeDeep: const Color(0xFF222222),
         showHoles: false,
       );
       final canvas = _CallCountCanvas();
@@ -100,29 +105,42 @@ void main() {
     test('PegboardDotsPainter_draws_dots_when_showHoles_is_true', () {
       final painter = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
-        holeDeep: const Color(0xFF222222),
         showHoles: true,
       );
       final canvas = _CallCountCanvas();
-      painter.paint(canvas, const Size(64, 64));
-      // Pitch is derived from the (non-square) cell grid
-      // (PegboardDotsPainter.pitchX/pitchY — see
-      // board_canvas_pegboard_dots_test.dart), not a small fixed
-      // spacing, so a tiny 64x64 canvas only fits one dot position
-      // (2 draws: highlight + shadow). The exact count isn't the
-      // point here — only that painting actually happens.
+      painter.paint(canvas, const Size(240, 220));
+      // A visible slot-intersection pattern must paint at least one dot.
       expect(canvas.drawCircleCalls, greaterThan(0));
+    });
+
+    test('sparse_holes_keep_the_padded_grid_origin', () {
+      final painter = PegboardDotsPainter(
+        hole: const Color(0xFFD0CEC7),
+        showHoles: true,
+        gridOriginX: 24,
+        gridOriginY: 24,
+      );
+      final canvas = _CallCountCanvas();
+      painter.paint(canvas, const Size(400, 360));
+
+      expect(canvas.centers, contains(const Offset(20, 20)));
+      expect(canvas.centers, contains(const Offset(196, 20)));
+      expect(canvas.centers, contains(const Offset(20, 178)));
+      expect(canvas.centers, isNot(contains(const Offset(64, 20))));
+      expect(canvas.centers, isNot(contains(const Offset(20, 59.5))));
+      expect(canvas.radii, everyElement(PegboardDotsPainter.holeRadius));
+      expect(canvas.colors.map((color) => color.toARGB32()).toSet(), {
+        0xFFD0CEC7,
+      });
     });
 
     test('PegboardDotsPainter_repaints_when_showHoles_changes', () {
       final a = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
-        holeDeep: const Color(0xFF222222),
         showHoles: true,
       );
       final b = PegboardDotsPainter(
         hole: const Color(0xFFAAAAAA),
-        holeDeep: const Color(0xFF222222),
         showHoles: false,
       );
       expect(b.shouldRepaint(a), isTrue);

@@ -43,6 +43,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/boot/startup_profile.dart';
 import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/pages/embed_page.dart';
 import 'package:upeg/src/platform/app_lifecycle.dart'
@@ -79,6 +80,8 @@ import 'package:upeg/src/tool_roles.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
 import 'package:upeg/src/widgets/board_tabs.dart';
 import 'package:upeg/src/widgets/cheatsheet_overlay.dart';
+import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
+import 'package:upeg/src/widgets/copyable_outcome_text.dart';
 import 'package:upeg/src/widgets/expanded_modal_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/no_transition_dialog.dart';
@@ -104,6 +107,7 @@ class BoardPage extends ConsumerStatefulWidget {
 }
 
 class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
+  static bool _firstPostFrameRecorded = false;
   final FocusNode _rootFocus = FocusNode(debugLabel: 'BoardPage');
 
   /// Reentrancy guard so a second Quit request (key repeat, X button
@@ -120,6 +124,13 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   @override
   void initState() {
     super.initState();
+    if (startupProfileEnabled && !_firstPostFrameRecorded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _firstPostFrameRecorded) return;
+        _firstPostFrameRecorded = true;
+        markStartupPhase('board_first_post_frame');
+      });
+    }
     // Route the OS close (X) button through the same quit-confirm path
     // as keyboard `q`: setPreventClose keeps the window alive and fires
     // [onWindowClose] instead, so shutdown() (instance lock / discovery
@@ -313,6 +324,8 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
         // have no pin to render into.
         final running = ref.read(runningToolsProvider.notifier);
         final dispatch = ref.read(liveDispatchToolFnProvider);
+        final recorder = ref.read(lastOutcomeProvider.notifier);
+        final runToken = pinKey == null ? null : recorder.beginRun(pinKey);
         final runningLease = pinKey == null ? null : running.begin(pinKey);
         late final CanonicalToolResult outcome;
         try {
@@ -324,13 +337,17 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
         } finally {
           if (runningLease != null) running.end(runningLease);
         }
+        if (pinKey != null) {
+          recorder.record(
+            pinKey,
+            parsedToolId,
+            outcome,
+            args: ToolArgs.empty,
+            runToken: runToken,
+          );
+        }
         if (!mounted) return;
         final pinnedOnBoard = _isPinnedOnVisibleBoard(toolId);
-        if (outcome.ok && pinKey != null) {
-          ref
-              .read(lastOutcomeProvider.notifier)
-              .record(pinKey, parsedToolId, outcome);
-        }
         if (!outcome.ok || !pinnedOnBoard) {
           final messenger = ScaffoldMessenger.maybeOf(context);
           if (messenger == null) return;
@@ -639,10 +656,11 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       case KeyboardCommandDto_Cancel():
       case KeyboardCommandDto_Text():
       case KeyboardCommandDto_Backspace():
-      // Display-only commands (`keyboardCommandFor` never returns them;
-      // they exist for the cheatsheet catalog) — keep propagating.
-      case KeyboardCommandDto_ClearInput():
+        return false;
       case KeyboardCommandDto_Copy():
+        return _copyFocusedPin();
+      // Display-only text editing shortcut — keep propagating.
+      case KeyboardCommandDto_ClearInput():
         return false;
     }
   }
@@ -651,6 +669,47 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     final toolId = ref.read(focusedPinProvider);
     if (toolId == null) return false;
     return _openPinColorDialogFor(toolId);
+  }
+
+  bool _copyFocusedPin() {
+    final pinId = ref.read(focusedPinProvider);
+    final boardKey = ref.read(currentBoardKeyProvider);
+    if (pinId == null || boardKey == null) return false;
+    final placement = visiblePlacementsForKeyboard(
+      ref,
+    ).where((p) => p.pinId == pinId.value).firstOrNull;
+    if (placement == null) return false;
+    final saved = ref.read(pinLastOutcomeProvider((boardKey, pinId)));
+    final result = saved?.result;
+    final draft = ref.read(inlineDraftProvider).read((
+      boardKey,
+      pinId,
+    ), toolId: ToolId.parse(placement.toolId));
+    final tool = ref.read(toolByIdProvider(ToolId.parse(placement.toolId)));
+    final current =
+        draft ??
+        (tool != null && tool.inputFields.isEmpty ? ToolArgs.empty : null);
+    final relation = resultInputRelation(saved?.args, current);
+    final text = copyableOutcomeText(result);
+    if (text == null) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.removeCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text(tRead(ref, 'clipboard.no_text_result'))),
+      );
+      return true;
+    }
+    final writer = ref.read(clipboardWriterProvider);
+    unawaited(
+      copyWithFeedback(
+        context: context,
+        ref: ref,
+        write: () => writer.write(text),
+        successKey: copySuccessKeyForRelation(relation),
+      ),
+    );
+    return true;
   }
 
   bool _openPinColorDialogFor(PinId toolId) {
@@ -816,7 +875,6 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
               BoardTabs(
                 onOpenPalette: () => unawaited(_openPalette()),
                 onOpenSettings: () => unawaited(_openSettings()),
-                onEditPinColor: () => _openPinColorDialog(),
               ),
               const TagChipRow(),
               Expanded(child: _bodyForSelection(selectedKey)),

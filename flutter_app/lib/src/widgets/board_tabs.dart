@@ -1,10 +1,12 @@
 /// Top board tab bar.
 ///
-/// One underlined button per registered board, plus a `+ board`,
-/// `+ pin`, `search ⌘K`, `edit`, and `settings` cluster on the
-/// right. Switching writes to `currentBoardKeyProvider`.
+/// One underlined button per registered board, with `+ board` beside the
+/// tabs and board details, `search ⌘K` and settings on the right (a narrow
+/// bar folds `+ board`, details and settings into a more menu). Switching
+/// writes to `currentBoardKeyProvider`. A pin's color is edited from the pin
+/// itself (the `c` key or its context menu), not from this bar.
 ///
-/// The settings + edit + palette callbacks are owned by [BoardPage] so
+/// The settings + palette callbacks are owned by [BoardPage] so
 /// the tab bar stays stateless; the underlying state lives in
 /// providers, which means a settings flip from anywhere re-renders
 /// this strip automatically.
@@ -21,7 +23,8 @@ import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/pegboard.dart' show BoardDto;
 import 'package:upeg/src/state/app_state.dart';
-import 'package:upeg/src/state/focused_pin_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/platform/keyboard_label.dart';
 import 'package:upeg/src/widgets/no_transition_dialog.dart';
@@ -35,13 +38,16 @@ import 'package:upeg/src/widgets/popover.dart';
 /// `switch` until it's handled.
 enum BoardMenuAction { details, rename, delete }
 
+enum _ToolbarAction { addBoard, details, settings }
+
+typedef _ToolbarSelection = ({_ToolbarAction action, String? boardKey});
+
 const double _tabRowScrollBreakpoint = 720;
 
 class BoardTabs extends ConsumerWidget {
   const BoardTabs({
     required this.onOpenPalette,
     required this.onOpenSettings,
-    required this.onEditPinColor,
     super.key,
   });
 
@@ -50,9 +56,6 @@ class BoardTabs extends ConsumerWidget {
 
   /// Opens the settings dialog/overlay.
   final VoidCallback onOpenSettings;
-
-  /// Opens the pin color dialog for the currently focused pin.
-  final VoidCallback onEditPinColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -91,7 +94,6 @@ class BoardTabs extends ConsumerWidget {
           onDeleteBoard: (board) => confirmDeleteBoard(context, ref, board),
           onOpenPalette: onOpenPalette,
           onOpenSettings: onOpenSettings,
-          onEditPinColor: onEditPinColor,
         ),
       ),
     );
@@ -108,7 +110,6 @@ class _TabRow extends ConsumerWidget {
     required this.onDeleteBoard,
     required this.onOpenPalette,
     required this.onOpenSettings,
-    required this.onEditPinColor,
   });
 
   final List<BoardDto> boards;
@@ -119,48 +120,41 @@ class _TabRow extends ConsumerWidget {
   final ValueChanged<BoardDto> onDeleteBoard;
   final VoidCallback onOpenPalette;
   final VoidCallback onOpenSettings;
-  final VoidCallback onEditPinColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < _tabRowScrollBreakpoint;
-        if (compact) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: Row(children: _compactChildren(context, ref)),
-            ),
-          );
-        }
 
         return Row(
           children: [
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Row(children: _boardChildren(context, ref)),
+                child: Row(
+                  children: _boardChildren(context, ref, showAdd: !compact),
+                ),
               ),
             ),
             const SizedBox(width: 12),
-            ..._actionChildren(context, ref),
+            if (compact) ...[
+              _paletteButton(context, ref),
+              const SizedBox(width: 4),
+              _moreButton(context, ref),
+            ] else
+              ..._actionChildren(context, ref),
           ],
         );
       },
     );
   }
 
-  List<Widget> _compactChildren(BuildContext context, WidgetRef ref) {
-    return [
-      ..._boardChildren(context, ref),
-      const SizedBox(width: 12),
-      ..._actionChildren(context, ref),
-    ];
-  }
-
-  List<Widget> _boardChildren(BuildContext context, WidgetRef ref) {
+  List<Widget> _boardChildren(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool showAdd,
+  }) {
     return [
       for (final board in boards)
         _BoardTabButton(
@@ -171,18 +165,18 @@ class _TabRow extends ConsumerWidget {
           onRename: () => onRenameBoard(board),
           onDelete: () => onDeleteBoard(board),
         ),
-      const SizedBox(width: 4),
-      _GhostButton(
-        key: const Key('add-board-btn'),
-        label: t(ref, 'desktop.tab.add_board'),
-        onPressed: onAddBoard,
-      ),
+      if (showAdd) ...[
+        const SizedBox(width: 4),
+        _GhostButton(
+          key: const Key('add-board-btn'),
+          label: t(ref, 'desktop.tab.add_board'),
+          onPressed: onAddBoard,
+        ),
+      ],
     ];
   }
 
   List<Widget> _actionChildren(BuildContext context, WidgetRef ref) {
-    final tokens = context.upeg;
-    final hasFocusedPin = ref.watch(focusedPinProvider) != null;
     return [
       _GhostButton(
         key: BoardDetailsKeys.open,
@@ -193,32 +187,7 @@ class _TabRow extends ConsumerWidget {
             : () => unawaited(showBoardDetailsDialog(context, selectedKey!)),
       ),
       const SizedBox(width: 4),
-      _GhostButton(
-        key: const Key('edit-pin-color-btn'),
-        icon: const Icon(Icons.palette_outlined, size: 11),
-        label: t(ref, 'desktop.tab.pin_color'),
-        tooltip: hasFocusedPin
-            ? t(ref, 'desktop.tab.pin_color')
-            : t(ref, 'desktop.tab.pin_color_disabled'),
-        onPressed: hasFocusedPin ? onEditPinColor : null,
-      ),
-      const SizedBox(width: 4),
-      _GhostButton(
-        key: const Key('open-palette-btn'),
-        label: t(ref, 'desktop.tab.add_tool'),
-        accent: tokens.accent,
-        accentFill: true,
-        onPressed: onOpenPalette,
-      ),
-      const SizedBox(width: 4),
-      _GhostButton(
-        icon: const Icon(Icons.search, size: 11),
-        label: t(ref, 'desktop.tab.search').trim(),
-        trailing: _Kbd(
-          text: shortcutLabel(ref.watch(keyboardPlatformProvider), 'K'),
-        ),
-        onPressed: onOpenPalette,
-      ),
+      _paletteButton(context, ref),
       const SizedBox(width: 4),
       _GhostButton(
         key: const Key('open-settings-btn'),
@@ -227,6 +196,60 @@ class _TabRow extends ConsumerWidget {
         onPressed: onOpenSettings,
       ),
     ];
+  }
+
+  Widget _paletteButton(BuildContext context, WidgetRef ref) => _GhostButton(
+    key: const Key('open-palette-btn'),
+    icon: const Icon(Icons.search, size: 14),
+    label: t(ref, 'desktop.tab.search').trim(),
+    tooltip: t(ref, 'desktop.tab.add_tool_title'),
+    accent: context.upeg.accent,
+    accentFill: true,
+    trailing: _Kbd(
+      text: shortcutLabel(ref.watch(keyboardPlatformProvider), 'K'),
+    ),
+    onPressed: onOpenPalette,
+  );
+
+  Widget _moreButton(BuildContext context, WidgetRef ref) {
+    final tokens = context.upeg;
+    return PopupMenuButton<_ToolbarSelection>(
+      key: const Key('board-more-actions-btn'),
+      tooltip: t(ref, 'desktop.tab.more'),
+      icon: Icon(Icons.more_horiz, size: 18, color: tokens.fg2),
+      constraints: const BoxConstraints(minWidth: 180),
+      padding: EdgeInsets.zero,
+      color: tokens.surface,
+      surfaceTintColor: Colors.transparent,
+      onSelected: (selection) {
+        switch (selection.action) {
+          case _ToolbarAction.addBoard:
+            onAddBoard();
+          case _ToolbarAction.details:
+            unawaited(showBoardDetailsDialog(context, selection.boardKey!));
+          case _ToolbarAction.settings:
+            onOpenSettings();
+        }
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          key: const Key('add-board-btn'),
+          value: (action: _ToolbarAction.addBoard, boardKey: null),
+          child: Text(tRead(ref, 'desktop.tab.add_board')),
+        ),
+        PopupMenuItem(
+          key: BoardDetailsKeys.open,
+          value: (action: _ToolbarAction.details, boardKey: selectedKey),
+          enabled: selectedKey != null,
+          child: Text(tRead(ref, 'board.details.open')),
+        ),
+        PopupMenuItem(
+          key: const Key('open-settings-btn'),
+          value: (action: _ToolbarAction.settings, boardKey: null),
+          child: Text(tRead(ref, 'desktop.tab.settings')),
+        ),
+      ],
+    );
   }
 }
 
@@ -319,27 +342,43 @@ class _BoardTabButton extends ConsumerWidget {
     final tokens = context.upeg;
     final color = active ? tokens.fg : tokens.fg3;
     final underline = active ? tokens.accent : Colors.transparent;
-    return Focus(
-      onKeyEvent: (_, event) => _handleKey(context, ref, event),
-      child: GestureDetector(
-        onSecondaryTapDown: (details) =>
-            unawaited(_showContextMenu(context, ref, details.globalPosition)),
-        onLongPressStart: (details) =>
-            unawaited(_showContextMenu(context, ref, details.globalPosition)),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: underline, width: 2)),
+    return MergeSemantics(
+      child: Semantics(
+        selected: active,
+        button: true,
+        onTap: onTap,
+        child: Focus(
+          onKeyEvent: (_, event) => _handleKey(context, ref, event),
+          child: GestureDetector(
+            onSecondaryTapDown: (details) => unawaited(
+              _showContextMenu(context, ref, details.globalPosition),
             ),
-            child: Text(
-              board.title,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontFamily: upegMonoFontFamily,
-                fontFamilyFallback: upegMonoFontFamilyFallback,
+            onLongPressStart: (details) => unawaited(
+              _showContextMenu(context, ref, details.globalPosition),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: underline, width: 2),
+                  ),
+                ),
+                child: Text(
+                  board.title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontFamily: upegMonoFontFamily,
+                    fontFamilyFallback: upegMonoFontFamilyFallback,
+                  ),
+                ),
               ),
             ),
           ),
@@ -393,6 +432,8 @@ class _GhostButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(UpegSizing.radius1),
         child: Container(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: bgColor,
@@ -471,6 +512,11 @@ Future<void> promptCreateBoard(BuildContext context, WidgetRef ref) async {
   } on Object catch (err, stack) {
     debugPrint('createBoard failed: $err');
     debugPrint(stack.toString());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tRead(ref, 'desktop.tab.create_failed'))),
+      );
+    }
     return;
   }
   ref.invalidate(boardsProvider);
@@ -501,6 +547,11 @@ Future<void> promptRenameBoard(
   } on Object catch (err, stack) {
     debugPrint('renameBoard failed: $err');
     debugPrint(stack.toString());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tRead(ref, 'desktop.tab.rename_failed'))),
+      );
+    }
     return;
   }
   ref.invalidate(boardsProvider);
@@ -521,8 +572,16 @@ Future<void> confirmDeleteBoard(
   } on Object catch (err, stack) {
     debugPrint('deleteBoard failed: $err');
     debugPrint(stack.toString());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tRead(ref, 'desktop.tab.delete_failed'))),
+      );
+    }
     return;
   }
+  final deletedBoardKey = BoardKey.parse(board.key);
+  ref.read(inlineDraftProvider).clearBoard(deletedBoardKey);
+  ref.read(lastOutcomeProvider.notifier).clearBoard(deletedBoardKey);
   // If the user deleted the active board, drop the selection so the
   // BoardPage never sits on a null body while other boards remain.
   if (ref.read(currentBoardKeyProvider)?.value == board.key) {

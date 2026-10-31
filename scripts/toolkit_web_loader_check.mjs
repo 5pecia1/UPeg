@@ -9,6 +9,9 @@ import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, normalize, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { checkCachedPdfOffline, checkPdfCompression } from './lib/pdf_compression_browser_check.mjs';
+import { checkImageConversion } from './lib/image_conversion_browser_check.mjs';
 import {
   findFreePort,
   launchHeadlessChromium,
@@ -33,11 +36,12 @@ const sleep = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms)
 const catalogPath = join(root, 'toolkits/catalog.json');
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
 const num = catalog.toolkits.find((toolkit) => toolkit.id === 'num');
+const media = catalog.toolkits.find((toolkit) => toolkit.id === 'media');
 const offlineToolkit = catalog.toolkits.find(
   (toolkit) => toolkit.web && toolkit.id !== 'num',
 );
-if (!num?.web || !offlineToolkit?.web) {
-  throw new Error('web catalog needs num plus one other downloadable toolkit');
+if (!num?.web || !media?.web || !offlineToolkit?.web) {
+  throw new Error('web catalog needs num, media, and another downloadable toolkit');
 }
 
 let mode = 'normal';
@@ -179,6 +183,14 @@ try {
   const retry = await session.evaluate(syncAndDispatch('num', 'num.hex_to_decimal', '{"input":"0xff"}'));
   if (JSON.parse(retry.resultJson).outputs[0].value !== 255) throw new Error('retry after tamper failed');
 
+  const pdf = await checkPdfCompression({
+    session, connection,
+    fixtureRoot: fileURLToPath(new URL('../upeg-tools/tests/fixtures/pdf_compress/', import.meta.url)),
+    downloadDir: join(profile, 'downloads'),
+    dispatchExpression: syncAndDispatch,
+  });
+  await checkImageConversion({ session, dispatchExpression: syncAndDispatch });
+  const mediaDownloads = [count(media.web.js), count(media.web.wasm)];
   await session.evaluate(freshLoader);
   await session.send('Network.emulateNetworkConditions', {
     offline: true,
@@ -186,6 +198,9 @@ try {
     downloadThroughput: 0,
     uploadThroughput: 0,
   });
+  // CDP's page network emulation need not cover a separate toolkit Worker.
+  // Stop the origin too so cached toolkit execution cannot pass online.
+  await new Promise((resolveClose) => server.close(resolveClose));
   const warmOffline = await session.evaluate(`
     (async () => {
       const synced = await UpegToolkitLoader.sync({ abiDigest: ${JSON.stringify(catalog.abi_digest)} });
@@ -198,6 +213,11 @@ try {
   if (JSON.parse(warmOffline.resultJson).outputs[0].value !== 255) {
     throw new Error('cached toolkit did not run after Worker restart while offline');
   }
+  await checkCachedPdfOffline(session, catalog.abi_digest, pdf);
+  if (count(media.web.js) !== mediaDownloads[0] || count(media.web.wasm) !== mediaDownloads[1]) {
+    throw new Error('cached media pack was downloaded again while offline');
+  }
+  await new Promise((resolveListen) => server.listen(port, '127.0.0.1', resolveListen));
   await session.send('Network.emulateNetworkConditions', {
     offline: false,
     latency: 0,

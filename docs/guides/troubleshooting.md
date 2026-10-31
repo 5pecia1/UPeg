@@ -141,6 +141,41 @@ upeg completions bash > ~/.local/share/bash-completion/completions/upeg
 
 zsh needs the file in a directory that's in `fpath` before `compinit` runs.
 
+## Desktop launch and window behavior
+
+On macOS, the release `.app` includes its app icon and menu bar icon. Use
+a current local release build or the app from a current DMG if an older build
+shows the wrong icon. No separate icon registration step is needed. The app
+shows a splash once Flutter starts; startup before that point depends on the
+OS loader and Flutter engine. If a boot-failed page appears, keep its error
+text when reporting the problem.
+
+On Linux X11, Ctrl+Alt+U toggles the window: a visible window hides, and a
+hidden window opens as a popup. On Wayland, register a desktop-environment
+user shortcut that launches the app executable. Use `/usr/bin/upeg-app` for
+a package install or the absolute path to the local release bundle's `upeg`.
+Relaunch sends the activation token through GApplication to the existing
+window. `xdg-open upeg://open` works only after a package or
+`just flutter-desktop-entry-linux` has installed the desktop entry.
+
+If Wayland shows a generic app icon for a local build, create the release
+bundle and run `just flutter-desktop-entry-linux` on that desktop host. A
+tray icon requires a StatusNotifierItem host; GNOME usually needs an
+AppIndicator extension.
+
+The first release launch may show a blank interval before any window while
+system libraries load. A desktop launcher can show launch notification
+during that interval. Once the Bone-colored window appears, engine startup
+may temporarily make it unresponsive; if GNOME offers “not responding,” wait
+for the first Flutter frame. The early window does not cover library loading
+before GTK activation. In a GPU-less test environment, software GL can
+dominate memory use. Compare release builds on the same renderer and host
+before attributing that memory to the app.
+
+Hiding the window pauses shared-state polling and Live Pin ticks. Input-driven
+Inline Timer Pins and the status bar's periodic check can still run while it
+is hidden. Wayland minimization behavior needs real-session verification.
+
 ## Still stuck
 
 - Open an issue with `upeg doctor --json` output and the failing command —

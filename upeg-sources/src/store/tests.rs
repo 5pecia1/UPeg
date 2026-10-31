@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use upeg_core::{ArgsPreset, BOARD_COLS, ColSpan, PinColorHex, PinId, PinSpan, Placement, RowSpan};
 
-use super::{Store, schema};
+use super::{PinDraftRecord, Store, schema};
 use crate::pegboard::{BoardData, PegboardSelection, PegboardState};
 use crate::store::export;
 
@@ -57,6 +57,35 @@ fn user_version_runner_applies_migrations_and_is_idempotent_on_rerun() {
         schema::MIGRATIONS.len()
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn concurrent_new_connections_apply_migrations_once() {
+    let dir = temp_store_dir("migrate-concurrent");
+    let path = store_db_path(&dir);
+    std::fs::create_dir_all(&dir).expect("directory");
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+    let workers: Vec<_> = (0..4)
+        .map(|_| {
+            let path = path.clone();
+            let barrier = std::sync::Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                let mut conn = rusqlite::Connection::open(path).expect("open");
+                conn.busy_timeout(std::time::Duration::from_secs(5))
+                    .expect("busy timeout");
+                barrier.wait();
+                schema::migrate(&mut conn).expect("concurrent migrate");
+                schema::user_version(&conn).expect("version")
+            })
+        })
+        .collect();
+    for worker in workers {
+        assert_eq!(
+            worker.join().expect("migration thread"),
+            schema::MIGRATIONS.len()
+        );
+    }
+    let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]
@@ -721,12 +750,13 @@ fn canonical_export_preserves_board_guidance_and_layout_shape() {
 
 // ─── last_outcomes (schema v7) ─────────────────────────────────────────
 
-use crate::store::{NewLastOutcome, OUTPUTS_JSON_MAX_BYTES, cap_outputs_json};
+use crate::store::NewLastOutcome;
 
 fn outcome_for_pin(pin_id: &str, tool_id: &str, ok: bool) -> NewLastOutcome {
     NewLastOutcome {
         pin_id: pin_id.into(),
         tool_id: tool_id.into(),
+        args_json: Some(r#"{"value":"42"}"#.into()),
         ok,
         primary_output_id: Some("value".into()),
         outputs_json: r#"[{"id":"value","kind":"string","value":{"String":{"value":"42"}}}]"#
@@ -747,44 +777,6 @@ fn v7_schema_keys_placements_and_last_outcomes_by_pin_id() {
         v7.contains("PRIMARY KEY (board_key, pin_id)"),
         "v7 must key copied tables by (board_key, pin_id)"
     );
-}
-
-#[test]
-fn outputs_json_within_size_cap_passes_unclipped() {
-    let json = r#"[{"id":"value","v":1}]"#;
-    let capped = cap_outputs_json(json, Some("value"));
-    assert_eq!(capped.json, json);
-    assert!(!capped.truncated);
-}
-
-#[test]
-fn over_size_cap_keeps_only_primary_output_and_marks_truncated() {
-    let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES);
-    let json = format!(r#"[{{"id":"value","v":"ok"}},{{"id":"noise","v":"{filler}"}}]"#);
-    let capped = cap_outputs_json(&json, Some("value"));
-    assert_eq!(capped.json, r#"[{"id":"value","v":"ok"}]"#);
-    assert!(capped.truncated);
-
-    // Without a primary id the first entry becomes the preview.
-    let no_primary = cap_outputs_json(&json, None);
-    assert_eq!(no_primary.json, r#"[{"id":"value","v":"ok"}]"#);
-    assert!(no_primary.truncated);
-}
-
-#[test]
-fn caps_to_empty_array_when_even_primary_output_exceeds_cap() {
-    let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES + 1);
-    let json = format!(r#"[{{"id":"value","v":"{filler}"}}]"#);
-    let capped = cap_outputs_json(&json, Some("value"));
-    assert_eq!(capped.json, "[]");
-    assert!(capped.truncated);
-
-    // A non-array (corrupted) payload also safely falls to an empty
-    // array.
-    let not_array = format!(r#""{filler}""#);
-    let corrupt = cap_outputs_json(&not_array, Some("value"));
-    assert_eq!(corrupt.json, "[]");
-    assert!(corrupt.truncated);
 }
 
 #[test]
@@ -872,18 +864,18 @@ fn same_tool_pins_keep_independent_outcomes_and_clear_by_pin_id() {
 }
 
 #[test]
-fn over_cap_record_is_stored_with_truncated_flag() {
+fn large_result_is_stored_in_full_without_truncation() {
     let mut store = Store::open_in_memory().expect("in-memory store");
-    let filler = "x".repeat(OUTPUTS_JSON_MAX_BYTES);
+    let filler = "x".repeat(70 * 1024);
     let big = NewLastOutcome {
-        outputs_json: format!(r#"[{{"id":"value","v":"ok"}},{{"id":"noise","v":"{filler}"}}]"#),
+        outputs_json: format!(r#"[{{"id":"value","v":"{filler}"}}]"#),
         ..outcome("big.tool", true)
     };
     store.record_last_outcome("dev", &big).expect("record");
 
     let loaded = store.load_last_outcomes("dev").expect("load");
-    assert!(loaded[0].truncated);
-    assert_eq!(loaded[0].outputs_json, r#"[{"id":"value","v":"ok"}]"#);
+    assert!(!loaded[0].truncated);
+    assert_eq!(loaded[0].outputs_json, big.outputs_json);
 }
 
 #[test]
@@ -944,3 +936,5 @@ fn pin_unpin_cleans_last_outcome_alongside_tombstone() {
 }
 
 mod pin_instances;
+mod pin_persistence;
+mod rev_contract;

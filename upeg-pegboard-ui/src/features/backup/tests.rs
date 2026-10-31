@@ -8,7 +8,7 @@
 
 use std::collections::BTreeMap;
 
-use upeg_core::prefs::{Accent, Locale, Theme, Tweaks};
+use upeg_core::prefs::{Accent, Locale, PinHandleStyle, Theme, Tweaks};
 use upeg_core::{ArgsPreset, ColSpan, PinSpan, Placement, RowSpan};
 
 use crate::features::backup::{BACKUP_VERSION, EnvironmentBackup};
@@ -33,6 +33,7 @@ fn fixture_backup() -> EnvironmentBackup {
             theme: Theme::Dark,
             accent: Accent::Cyan,
             show_holes: false,
+            pin_handle_style: PinHandleStyle::Dots,
             local_http_host: false,
             locale: Locale::En,
         },
@@ -65,6 +66,26 @@ fn from_json_parses_valid_json() {
     assert_eq!(parsed.version, 4);
     assert!(parsed.layouts.is_empty());
     assert!(parsed.boards.is_empty());
+}
+
+#[test]
+fn backup_without_handle_style_preserves_existing_preferences() {
+    let json = r#"{"version":4,"tweaks":{"theme":"Dark","accent":"Pink","show_holes":false,"locale":"Ko","local_http_host":true},"layouts":{},"memos":{},"boards":[]}"#;
+    let parsed = EnvironmentBackup::from_json(json).expect("parse older backup");
+    parsed
+        .validate_version()
+        .expect("compatible backup version");
+    assert_eq!(
+        parsed.tweaks,
+        Tweaks {
+            theme: Theme::Dark,
+            accent: Accent::Pink,
+            show_holes: false,
+            pin_handle_style: PinHandleStyle::Peg,
+            locale: Locale::Ko,
+            local_http_host: true,
+        }
+    );
 }
 
 #[test]

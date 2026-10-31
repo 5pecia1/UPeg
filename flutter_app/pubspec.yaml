@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.5.3+1
+version: 0.7.8+1
 
 environment:
   sdk: ^3.12.0
@@ -77,6 +77,8 @@ dependencies:
   http: ^1.6.0
   flutter_markdown_plus: ^1.0.12
   markdown: ^7.3.1
+  flutter_svg: ^2.3.2
+  xml: ^6.6.1
   # Rich knowledge output needs standards-based headings, links, tables and
   # fenced code blocks; the previous hand-written line parser supported only
   # a small subset of Markdown.
@@ -106,7 +108,7 @@ msix_config:
   publisher_display_name: upeg contributors
   identity_name: io.github.5pecia1.upeg
   publisher: CN=upeg contributors
-  msix_version: 0.5.3.0
+  msix_version: 0.7.8.0
   logo_path: web/icons/Icon-512.png
   capabilities: internetClient
   # Register the upeg:// custom scheme so packaged Windows installs route
@@ -124,12 +126,18 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Asset bundle. `tray_icon.png` is a 16×16 cyan PNG used by
-  # `lib/src/platform/tray.dart::installTrayIcon` so the system tray
-  # menu shows a recognisable pictogram (B01/B02). Add new assets to
-  # the list — `flutter pub get` re-bundles automatically.
+  # Asset bundle. The tray icons, one per platform, picked by
+  # `lib/src/platform/tray.dart::trayIconSpecFor`: Linux 22×22 colour
+  # hinted PNG (`brand/tray/color/tray_icon_22.png`), macOS template
+  # @2x, Windows ICO. Add new assets to the list — `flutter pub get`
+  # re-bundles automatically.
   assets:
     - assets/tray_icon.png
+    - assets/tray/trayTemplate@2x.png
+    - assets/tray/tray_icon.ico
+    - assets/tray/sway/linux/
+    - assets/tray/sway/macos/
+    - assets/tray/sway/windows/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

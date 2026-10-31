@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::{
     io::{Read, Write},
     net::TcpListener,
-    sync::{Mutex, OnceLock},
+    sync::{Mutex, MutexGuard, OnceLock},
     time::{Duration, Instant},
 };
 
@@ -52,6 +52,13 @@ const CONTROLLED_EMBED_EXECUTION_FAILED_CODE: &str = "controlled_embed_execution
 fn controlled_embed_backend_test_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
+}
+fn lock_controlled_embed_backend() -> MutexGuard<'static, ()> {
+    // A failed assertion still restores the backend below; keep later tests
+    // running so the original failure does not mask their results.
+    controlled_embed_backend_test_lock()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 struct RestoreNoopControlledEmbedBackend;
 impl Drop for RestoreNoopControlledEmbedBackend {
@@ -228,7 +235,7 @@ fn controlled_embed_reads_output_after_enter_navigation() {
     if controlled_embed_browser_missing("controlled_embed_reads_output_after_enter_navigation") {
         return;
     }
-    let _guard = controlled_embed_backend_test_lock().lock().unwrap();
+    let _guard = lock_controlled_embed_backend();
     let _restore = RestoreNoopControlledEmbedBackend;
     upeg_runtime::controlled_embed::set_controlled_embed_backend(Arc::new(
         upeg_runtime::controlled_embed_headless::HeadlessControlledEmbedBackend::new(),
@@ -304,7 +311,7 @@ type = "string"
 }
 #[test]
 fn controlled_embed_delivers_the_wait_timeout_error_code() {
-    let _guard = controlled_embed_backend_test_lock().lock().unwrap();
+    let _guard = lock_controlled_embed_backend();
     let _restore = RestoreNoopControlledEmbedBackend;
     upeg_runtime::controlled_embed::set_controlled_embed_backend(Arc::new(
         WaitTimeoutFixtureBackend,
@@ -386,7 +393,7 @@ fn controlled_embed_distinguishes_exists_from_visible_by_real_dom_visibility() {
     ) {
         return;
     }
-    let _guard = controlled_embed_backend_test_lock().lock().unwrap();
+    let _guard = lock_controlled_embed_backend();
     let _restore = install_headless_controlled_embed_backend();
 
     let dir = prepare_controlled_embed_test_dir("controlled-embed-wait-semantics-hidden");
@@ -427,7 +434,7 @@ fn controlled_embed_visible_succeeds_when_only_one_of_many_matches_is_shown() {
     ) {
         return;
     }
-    let _guard = controlled_embed_backend_test_lock().lock().unwrap();
+    let _guard = lock_controlled_embed_backend();
     let _restore = install_headless_controlled_embed_backend();
 
     let dir = prepare_controlled_embed_test_dir("controlled-embed-wait-semantics-multi");
@@ -453,7 +460,7 @@ fn a_bad_css_selector_in_controlled_embed_wait_options_propagates_as_a_clear_err
     ) {
         return;
     }
-    let _guard = controlled_embed_backend_test_lock().lock().unwrap();
+    let _guard = lock_controlled_embed_backend();
     let _restore = install_headless_controlled_embed_backend();
 
     let dir = prepare_controlled_embed_test_dir("controlled-embed-wait-semantics-invalid");
@@ -470,7 +477,7 @@ fn a_bad_css_selector_in_controlled_embed_wait_options_propagates_as_a_clear_err
 
     let message =
         controlled_embed_failure_message(&tool_id, CONTROLLED_EMBED_EXECUTION_FAILED_CODE);
-    assert!(message.contains("wait:"));
+    assert!(message.contains("wait:"), "unexpected failure: {message}");
     assert!(message.contains(INVALID_CSS_SELECTOR));
 
     let _ = std::fs::remove_dir_all(&dir);

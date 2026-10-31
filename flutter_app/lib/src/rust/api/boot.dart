@@ -9,12 +9,18 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'boot.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `load_local_runtime_sources`, `log_runtime_source_report`, `native_host_bootstrap`, `skipped_tool_notes`
+// These functions are ignored because they are not marked as `pub`: `acquire_desktop_instance_lock`, `load_local_runtime_sources`, `log_runtime_source_report`, `native_host_bootstrap`, `skipped_tool_notes`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HostState`, `SkippedToolNote`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// One-shot boot: acquires the OS-level instance lock + runs host
 /// discovery (attach existing / embed new / no host).
+///
+/// The instance lock is taken right after the storage lease, before
+/// Toolkit registration, runtime-source loading and host discovery, so a
+/// second instance that loses it registers no Toolkits, loads no runtime
+/// sources and writes no diagnostics before returning
+/// [`FrbError::AlreadyRunning`].
 ///
 /// The bootstrap result is forwarded to the host-state broadcaster
 /// in `api/events.rs` so any subscriber attached after `init_app`
@@ -30,7 +36,8 @@ Future<AppInitReport> initApp() => RustLib.instance.api.crateApiBootInitApp();
 /// Re-read the launch intent without re-running the whole boot.
 /// Returns `None` when argv carries no supported `upeg://open` argument
 /// so the Dart side can distinguish "no deep link" from an explicit
-/// default-board deep link.
+/// summon-only deep link (a bare `upeg://open`, whose fields are all
+/// `None`).
 ///
 /// The Dart `app.dart` calls this once after `initApp()` resolves and
 /// seeds the result into `launchIntentProvider`, which the
@@ -38,11 +45,12 @@ Future<AppInitReport> initApp() => RustLib.instance.api.crateApiBootInitApp();
 LaunchIntentDto? currentLaunchIntent() =>
     RustLib.instance.api.crateApiBootCurrentLaunchIntent();
 
-/// Hand the host back to the OS: drops the instance lock so
-/// `~/.upeg/desktop.lock` is removed even when the process exits via
-/// a Dart-side teardown path. The embedded HTTP host thread keeps
-/// running until process exit; its discovery `Drop` guard handles
-/// cleanup. There is no explicit host-stop signal yet.
+/// Hand the host back to the OS: drops the instance lock so the
+/// `desktop.lock` file in the resolved runtime dir is removed even
+/// when the process exits via a Dart-side teardown path. The embedded
+/// HTTP host thread keeps running until process exit; its discovery
+/// `Drop` guard handles cleanup. There is no explicit host-stop signal
+/// yet.
 void shutdown() => RustLib.instance.api.crateApiBootShutdown();
 
 /// Report returned by [`init_app`] so the Flutter side can render
@@ -78,6 +86,11 @@ class AppInitReport {
 /// Non-opaque DTO mirror of [`DesktopLaunch`]. The source struct
 /// holds `&'static str` fields (board/tool ids) which FRB cannot
 /// ship as borrows; the owned-string copy crosses the wire instead.
+///
+/// `board` stays a plain `String` in the boot report, so a link that
+/// names no Board is reported as the default Board key. The Dart side
+/// does not read this field: whether to switch Boards is decided by
+/// `current_launch_intent`, where the same case is `None`.
 class DesktopLaunchDto {
   final String board;
   final String? tool;

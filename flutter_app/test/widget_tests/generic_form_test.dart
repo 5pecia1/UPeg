@@ -43,6 +43,10 @@ bool _editableHasFocus(WidgetTester tester, String key) {
   return widget.focusNode.hasPrimaryFocus;
 }
 
+class _RunIntent extends Intent {
+  const _RunIntent();
+}
+
 void main() {
   testWidgets(
     'bound text is disclosed while required unfinished inputs stay visible',
@@ -98,6 +102,67 @@ void main() {
   );
 
   group('GenericFormWidget', () {
+    testWidgets('multiline_enter_does_not_run_ancestor_and_keeps_ime_newline', (
+      tester,
+    ) async {
+      final tool = _toolWithFields(const [
+        InputFieldDto(
+          key: 'notes',
+          label: 'Notes',
+          fieldType: InputFieldType_Multiline(),
+          required_: false,
+        ),
+      ]);
+      final controller = GenericFormController();
+      var runCount = 0;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [...i18nTestOverrides, fakeKeyboardResolverOverride],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Actions(
+                actions: <Type, Action<Intent>>{
+                  _RunIntent: CallbackAction<_RunIntent>(
+                    onInvoke: (_) {
+                      runCount += 1;
+                      return null;
+                    },
+                  ),
+                },
+                child: Shortcuts(
+                  shortcuts: const <ShortcutActivator, Intent>{
+                    SingleActivator(LogicalKeyboardKey.enter): _RunIntent(),
+                  },
+                  child: GenericFormWidget(tool: tool, controller: controller),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final field = find.byKey(const Key('field-notes'));
+      await tester.tap(field);
+      await tester.enterText(field, 'first line');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      expect(runCount, 0);
+      // sendKeyEvent models the hardware key only; WidgetTester does not
+      // synthesize the platform IME's text delta, so apply that separately.
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'first line\n',
+          selection: TextSelection.collapsed(offset: 11),
+        ),
+      );
+      await tester.pump();
+
+      expect(runCount, 0);
+      expect(controller.value('notes'), const TextValue('first line\n'));
+    });
+
     testWidgets('the_generic_form_renders_the_right_widget_for_each_field_type', (
       tester,
     ) async {
@@ -196,6 +261,49 @@ void main() {
       await tester.pump();
 
       expect(controller.snapshot()['message'], equals('hello'));
+    });
+
+    testWidgets('text_fields_accept_multiline_samples_and_start_one_line', (
+      tester,
+    ) async {
+      final tool = _toolWithFields(const [
+        InputFieldDto(
+          key: 'json',
+          label: 'JSON sample',
+          fieldType: InputFieldType_Text(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'yaml',
+          label: 'YAML sample',
+          fieldType: InputFieldType_Text(),
+          required_: true,
+        ),
+      ]);
+      final controller = GenericFormController();
+      await tester.pumpWidget(_harness(tool: tool, c: controller));
+
+      for (final key in ['json', 'yaml']) {
+        final editable = tester.widget<EditableText>(
+          find.descendant(
+            of: find.byKey(Key('field-$key')),
+            matching: find.byType(EditableText),
+          ),
+        );
+        expect(editable.minLines, 1);
+        expect(editable.maxLines, isNull);
+      }
+
+      const jsonSample = '{\n  "name": "Ada",\n  "active": true\n}';
+      const yamlSample = 'name: Ada\nactive: true\nroles:\n  - admin';
+      await tester.enterText(find.byKey(const Key('field-json')), jsonSample);
+      await tester.enterText(find.byKey(const Key('field-yaml')), yamlSample);
+      await tester.pump();
+
+      expect(controller.snapshot().toJsonObject(), {
+        'json': jsonSample,
+        'yaml': yamlSample,
+      });
     });
 
     testWidgets('the_generic_form_shows_a_notice_for_empty_inputfields', (

@@ -77,7 +77,9 @@ impl Store {
                 board, \"trigger\", principal, status, duration_ms) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"
         );
-        self.write_tx(|tx| {
+        // Local history, not shared state: appending must not bump
+        // `change_rev` (see the table in `store/mod.rs`).
+        self.write_local_cache_tx(|tx| {
             tx.execute(
                 &sql,
                 params![

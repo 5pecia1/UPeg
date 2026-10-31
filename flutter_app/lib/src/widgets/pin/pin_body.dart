@@ -1,5 +1,6 @@
-/// The `.cell-bd` slot: label plus either canonical output rows derived
-/// from the tool's output schema or the description fallback.
+/// The `.cell-bd` body: either canonical output rows derived from the
+/// tool's output schema or the description fallback. The tool title is
+/// drawn once, by the header.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,7 +16,6 @@ const String _truncatedPreviewSuffix = '…';
 class PinBody extends StatelessWidget {
   const PinBody({
     required this.tokens,
-    required this.label,
     required this.description,
     required this.outputFields,
     required this.outputResult,
@@ -26,7 +26,6 @@ class PinBody extends StatelessWidget {
   });
 
   final UpegTokens tokens;
-  final String? label;
   final String? description;
 
   /// Ordered fields from the tool's `output_spec.fields`. Drives the
@@ -71,39 +70,22 @@ class PinBody extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-          if (label != null && label!.isNotEmpty)
-            Text(
-              label!,
-              style: TextStyle(
-                fontFamily: upegMonoFontFamily,
-                fontFamilyFallback: upegMonoFontFamilyFallback,
-                fontSize: 12,
-                color: tokens.fg2,
-                fontWeight: FontWeight.w500,
-                height: 1.3,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
           if (outputRows.isNotEmpty &&
               richSummary == null &&
               richStatus == null)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final row in outputRows)
-                      _PinOutputRow(
-                        key: ValueKey('pin-output-${row.id}'),
-                        tokens: tokens,
-                        label: row.label,
-                        value: row.value,
-                      ),
-                  ],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final row in outputRows)
+                    _PinOutputRow(
+                      key: ValueKey('pin-output-${row.id}'),
+                      tokens: tokens,
+                      label: row.label,
+                      value: row.value,
+                    ),
+                ],
               ),
             )
           else if (richSummary == null &&
@@ -111,20 +93,17 @@ class PinBody extends StatelessWidget {
               description != null &&
               description!.isNotEmpty)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  description!,
-                  style: TextStyle(
-                    fontFamily: upegMonoFontFamily,
-                    fontFamilyFallback: upegMonoFontFamilyFallback,
-                    fontSize: 10.5,
-                    color: tokens.fg3,
-                    height: 1.35,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+              child: Text(
+                description!,
+                style: TextStyle(
+                  fontFamily: upegMonoFontFamily,
+                  fontFamilyFallback: upegMonoFontFamilyFallback,
+                  fontSize: 10.5,
+                  color: tokens.fg3,
+                  height: 1.35,
                 ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
         ],

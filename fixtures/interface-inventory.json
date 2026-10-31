@@ -2507,6 +2507,435 @@
       }
     },
     {
+      "id": "tool.data.schema_diff",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "left": {
+                "x-upeg-kind": "json",
+                "description": "First inferred schema or generation envelope"
+              },
+              "right": {
+                "x-upeg-kind": "json",
+                "description": "Second inferred schema or generation envelope"
+              }
+            },
+            "required": [
+              "left",
+              "right"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.data.schema_diff.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "x-upeg-kind": "json",
+                  "description": "Equal, different, or inconclusive status with typed findings"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.data.schema_diff.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "tool.data.schema_generate",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "JSON or YAML document"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "yaml"
+                ],
+                "description": "Document format (default: json)"
+              },
+              "sample_mode": {
+                "type": "string",
+                "enum": [
+                  "document",
+                  "samples"
+                ],
+                "description": "Treat input as one document or as an array of samples (default: document)"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.data.schema_generate.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "x-upeg-kind": "json",
+                  "description": "Versioned schema and observation counts"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.data.schema_generate.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "tool.data.value_diff",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "left": {
+                "type": "string",
+                "description": "First JSON or YAML document"
+              },
+              "right": {
+                "type": "string",
+                "description": "Second JSON or YAML document"
+              },
+              "left_format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "yaml"
+                ],
+                "description": "First document format (default: json)"
+              },
+              "right_format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "yaml"
+                ],
+                "description": "Second document format (default: json)"
+              }
+            },
+            "required": [
+              "left",
+              "right"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.data.value_diff.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "x-upeg-kind": "json",
+                  "description": "Equality status and typed changes"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.data.value_diff.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
       "id": "tool.devcontainer.list",
       "surfaces": [
         "cli",
@@ -4013,8 +4442,11 @@
                 "x-upeg-file-policy": {
                   "maxCount": 1,
                   "extensions": [
+                    "ai",
                     "bmp",
                     "gif",
+                    "heic",
+                    "heif",
                     "ico",
                     "jpeg",
                     "jpg",
@@ -4047,7 +4479,8 @@
                   "bmp",
                   "tiff",
                   "ico",
-                  "qoi"
+                  "qoi",
+                  "svg"
                 ],
                 "description": "Output format"
               },
@@ -4062,7 +4495,7 @@
                 "type": "string",
                 "pattern": "^#[0-9a-fA-F]{6}$",
                 "default": "#FFFFFF",
-                "description": "JPEG background color"
+                "description": "JPEG and SVG background color"
               },
               "svg_width": {
                 "type": "integer",
@@ -4077,6 +4510,22 @@
                 "maximum": 67108864,
                 "default": 67108864,
                 "description": "Maximum output bytes"
+              },
+              "ai_dpi": {
+                "type": "number",
+                "minimum": 36.0,
+                "maximum": 600.0,
+                "default": 144.0,
+                "description": "AI PDF render DPI (36–600, default 144)"
+              },
+              "vector_preset": {
+                "type": "string",
+                "enum": [
+                  "poster",
+                  "photo",
+                  "bw"
+                ],
+                "description": "SVG trace preset (default poster)"
               }
             },
             "required": [
@@ -4373,8 +4822,11 @@
                 "x-upeg-file-policy": {
                   "maxCount": 100,
                   "extensions": [
+                    "ai",
                     "bmp",
                     "gif",
+                    "heic",
+                    "heif",
                     "ico",
                     "jpeg",
                     "jpg",
@@ -4407,7 +4859,8 @@
                   "bmp",
                   "tiff",
                   "ico",
-                  "qoi"
+                  "qoi",
+                  "svg"
                 ],
                 "description": "Output image format"
               },
@@ -4422,7 +4875,7 @@
                 "type": "string",
                 "pattern": "^#[0-9a-fA-F]{6}$",
                 "default": "#FFFFFF",
-                "description": "JPEG background color"
+                "description": "JPEG and SVG background color"
               },
               "svg_width": {
                 "type": "integer",
@@ -4437,6 +4890,22 @@
                 "maximum": 67108864,
                 "default": 67108864,
                 "description": "Maximum output zip bytes"
+              },
+              "ai_dpi": {
+                "type": "number",
+                "minimum": 36.0,
+                "maximum": 600.0,
+                "default": 144.0,
+                "description": "AI PDF render DPI (36–600, default 144)"
+              },
+              "vector_preset": {
+                "type": "string",
+                "enum": [
+                  "poster",
+                  "photo",
+                  "bw"
+                ],
+                "description": "SVG trace preset (default poster)"
               }
             },
             "required": [
@@ -4524,6 +4993,185 @@
             "x-upeg-primary-output-id": "result"
           },
           "schemaRef": "tool.media.images_convert.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "tool.media.pdf_compress",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "object",
+                "x-upeg-kind": "file",
+                "x-upeg-file-policy": {
+                  "maxCount": 1,
+                  "extensions": [
+                    "pdf"
+                  ],
+                  "maxFileBytes": 52428800,
+                  "maxTotalBytes": 52428800
+                },
+                "x-upeg-file-wire": {
+                  "version": 1,
+                  "bytesEncoding": "base64-rfc4648-padded",
+                  "legacyNumericArrays": false,
+                  "recursiveDirectories": true,
+                  "documentation": "README.md#file-input-wire"
+                },
+                "description": "PDF file (up to 50 MiB)"
+              },
+              "target_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 67108864,
+                "description": "Desired PDF size in bytes (1 MiB = 1048576 bytes)"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "balanced",
+                  "high_quality"
+                ],
+                "description": "Profile order: balanced by default, or conservative profiles first"
+              },
+              "max_output_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 67108864,
+                "default": 67108864,
+                "description": "Output safety limit in bytes, independent of the target"
+              }
+            },
+            "required": [
+              "input",
+              "target_bytes"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.media.pdf_compress.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "type": "object",
+                  "x-upeg-kind": "file",
+                  "x-upeg-file-wire": {
+                    "version": 1,
+                    "bytesEncoding": "base64-rfc4648-padded",
+                    "legacyNumericArrays": false,
+                    "recursiveDirectories": true,
+                    "documentation": "README.md#file-input-wire"
+                  },
+                  "description": "PDF artifact"
+                },
+                "report": {
+                  "x-upeg-kind": "json",
+                  "description": "Target status, sizes, profiles and preserved unsupported images"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.media.pdf_compress.output_schema",
           "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
           "declared": true
         },
@@ -8353,6 +9001,139 @@
       }
     },
     {
+      "id": "tool.time.cron_inspect",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "Minute hour day-of-month month day-of-week"
+              },
+              "after": {
+                "type": "string",
+                "description": "RFC 3339 reference time (default: now)"
+              }
+            },
+            "required": [
+              "expression"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.time.cron_inspect.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "x-upeg-kind": "json",
+                  "description": "Description, UTC timezone, and next five occurrences"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.time.cron_inspect.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
       "id": "tool.time.epoch_now",
       "surfaces": [
         "cli",
@@ -8469,6 +9250,137 @@
       }
     },
     {
+      "id": "tool.time.from_epoch",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "Integer timestamp"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "seconds",
+                  "milliseconds"
+                ],
+                "description": "Unit (default: seconds)"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.time.from_epoch.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "null"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": null
+          },
+          "schemaRef": "tool.time.from_epoch.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
       "id": "tool.time.iso_now",
       "surfaces": [
         "cli",
@@ -8560,6 +9472,143 @@
             "x-upeg-primary-output-id": null
           },
           "schemaRef": "tool.time.iso_now.output_schema",
+          "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-tools/src/lib.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "tool.time.to_epoch",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "tool",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "RFC 3339 timestamp with timezone"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "seconds",
+                  "milliseconds"
+                ],
+                "description": "Unit (default: seconds)"
+              }
+            },
+            "required": [
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          "schemaRef": "tool.time.to_epoch.input_schema",
+          "description": "Tool input schema generated from ToolMeta.input_spec",
+          "declared": true
+        },
+        "output": {
+          "kind": "jsonSchema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ok",
+              "primary_output_id",
+              "outputs"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "primary_output_id": {
+                "type": "string",
+                "const": "result"
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "kind",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "additionalProperties": false,
+            "x-upeg-output-fields": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "type": "number",
+                  "description": "Signed Unix timestamp"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "x-upeg-primary-output-id": "result"
+          },
+          "schemaRef": "tool.time.to_epoch.output_schema",
           "description": "Tool output contract is canonical ToolResult JSON generated from ToolMeta.output_spec and ToolMeta.primary_output_id",
           "declared": true
         },
@@ -8973,6 +10022,60 @@
           "kind": "jsonSchema",
           "schema": null,
           "schemaRef": "toolkit.csv.manifest",
+          "description": "Toolkit manifest contract",
+          "declared": true
+        },
+        "output": {
+          "kind": "none",
+          "schema": null,
+          "schemaRef": null,
+          "description": "Manifest schema entries describe static schema artifacts and do not emit ToolResult outputs",
+          "declared": true
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-runtime/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "docs/LEXICON.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-runtime/src/toolbox.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-runtime/src/interface_inventory.rs",
+        "testName": "interface_inventory_includes_builtin_tools"
+      }
+    },
+    {
+      "id": "toolkit.data",
+      "surfaces": [
+        "cli",
+        "tui",
+        "desktop",
+        "pwa",
+        "ext",
+        "mcp",
+        "http"
+      ],
+      "kind": "toolkit",
+      "contract": {
+        "locator": {
+          "commandPath": null,
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "jsonSchema",
+          "schema": null,
+          "schemaRef": "toolkit.data.manifest",
           "description": "Toolkit manifest contract",
           "declared": true
         },

@@ -11,6 +11,7 @@ import 'package:upeg/src/features/host_attach/host_attach_config_provider.dart';
 import 'package:upeg/src/features/host_attach/host_attach_dispatch_provider.dart';
 import 'package:upeg/src/features/memos/memo_pin_body.dart';
 import 'package:upeg/src/features/memos/memo_roles.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/pegboard_units.dart';
 import 'package:upeg/src/rust/api/capability.dart';
@@ -37,6 +38,8 @@ import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart';
 import 'package:upeg/src/widgets/host_attach_notice_body.dart';
 import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 import 'package:upeg/src/widgets/pin.dart';
+import 'package:upeg/src/widgets/pin_save_status.dart';
+import 'package:upeg/src/widgets/pin/pin_move_handle.dart';
 import 'package:upeg/src/widgets/provider_not_configured_body.dart';
 import 'package:upeg/src/widgets/surface_unsupported_body.dart';
 
@@ -56,6 +59,11 @@ const int _dragExpansionLookaheadRows = 6;
 
 /// Opacity applied to the translucent drag-feedback copy of a pin.
 const double _dragFeedbackOpacity = 0.75;
+
+/// Catalog key shared with the Inline pin's failure line (copy lives in the
+/// Rust En/Ko catalog), and the line cap that keeps it inside a small pin.
+const String _liveFailureCopyKey = 'inline.dispatch_failed';
+const int _liveFailureMaxLines = 3;
 
 /// Wraps [Pin] with a Riverpod lookup for the tool label AND the modeless
 /// drag affordance.
@@ -148,6 +156,7 @@ class PinWithLabel extends ConsumerWidget {
     // last user-driven dispatch outcome (inline-first activation, issue 7).
     CanonicalToolResult? outputResult;
     var stale = false;
+    var liveFailed = false;
     DateTime? restoredAt;
     var outputTruncated = false;
     if (tool != null &&
@@ -164,11 +173,13 @@ class PinWithLabel extends ConsumerWidget {
           stale = true;
         case LiveOutcomePending():
           break;
+        case LiveOutcomeFailed():
+          liveFailed = true;
       }
     } else if (tool != null) {
       // Inline rendering keeps its ok-only contract; restored entries
       // additionally carry their recording timestamp so the pin shows
-      // the "last run · N ago" badge instead of passing off a previous
+      // the "result saved · N ago" badge instead of passing off a previous
       // session's result as fresh.
       final last = ref.watch(pinLastOutcomeProvider(pinKey));
       if (last != null && last.result.ok) {
@@ -312,6 +323,14 @@ class PinWithLabel extends ConsumerWidget {
       }
     }
 
+    // A Live pin that has never succeeded shows the same safe failure line as
+    // an Inline pin instead of looking idle. Every specialised body above
+    // wins; this one stays a plain tap-to-run pin (no gesture ownership).
+    final showsLiveFailure = bodyOverride == null && liveFailed;
+    if (showsLiveFailure) {
+      bodyOverride = const _LiveFailureBody();
+    }
+
     // Gesture-owning bodyOverride pins don't activate on tap — the inline
     // widget owns the gesture surface. Attach-routed pins tap to dispatch
     // remotely; everyone else keeps the host-supplied tap = run.
@@ -342,7 +361,6 @@ class PinWithLabel extends ConsumerWidget {
       toolDescription: tool?.description,
       toolkit: tool?.toolkit,
       pinKind: tool == null ? null : UpegPinKind.fromDto(tool.pinKind),
-      invokerLabel: tool == null ? null : invokerDtoLabel(tool.invoker),
       outputFields: tool?.outputFields ?? const <OutputFieldDto>[],
       outputResult: outputResult,
       restoredAt: restoredAt,
@@ -359,7 +377,6 @@ class PinWithLabel extends ConsumerWidget {
       toolDescription: tool?.description,
       toolkit: tool?.toolkit,
       pinKind: tool == null ? null : UpegPinKind.fromDto(tool.pinKind),
-      invokerLabel: tool == null ? null : invokerDtoLabel(tool.invoker),
       outputFields: tool?.outputFields ?? const <OutputFieldDto>[],
       outputResult: outputResult,
       restoredAt: restoredAt,
@@ -372,17 +389,22 @@ class PinWithLabel extends ConsumerWidget {
       // surface itself stays a plain click target so the webview/text
       // field keeps its pointer events.
       moveHandle: bodyOwnsGesture
-          ? _buildDragHandle(payload, feedbackPin, tokens.accent)
+          ? _buildDragHandle(payload, feedbackPin, tokens)
           : null,
       cursor: bodyOwnsGesture
           ? SystemMouseCursors.click
           : SystemMouseCursors.grab,
       pinColorOverride: placement.color,
       onTap: tapHandler,
+      tapHintKey: inlineTapOpensModal
+          ? 'a11y.pin.hint_open'
+          : 'a11y.pin.hint_run',
       onEditColor: onEditColor,
       onOpenModal: onOpenModal,
       bodyOverride: bodyOverride,
-      exposeBodySemantics: bodyOwnsGesture,
+      // The failure line is the pin's only status (there is no result for
+      // the Semantics value), so assistive technology must reach its text.
+      exposeBodySemantics: bodyOwnsGesture || showsLiveFailure,
     );
 
     final Widget interactive;
@@ -417,26 +439,52 @@ class PinWithLabel extends ConsumerWidget {
     // webview / memo field).
     final manifest =
         tool?.pegboardUnits.footprint ?? (cols: placement.w, rows: placement.h);
-    return Stack(
-      clipBehavior: Clip.none,
-      // `expand` sizes the non-positioned pin surface to the slot
-      // WITHOUT an extra `Positioned` wrapper, so existing
-      // "grid Positioned is the Pin's ancestor" contracts stay intact.
-      fit: StackFit.expand,
-      children: [
-        interactive,
-        Positioned(
-          right: resizeHandleInset,
-          bottom: resizeHandleInset,
-          child: ResizeHandle(
-            placement: placement,
-            boardKey: boardKey,
-            maxCols: columns,
-            manifestCols: manifest.cols,
-            manifestRows: manifest.rows,
-          ),
+    void focusThisPin() {
+      if (ref.read(focusedPinProvider) == pinKey.$2) return;
+      ref.read(focusedPinProvider.notifier).focus(pinKey.$2);
+    }
+
+    return Focus(
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: (hasFocus) {
+        if (hasFocus) focusThisPin();
+      },
+      child: Listener(
+        onPointerDown: (_) => focusThisPin(),
+        child: Stack(
+          clipBehavior: Clip.none,
+          // `expand` sizes the non-positioned pin surface to the slot
+          // WITHOUT an extra `Positioned` wrapper, so existing
+          // "grid Positioned is the Pin's ancestor" contracts stay intact.
+          fit: StackFit.expand,
+          children: [
+            interactive,
+            if (tool != null && !genericInlineBodyEligible && !bodyOwnsGesture)
+              Positioned(
+                left: 4,
+                right: 18,
+                bottom: 4,
+                child: PinSaveStatus(
+                  pinKey: pinKey,
+                  toolId: toolId,
+                  compact: true,
+                ),
+              ),
+            Positioned(
+              right: resizeHandleInset,
+              bottom: resizeHandleInset,
+              child: ResizeHandle(
+                placement: placement,
+                boardKey: boardKey,
+                maxCols: columns,
+                manifestCols: manifest.cols,
+                manifestRows: manifest.rows,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -446,7 +494,7 @@ class PinWithLabel extends ConsumerWidget {
   Widget _buildDragHandle(
     PinDragPayload payload,
     Widget feedbackPin,
-    Color color,
+    UpegTokens tokens,
   ) {
     return Draggable<PinDragPayload>(
       data: payload,
@@ -454,18 +502,7 @@ class PinWithLabel extends ConsumerWidget {
       onDraggableCanceled: (_, _) => onDragFinished(),
       onDragUpdate: _onDragUpdate,
       feedback: _dragFeedback(feedbackPin),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.grab,
-        child: Tooltip(
-          message: pinMoveTooltip,
-          child: Icon(
-            Icons.drag_indicator,
-            key: pinMoveHandleKey,
-            size: 13,
-            color: color,
-          ),
-        ),
-      ),
+      child: PinMoveHandle(tokens: tokens),
     );
   }
 
@@ -558,5 +595,32 @@ class PinWithLabel extends ConsumerWidget {
         ctrl.jumpTo(targetOffset);
       }
     }
+  }
+}
+
+/// Body of a Live pin whose polling has failed without ever succeeding.
+///
+/// The copy is the localized Inline failure line. The raw error message is
+/// never rendered: it can carry paths or URLs. The Tool label is not drawn
+/// either, since the pin header already shows it.
+class _LiveFailureBody extends ConsumerWidget {
+  const _LiveFailureBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.upeg;
+    return Padding(
+      padding: UpegSizing.pinBodyPadding,
+      child: Text(
+        t(ref, _liveFailureCopyKey),
+        maxLines: _liveFailureMaxLines,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontFamily: upegMonoFontFamily,
+          fontFamilyFallback: upegMonoFontFamilyFallback,
+          color: tokens.warn,
+        ),
+      ),
+    );
   }
 }
