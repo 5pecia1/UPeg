@@ -139,6 +139,8 @@ fn register_inner() {
     register_qr_dispatchers();
     #[cfg(feature = "csv")]
     register_csv_dispatchers();
+    #[cfg(feature = "data")]
+    register_data_dispatchers();
     #[cfg(feature = "num")]
     register_num_dispatchers();
     #[cfg(not(target_arch = "wasm32"))]
@@ -339,6 +341,40 @@ fn register_csv_dispatchers() {
     });
 }
 
+#[cfg(feature = "data")]
+fn register_data_dispatchers() {
+    register_single_output_dispatcher(crate::DATA_VALUE_DIFF_TOOL_ID, |args| {
+        crate::data_value_diff(
+            read_str(args, "left"),
+            read_str(args, "right"),
+            args.get("left_format")
+                .and_then(Value::as_str)
+                .unwrap_or("json"),
+            args.get("right_format")
+                .and_then(Value::as_str)
+                .unwrap_or("json"),
+        )
+    });
+    register_single_output_dispatcher(crate::DATA_SCHEMA_GENERATE_TOOL_ID, |args| {
+        crate::data_schema_generate(
+            read_str(args, "input"),
+            args.get("format").and_then(Value::as_str).unwrap_or("json"),
+            args.get("sample_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("document"),
+        )
+    });
+    register_single_output_dispatcher(crate::DATA_SCHEMA_DIFF_TOOL_ID, |args| {
+        let left = args
+            .get("left")
+            .ok_or_else(|| "missing required schema input `left`".to_owned())?;
+        let right = args
+            .get("right")
+            .ok_or_else(|| "missing required schema input `right`".to_owned())?;
+        crate::data_schema_diff(left, right)
+    });
+}
+
 #[cfg(feature = "num")]
 fn register_num_dispatchers() {
     register_single_output_dispatcher(crate::HEX_TO_DECIMAL_TOOL_ID, |args| {
@@ -445,6 +481,20 @@ fn register_time_dispatchers() {
     register_single_output_dispatcher(crate::ISO_NOW_TOOL_ID, |_args| {
         crate::iso_now().map_err(std::string::ToString::to_string)
     });
+    register_single_output_dispatcher(crate::FROM_EPOCH_TOOL_ID, |args| {
+        crate::from_epoch(read_str(args, "input"), read_str(args, "unit"))
+            .map_err(std::string::ToString::to_string)
+    });
+    register_single_output_dispatcher(crate::TO_EPOCH_TOOL_ID, |args| {
+        crate::to_epoch(read_str(args, "input"), read_str(args, "unit"))
+            .map(|value| value.to_string())
+            .map_err(std::string::ToString::to_string)
+    });
+    register_single_output_dispatcher(crate::CRON_INSPECT_TOOL_ID, |args| {
+        let result = crate::cron_inspect(read_str(args, "expression"), read_str(args, "after"))
+            .map_err(std::string::ToString::to_string)?;
+        serde_json::to_string(&result).map_err(|error| error.to_string())
+    });
     register_runtime_dispatcher(crate::gui_meta::TIME_EPOCH_TOOL_ID, |_args| {
         let secs = match crate::epoch_now().map_err(std::string::ToString::to_string) {
             Ok(secs) => secs,
@@ -544,10 +594,54 @@ fn register_media_dispatchers() {
                 .unwrap_or(crate::IMAGE_CONVERT_DEFAULT_BACKGROUND),
             read_usize(args, "svg_width", crate::IMAGE_CONVERT_DEFAULT_SVG_WIDTH)?,
             read_usize(args, "max_output_bytes", crate::MAX_MEDIA_OUTPUT_BYTES)?,
+            read_f64(args, "ai_dpi", crate::PDF_TO_IMAGES_DEFAULT_DPI)?,
+            args.get("vector_preset")
+                .and_then(Value::as_str)
+                .unwrap_or("poster"),
         )
     });
     register_single_output_dispatcher(crate::PDF_INSPECT_TOOL_ID, |args| {
         crate::pdf_inspect(&read_file(args, "input")?)
+    });
+    register_runtime_dispatcher(crate::PDF_COMPRESS_TOOL_ID, |args| {
+        let result = (|| {
+            let mode = match args.get("mode") {
+                None | Some(Value::Null) => crate::PDF_COMPRESS_DEFAULT_MODE,
+                Some(Value::String(mode)) => mode.as_str(),
+                Some(_) => return Err("mode must be a string".to_string()),
+            };
+            crate::pdf_compress(
+                &read_file(args, "input")?,
+                read_usize(args, "target_bytes", 0)?,
+                mode,
+                read_usize(args, "max_output_bytes", crate::MAX_MEDIA_OUTPUT_BYTES)?,
+            )
+        })();
+        let result = match result {
+            Ok(result) => result,
+            Err(message) => return tool_failure("tool_error", message),
+        };
+        let report = match serde_json::to_value(result.report) {
+            Ok(report) => report,
+            Err(error) => return tool_failure("tool_error", error.to_string()),
+        };
+        structured_success(
+            crate::PDF_COMPRESS_FILE_OUTPUT_ID,
+            vec![
+                OutputEntry {
+                    id: crate::PDF_COMPRESS_FILE_OUTPUT_ID.into(),
+                    label: None,
+                    kind: OutputKind::File,
+                    value: OutputValue::File(result.result),
+                },
+                OutputEntry {
+                    id: crate::PDF_COMPRESS_REPORT_OUTPUT_ID.into(),
+                    label: None,
+                    kind: OutputKind::Json,
+                    value: OutputValue::Json(report),
+                },
+            ],
+        )
     });
     register_runtime_dispatcher(crate::PDF_TO_MARKDOWN_TOOL_ID, |args| {
         let result = read_file(args, "input").and_then(|input| crate::pdf_to_markdown(&input));
@@ -591,6 +685,10 @@ fn register_media_dispatchers() {
                 "max_output_bytes",
                 crate::IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES,
             )?,
+            read_f64(args, "ai_dpi", crate::PDF_TO_IMAGES_DEFAULT_DPI)?,
+            args.get("vector_preset")
+                .and_then(Value::as_str)
+                .unwrap_or("poster"),
         )
     });
     register_single_output_dispatcher(crate::IMAGE_TO_PDF_TOOL_ID, |args| {

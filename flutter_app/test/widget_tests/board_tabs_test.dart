@@ -17,14 +17,17 @@ import 'package:upeg/src/platform/keyboard_label.dart';
 import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/state/app_state.dart';
-import 'package:upeg/src/state/focused_pin_provider.dart';
 import 'package:upeg/src/state/locale_provider.dart';
+import 'package:upeg/src/state/last_outcome_provider.dart';
+import 'package:upeg/src/state/board_details_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/board_tabs.dart';
 
 import '../test_helpers/fake_keyboard_resolver.dart';
 import '../test_helpers/pegboard_selection_overrides.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/ui_workflow_robot.dart';
+import '../shared/fake_board_details.dart';
 
 Widget _harness({
   required List<BoardDto> boards,
@@ -35,11 +38,7 @@ Widget _harness({
     child: MaterialApp(
       theme: UpegTheme.darkTheme(),
       home: Scaffold(
-        body: BoardTabs(
-          onOpenPalette: () {},
-          onOpenSettings: () {},
-          onEditPinColor: () {},
-        ),
+        body: BoardTabs(onOpenPalette: () {}, onOpenSettings: () {}),
       ),
     ),
   );
@@ -58,11 +57,7 @@ Widget _sizedHarness({
         body: SizedBox(
           width: size.width,
           height: size.height,
-          child: BoardTabs(
-            onOpenPalette: () {},
-            onOpenSettings: () {},
-            onEditPinColor: () {},
-          ),
+          child: BoardTabs(onOpenPalette: () {}, onOpenSettings: () {}),
         ),
       ),
     ),
@@ -76,10 +71,14 @@ ProviderContainer _container(
   String Function(String title)? boardCreator,
   void Function(String boardKey, String newTitle)? boardRenamer,
   void Function(String boardKey)? boardDeleter,
+  BoardDetailsLoader? boardDetailsLoader,
 }) {
   final container = ProviderContainer(
     overrides: [
       ...pegboardSelectionOverrides(),
+      if (boardDetailsLoader != null)
+        boardDetailsLoaderProvider.overrideWithValue(boardDetailsLoader),
+      lastOutcomeLoadProvider.overrideWithValue((_) => const []),
       boardsLoaderProvider.overrideWith(
         (ref) =>
             () => boards,
@@ -121,6 +120,67 @@ void main() {
   // `_verifyInvariants` on every widget-test pump.
 
   group('BoardTabs', () {
+    testWidgets(
+      'should open details for the menu board even if selection clears while the menu is open',
+      (tester) async {
+        const boards = [BoardDto(key: 'dev', title: 'Dev')];
+        final container = _container(
+          boards,
+          boardDetailsLoader: FakeBoardDetails().load,
+        );
+        addTearDown(container.dispose);
+        container
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('dev'));
+        final robot = UiWorkflowRobot(tester);
+        await robot.pumpScreen(
+          _sizedHarness(
+            boards: boards,
+            size: const Size(390, UpegSizing.tabBarHeight),
+            container: container,
+          ),
+        );
+        await robot.openMore();
+
+        container.read(currentBoardKeyProvider.notifier).clear();
+        await tester.pump();
+        await robot.openDetailsFromMenu();
+
+        robot.expectDetailsForBoard('dev');
+      },
+    );
+    for (final action in ['create', 'rename', 'delete']) {
+      testWidgets('should report $action board failure and retain selection', (
+        tester,
+      ) async {
+        const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
+        final container = _container(
+          boards,
+          boardCreator: (_) => throw StateError('Unavailable'),
+          boardRenamer: (_, _) => throw StateError('Unavailable'),
+          boardDeleter: (_) => throw StateError('Unavailable'),
+        );
+        addTearDown(container.dispose);
+        container
+            .read(currentBoardKeyProvider.notifier)
+            .select(BoardKey.parse('dev'));
+        final robot = UiWorkflowRobot(tester);
+        await robot.pumpScreen(_harness(boards: boards, container: container));
+        robot.expectBoardFailureNotVisible(action);
+
+        switch (action) {
+          case 'create':
+            await robot.requestCreateBoard('New board');
+          case 'rename':
+            await robot.requestRenameBoard('dev', 'Renamed board');
+          case 'delete':
+            await robot.requestDeleteBoard('dev');
+        }
+
+        robot.expectBoardFailureVisible(action);
+        expect(container.read(currentBoardKeyProvider), BoardKey.parse('dev'));
+      });
+    }
     testWidgets('BoardTabs_renders_each_board_title', (tester) async {
       const boards = <BoardDto>[
         BoardDto(key: 'dev', title: 'Dev'),
@@ -185,7 +245,7 @@ void main() {
       expect(find.textContaining('검색'), findsOneWidget);
       expect(find.text('설정'), findsOneWidget);
       expect(find.text('+ 보드'), findsOneWidget);
-      expect(find.text('+ 핀'), findsOneWidget);
+      expect(find.byKey(const Key('open-palette-btn')), findsOneWidget);
     });
 
     testWidgets('BoardTabs_renders_the_UpegPopover_on_right_click', (
@@ -263,6 +323,8 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.byType(SingleChildScrollView), findsOneWidget);
+        await tester.tap(find.byKey(const Key('board-more-actions-btn')));
+        await tester.pumpAndSettle();
         expect(find.text('설정'), findsOneWidget);
       },
     );
@@ -470,120 +532,28 @@ void main() {
       expect(deleted, isEmpty);
     });
 
-    testWidgets('the_color_button_is_enabled_when_a_pin_is_focused', (
+    testWidgets('the_color_button_was_removed_from_both_tab_bar_layouts', (
       tester,
     ) async {
-      var opened = false;
+      // A pin's color is edited with the `c` key or the pin's context
+      // menu; the tab bar keeps no always-visible (often disabled) button.
       const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
-      final container = _container(boards);
-      container
-          .read(focusedPinProvider.notifier)
-          .focus(PinId.parse('num.hex_to_decimal'));
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.darkTheme(),
-            home: Scaffold(
-              body: BoardTabs(
-                onOpenPalette: () {},
-                onOpenSettings: () {},
-                onEditPinColor: () => opened = true,
-              ),
-            ),
+      for (final width in <double>[1000, 400]) {
+        await tester.pumpWidget(
+          _sizedHarness(
+            boards: boards,
+            size: Size(width, UpegSizing.tabBarHeight),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('edit-pin-color-btn')));
-      await tester.pumpAndSettle();
-      expect(opened, isTrue);
-    });
-
-    testWidgets('the_color_button_is_disabled_without_a_focused_pin', (
-      tester,
-    ) async {
-      var opened = false;
-      const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
-      final container = _container(boards);
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.darkTheme(),
-            home: Scaffold(
-              body: BoardTabs(
-                onOpenPalette: () {},
-                onOpenSettings: () {},
-                onEditPinColor: () => opened = true,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Disabled button is wrapped in Opacity with 0.45
-      final buttonFinder = find.byKey(const Key('edit-pin-color-btn'));
-      expect(buttonFinder, findsOneWidget);
-      final opacity = tester.widget<Opacity>(
-        find.descendant(of: buttonFinder, matching: find.byType(Opacity)).first,
-      );
-      expect(opacity.opacity, 0.45);
-
-      // Tapping a disabled button does nothing
-      await tester.tap(buttonFinder);
-      await tester.pumpAndSettle();
-      expect(opened, isFalse);
-    });
-
-    testWidgets('BoardTabs_tracks_the_color_button_disabled_state_to_focus', (
-      tester,
-    ) async {
-      var opened = false;
-      const boards = <BoardDto>[BoardDto(key: 'dev', title: 'Dev')];
-      final container = _container(boards);
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: UpegTheme.darkTheme(),
-            home: Scaffold(
-              body: BoardTabs(
-                onOpenPalette: () {},
-                onOpenSettings: () {},
-                onEditPinColor: () => opened = true,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Initially no focused pin → disabled
-      final btnFinder = find.byKey(const Key('edit-pin-color-btn'));
-      var opacity = tester.widget<Opacity>(
-        find.descendant(of: btnFinder, matching: find.byType(Opacity)).first,
-      );
-      expect(opacity.opacity, 0.45);
-
-      // Focus a pin → becomes enabled
-      container
-          .read(focusedPinProvider.notifier)
-          .focus(PinId.parse('num.hex_to_decimal'));
-      await tester.pumpAndSettle();
-
-      // Now tapping should work
-      await tester.tap(btnFinder);
-      await tester.pumpAndSettle();
-      expect(opened, isTrue);
+        );
+        await tester.pumpAndSettle();
+        if (width < 720) {
+          await tester.tap(find.byKey(const Key('board-more-actions-btn')));
+          await tester.pumpAndSettle();
+        }
+        // The rest of the actions still render in this layout.
+        expect(find.byKey(const Key('open-settings-btn')), findsOneWidget);
+        expect(find.byKey(const Key('edit-pin-color-btn')), findsNothing);
+      }
     });
 
     testWidgets('the_edit_toggle_button_was_removed_in_modeless', (

@@ -13,17 +13,251 @@ import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
+import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/surface_unsupported_body.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/board_canvas_harness.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
+import '../shared/fake_pin_persistence.dart';
+
+class _BoardCopyWriter extends ClipboardWriter {
+  final writes = <String>[];
+
+  @override
+  Future<void> write(String text) async => writes.add(text);
+}
 
 void main() {
   group('BoardCanvas', () {
+    testWidgets('restored 1x1 failure shows its safe warning before metadata', (
+      tester,
+    ) async {
+      final board = BoardKey.parse('dev');
+      final pin = PinId.parse('demo.failed');
+      final toolId = ToolId.parse('demo.failed');
+      final tool = genericInputTool(
+        id: toolId.value,
+        source: const SourceDto.userInput(),
+      );
+      final storage = FakePinPersistence();
+      storage.saveDraft(
+        (board, pin),
+        toolId,
+        ToolArgs.fromJsonObject(const {'value': 'bad input'}),
+      );
+      storage.saveOutcome(
+        boardKey: board.value,
+        pinId: pin.value,
+        toolId: toolId.value,
+        result: const CanonicalToolResult(
+          ok: false,
+          outputs: [],
+          error: CanonicalToolError(
+            code: 'failed',
+            message: '/private/raw-error.txt',
+          ),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          ...i18nTestOverrides,
+          ...storage.overrides,
+          toolsLoaderProvider.overrideWith(
+            (ref) =>
+                () => [tool],
+          ),
+          isWasmRuntimeProvider.overrideWithValue(false),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: UpegTheme.darkTheme(),
+            home: Scaffold(
+              body: debugBoardCanvasGrid(
+                snapshot: LayoutSnapshotDto(
+                  boardKey: board.value,
+                  boardCols: 6,
+                  placements: [
+                    PlacementDto(
+                      toolId: toolId.value,
+                      pinId: pin.value,
+                      x: 0,
+                      y: 0,
+                      w: 1,
+                      h: 1,
+                    ),
+                  ],
+                ),
+                onPinTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final body = find.byType(GenericInlinePinBody);
+      final scroll = find.descendant(
+        of: body,
+        matching: find.byType(SingleChildScrollView),
+      );
+      final viewport = tester.getRect(scroll);
+      final warning = tester.getRect(find.text('Unable to run this tool.'));
+      expect(warning.top, greaterThanOrEqualTo(viewport.top));
+      expect(warning.bottom, lessThanOrEqualTo(viewport.bottom));
+      expect(find.textContaining('/private/raw-error.txt'), findsNothing);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(inlineCopyResultButtonKey))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<SingleChildScrollView>(scroll).controller!.offset,
+        0,
+      );
+    });
+
+    for (final cols in [1, 2]) {
+      for (final history in ['current', 'previous', 'unknown']) {
+        testWidgets(
+          'restored ${cols}x1 inline $history result and Copy are visible without inner scroll',
+          (tester) async {
+            final board = BoardKey.parse('dev');
+            final pin = PinId.parse('demo.restored');
+            final toolId = ToolId.parse('demo.restored');
+            final tool = genericInputTool(
+              id: toolId.value,
+              pegboardUnits: cols == 1
+                  ? PegboardUnitsDto.u1
+                  : PegboardUnitsDto.u2,
+              source: const SourceDto.userInput(),
+            );
+            final storage = FakePinPersistence();
+            final writer = _BoardCopyWriter();
+            storage.saveDraft(
+              (board, pin),
+              toolId,
+              ToolArgs.fromJsonObject(const {'value': '0x20'}),
+            );
+            storage.saveOutcome(
+              boardKey: board.value,
+              pinId: pin.value,
+              toolId: toolId.value,
+              result: const CanonicalToolResult(
+                ok: true,
+                primaryOutputId: 'result',
+                outputs: [
+                  CanonicalOutputEntry(
+                    id: 'result',
+                    kind: 'string',
+                    value: CanonicalOutputValue.string(value: '32'),
+                  ),
+                ],
+              ),
+              argsJson: switch (history) {
+                'current' => ToolArgs.fromJsonObject(const {
+                  'value': '0x20',
+                }).encodeJson(),
+                'previous' => ToolArgs.fromJsonObject(const {
+                  'value': '0x10',
+                }).encodeJson(),
+                _ => null,
+              },
+            );
+            final container = ProviderContainer(
+              overrides: [
+                ...i18nTestOverrides,
+                ...storage.overrides,
+                clipboardWriterProvider.overrideWithValue(writer),
+                toolsLoaderProvider.overrideWith(
+                  (ref) =>
+                      () => [tool],
+                ),
+                isWasmRuntimeProvider.overrideWithValue(false),
+              ],
+            );
+            addTearDown(container.dispose);
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: container,
+                child: MaterialApp(
+                  theme: UpegTheme.darkTheme(),
+                  home: Scaffold(
+                    body: debugBoardCanvasGrid(
+                      snapshot: LayoutSnapshotDto(
+                        boardKey: board.value,
+                        boardCols: 6,
+                        placements: [
+                          PlacementDto(
+                            toolId: toolId.value,
+                            pinId: pin.value,
+                            x: 0,
+                            y: 0,
+                            w: cols,
+                            h: 1,
+                          ),
+                        ],
+                      ),
+                      onPinTap: (_) {},
+                    ),
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+
+            final body = find.byType(GenericInlinePinBody);
+            final scroll = find.descendant(
+              of: body,
+              matching: find.byType(SingleChildScrollView),
+            );
+            final viewport = tester.getRect(scroll);
+            final copy = tester.getRect(find.byKey(inlineCopyResultButtonKey));
+            final value = tester.getRect(
+              find.byKey(inlineOutputValueKey('result')),
+            );
+            final field = tester.getRect(find.byKey(const Key('field-value')));
+            final relation = tester.getRect(
+              find.text(history == 'unknown' ? 'input unknown' : history),
+            );
+            expect(field.right, lessThanOrEqualTo(copy.left));
+            expect(copy.width, greaterThanOrEqualTo(48));
+            expect(copy.height, greaterThanOrEqualTo(48));
+            expect(copy.top, greaterThanOrEqualTo(viewport.top));
+            expect(copy.bottom, lessThanOrEqualTo(viewport.bottom));
+            expect(relation.top, greaterThanOrEqualTo(viewport.top));
+            expect(relation.bottom, lessThanOrEqualTo(viewport.bottom));
+            expect(value.top, greaterThanOrEqualTo(viewport.top));
+            expect(value.bottom, lessThanOrEqualTo(viewport.bottom));
+            expect(
+              find.byKey(inlineCopyResultButtonKey).hitTestable(),
+              findsOneWidget,
+            );
+            expect(
+              tester.widget<SingleChildScrollView>(scroll).controller!.offset,
+              0,
+            );
+            await tester.tapAt(copy.center);
+            await tester.pump();
+            expect(writer.writes, ['32']);
+            expect(
+              tester.widget<SingleChildScrollView>(scroll).controller!.offset,
+              0,
+            );
+          },
+        );
+      }
+    }
+
     testWidgets(
-      'an_argumentless_inline_pin_renders_a_Run_button_instead_of_a_recorded_result',
+      'an_argumentless_inline_pin_keeps_Run_and_the_recorded_result',
       (tester) async {
         final inlineTool = ToolDto(
           id: 'demo.inline',
@@ -44,6 +278,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             ...i18nTestOverrides,
+            ...pinPersistenceTestOverrides,
             toolsLoaderProvider.overrideWith(
               (ref) =>
                   () => [inlineTool],
@@ -100,15 +335,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Item 7 fix: an Inline/Function tool with no input fields is now a
-        // generic-inline-body candidate regardless of input count, so it
-        // mounts `GenericInlinePinBody` (Run button) instead of the plain
-        // default body that used to surface `lastOutcomeProvider`'s recorded
-        // value directly. `GenericInlinePinBody` owns its own result state
-        // and never reads a stale recorded outcome on mount.
+        // Restoring a result does not replace the explicit Run affordance.
         expect(find.byType(GenericInlinePinBody), findsOneWidget);
         expect(find.byKey(inlineRunButtonKey), findsOneWidget);
-        expect(find.text('INLINE-99'), findsNothing);
+        expect(find.text('INLINE-99'), findsOneWidget);
       },
     );
 
@@ -264,6 +494,7 @@ void main() {
           ProviderScope(
             overrides: [
               ...i18nTestOverrides,
+              ...pinPersistenceTestOverrides,
               toolsLoaderProvider.overrideWith(
                 (ref) =>
                     () => <ToolDto>[timerTool],
@@ -357,6 +588,7 @@ void main() {
           ProviderScope(
             overrides: [
               ...i18nTestOverrides,
+              ...pinPersistenceTestOverrides,
               toolsLoaderProvider.overrideWith(
                 (ref) =>
                     () => <ToolDto>[firstTool, secondTool],
@@ -496,7 +728,7 @@ void main() {
         await tester.pump();
         expect(modalOpenCount, 0);
 
-        await tester.tap(find.text('DEMO.INTERACTIVE'));
+        await tester.tap(find.text(tool.label));
         await tester.pump();
         expect(modalOpenCount, 1);
       },

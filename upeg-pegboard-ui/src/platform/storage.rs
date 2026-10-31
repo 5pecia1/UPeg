@@ -5,7 +5,7 @@
 
 #![allow(
     clippy::result_unit_err,
-    reason = "storage::set_item's failure mode is platform-specific noise; callers today ignore the error and a typed error would inflate the surface without adding signal"
+    reason = "storage adapters expose a narrow Result<(), ()>; FRB mutation APIs add user-facing context when propagating failures"
 )]
 
 pub const BOARDS_KEY: &str = "upeg.boards.v1";
@@ -15,6 +15,10 @@ pub const SELECTED_BOARD_KEY: &str = "upeg.selected_board.v2";
 pub const SELECTED_TAG_KEY: &str = "upeg.selected_tag.v2";
 pub const TWEAKS_KEY: &str = "upeg.tweaks.v1";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("storage write failed")]
+pub struct StorageWriteError;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PegboardSelectionValue {
     pub board_key: Option<String>,
@@ -23,13 +27,20 @@ pub struct PegboardSelectionValue {
 
 #[cfg(target_arch = "wasm32")]
 pub fn get_item(key: &str) -> Option<String> {
-    web_sys::window()?
+    try_get_item(key).ok().flatten()
+}
+
+/// Distinguish a missing browser key from storage access errors for callers
+/// that need to offer retry instead of treating a failed read as empty data.
+#[cfg(target_arch = "wasm32")]
+pub fn try_get_item(key: &str) -> Result<Option<String>, ()> {
+    web_sys::window()
+        .ok_or(())?
         .local_storage()
-        .ok()
-        .flatten()?
+        .map_err(|_| ())?
+        .ok_or(())?
         .get_item(key)
-        .ok()
-        .flatten()
+        .map_err(|_| ())
 }
 
 /// Native storage shim. localStorage doesn't exist outside the browser, so
@@ -54,6 +65,33 @@ pub fn set_item(key: &str, value: &str) -> Result<(), ()> {
         .and_then(|window| window.local_storage().ok().flatten())
         .ok_or(())?;
     storage.set_item(key, value).map_err(|_| ())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn remove_item(key: &str) -> Result<(), ()> {
+    let storage = web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .ok_or(())?;
+    storage.remove_item(key).map_err(|_| ())
+}
+
+/// Enumerate browser keys under one prefix so per-pin records can be loaded
+/// without rewriting every other pin's value on each edit.
+#[cfg(target_arch = "wasm32")]
+pub fn list_keys(prefix: &str) -> Result<Vec<String>, ()> {
+    let storage = web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .ok_or(())?;
+    let mut keys = Vec::new();
+    for index in 0..storage.length().map_err(|_| ())? {
+        if let Some(key) = storage.key(index).map_err(|_| ())?
+            && key.starts_with(prefix)
+        {
+            keys.push(key);
+        }
+    }
+    keys.sort();
+    Ok(keys)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

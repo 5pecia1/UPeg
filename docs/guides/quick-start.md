@@ -78,6 +78,12 @@ upeg board show dev --json
 A pin written by the CLI is the same object a Desktop drag-and-drop writes —
 there is one shared pegboard store.
 
+Desktop and PWA also restore each pin's saved form values and last saved
+result after reopening the app. Editing a value keeps the previous result
+visible with a reminder to run again. See
+[Saved pin work](../architecture.md#saved-pin-work) for storage, restoration,
+deletion, and large-output behavior.
+
 Personal boards live in your profile; project boards are declared in a
 repository's `.upeg/project.toml` (see [Boards for agents](#7-boards-for-agents)).
 Running upeg inside a repository composes your personal configuration with
@@ -92,26 +98,61 @@ to overwrite an existing destination unless you pass `--force`; without
 
 ```bash
 upeg call --local media.image_convert  -a input=@photo.png -a output_format=webp --out photo.webp
+upeg call --local media.image_convert  -a input=@art.ai -a output_format=png -a ai_dpi=144 --out art.png
+upeg call --local media.image_convert  -a input=@photo.png -a output_format=svg -a vector_preset=poster --out photo.svg
+upeg call --local media.image_convert  -a input=@photo.heic -a output_format=jpeg --out photo.jpeg
 upeg call --local media.image_convert  -a input=@icon.svg  -a output_format=png -a svg_width=512 --out icon.png
 upeg call --local media.images_convert -a images=@photos/  -a output_format=jpeg -a jpeg_quality=85 --out photos.zip
 upeg call --local media.pdf_inspect    -a input=@doc.pdf --json
 upeg call --local media.pdf_to_markdown -a input=@doc.pdf --field markdown
+upeg call --local media.pdf_compress -a input=@doc.pdf -a target_bytes=2097152 --out doc-small.pdf
 ```
 
-- `media.image_convert` — one image; PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/QOI
-  output, SVG input (rasterized). `upeg tool show media.image_convert`
+- `media.image_convert` — one image, including HEIC/HEIF and PDF-compatible AI input; choose
+  PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/QOI/SVG output. AI renders its first page
+  at 144 DPI by default (36–600). Save AI files in Illustrator with the
+  “Create PDF Compatible File” option enabled. SVG input is rasterized; SVG output
+  vectorizes raster images, potentially losing detail or producing large files.
+  Tracing approximates the image after limiting its longest edge to 1024 pixels,
+  while preserving the original SVG canvas dimensions and using a white
+  background (`#FFFFFF`) by default.
+  Complex images may be rejected when they exceed processing limits.
+  AI and SVG inputs cannot be converted to SVG. Transparent pixels are
+  flattened against the background color for JPEG and SVG.
+  `upeg tool show media.image_convert`
   prints the full option list and per-option ranges.
-- `media.images_convert` — a flat directory of images → ZIP; absent from
-  the TUI (batch file tool).
+- `media.images_convert` — a flat directory of images, including HEIC/HEIF and PDF-compatible AI,
+  converted to the selected format in a ZIP; absent from the TUI (batch file tool).
 - `media.pdf_inspect` — per-page inspection: `pdf_type`, `page_count`,
   `pages_needing_ocr`. Input ≤ 32 MiB, ≤ 500 pages.
 - `media.pdf_to_markdown` — Markdown plus a JSON `report` whose
   `extraction_status` is `complete`/`partial`/`unavailable`; check the
   status via `--json` or `--field report` — the default view shows only
   the Markdown.
+- `media.pdf_compress` — try bounded image recompression and pixel downsampling
+  toward `target_bytes`, preserving text and vector objects. `mode` is `balanced`
+  (default) or `high_quality`. Both first try lossless compression;
+  `high_quality` then tries conservative JPEG profiles before the balanced
+  profiles. The first profile meeting the target wins. The original is also
+  a candidate, so the result never grows; an input already within target and
+  the output safety ceiling is returned unchanged. Check `--field report` or
+  `--json`: `status` is `already_within_target`, `target_met`, or `target_unmet`.
+  The report includes `input_bytes`, `output_bytes`, `saved_bytes`,
+  `selected_profile`, per-profile `attempts`, and `skipped_images` with reasons.
+  Input is limited to 50 MiB; `target_bytes` and `max_output_bytes` are limited
+  to 64 MiB. `max_output_bytes` is a safety ceiling, not a compression target.
+  If no candidate fits that ceiling, the tool returns an error.
+  Only eligible JPEG, Flate, or unfiltered DeviceRGB/DeviceGray 8-bit images
+  are recompressed;
+  masks and unsupported image encodings are preserved and reported.
+  Image decode/resize work is capped at 128 MiB per image; oversized work is
+  recorded as a skipped image or failed profile rather than attempted.
+  Encrypted and signed PDFs are rejected. This runs locally on native and
+  browser/PWA builds without an external CLI; it does not reproduce Ghostscript
+  DPI profiles or convert color images to grayscale.
 
-Metadata (EXIF, ICC) and animation are not preserved, except that
-recognizable EXIF orientation is applied to the pixels. The `FileValue`
+For image conversion, metadata (EXIF, ICC) and animation are not preserved,
+except that recognizable EXIF orientation is applied to the pixels. The `FileValue`
 JSON wire shape (for HTTP/MCP callers) is in
 [the File wire contract](../architecture.md#file-wire).
 

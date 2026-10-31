@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "app_version": "0.5.3",
+  "app_version": "0.7.8",
   "toolkits": [
     {
       "id": "color",
@@ -895,6 +895,260 @@
       ]
     },
     {
+      "id": "data",
+      "tags": [
+        "pure",
+        "data",
+        "schema"
+      ],
+      "description": "Structured data comparison and schema utilities.",
+      "tools": [
+        {
+          "id": "data.schema_diff",
+          "toolkit": "data",
+          "local_id": "schema_diff",
+          "tags": [],
+          "display_label": "Schema diff",
+          "description": "Compare supported inferred schemas or generation envelopes, reporting observed changes and unknown item types.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "left",
+                "label": null,
+                "description": "First inferred schema or generation envelope",
+                "required": true,
+                "kind": "Json"
+              },
+              {
+                "name": "right",
+                "label": null,
+                "description": "Second inferred schema or generation envelope",
+                "required": true,
+                "kind": "Json"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Equal, different, or inconclusive status with typed findings",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "data.schema_generate",
+          "toolkit": "data",
+          "local_id": "schema_generate",
+          "tags": [],
+          "display_label": "Generate schema",
+          "description": "Infer an observational JSON-compatible schema from a JSON or YAML document or a nonempty array of samples.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "JSON or YAML document",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "format",
+                "label": null,
+                "description": "Document format (default: json)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "json",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "yaml",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "sample_mode",
+                "label": null,
+                "description": "Treat input as one document or as an array of samples (default: document)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "document",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "samples",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Versioned schema and observation counts",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "data.value_diff",
+          "toolkit": "data",
+          "local_id": "value_diff",
+          "tags": [],
+          "display_label": "Value diff",
+          "description": "Compare JSON or YAML values structurally, with JSON Pointer paths and aligned array changes.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "left",
+                "label": null,
+                "description": "First JSON or YAML document",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "right",
+                "label": null,
+                "description": "Second JSON or YAML document",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "left_format",
+                "label": null,
+                "description": "First document format (default: json)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "json",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "yaml",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "right_format",
+                "label": null,
+                "description": "Second document format (default: json)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "json",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "yaml",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Equality status and typed changes",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        }
+      ]
+    },
+    {
       "id": "devcontainer",
       "tags": [
         "file",
@@ -1502,7 +1756,7 @@
           "local_id": "image_convert",
           "tags": [],
           "display_label": "Convert image",
-          "description": "Convert one image and save it directly. SVG is rasterized; animated images and multi-page TIFF use the first frame/page. WebP output is lossless.",
+          "description": "Convert one image to the selected format and save it directly. HEIC/HEIF and PDF-compatible AI inputs are supported; SVG is rasterized and AI uses the first PDF page. Animated images and multi-page TIFF use the first frame/page. WebP output is lossless. SVG output traces raster images after compositing transparency on the background color and scaling to a maximum edge of 1024 pixels; AI/SVG inputs cannot be traced to SVG.",
           "input_spec": {
             "fields": [
               {
@@ -1514,8 +1768,11 @@
                   "File": {
                     "max_count": 1,
                     "extensions": [
+                      "ai",
                       "bmp",
                       "gif",
+                      "heic",
+                      "heif",
                       "ico",
                       "jpeg",
                       "jpg",
@@ -1578,6 +1835,11 @@
                         "value": "qoi",
                         "label": null,
                         "description": null
+                      },
+                      {
+                        "value": "svg",
+                        "label": null,
+                        "description": null
                       }
                     ]
                   }
@@ -1600,7 +1862,7 @@
               {
                 "name": "background",
                 "label": null,
-                "description": "JPEG background color",
+                "description": "JPEG and SVG background color",
                 "required": false,
                 "kind": "String",
                 "constraints": {
@@ -1636,6 +1898,47 @@
                     "min": 1.0,
                     "max": 67108864.0,
                     "default": 67108864.0
+                  }
+                }
+              },
+              {
+                "name": "ai_dpi",
+                "label": null,
+                "description": "AI PDF render DPI (36–600, default 144)",
+                "required": false,
+                "kind": "Number",
+                "constraints": {
+                  "number": {
+                    "min": 36.0,
+                    "max": 600.0,
+                    "default": 144.0
+                  }
+                }
+              },
+              {
+                "name": "vector_preset",
+                "label": null,
+                "description": "SVG trace preset (default poster)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "poster",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "photo",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "bw",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
                   }
                 }
               }
@@ -1742,7 +2045,7 @@
           "local_id": "images_convert",
           "tags": [],
           "display_label": "Batch convert images",
-          "description": "Convert selected images to a ZIP. SVG is rasterized; animation and multi-page TIFF use the first frame/page. WebP output is lossless.",
+          "description": "Convert selected images to the chosen format in a ZIP. HEIC/HEIF and PDF-compatible AI inputs are supported; SVG is rasterized and AI uses the first PDF page. Animation and multi-page TIFF use the first frame/page. WebP output is lossless. SVG output traces raster images after compositing transparency on the background color and scaling to a maximum edge of 1024 pixels; AI/SVG inputs cannot be traced to SVG.",
           "input_spec": {
             "fields": [
               {
@@ -1754,8 +2057,11 @@
                   "File": {
                     "max_count": 100,
                     "extensions": [
+                      "ai",
                       "bmp",
                       "gif",
+                      "heic",
+                      "heif",
                       "ico",
                       "jpeg",
                       "jpg",
@@ -1818,6 +2124,11 @@
                         "value": "qoi",
                         "label": null,
                         "description": null
+                      },
+                      {
+                        "value": "svg",
+                        "label": null,
+                        "description": null
                       }
                     ]
                   }
@@ -1840,7 +2151,7 @@
               {
                 "name": "background",
                 "label": null,
-                "description": "JPEG background color",
+                "description": "JPEG and SVG background color",
                 "required": false,
                 "kind": "String",
                 "constraints": {
@@ -1878,6 +2189,47 @@
                     "default": 67108864.0
                   }
                 }
+              },
+              {
+                "name": "ai_dpi",
+                "label": null,
+                "description": "AI PDF render DPI (36–600, default 144)",
+                "required": false,
+                "kind": "Number",
+                "constraints": {
+                  "number": {
+                    "min": 36.0,
+                    "max": 600.0,
+                    "default": 144.0
+                  }
+                }
+              },
+              {
+                "name": "vector_preset",
+                "label": null,
+                "description": "SVG trace preset (default poster)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "poster",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "photo",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "bw",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
               }
             ]
           },
@@ -1901,6 +2253,118 @@
           "invoker": "Function",
           "surfaces": [
             "Cli",
+            "Desktop",
+            "Mcp",
+            "Http",
+            "Pwa",
+            "Ext"
+          ],
+          "boards": []
+        },
+        {
+          "id": "media.pdf_compress",
+          "toolkit": "media",
+          "local_id": "pdf_compress",
+          "tags": [],
+          "display_label": "Compress PDF",
+          "description": "Try image quality and pixel-size profiles until the PDF meets the target. Preserves text and vectors; unsupported images stay unchanged. A missed target is reported, not guaranteed. Signed and encrypted PDFs are rejected.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "PDF file (up to 50 MiB)",
+                "required": true,
+                "kind": {
+                  "File": {
+                    "max_count": 1,
+                    "extensions": [
+                      "pdf"
+                    ],
+                    "max_file_bytes": 52428800,
+                    "max_total_bytes": 52428800
+                  }
+                }
+              },
+              {
+                "name": "target_bytes",
+                "label": null,
+                "description": "Desired PDF size in bytes (1 MiB = 1048576 bytes)",
+                "required": true,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": null
+                  }
+                }
+              },
+              {
+                "name": "mode",
+                "label": null,
+                "description": "Profile order: balanced by default, or conservative profiles first",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "balanced",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "high_quality",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "max_output_bytes",
+                "label": null,
+                "description": "Output safety limit in bytes, independent of the target",
+                "required": false,
+                "kind": "Integer",
+                "constraints": {
+                  "number": {
+                    "min": 1.0,
+                    "max": 67108864.0,
+                    "default": 67108864.0
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "PDF artifact",
+                "kind": "File"
+              },
+              {
+                "name": "report",
+                "label": null,
+                "description": "Target status, sizes, profiles and preserved unsupported images",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Launcher",
+          "pegboard_units": "U2",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
             "Desktop",
             "Mcp",
             "Http",
@@ -3501,6 +3965,60 @@
       "description": "Timestamp utilities.",
       "tools": [
         {
+          "id": "time.cron_inspect",
+          "toolkit": "time",
+          "local_id": "cron_inspect",
+          "tags": [],
+          "display_label": "Inspect cron",
+          "description": "Explain a five-field Unix cron expression and show its next five UTC occurrences (years 1–5000; steps at most 65535).",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "expression",
+                "label": null,
+                "description": "Minute hour day-of-month month day-of-week",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "after",
+                "label": null,
+                "description": "RFC 3339 reference time (default: now)",
+                "required": false,
+                "kind": "String"
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Description, UTC timezone, and next five occurrences",
+                "kind": "Json"
+              }
+            ]
+          },
+          "primary_output_id": "result",
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
           "id": "time.epoch",
           "toolkit": "time",
           "local_id": "epoch",
@@ -3584,6 +4102,68 @@
           "boards": []
         },
         {
+          "id": "time.from_epoch",
+          "toolkit": "time",
+          "local_id": "from_epoch",
+          "tags": [],
+          "display_label": "Epoch to date",
+          "description": "Convert a signed Unix timestamp to UTC RFC 3339.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "Integer timestamp",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "unit",
+                "label": null,
+                "description": "Unit (default: seconds)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "seconds",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "milliseconds",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": []
+          },
+          "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
           "id": "time.iso_now",
           "toolkit": "time",
           "local_id": "iso_now",
@@ -3597,6 +4177,75 @@
             "fields": []
           },
           "primary_output_id": null,
+          "effect": "unknown",
+          "source": {
+            "type": "user_input"
+          },
+          "pin": "Inline",
+          "pegboard_units": "U1",
+          "invoker": "Function",
+          "surfaces": [
+            "Cli",
+            "Tui",
+            "Desktop",
+            "Pwa",
+            "Ext",
+            "Mcp",
+            "Http"
+          ],
+          "boards": []
+        },
+        {
+          "id": "time.to_epoch",
+          "toolkit": "time",
+          "local_id": "to_epoch",
+          "tags": [],
+          "display_label": "Date to epoch",
+          "description": "Convert RFC 3339 to a signed Unix timestamp; fractional units round down.",
+          "input_spec": {
+            "fields": [
+              {
+                "name": "input",
+                "label": null,
+                "description": "RFC 3339 timestamp with timezone",
+                "required": true,
+                "kind": "String"
+              },
+              {
+                "name": "unit",
+                "label": null,
+                "description": "Unit (default: seconds)",
+                "required": false,
+                "kind": {
+                  "Options": {
+                    "options": [
+                      {
+                        "value": "seconds",
+                        "label": null,
+                        "description": null
+                      },
+                      {
+                        "value": "milliseconds",
+                        "label": null,
+                        "description": null
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "output_spec": {
+            "fields": [
+              {
+                "name": "result",
+                "label": null,
+                "description": "Signed Unix timestamp",
+                "kind": "Number"
+              }
+            ]
+          },
+          "primary_output_id": "result",
           "effect": "unknown",
           "source": {
             "type": "user_input"

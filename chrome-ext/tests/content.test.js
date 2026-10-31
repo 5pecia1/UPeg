@@ -326,3 +326,27 @@ test('text_inside_an_already_wrapped_span_is_not_wrapped_again', () => {
   assert.equal(mark.childNodes.length, 1);
   assert.equal(mark.childNodes[0], added);
 });
+
+test('epoch_host_requests_and_offline_links_preserve_both_units', async () => {
+  for (const [value, unit, preview] of [
+    ['1699999999', 'seconds', '2023-11-14T22:13:19.000Z'],
+    ['1699999999123', 'milliseconds', '2023-11-14T22:13:19.123Z'],
+  ]) {
+    const browser = makeBrowser();
+    const calls = [];
+    browser.globals.chrome.i18n.getMessage = (key, args = []) => `${key} ${args.join(' ')}`;
+    browser.globals.chrome.runtime.sendMessage = async (message) => { calls.push(message); return null; };
+    const element = elementWith('div', value);
+    browser.body.appendChild(element);
+    loadContentScript(browser);
+    const span = marks(element)[0];
+    const url = new URL(span.getAttribute('data-upeg-link'));
+    assert.equal(url.searchParams.get('tool'), 'time.from_epoch');
+    assert.deepEqual(JSON.parse(url.searchParams.get('input')), { input: value, unit });
+    await span.listeners.find((listener) => listener.type === 'mouseenter').handler();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(calls[0].toolId, 'time.from_epoch');
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[0].args)), { input: value, unit });
+    assert.ok(span.getAttribute('data-upeg-tip').includes(preview));
+  }
+});

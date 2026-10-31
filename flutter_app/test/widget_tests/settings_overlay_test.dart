@@ -98,6 +98,9 @@ const Map<String, Map<LocaleDto, String>> _fakeCatalog = {
   'settings.radio.mode': {LocaleDto.en: 'mode', LocaleDto.ko: '모드'},
   'settings.radio.accent': {LocaleDto.en: 'accent', LocaleDto.ko: '강조색'},
   'settings.radio.locale': {LocaleDto.en: 'locale', LocaleDto.ko: '언어'},
+  'settings.radio.pin_handle': {LocaleDto.en: 'handle', LocaleDto.ko: '손잡이'},
+  'settings.pin_handle.peg': {LocaleDto.en: 'Peg', LocaleDto.ko: '페그'},
+  'settings.pin_handle.dots': {LocaleDto.en: '6 dots', LocaleDto.ko: '점 6개'},
   'settings.toggle.peg_holes': {
     LocaleDto.en: 'peg holes',
     LocaleDto.ko: '페그 구멍',

@@ -1,11 +1,11 @@
 //! Versioned schema for the shared state store.
 //!
 //! Migrations are append-only: each entry in [`MIGRATIONS`] moves the
-//! database from `PRAGMA user_version == index` to `index + 1`, inside its
-//! own transaction. Later steps (e.g. last outcomes) extend the list —
-//! existing entries never change.
+//! database from `PRAGMA user_version == index` to `index + 1`. A single
+//! immediate transaction covers the pending entries so concurrent opens
+//! cannot both decide the same migration is still needed.
 
-use rusqlite::Connection;
+use rusqlite::{Connection, TransactionBehavior};
 
 use super::StoreError;
 
@@ -16,6 +16,7 @@ pub(crate) const SELECTION_TABLE: &str = "selection";
 pub(crate) const MEMOS_TABLE: &str = "memos";
 pub(crate) const EXECUTION_LOG_TABLE: &str = "execution_log";
 pub(crate) const LAST_OUTCOMES_TABLE: &str = "last_outcomes";
+pub(crate) const PIN_DRAFTS_TABLE: &str = "pin_drafts";
 pub(crate) const DIAGNOSTICS_TABLE: &str = "diagnostics";
 
 /// The selection table holds exactly one row, pinned to this id.
@@ -113,9 +114,8 @@ CREATE INDEX execution_log_tool_id_started_at_ms
 /// The key is per placement (`board_key`, `tool_id`) — the same tool
 /// pinned on two boards keeps two independent outcomes. Rows are a
 /// device-local cache, not sync-merged user data: an unpin deletes the
-/// row outright (no tombstone). `outputs_json` is capped before insert
-/// (see `store::last_outcomes::OUTPUTS_JSON_MAX_BYTES`); `truncated`
-/// records that the cap fired so the UI can render an ellipsis.
+/// row outright (no tombstone). `truncated` is retained for rows written
+/// by older releases whose outputs exceeded the former size cap.
 const MIGRATION_V3: &str = "\
 CREATE TABLE last_outcomes (
     board_key         TEXT NOT NULL,
@@ -230,6 +230,19 @@ DROP TABLE last_outcomes;
 ALTER TABLE last_outcomes_v7 RENAME TO last_outcomes;
 ";
 
+/// v8 — current form input is independent of saved argument presets and
+/// of the input snapshot that produced the last outcome.
+const MIGRATION_V8: &str = "\
+CREATE TABLE pin_drafts (
+    board_key TEXT NOT NULL,
+    pin_id    TEXT NOT NULL,
+    tool_id   TEXT NOT NULL,
+    args_json TEXT NOT NULL,
+    PRIMARY KEY (board_key, pin_id)
+);
+ALTER TABLE last_outcomes ADD COLUMN args_json TEXT;
+";
+
 /// Append-only migration list. `MIGRATIONS.len()` is the current schema
 /// version as recorded in `PRAGMA user_version`.
 pub(crate) const MIGRATIONS: &[&str] = &[
@@ -240,18 +253,30 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     MIGRATION_V5,
     MIGRATION_V6,
     MIGRATION_V7,
+    MIGRATION_V8,
 ];
 
 /// Bring `conn` up to the latest schema version. Idempotent: already-
-/// applied migrations (tracked via `PRAGMA user_version`) are skipped.
+/// applied migrations (tracked via `PRAGMA user_version`) are skipped, and a
+/// connection that is already current returns without taking the write lock.
 pub(crate) fn migrate(conn: &mut Connection) -> Result<(), StoreError> {
-    let applied = user_version(conn)?;
+    // Fast path: the version read takes no write lock, so opening an
+    // up-to-date database never queues behind another process's writer. A
+    // race where two fresh connections both see v0 here is settled by the
+    // re-check inside the IMMEDIATE transaction below.
+    if user_version(conn)? >= MIGRATIONS.len() {
+        return Ok(());
+    }
+    // Slow path: acquire the write lock before re-reading the version.
+    // Reading it first lets two fresh connections both see v0, then each
+    // attempt CREATE TABLE once the first writer commits.
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let applied = user_version(&tx)?;
     for (index, migration) in MIGRATIONS.iter().enumerate().skip(applied) {
-        let tx = conn.transaction()?;
         tx.execute_batch(migration)?;
         tx.pragma_update(None, PRAGMA_USER_VERSION, index + 1)?;
-        tx.commit()?;
     }
+    tx.commit()?;
     Ok(())
 }
 

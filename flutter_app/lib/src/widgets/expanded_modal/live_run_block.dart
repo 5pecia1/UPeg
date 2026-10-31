@@ -6,11 +6,13 @@ class _LiveRunBlock extends ConsumerWidget {
     required this.tail,
     required this.tokens,
     required this.onCancel,
+    required this.cancelRequested,
   });
 
   final LiveTail tail;
   final UpegTokens tokens;
-  final VoidCallback onCancel;
+  final VoidCallback? onCancel;
+  final bool cancelRequested;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,23 +44,31 @@ class _LiveRunBlock extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              TextButton(
-                key: const Key('expanded-modal-cancel-btn'),
-                style: TextButton.styleFrom(
-                  foregroundColor: tokens.warn,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+              if (onCancel != null)
+                TextButton(
+                  key: const Key('expanded-modal-cancel-btn'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: tokens.warn,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: const Size(0, 24),
+                    textStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  minimumSize: const Size(0, 24),
-                  textStyle: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                  onPressed: cancelRequested ? null : onCancel,
+                  child: Text(
+                    t(
+                      ref,
+                      cancelRequested
+                          ? 'modal.action.cancel_requested'
+                          : 'modal.action.cancel_run',
+                    ),
                   ),
                 ),
-                onPressed: onCancel,
-                child: Text(t(ref, 'modal.action.cancel_run')),
-              ),
             ],
           ),
           if (tail.isNotEmpty) ...[

@@ -1,6 +1,6 @@
 # upeg — Universal Pegboard
 
-**English** | [한국어](README.ko.md)
+**English** | [Korean](README.ko.md)
 
 Pin a tool once, call it from anywhere. upeg turns the commands, conversions,
 and checks you reach for every day into **Tools** that live on a board — and
@@ -163,7 +163,7 @@ through boards, presets, MCP client setup, and file input.
 | Surface | Start it |
 |---|---|
 | Terminal (TUI / CLI) | `upeg` · `upeg call <toolkit>.<tool>` |
-| Desktop app | `cd flutter_app && flutter run -d linux` |
+| Desktop app | macOS: `cd flutter_app && flutter run -d macos --release`; Linux: `cd flutter_app && flutter run -d linux --release` |
 | MCP (agents) | `upeg board dev connect` · `upeg mcp --board dev` |
 | HTTP host | `upeg http --addr 127.0.0.1:7173` |
 | PWA | `just package-web` |

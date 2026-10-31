@@ -66,12 +66,38 @@ The Desktop and PWA surfaces are Flutter apps over a Rust bridge
 ```bash
 cd flutter_app
 flutter pub get
-flutter run -d linux
+flutter run -d linux --release
 ```
 
-CMake invokes the Rust build for `upeg_frb` itself — no separate
-`cargo build` step. From the repository root, the web/PWA recipes build the
-`wasm32` bridge first:
+On Linux, CMake invokes the Rust build for `upeg_frb` itself — no separate
+`cargo build` step. The first Rust and Flutter build can take several minutes.
+Use release mode when judging startup time and memory: debug uses Flutter JIT
+and its `libupeg_frb.so` is about 991 MB on disk in this build. Alternatively,
+run `just flutter-build-linux` at the repository root, then launch
+`flutter_app/build/linux/x64/release/bundle/upeg`.
+
+On a Linux desktop host, after the first release build, run
+`just flutter-desktop-entry-linux` once to install a local desktop entry.
+It supplies the app icon, launch notification, and `upeg://` link handler,
+particularly on Wayland. Run it on the desktop host, not inside a container.
+The recipe fails if the release bundle does not exist. If `flutter clean`
+removes the bundle, rebuild before launching through GNOME; GNOME ignores an
+entry whose executable is missing. Rerun the recipe if the bundle path moves.
+Before installing a deb or rpm, remove the local override at
+`~/.local/share/applications/io.github._5pecia1.upeg.desktop`.
+
+On Linux, launching the same storage root a second time brings the existing
+window forward. A terminal relaunch prints one stderr line:
+`upeg: already running; activated the existing window`.
+
+On macOS, use `cd flutter_app && flutter run -d macos --release` for a local
+release run, or `just flutter-build-macos` from the repository root to build
+the release `.app`. The DMG made by `just package-macos-dmg` contains that app
+bundle. Its app icon and menu bar template icon are bundled; no separate icon
+registration step is needed. The current DMG packaging recipe does not sign or notarize the app; see
+[Packaging](#packaging-installable-artifacts) before installing a downloaded DMG.
+
+From the repository root, the web/PWA recipes build the `wasm32` bridge first:
 
 ```bash
 just flutter-run-web            # FRB wasm + flutter run -d chrome
@@ -122,8 +148,10 @@ for the full pairing and manual test flow.
 ## WASM plugins
 
 Plugin commands (`upeg plugin install` / `upeg plugin list` /
-`upeg wasm`) need the `wasm-plugin` cargo feature, which is on by
-default — only a `--no-default-features` build lacks them.
+`upeg wasm`) are included in the default CLI and desktop builds.
+The FRB bridge enables `wasm-plugin` by default too, so its standard tests
+exercise the shipped configuration. A `--no-default-features` build lacks
+these commands.
 `upeg doctor` lists enabled features. Building your own plugin needs the
 `wasm32-unknown-unknown` target and `wasm-pack`; see the
 [tool author guide](tool-author.md#wasm-plugins-and-mcp-imports) and
@@ -134,6 +162,7 @@ default — only a `--no-default-features` build lacks them.
 ```bash
 just package                    # Linux desktop packages + web bundle (Linux host)
 just package-linux-deb          # → target/packages/linux/upeg_<ver>_amd64.deb
+just package-linux-rpm          # → target/packages/linux/upeg-<ver>-1.x86_64.rpm
 just package-linux-appimage     # → target/packages/linux/upeg-<ver>-x86_64.AppImage
 just package-macos-dmg          # → target/packages/macos/upeg-<ver>.dmg      (macOS only)
 just package-windows-msix       # → target/packages/windows/*.msix           (Windows only)
@@ -143,6 +172,7 @@ just package-web                # → target/packages/web/ (PWA bundle, pre-gzip
 | Recipe | Extra tools |
 |---|---|
 | `package-linux-deb` | `fpm` (`gem install fpm`) |
+| `package-linux-rpm` | `fpm` (`gem install fpm`) and `rpmbuild`/`rpm` (`apt install rpm` on Debian) |
 | `package-linux-appimage` | `appimagetool` ([appimagetool releases](https://github.com/AppImage/appimagetool/releases)) + `appstreamcli` (`appstream`); the recipe sets `APPIMAGE_EXTRACT_AND_RUN=1` so FUSE is not needed |
 | `package-macos-dmg` | `create-dmg` (`brew install create-dmg`) — macOS host only |
 | `package-windows-msix` | the `msix` dev dependency and `msix_config` in `pubspec.yaml` — Windows host only |
@@ -159,7 +189,7 @@ font licenses, and `BUILD-INFO` — via `packaging/release-files.sh`.
 Signing and notarization are intentionally out of scope — artifacts are
 unsigned.
 
-The `.deb` installs the app under `/opt/upeg` and links
+The `.deb` and `.rpm` install the app under `/opt/upeg` and link
 `/usr/bin/upeg-app` — the desktop app's PATH entry. The plain `upeg`
 name stays with the CLI binary; the `.desktop` file launches the app by
 its absolute path.
@@ -170,7 +200,8 @@ unsigned release assets, each with a `.sha256` sidecar:
 `upeg-v<ver>-aarch64-unknown-linux-gnu.tar.gz`,
 `upeg-v<ver>-aarch64-apple-darwin.tar.gz`,
 `upeg-v<ver>-x86_64-pc-windows-msvc.zip` (CLI builds),
-`upeg_<ver>_amd64.deb` and `upeg-v<ver>-x86_64.AppImage` (Linux desktop),
+`upeg_<ver>_amd64.deb`, `upeg-<ver>-1.x86_64.rpm`, and
+`upeg-v<ver>-x86_64.AppImage` (Linux desktop),
 `upeg-v<ver>.dmg` (macOS desktop), `upeg-v<ver>-x86_64.msix` (Windows
 desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). It also publishes
 native toolkit catalogues and 15 versioned packs per target for Linux

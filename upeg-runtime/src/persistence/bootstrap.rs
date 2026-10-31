@@ -47,7 +47,7 @@ pub fn bootstrap_tweaks(path: &Path, detect_hint: &str) -> Tweaks {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use upeg_core::prefs::{Accent, Theme};
+    use upeg_core::prefs::{Accent, PinHandleStyle, Theme};
 
     fn temp_path(label: &str) -> std::path::PathBuf {
         let nanos = std::time::SystemTime::now()
@@ -70,6 +70,7 @@ mod tests {
             theme: Theme::Dark,
             accent: Accent::Cyan,
             show_holes: false,
+            pin_handle_style: PinHandleStyle::Dots,
             local_http_host: false,
             locale: Locale::Ko,
         };
@@ -91,6 +92,7 @@ mod tests {
             theme: Theme::Dark,
             accent: Accent::Pink,
             show_holes: false,
+            pin_handle_style: PinHandleStyle::Dots,
             local_http_host: false,
             locale: Locale::Ko,
         };

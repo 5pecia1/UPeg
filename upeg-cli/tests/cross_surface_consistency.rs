@@ -245,6 +245,42 @@ async fn a_two_arg_builtin_tool_produces_consistent_results_on_every_surface() {
     assert_eq!(direct, via_http);
 }
 
+#[tokio::test]
+async fn data_tools_preserve_json_outputs_across_cli_mcp_and_http() {
+    let (before, via_mcp, via_http) = dispatch_three_ways(
+        "data.schema_generate",
+        json!({"input": "port: 80\n", "format": "yaml"}),
+    )
+    .await;
+    assert_eq!(before, via_mcp);
+    assert_eq!(before, via_http);
+    let (after, _, _) = dispatch_three_ways(
+        "data.schema_generate",
+        json!({"input": "{\"port\":\"80\"}"}),
+    )
+    .await;
+    for (tool, args) in [
+        (
+            "data.value_diff",
+            json!({"left": "{\"port\":80}", "right": "{\"port\":\"80\"}"}),
+        ),
+        (
+            "data.schema_diff",
+            json!({
+                "left": serde_json::from_str::<Value>(&before).unwrap(),
+                "right": serde_json::from_str::<Value>(&after).unwrap(),
+            }),
+        ),
+    ] {
+        let (direct, via_mcp, via_http) = dispatch_three_ways(tool, args).await;
+        assert_eq!(direct, via_mcp, "MCP differs for {tool}");
+        assert_eq!(direct, via_http, "HTTP differs for {tool}");
+        let report: Value = serde_json::from_str(&direct).unwrap();
+        assert_eq!(report["status"], "different");
+        assert_eq!(report["changes"][0]["path"], "/port");
+    }
+}
+
 /// Iter 235: error-path cross-surface consistency. Pre-iter-235 only
 /// the Ok path was pinned — a regression that wrapped the tool's
 /// error string on one surface (e.g., "Error: invalid hex" on MCP

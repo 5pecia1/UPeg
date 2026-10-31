@@ -150,6 +150,44 @@ void main() {
       },
     );
 
+    test('preserves malformed numeric and date text for a restored draft', () {
+      final controller = GenericFormController();
+      const fields = [
+        InputFieldDto(
+          key: 'integer',
+          label: 'Integer',
+          fieldType: InputFieldType_Integer(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'number',
+          label: 'Number',
+          fieldType: InputFieldType_Number(),
+          required_: true,
+        ),
+        InputFieldDto(
+          key: 'when',
+          label: 'When',
+          fieldType: InputFieldType_DateTime(),
+          required_: true,
+        ),
+      ];
+
+      controller.seed(
+        ToolArgs.fromJsonObject(const <String, Object?>{
+          'integer': '-',
+          'number': '1e400',
+          'when': '2026-02-31T12:30:00Z',
+        }),
+        fields: fields,
+        preserveInvalidText: true,
+      );
+
+      expect(controller.value('integer'), const TextValue('-'));
+      expect(controller.value('number'), const TextValue('1e400'));
+      expect(controller.value('when'), const TextValue('2026-02-31T12:30:00Z'));
+    });
+
     test('does not store unknown input schema keys or disallowed values', () {
       final controller = GenericFormController();
       const fields = [

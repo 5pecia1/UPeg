@@ -16,9 +16,10 @@ FILES=(
   background.js popup.js content.js
 )
 LOCALE_FILES=(_locales/en/messages.json _locales/ko/messages.json)
+ASSET_FILES=(icons/icon-16.png icons/icon-48.png icons/icon-128.png)
 
 echo "[1/3] validate static extension inputs"
-for file in "${FILES[@]}" "${LOCALE_FILES[@]}"; do
+for file in "${FILES[@]}" "${LOCALE_FILES[@]}" "${ASSET_FILES[@]}"; do
   if [ ! -f "$EXT_DIR/$file" ]; then
     echo "error: missing chrome-ext/$file" >&2
     exit 1
@@ -31,7 +32,7 @@ mkdir -p "$DIST_DIR"
 for file in "${FILES[@]}"; do
   cp "$EXT_DIR/$file" "$DIST_DIR/$file"
 done
-for file in "${LOCALE_FILES[@]}"; do
+for file in "${LOCALE_FILES[@]}" "${ASSET_FILES[@]}"; do
   mkdir -p "$DIST_DIR/$(dirname "$file")"
   cp "$EXT_DIR/$file" "$DIST_DIR/$file"
 done
@@ -43,7 +44,3 @@ echo "       or falls back to upeg://open?surface=ext if upeg isn't running"
 echo "     · content scripts are registered dynamically per enabled site;"
 echo "       etherscan/polygonscan are seeded on install, any other site is"
 echo "       added from the popup's 'Enable on this site' toggle"
-echo
-echo "note: manifest.json ships without an \`icons\` block — Chrome will use"
-echo "      its default puzzle-piece icon. Add icon-{16,48,128}.png and"
-echo "      reference them from manifest before publishing to the Web Store."

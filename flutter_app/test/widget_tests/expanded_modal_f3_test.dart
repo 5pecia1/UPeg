@@ -27,6 +27,7 @@ import 'package:upeg/src/state/dispatch_stream_provider.dart';
 import '../test_helpers/tool_fixture.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
 
 final ToolDto _genericTool = fixtureToolDto(
@@ -56,6 +57,7 @@ Widget _harness({
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       currentBoardKeyProvider.overrideWith(
         () => _SeededCurrentBoardNotifier(boardKey),
       ),

@@ -17,81 +17,16 @@ library;
 
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
+import 'catalog_ui_workflows.dart';
+import 'i18n_test_catalog_media.dart';
 
 /// En/Ko fixture rows for the catalog keys exercised by widget tests.
 const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
-  "media.convert.guidance": {
-    LocaleDto.en:
-        "Choose an image and output format, then convert and save. SVG becomes pixels. Animated images and TIFF use the first frame/page; WebP is lossless.",
-    LocaleDto.ko:
-        "이미지와 출력 형식을 선택하고 변환한 뒤 저장하세요. SVG는 픽셀 이미지로 변환합니다. 애니메이션·TIFF는 첫 프레임/페이지만, WebP는 무손실로 변환합니다.",
-  },
-  "media.convert.advanced": {
-    LocaleDto.en: "Advanced settings",
-    LocaleDto.ko: "고급 설정",
-  },
-  "media.convert.ico": {
-    LocaleDto.en:
-        "ICO supports images up to 256 × 256 pixels. For SVG, set the output width to 256 or less.",
-    LocaleDto.ko: "ICO는 최대 256 × 256 픽셀을 지원합니다. SVG는 출력 폭을 256 이하로 설정하세요.",
-  },
-  "media.convert.input": {LocaleDto.en: "Image", LocaleDto.ko: "이미지"},
-  "media.convert.images": {
-    LocaleDto.en: "Images (ZIP output)",
-    LocaleDto.ko: "이미지 여러 장 (ZIP 출력)",
-  },
-  "media.convert.format": {
-    LocaleDto.en: "Output format",
-    LocaleDto.ko: "출력 형식",
-  },
-  "media.convert.quality": {
-    LocaleDto.en: "JPEG quality",
-    LocaleDto.ko: "JPEG 품질",
-  },
-  "media.convert.background": {
-    LocaleDto.en: "Background for transparent pixels (#RRGGBB)",
-    LocaleDto.ko: "투명 영역의 배경색 (#RRGGBB)",
-  },
-  "media.convert.svg_width": {
-    LocaleDto.en: "SVG width in pixels (0 = original)",
-    LocaleDto.ko: "SVG 출력 폭 (픽셀, 0 = 원본)",
-  },
-  "media.convert.limit": {
-    LocaleDto.en: "Maximum output size in bytes",
-    LocaleDto.ko: "최대 출력 크기 (바이트)",
-  },
-  "media.file.preview": {
-    LocaleDto.en: "Converted image preview",
-    LocaleDto.ko: "변환된 이미지 미리보기",
-  },
-  "media.file.preview_unavailable": {
-    LocaleDto.en: "Preview unavailable. Save the file to view it.",
-    LocaleDto.ko: "미리보기를 지원하지 않습니다. 파일을 저장하여 확인하세요.",
-  },
-  "media.file.save": {LocaleDto.en: "Save", LocaleDto.ko: "저장"},
-  "media.file.save_title": {
-    LocaleDto.en: "Save output file",
-    LocaleDto.ko: "결과 파일 저장",
-  },
-  "media.file.saving": {LocaleDto.en: "Saving…", LocaleDto.ko: "저장 중…"},
-  "media.file.saved": {LocaleDto.en: "Saved.", LocaleDto.ko: "저장했습니다."},
-  "media.file.download_started": {
-    LocaleDto.en: "Download started. Check your browser downloads.",
-    LocaleDto.ko: "다운로드를 시작했습니다. 브라우저 다운로드 목록을 확인하세요.",
-  },
-  "media.file.save_failed": {
-    LocaleDto.en:
-        "Could not save the file. Check the destination and try again.",
-    LocaleDto.ko: "파일을 저장하지 못했습니다. 저장 위치를 확인하고 다시 시도하세요.",
-  },
-  "tool.media.image_convert.label": {
-    LocaleDto.en: "Convert image",
-    LocaleDto.ko: "이미지 변환",
-  },
-  "tool.media.images_convert.label": {
-    LocaleDto.en: "Batch convert images",
-    LocaleDto.ko: "이미지 일괄 변환",
-  },
+  'settings.radio.pin_handle': {LocaleDto.en: 'handle', LocaleDto.ko: '손잡이'},
+  'settings.pin_handle.peg': {LocaleDto.en: 'Peg', LocaleDto.ko: '페그'},
+  'settings.pin_handle.dots': {LocaleDto.en: '6 dots', LocaleDto.ko: '점 6개'},
+  ...uiWorkflowTestCatalog,
+  ...mediaTestCatalog,
   'board.connection.incomplete_tools': {
     LocaleDto.en:
         "No tools are available in this preview yet. Review the readiness details before changing this Board's pins.",
@@ -277,11 +212,6 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
   'desktop.tab.add_tool': {LocaleDto.en: '+ pin', LocaleDto.ko: '+ 핀'},
   'desktop.tab.search': {LocaleDto.en: 'search ', LocaleDto.ko: '검색 '},
   'desktop.tab.settings': {LocaleDto.en: 'settings', LocaleDto.ko: '설정'},
-  'desktop.tab.pin_color': {LocaleDto.en: 'color', LocaleDto.ko: '색상'},
-  'desktop.tab.pin_color_disabled': {
-    LocaleDto.en: 'select a pin to edit color',
-    LocaleDto.ko: '색상을 바꿀 핀을 선택하세요',
-  },
   'desktop.tab.load_failed': {
     LocaleDto.en: 'failed to load boards: {msg}',
     LocaleDto.ko: '보드 목록을 불러오지 못했습니다: {msg}',
@@ -580,10 +510,6 @@ const Map<String, Map<LocaleDto, String>> i18nTestCatalog = {
   'modal.hex.invalid': {
     LocaleDto.en: 'not a valid hex value',
     LocaleDto.ko: '올바른 hex 값이 아닙니다',
-  },
-  'modal.hex.shortcut_hints': {
-    LocaleDto.en: '[F1] run · [F2] copy',
-    LocaleDto.ko: '[F1] 실행 · [F2] 복사',
   },
 
   // Generic-form field validation errors — mirrors the

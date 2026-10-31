@@ -129,6 +129,10 @@ Widget _boardHarness({
         (ref) =>
             (boardKey) => const ['all'],
       ),
+      boardTagCountsLoaderProvider.overrideWith(
+        (ref) =>
+            (boardKey) => const [BoardTagCountDto(tag: 'all', count: 0)],
+      ),
       boardTagCountLoaderProvider.overrideWith(
         (ref) =>
             (boardKey, selection) => snapshot.placements.length,

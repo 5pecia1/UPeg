@@ -4,7 +4,7 @@ use std::io::Write;
 use upeg_core::{FileContent, FileValue, tool};
 
 use super::image_conversion::{
-    INPUT_EXTENSIONS, ImageConversionOptions, decode, encode, pixel_count,
+    INPUT_EXTENSIONS, ImageConversionOptions, decode, encode, is_ai, pixel_count,
 };
 use super::limits::{
     LatchedCappedBuffer, MAX_ENCODED_OUTPUT_BYTES, over_cap_error, validate_max_output_bytes,
@@ -21,6 +21,8 @@ const MAX_BATCH_FILE_BYTES: usize = 50 << 20;
 const MAX_BATCH_INPUT_BYTES: usize = 50 << 20;
 const MAX_BATCH_WORKING_BYTES: usize = 512 << 20;
 const MAX_RASTER_WORKING_BYTES_PER_PIXEL: usize = 12;
+const MAX_AI_WORKING_BYTES_PER_PIXEL: usize = 32;
+const MAX_VECTOR_WORKING_BYTES_PER_PIXEL: usize = 16;
 const MAX_JSON_BYTES_PER_OUTPUT_BYTE: usize = 4;
 const BATCH_FIXED_OVERHEAD_BYTES: usize = 8 << 20;
 const EMPTY_ZIP_END_RECORD_BYTES: usize = 22;
@@ -44,24 +46,30 @@ const DEFAULT_MEMORY_LIMITS: BatchMemoryLimits = BatchMemoryLimits {
     zip_bytes: IMAGES_CONVERT_DEFAULT_MAX_OUTPUT_BYTES,
 };
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "tool fields are dispatched as individual arguments"
+)]
 #[tool(
     id = "media.images_convert",
     display_label = "Batch convert images",
-    description = "Convert selected images to a ZIP. SVG is rasterized; animation and multi-page TIFF use the first frame/page. WebP output is lossless.",
+    description = "Convert selected images to the chosen format in a ZIP. HEIC/HEIF and PDF-compatible AI inputs are supported; SVG is rasterized and AI uses the first PDF page. Animation and multi-page TIFF use the first frame/page. WebP output is lossless. SVG output traces raster images after compositing transparency on the background color and scaling to a maximum edge of 1024 pixels; AI/SVG inputs cannot be traced to SVG.",
     toolkit = "media",
     inputs = [
         required images: File(
-            extensions = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff", "ico", "qoi", "svg"],
+            extensions = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff", "ico", "qoi", "svg", "heic", "heif", "ai"],
             max_count = 100,
             max_file_bytes = 52428800,
             max_total_bytes = 52428800
         ) = "Images to convert (up to 100 files)",
-        required output_format: Options(["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi"]) = "Output image format",
+        required output_format: Options(["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "qoi", "svg"]) = "Output image format",
         optional jpeg_quality: Integer(min=1, max=100, default=90) = "JPEG quality (1–100)",
-        optional background: String(regex="^#[0-9a-fA-F]{6}$", default="#FFFFFF", placeholder="#FFFFFF") = "JPEG background color",
+        optional background: String(regex="^#[0-9a-fA-F]{6}$", default="#FFFFFF", placeholder="#FFFFFF") = "JPEG and SVG background color",
         optional svg_width: Integer(min=0, max=8192, default=0) = "SVG output width in pixels (0 = original size)",
         optional max_output_bytes: Integer(min=1, max=67108864, default=67108864)
             = "Maximum output zip bytes",
+        optional ai_dpi: Number(min=36, max=600, default=144) = "AI PDF render DPI (36–600, default 144)",
+        optional vector_preset: Options(["poster", "photo", "bw"]) = "SVG trace preset (default poster)",
     ],
     outputs = [
         result: File = "Zip of converted images",
@@ -79,10 +87,19 @@ pub fn images_convert(
     background: &str,
     svg_width: usize,
     max_output_bytes: usize,
+    ai_dpi: f64,
+    vector_preset: &str,
 ) -> Result<String, String> {
     images_convert_configured(
         images,
-        ImageConversionOptions::new(output_format, jpeg_quality, background, svg_width)?,
+        ImageConversionOptions::new_extended(
+            output_format,
+            jpeg_quality,
+            background,
+            svg_width,
+            ai_dpi,
+            vector_preset,
+        )?,
         max_output_bytes,
     )
 }
@@ -177,7 +194,13 @@ fn stream_images_zip(
     for entry in entries {
         let bytes = entry_bytes(entry)?;
         let pixels = pixel_count(&entry.name, bytes, options)?;
-        ensure_conversion_budget(input_working_bytes, pixels, limits)?;
+        ensure_conversion_budget(
+            input_working_bytes,
+            pixels,
+            limits,
+            options,
+            is_ai(&entry.name),
+        )?;
         let raster = decode(&entry.name, bytes, options)?;
         let encoded = encode(&raster, options, remaining_encoded_bytes)?;
         remaining_encoded_bytes = remaining_encoded_bytes
@@ -245,16 +268,32 @@ fn ensure_conversion_budget(
     input_bytes: usize,
     pixels: usize,
     limits: BatchMemoryLimits,
+    options: ImageConversionOptions,
+    is_ai: bool,
 ) -> Result<(), String> {
+    let trace_bytes = if options.format == super::image_conversion::ConversionFormat::Svg {
+        128 << 20
+    } else {
+        0
+    };
+    let bytes_per_pixel = if is_ai {
+        MAX_AI_WORKING_BYTES_PER_PIXEL
+    } else if options.format == super::image_conversion::ConversionFormat::Svg {
+        MAX_VECTOR_WORKING_BYTES_PER_PIXEL
+    } else {
+        MAX_RASTER_WORKING_BYTES_PER_PIXEL
+    };
     let raster_bytes = pixels
-        .checked_mul(MAX_RASTER_WORKING_BYTES_PER_PIXEL)
+        .checked_mul(bytes_per_pixel)
         .ok_or_else(|| "image working set byte count overflowed".to_string())?;
     ensure_working_budget(
         [
             input_bytes,
+            if is_ai { input_bytes } else { 0 },
             limits.zip_bytes,
             limits.encoded_image_bytes,
             raster_bytes,
+            trace_bytes,
             BATCH_FIXED_OVERHEAD_BYTES,
         ],
         limits.working_bytes,

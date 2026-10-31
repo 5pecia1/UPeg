@@ -4,31 +4,32 @@
 //! The OS-level protocol registration is packaging-owned, but once the app is
 //! launched with a `upeg://open?...` argument this module resolves it to the
 //! same static Board/Tool ids the Flutter Desktop surface uses.
+//!
+//! A link that names no known Board (a bare `upeg://open`, the extension
+//! popup's `upeg://open?surface=ext`, or an unknown/blank `board` value)
+//! never switches Boards: it resolves to no Board and the current Board stays
+//! selected. A known Tool the link names still applies on the current Board.
+//! A link that names neither a known Board nor a known Tool only brings the
+//! app to the front.
 
 #[cfg(any(not(target_arch = "wasm32"), test))]
 use upeg_core::Surface;
 #[cfg(any(not(target_arch = "wasm32"), test))]
 use upeg_runtime::toolbox_tool;
 
+/// Board key reported where a concrete key is required (the boot report's
+/// `DesktopLaunchDto`). A link without a Board never switches to it.
 pub const DEFAULT_DESKTOP_BOARD: &str = "dev";
 pub const DESKTOP_DEEP_LINK_BASE: &str = "upeg://open";
 const DESKTOP_DEEP_LINK_QUERY_PREFIX: &str = "upeg://open?";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DesktopLaunch {
-    pub board: &'static str,
+    /// The known Board the link names, or `None` to leave the current
+    /// Board selected.
+    pub board: Option<&'static str>,
     pub tool: Option<&'static str>,
     pub input: Option<String>,
-}
-
-impl Default for DesktopLaunch {
-    fn default() -> Self {
-        Self {
-            board: DEFAULT_DESKTOP_BOARD,
-            tool: None,
-            input: None,
-        }
-    }
 }
 
 pub fn encode_deep_link_value(value: &str) -> String {
@@ -141,17 +142,17 @@ fn query_param(query: &str, name: &str) -> Option<String> {
     })
 }
 
+/// The known Board a link's `board` value names, or `None` when it is
+/// absent, blank, or not a Board key. Never falls back to a default Board:
+/// a link that names none must not move the user.
 #[cfg(any(not(target_arch = "wasm32"), test))]
-fn resolve_board(raw: Option<&str>) -> &'static str {
-    let Some(candidate) = raw.map(str::trim).filter(|s| !s.is_empty()) else {
-        return DEFAULT_DESKTOP_BOARD;
-    };
+fn resolve_board(raw: Option<&str>) -> Option<&'static str> {
+    let candidate = raw.map(str::trim).filter(|s| !s.is_empty())?;
     crate::features::boards::load_boards()
         .unwrap_or_else(crate::features::boards::default_boards)
         .into_iter()
         .map(|board| board.key)
         .find(|board| *board == candidate)
-        .unwrap_or(DEFAULT_DESKTOP_BOARD)
 }
 
 #[cfg(any(not(target_arch = "wasm32"), test))]
@@ -225,7 +226,7 @@ mod tests {
         let launch = desktop_launch_from_args([
             "upeg://open?surface=ext&board=dev&tool=num.hex_to_decimal&input=0x2a",
         ]);
-        assert_eq!(launch.board, "dev");
+        assert_eq!(launch.board, Some("dev"));
         assert_eq!(launch.tool, Some("num.hex_to_decimal"));
         assert_eq!(launch.input.as_deref(), Some("0x2a"));
     }
@@ -242,7 +243,7 @@ mod tests {
     fn desktop_launch_drops_unknown_tool() {
         let launch =
             desktop_launch_from_args(["upeg://open?surface=ext&board=dev&tool=nope.missing"]);
-        assert_eq!(launch.board, "dev");
+        assert_eq!(launch.board, Some("dev"));
         assert_eq!(launch.tool, None);
     }
 
@@ -273,7 +274,7 @@ mod tests {
 
         let launch =
             desktop_launch_from_args([format!("upeg://open?surface=ext&board=dev&tool={id}")]);
-        assert_eq!(launch.board, "dev");
+        assert_eq!(launch.board, Some("dev"));
         assert_eq!(launch.tool, None);
     }
 
@@ -284,9 +285,37 @@ mod tests {
     }
 
     #[test]
-    fn desktop_launch_maybe_returns_default_board_for_queryless_open_uri() {
+    fn desktop_launch_maybe_returns_no_board_for_queryless_open_uri() {
         let launch = desktop_launch_from_url_maybe("upeg://open").expect("explicit open link");
+        assert_eq!(launch.board, None);
         assert_eq!(launch, DesktopLaunch::default());
+    }
+
+    #[test]
+    fn desktop_launch_keeps_no_board_for_the_extension_popup_link() {
+        // `chrome-ext/popup.html` opens exactly this link; it only has to
+        // bring the app forward, never move the user to another Board.
+        let launch = desktop_launch_from_args(["upeg://open?surface=ext"]);
+        assert_eq!(launch, DesktopLaunch::default());
+    }
+
+    #[test]
+    fn desktop_launch_drops_unknown_board() {
+        let launch = desktop_launch_from_args([
+            "upeg://open?surface=ext&board=no-such-board&tool=num.hex_to_decimal",
+        ]);
+        assert_eq!(launch.board, None, "an unknown Board must not become Dev");
+        assert_eq!(
+            launch.tool,
+            Some("num.hex_to_decimal"),
+            "the rest of the link still applies on the current Board"
+        );
+    }
+
+    #[test]
+    fn desktop_launch_drops_blank_board() {
+        let launch = desktop_launch_from_args(["upeg://open?surface=ext&board=%20%20"]);
+        assert_eq!(launch.board, None);
     }
 
     #[test]

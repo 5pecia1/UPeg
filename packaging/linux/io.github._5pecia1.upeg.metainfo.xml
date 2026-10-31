@@ -12,7 +12,7 @@
   <description>
     <p>upeg provides a desktop and web pegboard surface for running local tools and organizing pinned workflows.</p>
   </description>
-  <launchable type="desktop-id">upeg.desktop</launchable>
+  <launchable type="desktop-id">io.github._5pecia1.upeg.desktop</launchable>
   <categories>
     <category>Utility</category>
   </categories>

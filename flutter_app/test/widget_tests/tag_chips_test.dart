@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/rust/api/pegboard.dart' show BoardTagCountDto;
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
@@ -52,6 +53,12 @@ ProviderContainer _container(List<String> tags, {String boardKey = 'dev'}) {
         (ref) => (board) {
           expect(board, BoardKey.parse(boardKey));
           return tags;
+        },
+      ),
+      boardTagCountsLoaderProvider.overrideWith(
+        (ref) => (board) {
+          expect(board, BoardKey.parse(boardKey));
+          return [for (final tag in tags) BoardTagCountDto(tag: tag, count: 0)];
         },
       ),
       // Batch Q3: tag chips now read counts from the loader; tests

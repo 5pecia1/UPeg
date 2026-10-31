@@ -2,6 +2,7 @@ const TOOLKITS: &[&str] = &[
     "COLOR",
     "CONVERT",
     "CSV",
+    "DATA",
     "DEVCONTAINER",
     "ETH",
     "HASH",

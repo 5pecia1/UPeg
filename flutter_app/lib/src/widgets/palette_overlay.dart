@@ -46,6 +46,10 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   int _highlighted = 0;
+  bool _searchCurrentTag = false;
+  bool _pinPending = false;
+  String? _pinFeedback;
+  bool _pinFeedbackIsError = false;
 
   @override
   void initState() {
@@ -97,23 +101,70 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   /// Cmd/Ctrl+Enter — open the selected hit AND pin it onto the
   /// active board in one shot. The meta/control modifier case is
   /// checked (and early-outs) before the plain-Enter case. The
-  /// pin write is fire-and-forget; failures are logged by
-  /// `pegboardMutationsProvider`.
+  /// A failed write keeps the palette open so the action can be retried.
   /// Inventory row H06.
   Future<void> _commitWithPin(List<PaletteHit> hits) async {
-    if (hits.isEmpty) return;
+    if (hits.isEmpty || _pinPending) return;
     final i = _highlighted.clamp(0, hits.length - 1);
     final hit = hits[i];
     final toolId = ToolId.parse(hit.id);
-    final boardKey = ref.read(currentBoardKeyProvider);
-    final pinId = boardKey == null
-        ? null
-        : await ref.read(pegboardMutationsProvider).add(boardKey, toolId);
-    if (pinId == null || boardKey == null || !mounted) return;
-    final pinKey = (boardKey, pinId);
-    ref.read(focusedPinProvider.notifier).focus(pinId);
+    final pinKey = await _addToCurrentBoard(toolId);
+    if (pinKey == null || !mounted) return;
     Navigator.of(context).pop();
     widget.onPick(hit, pinKey);
+  }
+
+  Future<PinKey?> _addToCurrentBoard(ToolId toolId) async {
+    if (_pinPending) return null;
+    final boardKey = ref.read(currentBoardKeyProvider);
+    if (boardKey == null) {
+      _showPinFeedback(t(ref, 'modal.pin.no_active_board'), isError: true);
+      return null;
+    }
+
+    setState(() {
+      _pinPending = true;
+      _pinFeedback = null;
+    });
+    final pinId = await ref
+        .read(pegboardMutationsProvider)
+        .add(boardKey, toolId);
+    if (!mounted) return null;
+    if (pinId == null) {
+      setState(() {
+        _pinPending = false;
+        _pinFeedback = t(ref, 'modal.pin.failed_generic');
+        _pinFeedbackIsError = true;
+      });
+      return null;
+    }
+
+    ref.read(focusedPinProvider.notifier).focus(pinId);
+    final boards = ref.read(boardsProvider).value ?? const [];
+    var boardTitle = boardKey.value;
+    for (final board in boards) {
+      if (board.key == boardKey.value) {
+        boardTitle = board.title;
+        break;
+      }
+    }
+    setState(() {
+      _pinPending = false;
+      _pinFeedback = t(ref, 'modal.pin.success', {
+        'tool_id': toolId.value,
+        'board': boardTitle,
+      });
+      _pinFeedbackIsError = false;
+    });
+    return (boardKey, pinId);
+  }
+
+  void _showPinFeedback(String message, {required bool isError}) {
+    if (!mounted) return;
+    setState(() {
+      _pinFeedback = message;
+      _pinFeedbackIsError = isError;
+    });
   }
 
   KeyEventResult _handlePaletteKey(KeyEvent event, List<PaletteHit> hits) {
@@ -170,11 +221,10 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
     final AsyncValue<List<PaletteHit>> rawResults = ref.watch(
       paletteResultsProvider,
     );
-    // G04: when the user has a [`TagSpecific`] filter active, intersect
-    // the palette hits with the tag's tool id set. The intersection
-    // is Dart-side so search_tools stays a single FRB call and the
-    // filter behaviour stays testable without crossing the dylib.
-    final TagSelection selectedTag = ref.watch(selectedTagProvider);
+    // The board's tag filters its pins, but tool discovery starts across
+    // the catalogue. Narrow the palette only after the user opts in.
+    final TagSelection boardTag = ref.watch(selectedTagProvider);
+    final selectedTag = _searchCurrentTag ? boardTag : const TagAll();
     final AsyncValue<List<PaletteHit>> results = switch (selectedTag) {
       TagAll() => rawResults,
       TagSpecific(:final tag) => rawResults.whenData((hits) {
@@ -226,6 +276,24 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
                 },
                 onKey: (event) => _handlePaletteKey(event, hits),
               ),
+              if (boardTag case TagSpecific(:final tag))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilterChip(
+                      key: const Key('palette-current-tag-chip'),
+                      label: Text(
+                        t(ref, 'palette.search_current_tag', {'tag': tag}),
+                      ),
+                      selected: _searchCurrentTag,
+                      onSelected: (selected) => setState(() {
+                        _searchCurrentTag = selected;
+                        _highlighted = 0;
+                      }),
+                    ),
+                  ),
+                ),
               Flexible(
                 child: _PaletteBody(
                   tokens: tokens,
@@ -236,8 +304,25 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
                   scrollController: _scrollController,
                   onHover: (i) => setState(() => _highlighted = i),
                   onPick: _pickHit,
+                  onAdd: (toolId) => unawaited(_addToCurrentBoard(toolId)),
+                  pinPending: _pinPending,
                 ),
               ),
+              if (_pinFeedback case final message?)
+                Semantics(
+                  liveRegion: true,
+                  child: Padding(
+                    key: const Key('palette-pin-feedback'),
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        color: _pinFeedbackIsError ? tokens.warn : tokens.fg2,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
               _PaletteFooter(tokens: tokens, count: hits.length),
             ],
           ),
@@ -324,6 +409,8 @@ class _PaletteBody extends ConsumerWidget {
     required this.scrollController,
     required this.onHover,
     required this.onPick,
+    required this.onAdd,
+    required this.pinPending,
   });
 
   final UpegTokens tokens;
@@ -341,6 +428,8 @@ class _PaletteBody extends ConsumerWidget {
 
   final ValueChanged<int> onHover;
   final PaletteHitCallback onPick;
+  final ValueChanged<ToolId> onAdd;
+  final bool pinPending;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -407,6 +496,8 @@ class _PaletteBody extends ConsumerWidget {
               currentBoardKey: currentBoardKey,
               onHover: () => onHover(i),
               onTap: () => onPick(hit, null),
+              onAdd: onAdd,
+              pinPending: pinPending,
             );
           },
         );
@@ -423,6 +514,8 @@ class _PaletteRow extends ConsumerWidget {
     required this.currentBoardKey,
     required this.onHover,
     required this.onTap,
+    required this.onAdd,
+    required this.pinPending,
     super.key,
   });
 
@@ -432,6 +525,8 @@ class _PaletteRow extends ConsumerWidget {
   final BoardKey? currentBoardKey;
   final VoidCallback onHover;
   final VoidCallback onTap;
+  final ValueChanged<ToolId> onAdd;
+  final bool pinPending;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -519,14 +614,7 @@ class _PaletteRow extends ConsumerWidget {
               if (currentBoardKey != null)
                 TextButton(
                   key: Key('palette-add-${hit.id}'),
-                  onPressed: () async {
-                    final pinId = await ref
-                        .read(pegboardMutationsProvider)
-                        .add(currentBoardKey!, toolId);
-                    if (pinId != null) {
-                      ref.read(focusedPinProvider.notifier).focus(pinId);
-                    }
-                  },
+                  onPressed: pinPending ? null : () => onAdd(toolId),
                   child: Text(t(ref, 'desktop.tab.add_tool')),
                 ),
             ],

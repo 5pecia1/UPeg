@@ -189,7 +189,7 @@ class _HostAttachSectionState extends ConsumerState<HostAttachSection> {
           const SizedBox(height: 8),
           Text(
             t(ref, 'readiness.remote_catalog_limit'),
-            style: TextStyle(color: tokens.fg4, fontSize: 10.5),
+            style: TextStyle(color: tokens.fg3, fontSize: 10.5),
           ),
           for (final tool in _hostTools)
             _HostToolReadiness(tool: tool, config: _catalogConfig!),

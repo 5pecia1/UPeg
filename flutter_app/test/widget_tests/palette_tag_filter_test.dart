@@ -1,18 +1,11 @@
-/// G04 — Palette honours the currently selected tag filter.
-///
-/// The palette restricts results to the active tag's tool set.
-/// The Flutter [`PaletteOverlay`] originally did NOT apply the
-/// `selectedTagProvider` value (inventory row G04 — ⚠️ partial).
-///
-/// This test pins the contract: when `selectedTagProvider != kAllTag`,
-/// the palette only renders hits whose `id` is in the tag's tool set.
+/// Search starts across the catalogue even when the board has a tag filter.
+/// The user can opt into that tag as a temporary palette search scope.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
 import 'package:upeg/src/rust/api/palette.dart';
@@ -25,14 +18,8 @@ import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/widgets/palette_overlay.dart';
 
 import '../test_helpers/tool_fixture.dart';
-
-String _fakeT(String key, LocaleDto locale) => key;
-String _fakeTArgs(
-  String key,
-  LocaleDto locale,
-  List<String> argKeys,
-  List<String> argVals,
-) => key;
+import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/ui_workflow_robot.dart';
 
 const _hits = [
   PaletteHit(
@@ -49,13 +36,23 @@ const _hits = [
     score: 0.9,
     pinKind: PinKindDto.inline,
   ),
+  PaletteHit(
+    id: 'hash.sha256',
+    label: 'SHA-256',
+    description: '',
+    score: 0.8,
+    pinKind: PinKindDto.inline,
+  ),
 ];
 
 Widget _harness({required TagSelection selectedTag}) {
   return ProviderScope(
     overrides: [
       paletteSearcherProvider.overrideWith((ref) {
-        return (_) => _hits;
+        return (query) => [
+          for (final hit in _hits)
+            if (query.isEmpty || hit.id.contains(query)) hit,
+        ];
       }),
       boardsLoaderProvider.overrideWith(
         (ref) =>
@@ -66,8 +63,7 @@ Widget _harness({required TagSelection selectedTag}) {
             (_) => const <BoardKey>{},
       ),
       localeProvider.overrideWithValue(LocaleDto.en),
-      i18nTranslateOverride.overrideWithValue(_fakeT),
-      i18nTranslateArgsOverride.overrideWithValue(_fakeTArgs),
+      ...i18nTestOverrides,
       tagOptionsLoaderProvider.overrideWith(
         (ref) =>
             () => const ['all', 'convert', 'text'],
@@ -111,39 +107,39 @@ class _SeededTag extends SelectedTagNotifier {
 
 void main() {
   group('PaletteOverlay tag filter (G04)', () {
-    testWidgets(
-      'paletteoverlay_shows_only_convert_tools_when_the_selected_tag_is_convert',
-      (tester) async {
-        await tester.pumpWidget(
-          _harness(selectedTag: const TagSpecific('convert')),
-        );
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const ValueKey('palette-hit-text.lowercase')),
-          findsNothing,
-        );
-      },
-    );
-
-    testWidgets('paletteoverlay_shows_every_hit_when_the_selected_tag_is_all', (
+    testWidgets('should find SHA-256 globally from a convert filtered board', (
       tester,
     ) async {
-      await tester.pumpWidget(_harness(selectedTag: const TagAll()));
-      await tester.pumpAndSettle();
+      final robot = UiWorkflowRobot(tester);
+      await robot.pumpScreen(
+        _harness(selectedTag: const TagSpecific('convert')),
+      );
+      robot.expectCurrentTagSearchVisible('convert', selected: false);
+      await robot.searchPalette('sha256');
+      robot.expectPaletteToolVisible('hash.sha256');
 
-      expect(
-        find.byKey(const ValueKey('palette-hit-num.hex_to_decimal')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('palette-hit-text.lowercase')),
-        findsOneWidget,
-      );
+      await robot.toggleCurrentTagSearch();
+      robot.expectCurrentTagSearchVisible('convert', selected: true);
+      robot.expectPaletteToolNotVisible('hash.sha256');
+
+      await robot.toggleCurrentTagSearch();
+      robot.expectCurrentTagSearchVisible('convert', selected: false);
+      robot.expectPaletteToolVisible('hash.sha256');
+
+      await robot.searchPalette('');
+      robot.expectPaletteToolVisible('num.hex_to_decimal');
+      robot.expectPaletteToolVisible('text.lowercase');
+      robot.expectPaletteToolVisible('hash.sha256');
+    });
+    testWidgets('should omit scope chip when the board shows all tags', (
+      tester,
+    ) async {
+      final robot = UiWorkflowRobot(tester);
+      await robot.pumpScreen(_harness(selectedTag: const TagAll()));
+      robot.expectCurrentTagSearchNotVisible();
+      robot.expectPaletteToolVisible('num.hex_to_decimal');
+      robot.expectPaletteToolVisible('text.lowercase');
+      robot.expectPaletteToolVisible('hash.sha256');
     });
   });
 }

@@ -31,14 +31,16 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 /// dispatch output for forms that keep a local "copy last result" UX.
 /// `initialInput` is the deep-link / pin pre-fill (mirrors the generic
 /// form's `controller.seed`); forms that pre-populate a field consume it.
+/// `onInputChanged` receives raw edits so the host can persist drafts.
 typedef BespokeFormBuilder =
     Widget Function(
       BuildContext context,
       ToolDto tool,
       void Function(ToolArgs args) onSubmit,
       String? lastStdout,
-      ToolArgs? initialInput,
-    );
+      ToolArgs? initialInput, {
+      ValueChanged<ToolArgs>? onInputChanged,
+    });
 
 /// Tool id key for the hex → decimal bespoke form. Pulled out as a
 /// constant so the registry, tests, and any deep-link routing all
@@ -48,13 +50,20 @@ const String hexToDecToolId = 'num.hex_to_decimal';
 /// Tool id → bespoke form builder.
 final Map<ToolId, BespokeFormBuilder> bespokeRegistry =
     <ToolId, BespokeFormBuilder>{
-      ToolId.parse(
-        hexToDecToolId,
-      ): (context, tool, onSubmit, lastStdout, initialInput) => HexToDecForm(
-        tool: tool,
-        onSubmit: onSubmit,
-        initialInput: initialInput,
-      ),
+      ToolId.parse(hexToDecToolId):
+          (
+            context,
+            tool,
+            onSubmit,
+            lastStdout,
+            initialInput, {
+            onInputChanged,
+          }) => HexToDecForm(
+            tool: tool,
+            onSubmit: onSubmit,
+            onInputChanged: onInputChanged,
+            initialInput: initialInput,
+          ),
     };
 
 /// Resolve a bespoke builder for `toolId`, or `null` when the tool uses

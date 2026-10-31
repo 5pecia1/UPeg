@@ -3,8 +3,8 @@
 /// `pinnedProvider`) so widget tests can intercept the FRB call
 /// without touching the platform channel.
 ///
-/// The Quit handler is covered separately in `tray_quit_test.dart` via
-/// the [runTrayQuit] injection points.
+/// The Quit item is covered separately in `tray_quit_test.dart` via the
+/// `quitAppProvider` override and the `runAppQuit` injection points.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

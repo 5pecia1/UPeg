@@ -685,3 +685,36 @@ fn all_builtin_tool_input_schemas_are_closed_and_valid() {
         bad.join("\n")
     );
 }
+
+#[test]
+fn time_tools_dispatch_typed_results_and_reject_invalid_input() {
+    register_all();
+    let result = success_result(upeg_runtime::try_runtime_dispatch(
+        crate::FROM_EPOCH_TOOL_ID,
+        &json!({"input": "-1", "unit": "milliseconds"}),
+    ));
+    assert_eq!(
+        upeg_runtime::tool_success_primary_text(&result),
+        "1969-12-31T23:59:59.999Z"
+    );
+    let result = success_result(upeg_runtime::try_runtime_dispatch(
+        crate::TO_EPOCH_TOOL_ID,
+        &json!({"input": "1969-12-31T23:59:59.999Z", "unit": "milliseconds"}),
+    ));
+    assert_eq!(
+        result.outputs[0].value,
+        OutputValue::Number(serde_json::Number::from(-1))
+    );
+    let result = success_result(upeg_runtime::try_runtime_dispatch(
+        crate::CRON_INSPECT_TOOL_ID,
+        &json!({"expression": "0 0 * * 7", "after": "2024-01-01T00:00:00Z"}),
+    ));
+    let OutputValue::Json(value) = &result.outputs[0].value else {
+        panic!("expected JSON output")
+    };
+    assert_eq!(value["next"][0], "2024-01-07T00:00:00Z");
+    assert!(matches!(
+        upeg_runtime::try_runtime_dispatch(crate::TO_EPOCH_TOOL_ID, &json!({"input": "invalid"})),
+        Some(ToolResult::Failure(_))
+    ));
+}

@@ -17,6 +17,7 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
 import '../test_helpers/dispatch_stream_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 class _BoardNotifier extends CurrentBoardNotifier {
@@ -113,6 +114,7 @@ void main() {
       ProviderScope(
         overrides: [
           ...i18nTestOverrides,
+          ...pinPersistenceTestOverrides,
           currentBoardKeyProvider.overrideWith(_BoardNotifier.new),
           diagnosticsApiProvider.overrideWithValue(api),
           dispatchStreamFnProvider.overrideWithValue(({
@@ -169,6 +171,7 @@ void main() {
       ProviderScope(
         overrides: [
           ...i18nTestOverrides,
+          ...pinPersistenceTestOverrides,
           currentBoardKeyProvider.overrideWith(_BoardNotifier.new),
           presentationRowsResolverProvider.overrideWithValue(
             ({required toolId, required outputsJson}) =>
@@ -248,10 +251,12 @@ void main() {
       );
       final calls = <({String tool, Map<String, Object?> args})>[];
 
+      final boundInputSnapshots = <String>[];
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             ...i18nTestOverrides,
+            ...pinPersistenceTestOverrides,
             currentBoardKeyProvider.overrideWith(_BoardNotifier.new),
             toolsLoaderProvider.overrideWith(
               (ref) =>
@@ -282,21 +287,22 @@ void main() {
               ({required toolId, required outputsJson}) =>
                   _emptyPresentationView,
             ),
-            presentationBindingsResolverProvider.overrideWithValue(
-              ({
-                required toolId,
-                required actionId,
-                required currentInputsJson,
-                selectedRowJson,
-                required outputsJson,
-              }) => ActionBindingResolutionDto(
+            presentationBindingsResolverProvider.overrideWithValue(({
+              required toolId,
+              required actionId,
+              required currentInputsJson,
+              selectedRowJson,
+              required outputsJson,
+            }) {
+              boundInputSnapshots.add(currentInputsJson);
+              return ActionBindingResolutionDto(
                 valuesJson: actionId == 'mode_plan'
                     ? '{"id":"row-1","mode":"plan"}'
                     : '{"id":"row-1","mode":"apply"}',
                 diagnostics: const [],
                 unboundRequiredInputs: const [],
-              ),
-            ),
+              );
+            }),
             dispatchStreamFnProvider.overrideWithValue(
               stubDispatchStream(({
                 required toolId,
@@ -323,6 +329,11 @@ void main() {
 
       await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('field-project')),
+        '/workspace/edited',
+      );
+      await tester.pump();
       final row = find.byKey(const Key('presentation-table-row-row-1'));
       await tester.ensureVisible(row);
       await tester.tap(row);
@@ -341,6 +352,11 @@ void main() {
 
       await tester.tap(find.byKey(const Key('expanded-modal-run-btn')).last);
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('field-mode')).last,
+        'edited mode',
+      );
+      await tester.pump();
       final applyAction = find.byKey(
         const Key('presentation-result-action-mode_apply'),
       );
@@ -348,6 +364,10 @@ void main() {
       await tester.tap(applyAction);
       await tester.pumpAndSettle();
 
+      expect(boundInputSnapshots, [
+        '{"project":"/workspace/original"}',
+        '{"id":"row-1","mode":"plan"}',
+      ]);
       expect(calls, hasLength(2));
       expect(fieldText('mode'), 'apply');
 

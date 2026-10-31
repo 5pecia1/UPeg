@@ -22,4 +22,4 @@ mod tweaks;
 pub use locale::Locale;
 #[cfg(feature = "serde")]
 pub use tweaks::parse_tweaks;
-pub use tweaks::{Accent, Theme, Tweaks};
+pub use tweaks::{Accent, PinHandleStyle, Theme, Tweaks};

@@ -186,8 +186,9 @@ Pre-enabled sites are `etherscan.io` and `polygonscan.com`; any page with a
   a base64 blob. Resolution is lazy (first hover/focus only) and cached per
   value, so a page with hundreds of matches makes no request until you look
   at one.
-- An `epoch` token shows `epoch · <ISO 8601 UTC>` and is deliberately **not**
-  clickable: no upeg tool converts an epoch, so there is nothing to open.
+- An `epoch` token shows an offline UTC ISO preview and opens `time.from_epoch`.
+  Ten-digit values use seconds; thirteen-digit values use milliseconds. Both
+  the host request and Desktop link carry the detected unit.
 - Nothing in the page's network log should show a request to
   `127.0.0.1:7173` from the page itself — the service worker makes it.
 

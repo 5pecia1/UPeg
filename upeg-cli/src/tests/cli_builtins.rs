@@ -1,4 +1,4 @@
-use super::common::parse;
+use super::common::{parse, run};
 use crate::*;
 
 fn write_tmp_toml(name: &str, content: &str) -> std::path::PathBuf {

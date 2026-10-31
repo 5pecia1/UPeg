@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/rust/api/pegboard.dart' show BoardTagCountDto;
 import 'package:upeg/src/state/tag_provider.dart';
 
 import '../test_helpers/pegboard_selection_overrides.dart';
@@ -41,6 +42,30 @@ void main() {
   });
 
   group('tagOptionsForBoardProvider', () {
+    test('boardTagCountsProvider_reads_one_snapshot_and_preserves_labels', () {
+      final boardKey = BoardKey.parse('dev');
+      var calls = 0;
+      final container = _makeContainer(
+        extra: [
+          boardTagCountsLoaderProvider.overrideWithValue((board) {
+            expect(board, boardKey);
+            calls += 1;
+            return const [
+              BoardTagCountDto(tag: 'all', count: 3),
+              BoardTagCountDto(tag: 'pure', count: 2),
+            ];
+          }),
+        ],
+      );
+
+      expect(container.read(boardTagCountsProvider(boardKey)), const [
+        (tag: TagAll(), count: 3),
+        (tag: TagSpecific('pure'), count: 2),
+      ]);
+      expect(container.read(boardTagCountsProvider(boardKey)).length, 2);
+      expect(calls, 1);
+    });
+
     test(
       'tagOptionsForBoardProvider_exposes_per_board_key_loader_result_as_typed_variants',
       () {

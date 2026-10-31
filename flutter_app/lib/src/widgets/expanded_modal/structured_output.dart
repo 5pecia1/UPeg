@@ -31,6 +31,7 @@ class StructuredOutputBlock extends ConsumerWidget {
     required this.tokens,
     required this.writer,
     this.primary = false,
+    this.successKey = 'clipboard.copied',
     super.key,
   });
 
@@ -39,6 +40,7 @@ class StructuredOutputBlock extends ConsumerWidget {
   final UpegTokens tokens;
   final ClipboardWriter writer;
   final bool primary;
+  final String successKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,7 +60,16 @@ class StructuredOutputBlock extends ConsumerWidget {
                 tokens: tokens,
               ),
               const Spacer(),
-              CopyToClipboardButton(textToCopy: copyText, writer: writer),
+              CopyToClipboardButton(
+                textToCopy:
+                    field.fieldType is OutputFieldType_File ||
+                        entry.value is CanonicalOutputValue_File ||
+                        entry.value is CanonicalOutputValue_EmbeddedView
+                    ? ''
+                    : copyText,
+                writer: writer,
+                successKey: successKey,
+              ),
             ],
           ),
           const SizedBox(height: 2),

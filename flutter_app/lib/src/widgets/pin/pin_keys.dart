@@ -36,6 +36,7 @@ const Key pinOutputPanelKey = Key('pin-output-panel');
 /// Test hook: the pin header container (asserts the `button`-variant
 /// background tint).
 const Key pinHeaderKey = Key('pin-header');
+const Key pinHeaderOpenKey = Key('pin-header-open');
 
-/// Test hook: the "last run · N ago" footer badge on a restored result.
+/// Test hook: the "result saved · N ago" footer badge on a restored result.
 const Key pinRestoredBadgeKey = Key('pin-restored-badge');

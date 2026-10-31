@@ -1,15 +1,17 @@
 /// System tray wiring for the Flutter desktop surface.
 ///
-/// Quit / Open Dashboard / Toggle Popup stay local to the Dart window
-/// layer. Tray icon LEFT click runs the launcher summon toggle
-/// (`window_summon.dart` — same behavior as the global hotkey); RIGHT
-/// click explicitly opens the native context menu on platforms where
-/// `tray_manager.popUpContextMenu` exists. On Linux the AppIndicator
+/// Open Pegboard and Toggle popup / full stay local to the Dart window
+/// layer. Tray icon LEFT click summons the current window mode
+/// (`window_summon.dart`); RIGHT click explicitly opens the native context
+/// menu where `tray_manager.popUpContextMenu` exists. On Linux the AppIndicator
 /// backend emits no per-button mouse events at all — the context menu
 /// attached via `setContextMenu` opens natively on click, so the
-/// left/right split only takes effect on macOS/Windows. TogglePin and
-/// Pause/Resume route through Riverpod providers backed by the FRB
-/// APIs.
+/// left/right split only takes effect on macOS/Windows. Keep popup
+/// open, Pause/Resume and Quit route through Riverpod providers
+/// (`pinnedProvider`, `togglePausedProvider`, `quitAppProvider`).
+///
+/// The icon is picked per platform by [trayIconSpecFor]: a 22×22 colour
+/// PNG on Linux, a template image on macOS and an ICO on Windows.
 ///
 /// Tray is not available on web and not always available on Linux
 /// (depends on `libayatana-appindicator3` at runtime). `install`
@@ -17,19 +19,25 @@
 library;
 
 import 'dart:io' show Platform;
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
-import 'package:flutter/widgets.dart' show BuildContext, Widget;
+import 'package:flutter/widgets.dart'
+    show BuildContext, Widget, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 import 'package:upeg/src/platform/app_lifecycle.dart';
+import 'package:upeg/src/platform/tray_animation.dart';
+import 'package:upeg/src/platform/tray_icon.dart';
 import 'package:upeg/src/platform/window_summon.dart';
 import 'package:upeg/src/state/pause_control_provider.dart';
 import 'package:upeg/src/state/pause_provider.dart';
 import 'package:upeg/src/state/pinned_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
+
+export 'package:upeg/src/platform/tray_icon.dart';
 
 /// Typed tray menu command. Each variant carries the `tray_manager`
 /// menu key as its only field so the production switch is free of
@@ -64,11 +72,14 @@ enum TrayCommand {
 /// channels). The production switch in `onTrayMenuItemClick` is a thin
 /// adapter that calls this with the live `Ref`.
 ///
-/// `OpenDashboard` / `TogglePopup` / `Quit` are still dispatched at the
-/// call site because they need extra Dart-side coordination (window
-/// mode notifier, the [runTrayQuit] flow). `TogglePin` is dispatched
-/// here so the focus-loss observer reads a fresh `pinnedProvider`
-/// value without going through the tray controller singleton.
+/// `OpenDashboard` / `TogglePopup` are still dispatched at the call
+/// site because they need extra Dart-side coordination (window mode
+/// notifier, the summon in [openPegboardFromTray]). `Quit` goes through
+/// [quitAppProvider] so the tray shares one quit pipeline with the
+/// keyboard shortcut and the window close button. `TogglePin` is
+/// dispatched here so the focus-loss observer reads a fresh
+/// `pinnedProvider` value without going through the tray controller
+/// singleton.
 void dispatchTrayCommand(ProviderContainer container, TrayCommand cmd) {
   switch (cmd) {
     case TrayCommand.togglePause:
@@ -85,33 +96,31 @@ void dispatchTrayCommand(ProviderContainer container, TrayCommand cmd) {
       // every blur event to gate auto-hide.
       container.read(pinnedProvider.notifier).toggle();
     case TrayCommand.quit:
+      // Same pipeline as the keyboard shortcut and the window close
+      // button: whatever `quitAppProvider` does before exit also covers
+      // the tray.
+      unawaited(container.read(quitAppProvider)());
     case TrayCommand.openDashboard:
     case TrayCommand.togglePopup:
-      // Handled at the UpegTray call site — they need ref to the
-      // window mode notifier and/or the runTrayQuit flow.
+      // Handled at the UpegTray call site — they need the window mode
+      // notifier and/or the summon seam.
       break;
   }
 }
 
-/// Tray-facing quit alias. The implementation lives in
-/// `app_lifecycle.dart` so GUI shortcuts do not depend on tray wiring.
-Future<void> runTrayQuit({
-  ShutdownFn shutdown = defaultAppShutdown,
-  CloseWindowFn closeWindow = defaultCloseWindow,
-}) => runAppQuit(shutdown: shutdown, closeWindow: closeWindow);
-
-/// Filesystem-style asset path for the tray icon PNG. Lives at the
-/// top level so the unit test can assert the production-side value
-/// without booting the full tray pipeline.
-const String trayIconAssetPath = 'assets/tray_icon.png';
-
-/// Injection seam for the platform `setIcon` call. Production wraps
-/// `trayManager.setIcon`; tests pass a recording closure so the
-/// platform channel never fires.
-typedef SetTrayIconFn = Future<void> Function(String iconPath);
-
-Future<void> _defaultSetTrayIcon(String iconPath) =>
-    trayManager.setIcon(iconPath);
+/// Tray "Open Pegboard": force the full window mode, then bring the
+/// window to the front. The mode write alone is not enough —
+/// `WindowModeApplier` dedupes equal modes, so a hidden or minimized
+/// window that is already `full` would stay hidden. [summon] is the
+/// unconditional show + focus (+ restore) primitive; tests inject a
+/// recording closure so `window_manager` is never touched.
+Future<void> openPegboardFromTray(
+  ProviderContainer container, {
+  Future<void> Function() summon = summonWindow,
+}) async {
+  container.read(windowModeProvider.notifier).set(WindowMode.full);
+  await summon();
+}
 
 /// Injection seam for `trayManager.popUpContextMenu`. The Flutter
 /// plugin does not automatically show the menu from icon mouse events
@@ -150,16 +159,6 @@ Future<void> showTrayContextMenuFromIconClick({
   await popUpContextMenu();
 }
 
-/// Install the tray icon image. Split out from [UpegTray.install] so
-/// the icon-path contract is unit-testable in isolation — the test
-/// passes a recording [SetTrayIconFn] and asserts the path equals
-/// [trayIconAssetPath].
-Future<void> installTrayIcon({
-  SetTrayIconFn setIcon = _defaultSetTrayIcon,
-}) async {
-  await setIcon(trayIconAssetPath);
-}
-
 /// Build the tray menu shown by [UpegTray.install].
 ///
 /// Kept as a top-level seam so unit tests can assert command keys,
@@ -172,19 +171,27 @@ Future<void> installTrayIcon({
 /// daemon. Defaults to `true` so existing call sites keep prior
 /// behavior until they thread the live `pauseControllableProvider`
 /// value through.
-Menu buildTrayMenu({bool pauseControllable = true}) => Menu(
+///
+/// [keepPopupOpen] is the check mark of the "Keep popup open" item —
+/// the live `pinnedProvider` value. Defaults to `false`, the provider's
+/// initial value.
+Menu buildTrayMenu({
+  bool pauseControllable = true,
+  bool keepPopupOpen = false,
+}) => Menu(
   items: [
     MenuItem(
       key: TrayCommand.openDashboard.menuItemKey,
-      label: 'Open dashboard',
+      label: 'Open Pegboard',
     ),
     MenuItem(
       key: TrayCommand.togglePopup.menuItemKey,
       label: 'Toggle popup / full',
     ),
-    MenuItem(
+    MenuItem.checkbox(
       key: TrayCommand.togglePin.menuItemKey,
-      label: 'Toggle pin (keep popup open)',
+      label: 'Keep popup open',
+      checked: keepPopupOpen,
     ),
     MenuItem.separator(),
     MenuItem(
@@ -206,14 +213,16 @@ Future<void> _defaultSetTrayContextMenu(Menu menu) =>
     trayManager.setContextMenu(menu);
 
 /// Re-sets the tray context menu whenever [pauseControllableProvider]
-/// flips, so the Pause item's `disabled` flag never lags a stale
-/// host-state after `UpegTray.install`'s initial `buildTrayMenu` call.
-/// Guarded by [isTraySupported] so it is a no-op on platforms without
-/// a tray (web, mobile, or an unsupported Linux desktop session) —
-/// mirrors `WindowModeApplier`'s injected-seam + platform-gate shape,
-/// but (unlike that observer) does NOT re-apply at mount: the initial
-/// menu is already set by `UpegTray.install` with the current
-/// controllability, so this only reacts to subsequent changes.
+/// or [pinnedProvider] changes, so the Pause item's `disabled` flag and
+/// the "Keep popup open" check mark never lag a stale host-state or pin
+/// state after `UpegTray.install`'s initial `buildTrayMenu` call. Each
+/// re-set rebuilds the whole menu from the latest value of both
+/// providers. Guarded by [isTraySupported] so it is a no-op on
+/// platforms without a tray (web, mobile, or an unsupported Linux
+/// desktop session) — mirrors `WindowModeApplier`'s injected-seam +
+/// platform-gate shape, but (unlike that observer) does NOT re-apply at
+/// mount: the initial menu is already set by `UpegTray.install` with the
+/// current values, so this only reacts to subsequent changes.
 ///
 /// Mounted in `app.dart`'s `UpegApp.build()`, wrapping `WindowModeApplier`
 /// OUTSIDE (above) the `appInitProvider ... .when(data:)` gate. That
@@ -252,18 +261,33 @@ class TrayMenuSync extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<bool>(pauseControllableProvider, (previous, next) {
+    void resync(bool? previous, bool next) {
       if (previous == next) return;
       if (!isTraySupported) return;
       // ignore: discarded_futures — re-sync is fire-and-forget.
-      _resyncBestEffort(next);
-    });
+      _resyncBestEffort(
+        pauseControllable: ref.read(pauseControllableProvider),
+        keepPopupOpen: ref.read(pinnedProvider),
+      );
+    }
+
+    ref
+      ..listen<bool>(pauseControllableProvider, resync)
+      ..listen<bool>(pinnedProvider, resync);
     return child;
   }
 
-  Future<void> _resyncBestEffort(bool pauseControllable) async {
+  Future<void> _resyncBestEffort({
+    required bool pauseControllable,
+    required bool keepPopupOpen,
+  }) async {
     try {
-      await setContextMenu(buildTrayMenu(pauseControllable: pauseControllable));
+      await setContextMenu(
+        buildTrayMenu(
+          pauseControllable: pauseControllable,
+          keepPopupOpen: keepPopupOpen,
+        ),
+      );
     } on Object catch (err, stack) {
       debugPrint('upeg: setContextMenu failed: $err');
       debugPrint(stack.toString());
@@ -285,11 +309,13 @@ bool get isTraySupported {
 
 /// Tray controller — keeps the [Ref] for callback dispatch and bridges
 /// `TrayListener` events into Riverpod state updates.
-class UpegTray with TrayListener {
+class UpegTray with TrayListener, WidgetsBindingObserver {
   UpegTray._(this._ref);
 
   final Ref _ref;
   static UpegTray? _installed;
+  static bool _installing = false;
+  bool _disposed = false;
 
   /// Install the tray. Idempotent: subsequent calls are no-ops so
   /// hot-reload doesn't stack listeners.
@@ -298,32 +324,67 @@ class UpegTray with TrayListener {
       debugPrint('upeg: tray not supported on this platform; skipping install');
       return;
     }
-    if (_installed != null) return;
+    if (_installed != null || _installing) return;
+    _installing = true;
     final tray = UpegTray._(ref);
+    ref.onDispose(tray._dispose);
     try {
-      // The tray icon is a small 16×16 PNG asset; the wire-up lives in
-      // [installTrayIcon] (S3) so the icon-path contract stays
-      // unit-testable in isolation. `assets/tray_icon.png` ships via
-      // pubspec's `flutter.assets` list.
+      // The icon asset is picked per platform ([trayIconSpecFor]); the
+      // wire-up lives in [installTrayIcon] so the icon contract stays
+      // unit-testable in isolation. The assets ship via pubspec's
+      // `flutter.assets` list.
       await installTrayIcon();
+      if (tray._disposed) return;
       await trayManager.setContextMenu(
-        buildTrayMenu(pauseControllable: ref.read(pauseControllableProvider)),
+        buildTrayMenu(
+          pauseControllable: ref.read(pauseControllableProvider),
+          keepPopupOpen: ref.read(pinnedProvider),
+        ),
       );
+      if (tray._disposed) return;
       trayManager.addListener(tray);
+      WidgetsBinding.instance.addObserver(tray);
       _installed = tray;
+      unawaited(playTrayStartupAnimation());
     } on Exception catch (err) {
       debugPrint('upeg: tray install failed: $err');
+    } finally {
+      _installing = false;
     }
   }
 
-  /// Left click = launcher summon toggle (shown → hide, hidden →
-  /// popup + summon). Shares `runSummonToggle` with the global hotkey
-  /// so both entry points stay behaviorally identical. Only
+  void _dispose() {
+    _disposed = true;
+    trayManager.removeListener(this);
+    WidgetsBinding.instance.removeObserver(this);
+    if (identical(_installed, this)) _installed = null;
+    unawaited(stopTrayAnimation());
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .disableAnimations) {
+      unawaited(stopTrayAnimation());
+    }
+  }
+
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    await stopTrayAnimation();
+    return AppExitResponse.exit;
+  }
+
+  /// Left click always restores, shows, and focuses the current mode.
+  /// The global hotkey retains its separate show/hide toggle. Only
   /// macOS/Windows deliver this event — Linux AppIndicator opens the
   /// attached menu natively and never reaches here.
   @override
   void onTrayIconMouseDown() {
-    unawaited(runSummonToggle(_ref.container));
+    unawaited(summonWindow());
   }
 
   @override
@@ -344,27 +405,22 @@ class UpegTray with TrayListener {
       return;
     }
     switch (cmd) {
-      case TrayCommand.quit:
-        unawaited(runTrayQuit());
       case TrayCommand.openDashboard:
-        _setMode(WindowMode.full);
+        unawaited(openPegboardFromTray(_ref.container));
       case TrayCommand.togglePopup:
         _toggleMode();
+      case TrayCommand.quit:
       case TrayCommand.togglePin:
       case TrayCommand.togglePause:
         dispatchTrayCommand(_ref.container, cmd);
     }
   }
 
-  void _setMode(WindowMode mode) {
+  void _toggleMode() {
     // Geometry application is owned by `WindowModeApplier` (C03) —
     // the observer listens on `windowModeProvider` and calls
     // `applyWindowMode` on every change. The tray dispatch only flips
     // the typed state; the platform call follows automatically.
-    _ref.read(windowModeProvider.notifier).set(mode);
-  }
-
-  void _toggleMode() {
     _ref.read(windowModeProvider.notifier).toggle();
   }
 

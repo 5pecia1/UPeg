@@ -1,7 +1,7 @@
 /// Unit tests for the shared quit-request pipeline behind keyboard `q`
 /// and the intercepted OS close (X) button. The pipeline is pure
-/// orchestration — confirm and quit effects are injected — so the
-/// interception decision is verifiable without any platform channel.
+/// orchestration — confirm, draft-flush, and quit effects are injected — so
+/// the interception decision is verifiable without any platform channel.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -63,5 +63,32 @@ void main() {
         expect(calls, isEmpty);
       },
     );
+  });
+
+  group('runQuitWithDraftFlush', () {
+    test('flushes_pending_drafts_before_the_quit_effects_run', () async {
+      final calls = <String>[];
+      await runQuitWithDraftFlush(
+        flushDrafts: () => calls.add('flush'),
+        quit: () => runAppQuit(
+          shutdown: () => calls.add('shutdown'),
+          closeWindow: () async => calls.add('destroy'),
+        ),
+      );
+      // Drafts are written before the instance lock is released.
+      expect(calls, ['flush', 'shutdown', 'destroy']);
+    });
+
+    test('a_denied_confirm_flushes_nothing', () async {
+      final calls = <String>[];
+      await runQuitRequest(
+        confirm: () async => false,
+        quit: () => runQuitWithDraftFlush(
+          flushDrafts: () => calls.add('flush'),
+          quit: () async => calls.add('quit'),
+        ),
+      );
+      expect(calls, isEmpty);
+    });
   });
 }

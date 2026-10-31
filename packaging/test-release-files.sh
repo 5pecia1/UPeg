@@ -15,6 +15,7 @@ PASS=0
 # Synthetic source root: same relative paths, marker-carrying fake content.
 SRC="$WORK/src"
 mkdir -p "$SRC/flutter_app/fonts" "$SRC/vendor/pdf-inspector" "$SRC/vendor/zxcvbn" \
+  "$SRC/vendor/heic-rs" "$SRC/vendor/wasmtime-internal-cache" \
   "$SRC/flutter_app/rust_builder/cargokit" "$SRC/chrome-ext"
 printf 'Apache License\nVersion 2.0\n' > "$SRC/LICENSE"
 printf 'UPeg\nCopyright 2026 5pecia1\n' > "$SRC/NOTICE"
@@ -22,6 +23,10 @@ printf 'SIL Open Font License\n' > "$SRC/flutter_app/fonts/OFL-D2Coding.txt"
 printf 'SIL Open Font License\n' > "$SRC/flutter_app/fonts/OFL-JetBrainsMono.txt"
 printf 'MIT License\nFirecrawl\n' > "$SRC/vendor/pdf-inspector/LICENSE"
 printf 'MIT License\nJoshua Holmer\n' > "$SRC/vendor/zxcvbn/LICENSE"
+printf 'Apache License\nLLVM Exceptions\n' > "$SRC/vendor/wasmtime-internal-cache/LICENSE"
+printf 'MIT License\nThomas Braun\n' > "$SRC/vendor/heic-rs/LICENSE-MIT"
+printf 'Apache License\nVersion 2.0\n' > "$SRC/vendor/heic-rs/LICENSE-APACHE"
+printf 'heic-rs is an independent implementation\n' > "$SRC/vendor/heic-rs/NOTICE"
 printf 'MIT LICENSE\nApache LICENSE\n' > "$SRC/flutter_app/rust_builder/cargokit/LICENSE"
 printf '[workspace.package]\nversion = "9.9.9"\n' > "$SRC/Cargo.toml"
 printf 'version: 9.9.9+1\nmsix_config:\n  msix_version: 9.9.9.0\n' \
@@ -102,10 +107,15 @@ printf 'fake-binary' > "$DEST/upeg"
 UPEG_SOURCE_ROOT="$SRC" UPEG_VERSION=v9.9.9 UPEG_COMMIT=deadbeef \
   bash "$SCRIPT" stage "$DEST" >/dev/null
 for f in LICENSE NOTICE OFL-D2Coding.txt OFL-JetBrainsMono.txt \
-         pdf-inspector-LICENSE zxcvbn-LICENSE cargokit-LICENSE BUILD-INFO; do
+         pdf-inspector-LICENSE zxcvbn-LICENSE heic-rs-LICENSE-MIT \
+         heic-rs-LICENSE-APACHE heic-rs-NOTICE wasmtime-internal-cache-LICENSE cargokit-LICENSE BUILD-INFO; do
   [ -s "$DEST/$f" ] || fail "staged file missing: $f"
 done
+cmp -s "$SRC/vendor/wasmtime-internal-cache/LICENSE" "$DEST/wasmtime-internal-cache-LICENSE" || fail "Wasmtime cache license content drifted"
 cmp -s "$SRC/LICENSE" "$DEST/LICENSE" || fail "LICENSE content drifted"
+cmp -s "$SRC/vendor/heic-rs/LICENSE-MIT" "$DEST/heic-rs-LICENSE-MIT" || fail "HEIC MIT license content drifted"
+cmp -s "$SRC/vendor/heic-rs/LICENSE-APACHE" "$DEST/heic-rs-LICENSE-APACHE" || fail "HEIC Apache license content drifted"
+cmp -s "$SRC/vendor/heic-rs/NOTICE" "$DEST/heic-rs-NOTICE" || fail "HEIC notice content drifted"
 grep -q '^version=v9.9.9$' "$DEST/BUILD-INFO" || fail "BUILD-INFO version"
 grep -q '^commit=deadbeef$' "$DEST/BUILD-INFO" || fail "BUILD-INFO commit"
 ok "stage copies the full notice set and BUILD-INFO"
@@ -137,7 +147,7 @@ fi
 ok "check refuses a payload with edited LICENSE"
 
 # 8. stage: missing source file refuses instead of copying nothing.
-rm "$SRC/vendor/pdf-inspector/LICENSE"
+rm "$SRC/vendor/heic-rs/LICENSE-APACHE"
 if UPEG_SOURCE_ROOT="$SRC" bash "$SCRIPT" stage "$WORK/empty" >/dev/null 2>&1; then
   fail "stage passed with missing vendored license"
 fi

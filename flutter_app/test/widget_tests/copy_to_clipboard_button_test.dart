@@ -164,9 +164,12 @@ void main() {
     ) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CopyToClipboardButton(textToCopy: 'hello', writer: writer),
+        ProviderScope(
+          overrides: [...i18nTestOverrides],
+          child: MaterialApp(
+            home: Scaffold(
+              body: CopyToClipboardButton(textToCopy: 'hello', writer: writer),
+            ),
           ),
         ),
       );
@@ -180,9 +183,12 @@ void main() {
     ) async {
       final writer = _RecordingClipboardWriter();
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CopyToClipboardButton(textToCopy: '', writer: writer),
+        ProviderScope(
+          overrides: [...i18nTestOverrides],
+          child: MaterialApp(
+            home: Scaffold(
+              body: CopyToClipboardButton(textToCopy: '', writer: writer),
+            ),
           ),
         ),
       );
@@ -286,6 +292,65 @@ void main() {
         expect(writer.writes, ['{"result":255}']);
       },
     );
+
+    testWidgets('a secondary output row copies its own value', (tester) async {
+      final writer = _RecordingClipboardWriter();
+      final tool = fixtureToolDto(
+        id: 'fixture.two_outputs',
+        toolkit: 'fixture',
+        label: 'two outputs',
+        inputFields: _fixtureTool.inputFields,
+        outputFields: const [
+          OutputFieldDto(
+            key: 'primary',
+            label: 'Primary',
+            fieldType: OutputFieldType.text(),
+          ),
+          OutputFieldDto(
+            key: 'secondary',
+            label: 'Secondary',
+            fieldType: OutputFieldType.text(),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _modalHarness(
+          tool: tool,
+          dispatch: ({pinKey, required toolId, required args}) =>
+              _multiOutputSuccess(
+                primaryOutputId: 'primary',
+                outputs: const [
+                  CanonicalOutputEntry(
+                    id: 'primary',
+                    kind: 'string',
+                    value: CanonicalOutputValue.string(value: 'first'),
+                  ),
+                  CanonicalOutputEntry(
+                    id: 'secondary',
+                    kind: 'string',
+                    value: CanonicalOutputValue.string(value: 'second'),
+                  ),
+                ],
+              ),
+          clipboardWriter: writer,
+        ),
+      );
+      await tester.enterText(find.byKey(const Key('field-value')), 'input');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('expanded-modal-run-btn')));
+      await tester.pumpAndSettle();
+      final secondary = find.byKey(
+        const ValueKey('expanded-modal-output-secondary'),
+      );
+      await tester.tap(
+        find.descendant(
+          of: secondary,
+          matching: find.byType(CopyToClipboardButton),
+        ),
+      );
+      await tester.pump();
+      expect(writer.writes, ['second']);
+    });
 
     testWidgets(
       'ExpandedModalPage_structured_content_renders_with_the_outputFields_labels',
@@ -591,6 +656,15 @@ void main() {
           [1, 2, 3],
         ]);
         expect(identical(bridge.lastSavedBuffer, sourceBytes), isTrue);
+        final fileRow = find.byKey(
+          const ValueKey('expanded-modal-output-file'),
+        );
+        final fileCopy = find.descendant(
+          of: fileRow,
+          matching: find.byType(CopyToClipboardButton),
+        );
+        expect(tester.widget<CopyToClipboardButton>(fileCopy).textToCopy, '');
+        expect(writer.writes, isEmpty);
         expect(
           find.byKey(const Key('webview-panel-inappwebview')),
           findsOneWidget,

@@ -47,7 +47,7 @@ class WindowModeNotifier extends Notifier<WindowMode> {
     return next;
   }
 
-  /// Force a specific mode (e.g. tray "Open Dashboard" always wants
+  /// Force a specific mode (e.g. tray "Open Pegboard" always wants
   /// full).
   void set(WindowMode mode) {
     state = mode;

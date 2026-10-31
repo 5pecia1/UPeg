@@ -1,32 +1,55 @@
-//! Tweaks (theme / accent / locale / peg-hole visibility) FRB surface.
+//! Shared user-preference FRB surface.
 //!
 //! The on-disk record + persistence path lives in
 //! `upeg_pegboard_ui::features::tweaks`. This module exposes the Flutter
-//! side a Dart-shaped DTO with owned `String` fields — the source enum
-//! variants are encoded as their `serde_json` discriminator names
-//! (e.g. `"Dark"`, `"Green"`, `"En"`) so a single string mapping
-//! survives every Rust → Dart hop.
+//! side a Dart-shaped DTO. Theme, accent and locale retain their string
+//! representation; pin handle style crosses the boundary as a typed enum.
 
-use upeg_core::prefs::{Accent, Locale, Theme};
+use upeg_core::prefs::{Accent, Locale, PinHandleStyle, Theme};
 use upeg_pegboard_ui::features::tweaks::{
     Tweaks, load_tweaks as load_inner, save_tweaks as save_inner,
 };
 use upeg_pegboard_ui::i18n::SUPPORTED_LOCALES;
 
+/// Dart-mirrored appearance of the pin's drag handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[flutter_rust_bridge::frb(non_opaque)]
+pub enum PinHandleStyleDto {
+    Peg,
+    Dots,
+}
+
+impl From<PinHandleStyle> for PinHandleStyleDto {
+    fn from(style: PinHandleStyle) -> Self {
+        match style {
+            PinHandleStyle::Peg => Self::Peg,
+            PinHandleStyle::Dots => Self::Dots,
+        }
+    }
+}
+
+impl From<PinHandleStyleDto> for PinHandleStyle {
+    fn from(style: PinHandleStyleDto) -> Self {
+        match style {
+            PinHandleStyleDto::Peg => Self::Peg,
+            PinHandleStyleDto::Dots => Self::Dots,
+        }
+    }
+}
+
 /// Dart-mirrored view of [`Tweaks`].
 ///
-/// Every field is an owned `String` so it crosses the FFI boundary
-/// without lifetime acrobatics. The enum-shaped fields (`theme`,
-/// `accent`, `locale`) carry the serde-encoded variant name —
-/// `LOCALE_VALUES`, `THEME_VALUES`, `ACCENT_VALUES` enumerate the
-/// shipping set so Dart can build dropdowns without re-encoding the
-/// list.
+/// Theme, accent and locale carry their serde variant names; their
+/// `supported_*` functions enumerate the shipping choices. Handle styles
+/// use the generated enum's values directly.
 #[derive(Debug, Clone)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct TweaksDto {
     pub theme: String,
     pub accent: String,
     pub show_holes: bool,
+    #[frb(default = "PinHandleStyleDto.peg")]
+    pub pin_handle_style: PinHandleStyleDto,
     pub locale: String,
     /// Desktop "Local HTTP host" switch. When on, the app embeds an
     /// in-process HTTP host at boot; when off it only attaches to a host
@@ -40,6 +63,7 @@ impl From<&Tweaks> for TweaksDto {
             theme: theme_to_str(t.theme).to_string(),
             accent: accent_to_str(t.accent).to_string(),
             show_holes: t.show_holes,
+            pin_handle_style: t.pin_handle_style.into(),
             locale: locale_to_str(t.locale).to_string(),
             local_http_host: t.local_http_host,
         }
@@ -54,6 +78,7 @@ impl TryFrom<TweaksDto> for Tweaks {
             theme: parse_theme(&dto.theme)?,
             accent: parse_accent(&dto.accent)?,
             show_holes: dto.show_holes,
+            pin_handle_style: dto.pin_handle_style.into(),
             locale: parse_locale(&dto.locale)?,
             local_http_host: dto.local_http_host,
         })
@@ -171,21 +196,48 @@ mod tests {
 
     #[test]
     fn dto_round_trip_preserves_all_fields() {
-        let original = Tweaks {
-            theme: Theme::Dark,
-            accent: Accent::Cyan,
-            show_holes: false,
-            locale: Locale::Ko,
-            local_http_host: true,
-        };
-        let dto = TweaksDto::from(&original);
-        assert_eq!(dto.theme, "Dark");
-        assert_eq!(dto.accent, "Cyan");
-        assert!(!dto.show_holes);
-        assert_eq!(dto.locale, "Ko");
-        assert!(dto.local_http_host);
-        let back = Tweaks::try_from(dto).expect("parse");
-        assert_eq!(back, original);
+        for (pin_handle_style, expected_dto) in [
+            (PinHandleStyle::Peg, PinHandleStyleDto::Peg),
+            (PinHandleStyle::Dots, PinHandleStyleDto::Dots),
+        ] {
+            let original = Tweaks {
+                theme: Theme::Dark,
+                accent: Accent::Cyan,
+                show_holes: false,
+                pin_handle_style,
+                locale: Locale::Ko,
+                local_http_host: true,
+            };
+            let dto = TweaksDto::from(&original);
+            assert_eq!(dto.theme, "Dark");
+            assert_eq!(dto.accent, "Cyan");
+            assert!(!dto.show_holes);
+            assert_eq!(dto.pin_handle_style, expected_dto);
+            assert_eq!(dto.locale, "Ko");
+            assert!(dto.local_http_host);
+            let back = Tweaks::try_from(dto).expect("parse");
+            assert_eq!(back, original);
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn save_then_load_preserves_each_handle_style_and_other_preferences() {
+        crate::api::test_support::run_with_storage_backup(|| {
+            for pin_handle_style in [PinHandleStyle::Dots, PinHandleStyle::Peg] {
+                let original = Tweaks {
+                    theme: Theme::Dark,
+                    accent: Accent::Pink,
+                    show_holes: false,
+                    pin_handle_style,
+                    locale: Locale::Ko,
+                    local_http_host: true,
+                };
+                save_tweaks(TweaksDto::from(&original)).expect("save preferences");
+                let loaded = Tweaks::try_from(load_tweaks()).expect("load preferences");
+                assert_eq!(loaded, original);
+            }
+        });
     }
 
     #[test]
@@ -194,6 +246,7 @@ mod tests {
             theme: "Mauve".to_string(),
             accent: "Green".to_string(),
             show_holes: true,
+            pin_handle_style: PinHandleStyleDto::Peg,
             locale: "En".to_string(),
             local_http_host: false,
         };
@@ -211,6 +264,7 @@ mod tests {
             theme: "Light".to_string(),
             accent: "Green".to_string(),
             show_holes: true,
+            pin_handle_style: PinHandleStyleDto::Peg,
             locale: "Fr".to_string(),
             local_http_host: false,
         };

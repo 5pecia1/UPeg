@@ -67,11 +67,7 @@ class BoardDetailsRobot {
           theme: UpegTheme.darkTheme(),
           home: Scaffold(
             body: throughTabs
-                ? BoardTabs(
-                    onOpenPalette: () {},
-                    onOpenSettings: () {},
-                    onEditPinColor: () {},
-                  )
+                ? BoardTabs(onOpenPalette: () {}, onOpenSettings: () {})
                 : const BoardDetailsDialog(boardKey: boardDetailsTestKey),
           ),
         ),

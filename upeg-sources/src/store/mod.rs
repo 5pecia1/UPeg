@@ -8,11 +8,33 @@
 //!
 //! Concurrency model: `journal_mode=WAL` lets one writer coexist with
 //! readers across processes; writers open `BEGIN IMMEDIATE` transactions and
-//! wait up to [`BUSY_TIMEOUT`] for a competing writer. Cross-surface change
-//! detection is driven by the [`Store::change_rev`] counter (a `meta` row
-//! bumped by every write transaction) — under WAL the main database file's
-//! mtime does not reliably change on commit, so file-mtime polling would be
-//! a silent regression.
+//! wait up to [`BUSY_TIMEOUT`] for a competing writer. Opening an
+//! up-to-date database takes no write lock (the schema version and device id
+//! are read before anything is written), so an active writer never delays an
+//! open. Under WAL the main database file's mtime does not reliably change on
+//! commit.
+//!
+//! # Which writes bump `change_rev`
+//!
+//! Cross-surface change detection is driven by the [`Store::change_rev`]
+//! counter (a `meta` row). Every write goes through one of three transaction
+//! helpers, and the helper decides whether the counter moves. This table is
+//! the single source of truth: put a new write in the matching row instead of
+//! choosing a helper ad hoc.
+//!
+//! | Helper | `change_rev` | Writes |
+//! | --- | --- | --- |
+//! | `write_tx` | always bumped | `save_state`, `upsert_placement`, `tombstone_placement`, `save_selection` (pegboard); `save_memos` |
+//! | `write_tx_if_changed` | bumped only if the edit changed a row | `update_board_guidance` (pegboard) |
+//! | `write_local_cache_tx` | never bumped | `save_pin_draft`, `clear_pin_draft`; `record_last_outcome`, `clear_last_outcome`; `append_diagnostic`; `append_execution_record` |
+//!
+//! The counter has two consumers: the Flutter shared-state poll
+//! (`flutter_app/lib/src/state/shared_state_versions.dart`), which reloads
+//! boards, layouts, and the selection when it moves, and the TUI
+//! (`upeg-cli/src/surfaces/tui/effects.rs`), which reloads its pegboard.
+//! Local form drafts, last results, diagnostics, and execution-log rows stay
+//! off the counter, so input, output, and failure-log updates never force a
+//! board reload.
 
 mod diagnostics;
 mod execution_log;
@@ -20,6 +42,7 @@ pub mod export;
 mod last_outcomes;
 mod memos;
 mod pegboard;
+mod pin_drafts;
 mod schema;
 
 #[cfg(test)]
@@ -27,9 +50,8 @@ mod tests;
 
 pub use diagnostics::{DIAGNOSTIC_RETENTION, DiagnosticRecord};
 pub use execution_log::{ExecutionLogFilter, ExecutionLogRecord};
-pub use last_outcomes::{
-    CappedOutputsJson, LastOutcomeRecord, NewLastOutcome, OUTPUTS_JSON_MAX_BYTES, cap_outputs_json,
-};
+pub use last_outcomes::{LastOutcomeRecord, NewLastOutcome};
+pub use pin_drafts::PinDraftRecord;
 
 use std::path::Path;
 use std::time::Duration;
@@ -37,7 +59,7 @@ use std::time::Duration;
 use rusqlite::{Connection, TransactionBehavior};
 
 /// `meta` key holding the monotonically increasing change revision.
-/// Absent until the first write; every write transaction adds 1.
+/// Absent until the first shared-state write; each such transaction adds 1.
 const META_REV_KEY: &str = "rev";
 /// `meta` key holding this installation's stable device id (UUIDv7,
 /// generated on first open). Reserved for later sync/merge steps.
@@ -137,9 +159,10 @@ impl Store {
         })
     }
 
-    /// Change revision of this database: `None` before the first write,
-    /// then a counter that grows by 1 per write transaction. Surfaces
-    /// poll this instead of file mtime (see module docs).
+    /// Change revision of shared state: `None` before its first write,
+    /// then a counter that grows per shared-state transaction. Local-only
+    /// writes (pin drafts and last results, diagnostics, the execution log)
+    /// leave it unchanged; see the table in the module docs.
     pub fn change_rev(&self) -> Result<Option<u64>, StoreError> {
         read_meta_u64(&self.conn, META_REV_KEY)
     }
@@ -153,8 +176,8 @@ impl Store {
     }
 
     /// Run `f` inside a `BEGIN IMMEDIATE` write transaction and bump the
-    /// change revision on commit. Every mutation of the store routes
-    /// through here so rev-based polling can never miss a write.
+    /// change revision on commit. Shared-state mutations route through here
+    /// so pegboard polling cannot miss a board or layout edit.
     pub(crate) fn write_tx<T>(
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<T, StoreError>,
@@ -167,6 +190,28 @@ impl Store {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let out = f(&tx)?;
         bump_rev(&tx)?;
+        tx.commit()?;
+        Ok(out)
+    }
+
+    /// Persist local-only rows without announcing a pegboard change: pin
+    /// drafts and last results, diagnostics, and the execution log. Flutter
+    /// reads drafts on form mount and last results on board switch, and the
+    /// two logs are append-only history that nothing polls; publishing a
+    /// revision for these frequent writes would make the shared-state poll
+    /// invalidate and reload every board (while typing, or on every failed
+    /// Live tick).
+    pub(crate) fn write_local_cache_tx<T>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<T, StoreError>,
+    ) -> Result<T, StoreError> {
+        if let Some(lease) = &self.storage_lease {
+            lease.validate()?;
+        }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let out = f(&tx)?;
         tx.commit()?;
         Ok(out)
     }
@@ -196,6 +241,13 @@ impl Store {
 }
 
 fn ensure_device_id(conn: &Connection) -> Result<(), StoreError> {
+    // Read first: `INSERT OR IGNORE` takes the write lock even when the row
+    // exists, so every open of an initialized database would wait for any
+    // active writer. Two first opens that both pass this check are settled by
+    // the INSERT: the first writer's id wins.
+    if read_meta(conn, META_DEVICE_ID_KEY)?.is_some() {
+        return Ok(());
+    }
     let sql = format!(
         "INSERT OR IGNORE INTO {meta} (key, value) VALUES (?1, ?2)",
         meta = schema::META_TABLE,

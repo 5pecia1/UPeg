@@ -7,12 +7,17 @@
 //! lock.
 //!
 //! `init_app` is the one-shot boot the Flutter side awaits before
-//! rendering the first frame. `shutdown` releases the lock so Drop
+//! rendering the first frame. It takes the instance lock first (right
+//! after the storage lease), so a second instance that loses the lock
+//! returns `AlreadyRunning` before it registers Toolkits, loads runtime
+//! sources, or writes diagnostics. `shutdown` releases the lock so Drop
 //! cleanup runs even when the process exits through a Dart-side path
 //! that would otherwise skip the static destructor lane.
 
 pub use upeg_pegboard_ui::deep_link::DesktopLaunch;
-use upeg_pegboard_ui::deep_link::{desktop_launch_from_env, desktop_launch_from_env_maybe};
+use upeg_pegboard_ui::deep_link::{
+    DEFAULT_DESKTOP_BOARD, desktop_launch_from_env, desktop_launch_from_env_maybe,
+};
 
 /// Report returned by [`init_app`] so the Flutter side can render
 /// the initial UI state in one round-trip.
@@ -31,6 +36,11 @@ pub struct AppInitReport {
 /// Non-opaque DTO mirror of [`DesktopLaunch`]. The source struct
 /// holds `&'static str` fields (board/tool ids) which FRB cannot
 /// ship as borrows; the owned-string copy crosses the wire instead.
+///
+/// `board` stays a plain `String` in the boot report, so a link that
+/// names no Board is reported as the default Board key. The Dart side
+/// does not read this field: whether to switch Boards is decided by
+/// `current_launch_intent`, where the same case is `None`.
 #[derive(Debug, Clone)]
 #[flutter_rust_bridge::frb(non_opaque)]
 pub struct DesktopLaunchDto {
@@ -42,7 +52,7 @@ pub struct DesktopLaunchDto {
 impl From<DesktopLaunch> for DesktopLaunchDto {
     fn from(launch: DesktopLaunch) -> Self {
         Self {
-            board: launch.board.to_string(),
+            board: launch.board.unwrap_or(DEFAULT_DESKTOP_BOARD).to_string(),
             tool: launch.tool.map(str::to_string),
             input: launch.input,
         }
@@ -107,6 +117,12 @@ pub enum FrbError {
 /// One-shot boot: acquires the OS-level instance lock + runs host
 /// discovery (attach existing / embed new / no host).
 ///
+/// The instance lock is taken right after the storage lease, before
+/// Toolkit registration, runtime-source loading and host discovery, so a
+/// second instance that loses it registers no Toolkits, loads no runtime
+/// sources and writes no diagnostics before returning
+/// [`FrbError::AlreadyRunning`].
+///
 /// The bootstrap result is forwarded to the host-state broadcaster
 /// in `api/events.rs` so any subscriber attached after `init_app`
 /// returns immediately receives the cached snapshot on subscribe.
@@ -141,6 +157,10 @@ pub fn init_app() -> Result<AppInitReport, FrbError> {
                 });
             }
         }
+        // Single-instance gate: after the storage lease (the lock file
+        // lives in the runtime dir that lease resolved) and before
+        // Toolkit registration, runtime-source loading and host discovery.
+        acquire_desktop_instance_lock()?;
     }
     super::tools::register_toolkit_runtime().map_err(|message| FrbError::Internal { message })?;
 
@@ -164,22 +184,25 @@ pub fn init_app() -> Result<AppInitReport, FrbError> {
     })
 }
 
+/// Take the process-wide desktop instance lock. A live owner maps to
+/// [`FrbError::AlreadyRunning`]; the lock file is
+/// `desktop.lock` in the runtime dir Rust resolved
+/// (`upeg_core::paths::desktop_lock_path`).
+#[cfg(not(target_arch = "wasm32"))]
+fn acquire_desktop_instance_lock() -> Result<(), FrbError> {
+    use crate::platform::instance_lock::{self, AcquireError};
+
+    instance_lock::acquire_global().map_err(|error| match error {
+        AcquireError::AlreadyRunning { pid } => FrbError::AlreadyRunning { pid },
+        AcquireError::Io(err) => FrbError::Io {
+            message: err.to_string(),
+        },
+    })
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn native_host_bootstrap() -> Result<HostState, FrbError> {
-    use crate::platform::{host_bootstrap, instance_lock};
-
-    match instance_lock::acquire_global() {
-        Ok(()) => {}
-        Err(instance_lock::AcquireError::AlreadyRunning { pid }) => {
-            return Err(FrbError::AlreadyRunning { pid });
-        }
-        Err(instance_lock::AcquireError::Io(err)) => {
-            return Err(FrbError::Io {
-                message: err.to_string(),
-            });
-        }
-    }
-    Ok(host_bootstrap::ensure_host_for_desktop())
+    Ok(crate::platform::host_bootstrap::ensure_host_for_desktop())
 }
 
 /// Load user-provided runtime tool sources (declarative toolkits, the
@@ -281,7 +304,8 @@ fn log_runtime_source_report(report: &upeg_sources::RuntimeSourceReport) {
 /// Re-read the launch intent without re-running the whole boot.
 /// Returns `None` when argv carries no supported `upeg://open` argument
 /// so the Dart side can distinguish "no deep link" from an explicit
-/// default-board deep link.
+/// summon-only deep link (a bare `upeg://open`, whose fields are all
+/// `None`).
 ///
 /// The Dart `app.dart` calls this once after `initApp()` resolves and
 /// seeds the result into `launchIntentProvider`, which the
@@ -290,17 +314,18 @@ fn log_runtime_source_report(report: &upeg_sources::RuntimeSourceReport) {
 pub fn current_launch_intent() -> Option<crate::api::deep_link::LaunchIntentDto> {
     let launch = desktop_launch_from_env_maybe()?;
     Some(crate::api::deep_link::LaunchIntentDto {
-        board: Some(launch.board.to_string()),
+        board: launch.board.map(str::to_string),
         tool: launch.tool.map(|t| t.to_string()),
         input_json: launch.input,
     })
 }
 
-/// Hand the host back to the OS: drops the instance lock so
-/// `~/.upeg/desktop.lock` is removed even when the process exits via
-/// a Dart-side teardown path. The embedded HTTP host thread keeps
-/// running until process exit; its discovery `Drop` guard handles
-/// cleanup. There is no explicit host-stop signal yet.
+/// Hand the host back to the OS: drops the instance lock so the
+/// `desktop.lock` file in the resolved runtime dir is removed even
+/// when the process exits via a Dart-side teardown path. The embedded
+/// HTTP host thread keeps running until process exit; its discovery
+/// `Drop` guard handles cleanup. There is no explicit host-stop signal
+/// yet.
 #[flutter_rust_bridge::frb(sync)]
 pub fn shutdown() -> Result<(), FrbError> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -412,7 +437,7 @@ mod tests {
         // FRB cannot ship `&'static str` borrows over FFI; the DTO
         // owns every field so the Dart side sees concrete Strings.
         let launch = DesktopLaunch {
-            board: "trading",
+            board: Some("trading"),
             tool: Some("num.hex_to_decimal"),
             input: Some("{\"hex\":\"0xff\"}".to_string()),
         };
@@ -420,6 +445,16 @@ mod tests {
         assert_eq!(dto.board, "trading");
         assert_eq!(dto.tool.as_deref(), Some("num.hex_to_decimal"));
         assert_eq!(dto.input.as_deref(), Some("{\"hex\":\"0xff\"}"));
+    }
+
+    #[test]
+    fn desktop_launch_dto_reports_the_default_board_for_a_link_without_one() {
+        // The boot report keeps a non-null board; the summon-only
+        // decision lives in `current_launch_intent`'s `Option`.
+        let dto = DesktopLaunchDto::from(DesktopLaunch::default());
+        assert_eq!(dto.board, DEFAULT_DESKTOP_BOARD);
+        assert_eq!(dto.tool, None);
+        assert_eq!(dto.input, None);
     }
 
     // ─── Task A1: `wasm-plugin` feature wiring ──────────────────────
@@ -442,12 +477,16 @@ mod tests {
     // above), and upeg-cli's own default features apply whenever it is
     // compiled at all — independent of upeg-frb's own `wasm-plugin`
     // feature flag. So `upeg-loader`'s real (non-stub) `Wasm` invoker
-    // dispatcher is now unconditionally unified into every native build
-    // that includes upeg-frb, including plain `cargo test -p upeg_frb`
-    // with upeg-frb's own `wasm-plugin` feature left off. The stub path
+    // dispatcher is unconditionally unified into every native build
+    // that includes upeg-frb, even a `--no-default-features` build that
+    // leaves upeg-frb's own `wasm-plugin` feature off. The stub path
     // this module's tests used to cover with upeg-frb's feature off is
     // no longer reachable from any such build; that regression-guard
     // test was removed rather than left permanently red.
+    //
+    // upeg-frb's own `wasm-plugin` feature is on by default (Cargo.toml),
+    // so the tests below run in the standard test lane
+    // (`cargo test --workspace`); `--no-default-features` skips them.
 
     /// Fixture shared by `upeg-wasm`/`upeg-loader`/`upeg-cli`'s own
     /// wasm-plugin tests: a precompiled extism module declaring
@@ -499,6 +538,8 @@ mod tests {
             "test.wasm.echo".to_string(),
             serde_json::json!({ "input": "boot-경로" }).to_string(),
             None,
+            None,
+            false,
         );
         assert!(outcome.ok, "dispatch_tool failed: {outcome:?}");
         assert!(
@@ -593,6 +634,8 @@ wasm_path = "{}"
             tool_id,
             serde_json::json!({ "input": "toml-경로" }).to_string(),
             None,
+            None,
+            false,
         );
         assert!(
             outcome.ok,

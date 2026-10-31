@@ -3,12 +3,17 @@
 /// Native durable state is stored once under the shared config root. This
 /// module only observes file versions and asks existing providers to reload;
 /// it does not own a separate copy of settings, boards, layouts, or selection.
+///
+/// Polling pauses while the window is hidden or minimized
+/// ([windowShownProvider]) and refreshes once, immediately, when it is shown
+/// again.
 library;
 
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:upeg/src/platform/window_visibility.dart';
 import 'package:upeg/src/rust/api/shared_state.dart';
 import 'package:upeg/src/state/boards_provider.dart';
 import 'package:upeg/src/state/layout_provider.dart';
@@ -26,8 +31,11 @@ final sharedStateVersionLoaderProvider = Provider<SharedStateVersionLoader>(
 );
 
 class SharedStateSyncController extends AsyncNotifier<SharedStateVersionsDto> {
+  /// The loader is synchronous, so the first read of this provider captures
+  /// the baseline versions at once ([AsyncData], no loading state). Later
+  /// [refresh] calls diff against it.
   @override
-  Future<SharedStateVersionsDto> build() async {
+  FutureOr<SharedStateVersionsDto> build() {
     final load = ref.watch(sharedStateVersionLoaderProvider);
     return load();
   }
@@ -60,6 +68,7 @@ class SharedStateSyncController extends AsyncNotifier<SharedStateVersionsDto> {
     if (previous.pegboard != next.pegboard) {
       ref.invalidate(boardsProvider);
       ref.invalidate(layoutProvider);
+      ref.invalidate(boardTagCountsProvider);
       ref.invalidate(tagOptionsForBoardProvider);
       ref.invalidate(countForBoardTagProvider);
       final boards = await ref.read(boardsProvider.future);
@@ -88,10 +97,16 @@ final sharedStatePollingProvider = Provider<void>((ref) {
     }
   }
 
-  unawaited(refreshBestEffort());
-  final timer = Timer.periodic(
-    kSharedStatePollInterval,
-    (_) => unawaited(refreshBestEffort()),
-  );
+  // Builds the baseline probe if no earlier reader has; this never adds a
+  // second probe at start-up.
+  ref.read(sharedStateSyncProvider);
+  // A hidden or minimized window shows nothing, so the ticks below are
+  // skipped; catch up with one refresh as soon as it is shown again.
+  ref.listen<bool>(windowShownProvider, (previous, shown) {
+    if (previous == false && shown) unawaited(refreshBestEffort());
+  });
+  final timer = Timer.periodic(kSharedStatePollInterval, (_) {
+    if (ref.read(windowShownProvider)) unawaited(refreshBestEffort());
+  });
   ref.onDispose(timer.cancel);
 });

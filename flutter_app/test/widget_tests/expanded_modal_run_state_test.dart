@@ -17,12 +17,14 @@ import 'package:upeg/src/pages/expanded_modal_page.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/state/dispatch_stream_provider.dart';
+import 'package:upeg/src/state/inline_draft_provider.dart';
 import 'package:upeg/src/state/running_tools_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 
 import '../test_helpers/dispatch_stream_fixture.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 const _emptySuccess = CanonicalToolResult(ok: true, outputs: []);
@@ -39,6 +41,7 @@ Widget _harness({required StubDispatch dispatch, ToolDto? tool}) {
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(stubDispatchStream(dispatch)),
     ],
     child: MaterialApp(
@@ -127,6 +130,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             ...i18nTestOverrides,
+            ...pinPersistenceTestOverrides,
             dispatchStreamFnProvider.overrideWithValue(
               stubDispatchStream(({
                 required toolId,
@@ -192,6 +196,9 @@ void main() {
         inlineCompleter.complete(_emptySuccess);
         await tester.pump();
         expect(container.read(runningToolsProvider), isNot(contains(pinKey)));
+        // The test-owned container outlives the widget tree, so its draft
+        // save timer must not still be pending when the test ends.
+        container.read(inlineDraftProvider).flushAll();
       },
     );
   });

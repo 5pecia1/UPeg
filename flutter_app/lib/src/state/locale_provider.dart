@@ -7,11 +7,12 @@
 /// rebuild only when the locale actually changes, not on every theme
 /// or accent flip.
 ///
-/// While `tweaksProvider` is still loading, the provider returns
-/// [LocaleDto.en] so first-frame renders fall back to the canonical
-/// English catalog. An unknown serde name also falls back to English;
-/// the FRB validator on `save_tweaks` already rejects unknown values
-/// so this branch is a defensive default, not a runtime contract.
+/// While `tweaksProvider` has no value (a failed load, or a save in
+/// flight), the provider returns [LocaleDto.en] so renders fall back to
+/// the canonical English catalog. An unknown serde name also falls back
+/// to English; the FRB validator on `save_tweaks` already rejects
+/// unknown values so this branch is a defensive default, not a runtime
+/// contract.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

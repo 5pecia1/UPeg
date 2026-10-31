@@ -16,7 +16,11 @@ use upeg_core::ToolResult;
 use upeg_runtime::{DispatchArgs, tool_success_primary_text};
 
 use super::capture::{self, RunBudget, RunControls};
+#[cfg(target_os = "linux")]
+use super::child::{ChildGuard, ChildOutput};
 use super::error::{CaptureCompletion, CaptureLimit, CapturedOutput};
+#[cfg(target_os = "linux")]
+use super::pty::TerminalMode;
 use crate::ToolToml;
 use crate::dispatcher::external_dispatcher_for;
 
@@ -353,43 +357,56 @@ fn live_path(target: &std::path::Path) -> std::path::PathBuf {
 
 #[cfg(target_os = "linux")]
 #[test]
-fn pty_run_ends_when_child_exits_and_leaves_no_terminal() {
-    // Given: a child that names its own terminal and exits immediately.
-    // The name matters because other tests in this binary open
-    // pseudoterminals at the same time — only the device this child
-    // actually wrote to may be looked for afterwards.
-    let terminals_before = parent_open_terminals();
+fn pty_parent_releases_child_side_after_spawn() {
+    // Inspect the parent's descriptors while the child still holds its
+    // terminal. A missing release in Command or Pty is visible here even
+    // though capture would eventually finish after its cleanup grace.
+    let mut long_lived = Command::new("sleep");
+    long_lived.arg("30");
+    let (mut child, output) =
+        ChildGuard::spawn(&mut long_lived, TerminalMode::Pty).expect("spawn a child on a pty");
+    let ChildOutput::Merged { terminal } = output else {
+        panic!("requested pty output");
+    };
+    let child_terminal = std::path::PathBuf::from(terminal.child_device().path());
+    assert!(
+        !parent_open_terminals().contains(&child_terminal),
+        "parent still holds the child side of {child_terminal:?} after spawn"
+    );
+    let retained = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&child_terminal)
+        .expect("open a second child-side descriptor in the parent");
+    assert!(
+        parent_open_terminals().contains(&child_terminal),
+        "the descriptor probe must detect an intentionally retained child side"
+    );
+    drop(retained);
+    assert!(
+        !parent_open_terminals().contains(&child_terminal),
+        "the descriptor probe must see the retained child side close"
+    );
+    child.terminate_and_reap().expect("reap the probe child");
+    drop(terminal);
+}
+
+#[test]
+fn pty_run_ends_when_child_exits() {
+    // This completion contract is checked on every supported Unix host.
     let mut command = Command::new("sh");
-    command.args(["-c", "readlink /proc/self/fd/1"]);
+    command.args(["-c", "printf 'pty-complete'"]);
 
-    // When
-    let start = Instant::now();
-    let captured = run_on_pty(&mut command);
-    let elapsed = start.elapsed();
-    let terminals_after = parent_open_terminals();
-
-    // Then: end-of-file came from the child exiting. A pty drain has
-    // exactly one other way to finish — the escaped-descendant grace
-    // period — and the two are a quarter of a second apart, so the clock
-    // is what tells them apart.
-    assert!(
-        elapsed < capture::DRAIN_COMPLETION_GRACE,
-        "a child that exits immediately took {elapsed:?} — the parent is holding the child-side descriptor so EOF only arrives after the grace period"
+    let captured = run(
+        &mut command,
+        RunControls::on_pty(),
+        RunBudget::from_timeout(Some(MAX_RETURN_TIME)),
     );
 
-    // And: the `Command` the caller still owns carries none of this
-    // run's terminal away. A spawn duplicates the `Stdio` values it was
-    // handed rather than consuming them, so a missing release leaves
-    // exactly this trace.
-    let child_terminal = std::path::PathBuf::from(stdout_text(&captured).trim());
     assert!(
-        child_terminal.starts_with(TERMINAL_DIR),
-        "the child must report writing to a terminal: {child_terminal:?}"
+        matches!(captured.completion, CaptureCompletion::Exited(status) if status.success()),
+        "the immediate child must exit successfully: {:?}",
+        captured.completion
     );
-    let leftover_terminals: std::collections::BTreeSet<_> =
-        terminals_after.difference(&terminals_before).collect();
-    assert!(
-        !leftover_terminals.contains(&child_terminal),
-        "after the run the parent still holds {child_terminal:?} open: {leftover_terminals:?}"
-    );
+    assert_eq!(stdout_text(&captured), "pty-complete");
 }

@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/platform/file_picker_bridge.dart'
     show filePickerBridgeProvider;
@@ -22,12 +23,15 @@ import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/rust/api/tools/file_input_policy.dart';
 import 'package:upeg/src/rust/api/tools/input_field.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/widgets/expanded_modal/compact_field_hint.dart';
 import 'package:upeg/src/widgets/expanded_modal/form_validation.dart';
 import 'package:upeg/src/widgets/expanded_modal/image_conversion_form_policy.dart';
 import 'package:upeg/src/widgets/expanded_modal/form_value.dart';
 import 'package:upeg/src/widgets/expanded_modal/file_input_field.dart';
 import 'package:upeg/src/widgets/expanded_modal/file_selection_policy_adapter.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
+
+part 'generic_form_controller.dart';
 
 const int _datePickerYearRange = 100;
 const double _expandedFieldSpacing = 12;
@@ -48,71 +52,6 @@ const String _hintSeparator = ' · ';
 /// modal page) wires this to the Run button's `enabled` state.
 typedef OnValidationChanged = void Function(bool allOk);
 
-/// Mutable form state shared between [GenericFormWidget] and its host.
-///
-/// Kept out of Riverpod on purpose: form state is short-lived (alive only
-/// while the modal is open) and tightly coupled to the widget tree, so a
-/// plain ChangeNotifier-shaped controller is the simpler fit.
-///
-/// State is typed via the [FormValue] sealed class — each FieldKind
-/// stores its own concrete shape so dispatch sends typed JSON
-/// (number → `num`, boolean → `bool`, multi-option → array) rather
-/// than the old stringly-typed map.
-class GenericFormController {
-  GenericFormController({this.onChanged});
-
-  /// Optional hook fired whenever a user edit stores or removes a field value.
-  /// Lets an inline pin body re-run the tool on-change; the expanded modal
-  /// leaves it null (it runs on an explicit button instead).
-  final VoidCallback? onChanged;
-
-  final Map<String, FormValue> _values = <String, FormValue>{};
-
-  /// JSON-ready snapshot of the current field values. Lowers each
-  /// [FormValue] through its `toJson()` so callers can pass a typed
-  /// envelope to the FRB boundary — numbers stay numbers, booleans stay
-  /// booleans, etc.
-  ToolArgs snapshot() => formValuesToToolArgs(_values);
-
-  /// Typed read for widgets that need the raw [FormValue] (e.g. a
-  /// boolean field reading its current state, or a multi-option field
-  /// driving its FilterChip selection set).
-  FormValue? value(String key) => _values[key];
-
-  void set(String key, FormValue value) {
-    _values[key] = value;
-    onChanged?.call();
-  }
-
-  /// Remove a field value in response to a user edit.
-  void remove(String key) {
-    _values.remove(key);
-    onChanged?.call();
-  }
-
-  /// Store a widget default without presenting it as a user edit.
-  void setDefault(String key, FormValue value) {
-    _values.putIfAbsent(key, () => value);
-  }
-
-  /// Seed the controller from a deep-link `initialInput` JSON object.
-  ///
-  /// Values are decoded only for declared fields and only when their JSON
-  /// shape matches the field schema. Invalid and unknown entries are ignored.
-  void seed(ToolArgs initial, {required Iterable<InputFieldDto> fields}) {
-    final input = initial.toJsonObject();
-    _values.clear();
-    for (final field in fields) {
-      final value = formValueFromJson(field.fieldType, input[field.key]);
-      if (value != null) _values[field.key] = value;
-    }
-  }
-
-  /// Test-only escape hatch. Production code should use [set] / [value].
-  @visibleForTesting
-  Map<String, FormValue> debugRaw() => _values;
-}
-
 class GenericFormWidget extends ConsumerStatefulWidget {
   const GenericFormWidget({
     required this.tool,
@@ -120,6 +59,7 @@ class GenericFormWidget extends ConsumerStatefulWidget {
     this.onValidationChanged,
     this.compact = false,
     this.boundInputKeys = const <String>{},
+    this.semanticsHint,
     super.key,
   });
 
@@ -127,10 +67,15 @@ class GenericFormWidget extends ConsumerStatefulWidget {
   final GenericFormController controller;
 
   /// Dense layout for the inline pin body: underline (not outlined) fields,
-  /// label as a placeholder, smaller type and tighter spacing so the form
-  /// fits a tile. The expanded modal leaves this false for the full layout.
+  /// description (else label) as a placeholder, smaller type and tighter
+  /// spacing so the form fits a pin. The expanded modal leaves this false
+  /// for the full layout.
   final bool compact;
   final Set<String> boundInputKeys;
+
+  /// Read out by assistive technology with each field of the compact layout
+  /// (for example "runs on input"); never drawn. Null adds nothing.
+  final String? semanticsHint;
 
   /// Optional gate hook: fires whenever the aggregate validity flips.
   /// `true` ⇒ every required field is filled and every field validator
@@ -207,7 +152,9 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
         widget.controller._values.remove(field.key);
         _textControllers[field.key]?.clear();
       } else {
-        final seed = defaultFormValueFor(field);
+        final seed = field.key == ImageConversionFields.vectorPreset
+            ? const OptionValue('poster')
+            : defaultFormValueFor(field);
         if (seed != null && widget.controller.value(field.key) == null) {
           widget.controller.setDefault(field.key, seed);
           _textControllers[field.key]?.text = _validationText(seed);
@@ -312,18 +259,14 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
 
   bool get _compact => widget.compact;
 
-  /// Standard field decoration, compact-aware. In compact mode the label
-  /// becomes a placeholder (no vertical floating-label space), the border is
-  /// a thin underline, and padding/type shrink to fit a tile.
-  InputDecoration _decoration(
-    InputFieldDto field, {
-    String? decoratedLabel,
-    Widget? suffixIcon,
-  }) {
-    final label = decoratedLabel ?? _decoratedLabel(field);
+  /// Standard field decoration, compact-aware. In compact mode the
+  /// description (else the label) becomes a placeholder (no vertical
+  /// floating-label space), the border is a thin underline, and padding/type
+  /// shrink to fit a pin.
+  InputDecoration _decoration(InputFieldDto field, {Widget? suffixIcon}) {
     if (!_compact) {
       return InputDecoration(
-        labelText: label,
+        labelText: _decoratedLabel(field),
         // The declared placeholder is a sample value, so it belongs in
         // the hint slot; the description is guidance, so it belongs
         // under the field.
@@ -338,8 +281,11 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
     final textTheme = Theme.of(context).textTheme;
     return InputDecoration(
       isDense: true,
-      hintText: label,
-      hintStyle: textTheme.labelMedium,
+      // A dropdown has no baseline for this slot to align with, so a Select
+      // draws the placeholder itself (see [_selectField]).
+      hint: field.fieldType is InputFieldType_Select
+          ? null
+          : _compactHint(field),
       border: const UnderlineInputBorder(),
       contentPadding: const EdgeInsets.symmetric(vertical: UpegSizing.radius1),
       errorText: _errorTextFor(field),
@@ -347,6 +293,15 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
       suffixIcon: suffixIcon,
     );
   }
+
+  /// What a compact field asks the user to enter. The description says what
+  /// to enter, so it wins over the label (a macro-declared input's label is
+  /// just its key, e.g. `input`).
+  Widget _compactHint(InputFieldDto field) => CompactFieldHint(
+    text: _nonEmpty(field.description) ?? _fieldLabel(field),
+    isRequired: field.required_,
+    style: Theme.of(context).textTheme.labelMedium,
+  );
 
   /// Compact field text style (null keeps the modal's default sizing).
   TextStyle? get _fieldStyle =>
@@ -474,7 +429,7 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
   }
 
   Widget _buildField(InputFieldDto field) {
-    return switch (field.fieldType) {
+    final built = switch (field.fieldType) {
       InputFieldType_Text() => _textField(field, multiline: false),
       InputFieldType_Multiline() => _textField(field, multiline: true),
       InputFieldType_Number() => _numberField(field),
@@ -490,6 +445,14 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
       InputFieldType_Markdown() => _markdownField(field),
       InputFieldType_FilePath() => _filePathField(field),
       InputFieldType_Url() => _urlField(field),
+    };
+    final hint = widget.semanticsHint;
+    return switch (field.fieldType) {
+      // Boolean and DateTime carry the hint on their own node. `container`
+      // gives every other field one: on a shared node the hint is read twice.
+      InputFieldType_Boolean() || InputFieldType_DateTime() => built,
+      _ when hint == null => built,
+      _ => Semantics(container: true, hint: hint, child: built),
     };
   }
 
@@ -516,16 +479,24 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
   }
 
   Widget _textField(InputFieldDto field, {required bool multiline}) {
-    return TextFormField(
-      key: Key('field-${field.key}'),
-      initialValue: _seedTextFor(field),
-      decoration: _decoration(field),
-      style: _fieldStyle,
-      maxLines: multiline ? null : 1,
-      minLines: multiline
-          ? (_compact ? _compactMultilineMinLines : _expandedMultilineMinLines)
-          : 1,
-      onChanged: (value) => _onTextChanged(field, value),
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter):
+            DoNothingAndStopPropagationTextIntent(),
+      },
+      child: TextFormField(
+        key: Key('field-${field.key}'),
+        initialValue: _seedTextFor(field),
+        decoration: _decoration(field),
+        style: _fieldStyle,
+        maxLines: null,
+        minLines: multiline
+            ? (_compact
+                  ? _compactMultilineMinLines
+                  : _expandedMultilineMinLines)
+            : 1,
+        onChanged: (value) => _onTextChanged(field, value),
+      ),
     );
   }
 
@@ -632,6 +603,7 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
       container: true,
       excludeSemantics: true,
       label: _decoratedLabel(field),
+      hint: widget.semanticsHint,
       toggled: current,
       enabled: true,
       focusable: true,
@@ -691,6 +663,9 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
     return DropdownButtonFormField<String>(
       key: Key('field-${field.key}'),
       decoration: _decoration(field),
+      // The dropdown's own hint has a baseline to sit on; the decoration's
+      // hint slot would drop it onto the underline.
+      hint: _compact ? _compactHint(field) : null,
       initialValue: current,
       isExpanded: _compact,
       itemHeight: describes ? null : kMinInteractiveDimension,
@@ -742,17 +717,23 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
     // Markdown render is a separate row (tool description) — the form
     // field itself is just a multiline text input with a monospace
     // family to telegraph "this expects markup".
-    return TextFormField(
-      key: Key('field-${field.key}'),
-      initialValue: _seedTextFor(field),
-      decoration: _decoration(field),
-      maxLines: null,
-      minLines: _compact ? 2 : 4,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        fontFamily: upegMonoFontFamily,
-        fontFamilyFallback: upegMonoFontFamilyFallback,
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter):
+            DoNothingAndStopPropagationTextIntent(),
+      },
+      child: TextFormField(
+        key: Key('field-${field.key}'),
+        initialValue: _seedTextFor(field),
+        decoration: _decoration(field),
+        maxLines: null,
+        minLines: _compact ? 2 : 4,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontFamily: upegMonoFontFamily,
+          fontFamilyFallback: upegMonoFontFamilyFallback,
+        ),
+        onChanged: (value) => _onTextChanged(field, value),
       ),
-      onChanged: (value) => _onTextChanged(field, value),
     );
   }
 
@@ -818,7 +799,11 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
       DateTimeValue(:final value) => value,
       _ => null,
     };
-    final display = selected == null ? '' : selected.toUtc().toIso8601String();
+    final display = switch (widget.controller.value(field.key)) {
+      DateTimeValue(:final value) => value.toUtc().toIso8601String(),
+      TextValue(:final value) => value,
+      _ => '',
+    };
     return Focus(
       onKeyEvent: (_, event) {
         if (isKeyboardActivationEvent(event)) {
@@ -827,19 +812,22 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
         }
         return KeyEventResult.ignored;
       },
-      child: TextFormField(
-        key: Key('field-${field.key}'),
-        readOnly: true,
-        controller: _textControllerFor(field.key, display),
-        style: _fieldStyle,
-        decoration: _decoration(
-          field,
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: () => unawaited(_pickDateTime(field, selected)),
+      child: Semantics(
+        hint: widget.semanticsHint,
+        child: TextFormField(
+          key: Key('field-${field.key}'),
+          readOnly: true,
+          controller: _textControllerFor(field.key, display),
+          style: _fieldStyle,
+          decoration: _decoration(
+            field,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.calendar_today),
+              onPressed: () => unawaited(_pickDateTime(field, selected)),
+            ),
           ),
+          onTap: () => unawaited(_pickDateTime(field, selected)),
         ),
-        onTap: () => unawaited(_pickDateTime(field, selected)),
       ),
     );
   }
@@ -961,12 +949,16 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
     );
   }
 
-  String _decoratedLabel(InputFieldDto field) {
+  String _fieldLabel(InputFieldDto field) {
     final key = isImageConversionTool(widget.tool.id)
         ? imageConversionLabelKey(field.key)
         : null;
-    final label = key == null ? field.label : t(ref, key);
-    return field.required_ ? '$label *' : label;
+    return key == null ? field.label : t(ref, key);
+  }
+
+  String _decoratedLabel(InputFieldDto field) {
+    final label = _fieldLabel(field);
+    return field.required_ ? '$label$requiredFieldMarker' : label;
   }
 
   /// Under-field guidance: the declared description, plus the numeric

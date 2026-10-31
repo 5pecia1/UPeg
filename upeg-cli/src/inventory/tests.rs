@@ -518,7 +518,7 @@ fn interface_inventory_markdown_shows_headless_coherence_summary() {
         "## Tool Capability Summary\n\
 | Category | Unique tool count | Rule |\n\
 | --- | ---: | --- |\n\
-| Headless-dispatchable tools | 68 | Advertises at least one of the `cli`, `tui`, `mcp`, or `http` surfaces |\n\
+| Headless-dispatchable tools | 75 | Advertises at least one of the `cli`, `tui`, `mcp`, or `http` surfaces |\n\
 | GUI-only tools | 5 | Advertises only `desktop`, `pwa`, and/or `ext` surfaces |"
     ));
 }

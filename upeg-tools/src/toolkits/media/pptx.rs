@@ -63,7 +63,10 @@ fn pptx_extract_images_to_file(input: &FileValue) -> Result<FileValue, String> {
             if !entry.is_file() {
                 continue;
             }
-            let name = entry.name().to_string();
+            let name = entry
+                .name()
+                .map_err(|e| format!("could not read archive entry {index} name: {e}"))?
+                .into_owned();
             if !is_pptx_image_entry(&name) {
                 continue;
             }

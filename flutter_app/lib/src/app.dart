@@ -8,15 +8,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/boot/logging.dart';
+import 'package:upeg/src/boot/startup_profile.dart';
 import 'package:upeg/src/features/controlled_embed/providers.dart';
 import 'package:upeg/src/widgets/controlled_embed/session_host.dart';
 import 'package:upeg/src/pages/board_page.dart';
 import 'package:upeg/src/pages/popup_page.dart';
 import 'package:upeg/src/pages/splash_page.dart';
+import 'package:upeg/src/platform/app_exit_listener.dart';
 import 'package:upeg/src/platform/deep_link_listener.dart';
 import 'package:upeg/src/platform/global_hotkey.dart';
 import 'package:upeg/src/platform/tray.dart';
 import 'package:upeg/src/rust/api/boot.dart';
+import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/launch_intent_provider.dart';
 import 'package:upeg/src/state/shared_state_versions.dart';
 import 'package:upeg/src/state/theme_mode_provider.dart';
@@ -43,83 +46,164 @@ final desktopIntegrationsInstallerProvider =
       (ref) => _installDesktopIntegrations,
     );
 
-final appInitProvider = FutureProvider<AppInitReport>((ref) async {
-  final run = ref.watch(appInitRunnerProvider);
-  final log = ref.watch(appBootLogProvider);
-  final installDesktopIntegrations = ref.watch(
-    desktopIntegrationsInstallerProvider,
+final appInitProvider = FutureProvider<AppInitReport>(
+  (ref) async {
+    final run = ref.watch(appInitRunnerProvider);
+    final log = ref.watch(appBootLogProvider);
+    final installDesktopIntegrations = ref.watch(
+      desktopIntegrationsInstallerProvider,
+    );
+    markStartupPhase('init_app_start');
+    log('upeg: appInitProvider — calling initApp()');
+    final report = await run();
+    markStartupPhase('init_app_done');
+    log('upeg: appInitProvider — initApp returned, version=${report.version}');
+    // Restore the saved Board/tag selection before the first routed frame, so
+    // the page never paints with a null Board. Best-effort with the same
+    // 2-second cap as the integrations below: when the Boards load fails with
+    // an Exception, Riverpod's default retry (10 attempts, up to ~38 s in
+    // total) keeps `boardsProvider.future` pending, and boot must not wait
+    // that long. BoardPage and PopupPage restore again on mount (idempotent),
+    // which covers a failed or timed-out attempt. Runs before the cold-boot
+    // launch intent is seeded below, so a deep link's Board wins.
+    markStartupPhase('selection_restore_start');
+    try {
+      await ref
+          .read(currentBoardKeyProvider.notifier)
+          .restore()
+          .timeout(const Duration(seconds: 2));
+    } on Object catch (err) {
+      log('upeg: appInitProvider — initial selection restore failed: $err');
+    } finally {
+      markStartupPhase('selection_restore_done');
+    }
+    // Catalog metadata is embedded in the shell, so this refresh never blocks
+    // boot or makes an installed toolkit depend on the network.
+    unawaited(ref.read(toolkitRuntimeProvider.notifier).syncCatalog());
+
+    // Dispatch/deep-link prerequisites remain best-effort and time-bounded.
+    // Independent tray/hotkey registration continues outside this gate.
+    markStartupPhase('integrations_start');
+    await installDesktopIntegrations(ref);
+    markStartupPhase('integrations_done');
+    log(
+      'upeg: appInitProvider — routing prerequisites ready, painting BoardPage',
+    );
+    markStartupPhase('routing_ready');
+    return report;
+  },
+  retry: (count, error) {
+    // A second desktop process cannot acquire the live owner's lock. Retrying
+    // this terminal result kept the splash up for the full Riverpod retry
+    // window instead of showing the existing-instance guidance immediately.
+    if (error is FrbError_AlreadyRunning) return null;
+    return ProviderContainer.defaultRetry(count, error);
+  },
+);
+
+Future<void> _installDesktopIntegrations(Ref ref) => installDesktopIntegrations(
+  prepareControlledEmbed: ref.read(controlledEmbedNativeSupportedProvider)
+      ? () => ref.read(controlledEmbedBridgeProvider).ready
+      : null,
+  installTray: () => UpegTray.install(ref),
+  installGlobalHotkey: () => UpegGlobalHotkey.install(ref),
+  seedLaunchIntent: () async {
+    final dto = currentLaunchIntent();
+    if (dto != null) {
+      ref.read(launchIntentProvider.notifier).set(LaunchIntent.fromDto(dto));
+    }
+  },
+  installDeepLinkListener: () => DeepLinkListener.install(ref),
+);
+
+/// Prepare dispatch and ordered deep-link delivery before routing to the Board.
+/// Independent tray/hotkey registration continues while the Board is usable.
+@visibleForTesting
+Future<void> installDesktopIntegrations({
+  required Future<void> Function()? prepareControlledEmbed,
+  required Future<void> Function() installTray,
+  required Future<void> Function() installGlobalHotkey,
+  required Future<void> Function() seedLaunchIntent,
+  required Future<void> Function() installDeepLinkListener,
+  BootLog log = defaultBootLog,
+}) async {
+  // Tray and summon-hotkey registration are independent of the Board and
+  // deep-link routing. Keep their platform-channel waits off the boot gate.
+  unawaited(
+    runBestEffortIntegration('UpegTray.install', installTray, log: log),
   );
-  log('upeg: appInitProvider — calling initApp()');
-  final report = await run();
-  log('upeg: appInitProvider — initApp returned, version=${report.version}');
-  // Catalog metadata is embedded in the shell, so this refresh never blocks
-  // boot or makes an installed toolkit depend on the network.
-  unawaited(ref.read(toolkitRuntimeProvider.notifier).syncCatalog());
-
-  // Post-init wiring is best-effort: tray/window/deep-link failures must
-  // NOT keep the splash spinner on screen forever. Each subsystem is
-  // wrapped in a per-call timeout + try/catch so a hang or a missing
-  // platform binding degrades to "no integration" rather than to
-  // "blank window forever".
-  await installDesktopIntegrations(ref);
-  log('upeg: appInitProvider — desktop integrations done, painting BoardPage');
-  return report;
-});
-
-Future<void> _installDesktopIntegrations(Ref ref) async {
-  if (ref.read(controlledEmbedNativeSupportedProvider)) {
-    await _bestEffort(
+  // The plugin cannot confirm the native key grab, so completion means
+  // "requested" (see `global_hotkey.dart`).
+  unawaited(
+    runBestEffortIntegration(
+      'UpegGlobalHotkey.install',
+      installGlobalHotkey,
+      successLabel: 'requested',
+      log: log,
+    ),
+  );
+  if (prepareControlledEmbed != null) {
+    await runBestEffortIntegration(
       'ControlledEmbed WebView provider',
-      () => ref.read(controlledEmbedBridgeProvider).ready,
+      prepareControlledEmbed,
+      log: log,
     );
   }
   // Geometry application moved to `WindowModeApplier` (C03) — the
   // observer at `MaterialApp.home` watches `windowModeProvider` and
   // applies geometry on every change (including the initial mount),
   // so we no longer drive `applyWindowMode` from here.
-  await _bestEffort('UpegTray.install', () => UpegTray.install(ref));
-  // Launcher immediacy: system-wide summon hotkey (Ctrl+Alt+Space by
-  // default — see `global_hotkey.dart`). Best-effort like the rest:
-  // a Wayland session or a conflicting registration degrades to the
-  // tray / deep-link summon paths.
-  await _bestEffort(
-    'UpegGlobalHotkey.install',
-    () => UpegGlobalHotkey.install(ref),
-  );
-  await _bestEffort(
-    'DeepLinkListener.install',
-    () => DeepLinkListener.install(ref),
-  );
   // Seed the cold-boot launch intent (PRD §5.9 / Batch E D02). When
   // argv carried a `upeg://open?...` URL, `LaunchIntentApplier` on
   // the BoardPage will see this on its first frame and dispatch the
   // tool. `currentLaunchIntent()` returns `null` when argv had no
-  // deep link, so this is a no-op otherwise.
-  await _bestEffort('seedLaunchIntent', () async {
-    final dto = currentLaunchIntent();
-    if (dto != null) {
-      ref.read(launchIntentProvider.notifier).set(LaunchIntent.fromDto(dto));
-    }
-  });
+  // deep link, so this is a no-op otherwise. It runs before the link
+  // listener is installed: a link another launch forwarded while this one
+  // was booting is newer than argv, and the listener only delivers it
+  // after it is installed, so that link always replaces this seed.
+  await runBestEffortIntegration(
+    'seedLaunchIntent',
+    seedLaunchIntent,
+    log: log,
+  );
+  await runBestEffortIntegration(
+    'DeepLinkListener.install',
+    installDeepLinkListener,
+    log: log,
+  );
 }
 
-/// Run a desktop-integration call with a 2-second wall-clock cap.
-/// Failures and timeouts log a debug line and return — the rest of the
-/// app must keep going. The most common hang is `tray_manager` on a
-/// macOS host where the platform channel is silently unresponsive;
-/// without this guard the splash spinner would never clear.
-Future<void> _bestEffort(String name, Future<void> Function() fn) async {
+/// Run a desktop-integration call with a wall-clock cap (2 seconds by
+/// default). A stalled dispatch/deep-link prerequisite must not keep the
+/// splash up indefinitely. Background registrations use the same cap for
+/// reporting; a timeout does not cancel the underlying native operation.
+///
+/// Logs exactly one outcome: `<name> <successLabel>` when [fn] finished in
+/// time, `<name> timed out …` when the cap hit first (the success label is
+/// NOT logged then), or `<name> failed: …` plus the stack when it threw.
+/// [successLabel] is 'ok' unless the call cannot confirm its effect, e.g.
+/// the global hotkey, whose plugin never reports a failed key grab.
+@visibleForTesting
+Future<void> runBestEffortIntegration(
+  String name,
+  Future<void> Function() fn, {
+  String successLabel = 'ok',
+  Duration timeout = const Duration(seconds: 2),
+  BootLog log = defaultBootLog,
+}) async {
   try {
-    await fn().timeout(
-      const Duration(seconds: 2),
-      onTimeout: () {
-        debugPrint('upeg: $name timed out after 2s; continuing without it');
-      },
+    final completedInTime = await fn()
+        .then((_) => true)
+        .timeout(timeout, onTimeout: () => false);
+    log(
+      completedInTime
+          ? 'upeg: $name $successLabel'
+          : 'upeg: $name timed out after ${timeout.inMilliseconds}ms; '
+                'continuing without it',
     );
-    debugPrint('upeg: $name ok');
   } on Object catch (err, stack) {
-    debugPrint('upeg: $name failed: $err');
-    debugPrint(stack.toString());
+    log('upeg: $name failed: $err');
+    log(stack.toString());
   }
 }
 
@@ -159,46 +243,58 @@ class UpegApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(sharedStatePollingProvider);
+    // Take the shared-state version baseline before anything else reads
+    // shared state (initApp, tweaks, boards, selection), so a change another
+    // surface makes while this app boots is not absorbed into the baseline
+    // (`shared_state_versions.dart`; `write_tx` in `upeg-sources` bumps the
+    // revision so polling cannot miss a board or layout edit). `listen`
+    // creates the probe once and keeps it alive without rebuilding here.
+    ref.listen(sharedStateSyncProvider, (_, _) {});
     final init = ref.watch(appInitProvider);
+    // Only the periodic timer waits for a successful initApp.
+    if (init.hasValue) ref.watch(sharedStatePollingProvider);
     final themeMode = ref.watch(themeModeProvider);
     final accent = ref.watch(accentProvider);
-    return MaterialApp(
-      title: 'upeg',
-      // Both palettes are built via the same `forAccent` factory so
-      // K03 (accent flip) re-paints the live MaterialApp without a
-      // restart — the previous hardcoded `darkTheme/lightTheme` pair
-      // was the bug. `accentProvider` derives the typed `Accent` from
-      // `tweaksProvider`.
-      theme: UpegTheme.forAccent(accent, brightness: Brightness.light),
-      darkTheme: UpegTheme.forAccent(accent, brightness: Brightness.dark),
-      // Dark-first default: dark on first run. `themeModeProvider` watches
-      // `tweaksProvider` so a Tweaks edit re-renders with the new mode
-      // without an app restart.
-      themeMode: themeMode,
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) =>
-          ControlledEmbedSessionHost(child: child ?? const SizedBox.shrink()),
-      // TrayMenuSync must be mounted OUTSIDE `init.when(data:)` — it has
-      // to subscribe to `pauseControllableProvider` on the very first
-      // synchronous build, before `appInitProvider`'s async body reaches
-      // `UpegTray.install` (which does the initial, necessarily-stale
-      // `ref.read`). Mounting it under `data:` would wire it up only
-      // after the host-state stream's single event already landed,
-      // silently reproducing the "Pause never re-enables" regression.
-      home: TrayMenuSync(
-        child: WindowModeApplier(
-          child: PopupAutoHideObserver(
-            child: init.when(
-              loading: () => const SplashPage(),
-              error: (err, _) =>
-                  Scaffold(body: Center(child: Text(_bootFailureMessage(err)))),
-              // LaunchIntentApplier wraps BOTH routed surfaces: a deep link
-              // (`upeg://open?...`) that arrives while in popup mode must still
-              // force WindowMode.full and dispatch, so the observer has to be
-              // mounted above the popup↔board route switch, not inside BoardPage.
-              data: (report) => LaunchIntentApplier(
-                child: _routeForMode(ref.watch(windowModeProvider), report),
+    return AppExitListener(
+      child: MaterialApp(
+        title: 'upeg',
+        // Both palettes are built via the same `forAccent` factory so
+        // K03 (accent flip) re-paints the live MaterialApp without a
+        // restart — the previous hardcoded `darkTheme/lightTheme` pair
+        // was the bug. `accentProvider` derives the typed `Accent` from
+        // `tweaksProvider`.
+        theme: UpegTheme.forAccent(accent, brightness: Brightness.light),
+        darkTheme: UpegTheme.forAccent(accent, brightness: Brightness.dark),
+        // The first frame paints the saved theme, which `tweaksProvider` loads
+        // synchronously; the default is the Rust one (Light, the SSOT).
+        // `themeModeProvider` watches `tweaksProvider` so a Tweaks edit
+        // re-renders with the new mode without an app restart.
+        themeMode: themeMode,
+        debugShowCheckedModeBanner: false,
+        builder: (context, child) =>
+            ControlledEmbedSessionHost(child: child ?? const SizedBox.shrink()),
+        // TrayMenuSync must be mounted OUTSIDE `init.when(data:)` — it has
+        // to subscribe to `pauseControllableProvider` on the very first
+        // synchronous build, before `appInitProvider`'s async body reaches
+        // `UpegTray.install` (which does the initial, necessarily-stale
+        // `ref.read`). Mounting it under `data:` would wire it up only
+        // after the host-state stream's single event already landed,
+        // silently reproducing the "Pause never re-enables" regression.
+        home: TrayMenuSync(
+          child: WindowModeApplier(
+            child: PopupAutoHideObserver(
+              child: init.when(
+                loading: () => const SplashPage(),
+                error: (err, _) => Scaffold(
+                  body: Center(child: Text(_bootFailureMessage(err))),
+                ),
+                // LaunchIntentApplier wraps BOTH routed surfaces: a deep link
+                // (`upeg://open?...`) that arrives while in popup mode must still
+                // force WindowMode.full and dispatch, so the observer has to be
+                // mounted above the popup↔board route switch, not inside BoardPage.
+                data: (report) => LaunchIntentApplier(
+                  child: _routeForMode(ref.watch(windowModeProvider), report),
+                ),
               ),
             ),
           ),

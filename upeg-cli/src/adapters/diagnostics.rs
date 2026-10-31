@@ -319,17 +319,37 @@ args_template = ["-c", "printf 'stdout marker\\n'; printf 'stderr marker\\n' >&2
 
                 let token = upeg_runtime::CancellationToken::new();
                 let canceller = token.clone();
-                let cancel_thread = std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                    canceller.cancel();
+                let observed = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
+                let seen = std::sync::Arc::clone(&observed);
+                let sink: upeg_runtime::SharedProgressSink =
+                    std::sync::Arc::new(move |event: upeg_runtime::ProgressEvent| {
+                        let flag = match event.stream {
+                            upeg_runtime::ProgressStream::Stdout
+                                if event.chunk.contains("before cancellation") =>
+                            {
+                                0b01
+                            }
+                            upeg_runtime::ProgressStream::Stderr
+                                if event.chunk.contains("cancel stderr") =>
+                            {
+                                0b10
+                            }
+                            _ => return,
+                        };
+                        let both = seen.fetch_or(flag, std::sync::atomic::Ordering::AcqRel) | flag;
+                        if both == 0b11 {
+                            canceller.cancel();
+                        }
+                    });
+                let outcome = upeg_runtime::with_progress_sink(sink, || {
+                    upeg_runtime::with_cancellation(token, || {
+                        crate::domain::execution::dispatch::dispatch_tool(
+                            TOOL_ID,
+                            &serde_json::json!({}),
+                        )
+                    })
                 });
-                let outcome = upeg_runtime::with_cancellation(token, || {
-                    crate::domain::execution::dispatch::dispatch_tool(
-                        TOOL_ID,
-                        &serde_json::json!({}),
-                    )
-                });
-                cancel_thread.join().expect("canceller thread");
+                assert_eq!(observed.load(std::sync::atomic::Ordering::Acquire), 0b11);
                 assert!(matches!(outcome, Outcome::Failure(_)), "got {outcome:?}");
                 let report = recent_report(TOOL_ID);
                 assert!(report.stdout.contains("before cancellation"));

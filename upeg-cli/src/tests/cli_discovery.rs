@@ -1,4 +1,4 @@
-use super::common::parse;
+use super::common::{parse, run};
 use crate::*;
 
 // ─── --board filter + text.slugify ──────────────

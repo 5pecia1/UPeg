@@ -9,6 +9,7 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
 import 'package:upeg/src/state/pegboard_mutations_provider.dart';
+import 'package:upeg/src/state/pin_provider.dart' show PinKey;
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/expanded_modal/kind_badge.dart';
 
@@ -56,7 +57,7 @@ class ExpandedModalHeader extends ConsumerWidget {
                 fontFamily: upegMonoFontFamily,
                 fontFamilyFallback: upegMonoFontFamilyFallback,
                 fontSize: 10,
-                color: tokens.fg4,
+                color: tokens.fg3,
                 letterSpacing: 0.4,
               ),
             ),
@@ -92,11 +93,17 @@ class ExpandedModalFooter extends ConsumerWidget {
   const ExpandedModalFooter({
     required this.tokens,
     required this.tool,
+    this.onPin,
+    this.pinEnabled = true,
+    this.editingPin = false,
     super.key,
   });
 
   final UpegTokens tokens;
   final ToolDto tool;
+  final VoidCallback? onPin;
+  final bool pinEnabled;
+  final bool editingPin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Container(
@@ -114,7 +121,7 @@ class ExpandedModalFooter extends ConsumerWidget {
             children: [
               TextSpan(
                 text: t(ref, _sourcePrefixKey),
-                style: TextStyle(color: tokens.fg4, fontSize: 10),
+                style: TextStyle(color: tokens.fg3, fontSize: 10),
               ),
               TextSpan(
                 text: sourceDtoLabel(tool.source),
@@ -125,11 +132,11 @@ class ExpandedModalFooter extends ConsumerWidget {
         ),
         Text(
           '${t(ref, _toolkitPrefixKey)}${tool.toolkit}',
-          style: TextStyle(color: tokens.fg4, fontSize: 10),
+          style: TextStyle(color: tokens.fg3, fontSize: 10),
         ),
         Text(
           '${t(ref, _invokerPrefixKey)}${invokerDtoLabel(tool.invoker)}',
-          style: TextStyle(color: tokens.fg4, fontSize: 10),
+          style: TextStyle(color: tokens.fg3, fontSize: 10),
         ),
         TextButton(
           key: const Key('expanded-modal-pin-btn'),
@@ -142,19 +149,25 @@ class ExpandedModalFooter extends ConsumerWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          onPressed: () =>
-              pinToolFromModal(context: context, ref: ref, tool: tool),
-          child: Text(t(ref, 'desktop.tab.add_tool')),
+          onPressed: pinEnabled
+              ? onPin ??
+                    () =>
+                        pinToolFromModal(context: context, ref: ref, tool: tool)
+              : null,
+          child: Text(
+            t(ref, editingPin ? 'modal.pin.add_new' : 'modal.pin.add_to_board'),
+          ),
         ),
       ],
     ),
   );
 }
 
-Future<void> pinToolFromModal({
+Future<PinKey?> pinToolFromModal({
   required BuildContext context,
   required WidgetRef ref,
   required ToolDto tool,
+  bool notifySuccess = true,
 }) async {
   final messenger = ScaffoldMessenger.of(context);
   final boardKey = ref.read(currentBoardKeyProvider);
@@ -162,28 +175,42 @@ Future<void> pinToolFromModal({
     messenger.showSnackBar(
       SnackBar(content: Text(tRead(ref, 'modal.pin.no_active_board'))),
     );
-    return;
+    return null;
   }
+  PinId? pinId;
   try {
-    await ref
+    pinId = await ref
         .read(pegboardMutationsProvider)
         .pin(boardKey, ToolId.parse(tool.id));
   } on Object catch (error) {
+    if (!context.mounted) return null;
     messenger.showSnackBar(
       SnackBar(
         content: Text(tRead(ref, 'modal.pin.failed', {'msg': '$error'})),
       ),
     );
-    return;
+    return null;
   }
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(
-        tRead(ref, 'modal.pin.success', {
-          'tool_id': tool.id,
-          'board': '$boardKey',
-        }),
+  if (pinId == null) {
+    if (context.mounted) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(tRead(ref, 'modal.pin.failed_generic'))),
+      );
+    }
+    return null;
+  }
+  if (!context.mounted) return (boardKey, pinId);
+  if (notifySuccess) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          tRead(ref, 'modal.pin.success', {
+            'tool_id': tool.id,
+            'board': boardKey.value,
+          }),
+        ),
       ),
-    ),
-  );
+    );
+  }
+  return (boardKey, pinId);
 }

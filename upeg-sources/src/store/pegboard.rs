@@ -384,6 +384,8 @@ fn save_boards_tx(
         };
         if !boards.iter().any(|board| board.key == visible) {
             tx.execute(&tombstone, params![now, device_id, store_key])?;
+            super::last_outcomes::clear_board_last_outcomes_tx(tx, store_key)?;
+            super::pin_drafts::clear_board_pin_drafts_tx(tx, store_key)?;
         }
     }
     Ok(())
@@ -561,6 +563,7 @@ fn tombstone_placement_tx(
     // user data — drop it in the same transaction so re-pinning never
     // resurrects a result from a previous pin lifetime.
     super::last_outcomes::clear_last_outcome_tx(tx, board_key, pin_id)?;
+    super::pin_drafts::clear_pin_draft_tx(tx, board_key, pin_id)?;
     Ok(())
 }
 

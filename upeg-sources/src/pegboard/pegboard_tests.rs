@@ -25,6 +25,9 @@ fn default_state_has_shared_boards_and_layouts() {
 
 #[test]
 fn save_load_round_trip_prunes_unknown_entries() {
+    // Saving prunes pins of unregistered tools, so register the built-ins
+    // here instead of relying on an earlier test having done it.
+    upeg_toolkit_native::register_native_toolkits().expect("register builtin tool metadata");
     let root = std::env::temp_dir().join(format!("upeg-pegboard-{}", std::process::id()));
     let path = state_path_from_root(&root);
     let _ = std::fs::remove_dir_all(&root);
@@ -53,8 +56,11 @@ fn save_load_round_trip_prunes_unknown_entries() {
         },
     };
 
-    save_state_to_path(&path, &state).expect("save");
-    let loaded = load_state_from_path(&path).expect("load");
+    // Explicit visibility: through `from_process`, a board a project test
+    // activates in parallel would be merged into this load.
+    let visibility = BoardVisibility::global_only();
+    save_state_to_path_in(&path, &state, &visibility).expect("save");
+    let loaded = load_state_from_path_in(&path, &visibility).expect("load");
 
     assert_eq!(loaded.boards.len(), 1);
     assert_eq!(

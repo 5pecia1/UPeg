@@ -1,6 +1,7 @@
 use super::*;
 use flate2::{Compression, GzBuilder};
 use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};
 
 fn serve_once(body: Vec<u8>) -> (String, std::thread::JoinHandle<()>) {
@@ -40,6 +41,21 @@ fn artifact(url: String, expanded: &[u8]) -> (NativeArtifact, Vec<u8>) {
     )
 }
 
+/// Held by every test that writes a script and then executes it.
+///
+/// A child spawned on another test thread starts with a copy of every open
+/// descriptor and keeps it until its own exec. When that copy is a script
+/// another test still has open for writing, executing the script fails with
+/// ETXTBSY ("Text file busy") instead of running it, so these tests must not
+/// write and spawn at the same time.
+#[cfg(unix)]
+fn exec_fixture_guard() -> std::sync::MutexGuard<'static, ()> {
+    static GUARD: Mutex<()> = Mutex::new(());
+    GUARD
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn write_valid_local_catalog(source: &Path) -> (String, Vec<u8>) {
     use upeg_toolkit_catalog::{MetadataSnapshot, SCHEMA_VERSION, ToolkitPackage};
 
@@ -72,6 +88,7 @@ fn write_valid_local_catalog(source: &Path) -> (String, Vec<u8>) {
 #[cfg(unix)]
 #[test]
 fn downloads_executes_and_uses_verified_offline_cache() {
+    let _exec = exec_fixture_guard();
     let root = tempfile::tempdir().expect("temp cache");
     let result = upeg_core::ToolResult::Success(
         upeg_core::ToolSuccess::new(
@@ -316,6 +333,7 @@ fn local_release_source_installs_and_bad_update_preserves_cached_catalog() {
 #[test]
 fn hanging_sidecar_is_killed_at_timeout() {
     use std::os::unix::fs::PermissionsExt;
+    let _exec = exec_fixture_guard();
     let root = tempfile::tempdir().expect("temp script");
     let path = root.path().join("hang.sh");
     fs::write(&path, b"#!/bin/sh\nsleep 5\n").expect("write script");
@@ -336,6 +354,7 @@ fn hanging_sidecar_is_killed_at_timeout() {
 #[test]
 fn descendant_holding_stdout_cannot_outlive_deadline() {
     use std::os::unix::fs::PermissionsExt;
+    let _exec = exec_fixture_guard();
     let root = tempfile::tempdir().expect("temp script");
     let path = root.path().join("orphan-pipe.sh");
     fs::write(
@@ -356,4 +375,130 @@ fn descendant_holding_stdout_cannot_outlive_deadline() {
         matches!(result, Err(NativeError::Process(message)) if message.contains("output timed out"))
     );
     assert!(before.elapsed() < Duration::from_secs(2));
+}
+
+fn recorded_failure(identity: &str, at: Instant) -> CatalogFailure {
+    CatalogFailure {
+        identity: identity.to_owned(),
+        at,
+        message: "http status: 404".to_owned(),
+    }
+}
+
+#[test]
+fn backoff_message_replays_the_failure_inside_the_window() {
+    let at = Instant::now();
+    let failure = recorded_failure("remote:a", at);
+    let just_inside = CATALOG_FAILURE_BACKOFF
+        .checked_sub(Duration::from_millis(1))
+        .expect("the window is longer than a millisecond");
+    let inside = at + just_inside;
+    assert_eq!(
+        backoff_message(Some(&failure), "remote:a", inside).as_deref(),
+        Some("http status: 404")
+    );
+    assert_eq!(
+        backoff_message(None, "remote:a", inside),
+        None,
+        "nothing recorded, nothing to replay"
+    );
+}
+
+#[test]
+fn backoff_message_ignores_a_failure_of_another_source() {
+    let at = Instant::now();
+    let failure = recorded_failure("remote:a", at);
+    assert_eq!(backoff_message(Some(&failure), "remote:b", at), None);
+}
+
+#[test]
+fn backoff_message_expires_when_the_window_has_passed() {
+    let at = Instant::now();
+    let failure = recorded_failure("remote:a", at);
+    assert_eq!(
+        backoff_message(Some(&failure), "remote:a", at + CATALOG_FAILURE_BACKOFF),
+        None
+    );
+}
+
+/// Loopback server that answers every request with `500` and counts them.
+struct FailingServer {
+    url: String,
+    requests: Arc<AtomicUsize>,
+    stop: Arc<AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl FailingServer {
+    fn start() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        listener
+            .set_nonblocking(true)
+            .expect("non-blocking listener");
+        let url = format!(
+            "http://{}/catalog.json",
+            listener.local_addr().expect("listener address")
+        );
+        let requests = Arc::new(AtomicUsize::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread = {
+            let requests = Arc::clone(&requests);
+            let stop = Arc::clone(&stop);
+            std::thread::spawn(move || {
+                while !stop.load(Ordering::SeqCst) {
+                    let Ok((mut stream, _)) = listener.accept() else {
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    };
+                    requests.fetch_add(1, Ordering::SeqCst);
+                    // Some platforms hand the accepted stream the listener's
+                    // non-blocking mode.
+                    stream.set_nonblocking(false).expect("blocking stream");
+                    let mut request = [0_u8; 4096];
+                    let _ = stream.read(&mut request);
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                }
+            })
+        };
+        Self {
+            url,
+            requests,
+            stop,
+            thread: Some(thread),
+        }
+    }
+}
+
+impl Drop for FailingServer {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+#[test]
+fn remote_catalog_backoff_skips_the_second_request() {
+    let cache = tempfile::tempdir().expect("cache");
+    let server = FailingServer::start();
+    // The failure slot is process-wide. A source nobody else uses keeps this
+    // the only test that touches it, and no environment variable changes.
+    let identity = format!("remote:{}", server.url);
+
+    let first = load_remote_catalog(cache.path(), "abi", &server.url, &identity)
+        .expect_err("the server answers 500");
+    assert!(matches!(first, NativeError::Download(_)), "{first}");
+    assert_eq!(server.requests.load(Ordering::SeqCst), 1);
+
+    let second = load_remote_catalog(cache.path(), "abi", &server.url, &identity)
+        .expect_err("the recorded failure is replayed");
+    assert_eq!(
+        server.requests.load(Ordering::SeqCst),
+        1,
+        "no request inside the back-off window"
+    );
+    assert_eq!(second.to_string(), first.to_string());
 }

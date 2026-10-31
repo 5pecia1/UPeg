@@ -48,6 +48,11 @@ multiple-versions = "allow"
 
 [advisories]
 version = 2
+# Maintenance notices only: notify-rust 4.18.2 still requires zbus 5,
+# whose split wire crates have moved into zbus 6. No compatible upstream
+# migration is published; reassess and remove these when it is available.
+# These are not exemptions for vulnerabilities or unsoundness.
+ignore = ["RUSTSEC-2026-0370", "RUSTSEC-2026-0371", "RUSTSEC-2026-0372"]
 
 [sources]
 unknown-registry = "deny"

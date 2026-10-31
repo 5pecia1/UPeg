@@ -6,7 +6,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tray_manager/tray_manager.dart' show MenuItem;
+import 'package:tray_manager/tray_manager.dart' show Menu, MenuItem;
 
 import 'package:upeg/src/platform/tray.dart';
 
@@ -68,12 +68,39 @@ void main() {
       };
 
       expect(labelsByKey, {
-        TrayCommand.openDashboard.menuItemKey: 'Open dashboard',
+        TrayCommand.openDashboard.menuItemKey: 'Open Pegboard',
         TrayCommand.togglePopup.menuItemKey: 'Toggle popup / full',
-        TrayCommand.togglePin.menuItemKey: 'Toggle pin (keep popup open)',
+        TrayCommand.togglePin.menuItemKey: 'Keep popup open',
         TrayCommand.togglePause.menuItemKey: 'Pause / Resume host',
         TrayCommand.quit.menuItemKey: 'Quit',
       });
+    });
+
+    test('the_keep_popup_open_item_is_a_checkbox_mirroring_keepPopupOpen', () {
+      MenuItem keepPopupOpenItem(Menu menu) =>
+          (menu.items ?? const <MenuItem>[]).firstWhere(
+            (item) => item.key == TrayCommand.togglePin.menuItemKey,
+          );
+
+      // Default is unchecked: the pinned flag starts out false.
+      final unchecked = keepPopupOpenItem(buildTrayMenu());
+      expect(unchecked.type, 'checkbox');
+      expect(unchecked.checked, isFalse);
+
+      final checked = keepPopupOpenItem(buildTrayMenu(keepPopupOpen: true));
+      expect(checked.type, 'checkbox');
+      expect(checked.checked, isTrue);
+    });
+
+    test('only_the_keep_popup_open_item_carries_a_check_mark', () {
+      final items =
+          buildTrayMenu(keepPopupOpen: true).items ?? const <MenuItem>[];
+      final checkable = [
+        for (final item in items)
+          if (item.type == 'checkbox') item.key,
+      ];
+
+      expect(checkable, [TrayCommand.togglePin.menuItemKey]);
     });
 
     test('buildTrayMenu_disables_pause_when_pauseControllable_is_false', () {

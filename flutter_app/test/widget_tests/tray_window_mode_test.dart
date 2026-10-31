@@ -1,13 +1,15 @@
 /// Tray menu ↔ window mode transitions (inventory rows B03 / B04).
 ///
-/// B03 ("Open dashboard → WindowMode::Full") and B04 ("Toggle popup ↔
-/// full") are wired in `platform/tray.dart` via `UpegTray._setMode` and
-/// `_toggleMode`. The production switch in `onTrayMenuItemClick`
-/// performs the state write AND the platform `applyWindowMode` call;
-/// both rows were ⚠️ "no integration test" because the latter requires
-/// `window_manager`. We lock down the typed half — the
-/// `WindowModeNotifier` transitions — by driving the public
-/// `set`/`toggle` API the tray dispatch uses.
+/// B03 ("Open Pegboard → WindowMode::Full") and B04 ("Toggle popup ↔
+/// full") are wired in `platform/tray.dart` via `openPegboardFromTray`
+/// and `UpegTray._toggleMode`. The production switch in
+/// `onTrayMenuItemClick` performs the state write AND the platform
+/// `applyWindowMode` call; both rows were ⚠️ "no integration test"
+/// because the latter requires `window_manager`. We lock down the typed
+/// half — the `WindowModeNotifier` transitions — by driving the public
+/// `set`/`toggle` API the tray dispatch uses (`openPegboardFromTray`
+/// itself, with its summon, is covered in
+/// `tray_open_pegboard_test.dart`).
 ///
 /// These tests intentionally do NOT cross the platform-channel boundary;
 /// the geometry application path is locked down separately in C03's
@@ -22,9 +24,10 @@ import 'package:upeg/src/state/window_mode_provider.dart';
 void main() {
   group('Tray menu ↔ WindowMode transitions', () {
     test('Tray_OpenDashboard_sets_WindowMode_to_full', () {
-      // Mirrors `tray.dart::_setMode(WindowMode.full)` — the only path
-      // the tray's `Open dashboard` menu item drives. Start from popup
-      // (the non-default state) so the transition is observable.
+      // Mirrors the mode write in `tray.dart::openPegboardFromTray` —
+      // the state half of what the tray's `Open Pegboard` menu item
+      // drives. Start from popup (the non-default state) so the
+      // transition is observable.
       final container = ProviderContainer(
         overrides: [
           windowModeProvider.overrideWith(
@@ -40,7 +43,7 @@ void main() {
       expect(
         container.read(windowModeProvider),
         WindowMode.full,
-        reason: 'Open dashboard must force WindowMode.full',
+        reason: 'Open Pegboard must force WindowMode.full',
       );
     });
 

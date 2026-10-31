@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
 import 'package:upeg/src/platform/window.dart' show isWindowManagerSupported;
+import 'package:upeg/src/platform/tray_animation.dart' show stopTrayAnimation;
 import 'package:upeg/src/rust/api/boot.dart' as frb_boot;
+import 'package:upeg/src/state/inline_draft_provider.dart'
+    show inlineDraftProvider;
 
 /// Synchronous shutdown hook. Defaults to the FRB `shutdown()` shim
 /// which releases the OS instance lock. Tests pass a recording closure.
@@ -37,13 +40,33 @@ Future<void> runAppQuit({
   ShutdownFn shutdown = defaultAppShutdown,
   CloseWindowFn closeWindow = defaultCloseWindow,
 }) async {
+  await stopTrayAnimation();
   shutdown();
   await closeWindow();
 }
 
 typedef QuitAppFn = Future<void> Function();
 
-final quitAppProvider = Provider<QuitAppFn>((ref) => runAppQuit);
+/// Writes pending Pin drafts, then quits. Drafts are saved on a short
+/// deadline, so a quit that skipped this would drop the last edits. Both
+/// effects are injected, which keeps the order testable without a store.
+Future<void> runQuitWithDraftFlush({
+  required void Function() flushDrafts,
+  required QuitAppFn quit,
+}) async {
+  flushDrafts();
+  await quit();
+}
+
+/// The app's quit action: pending drafts are written first, then
+/// [runAppQuit] releases the instance lock and closes the window.
+final quitAppProvider = Provider<QuitAppFn>(
+  (ref) =>
+      () => runQuitWithDraftFlush(
+        flushDrafts: ref.read(inlineDraftProvider).flushAll,
+        quit: runAppQuit,
+      ),
+);
 
 /// Asks the user to confirm the pending quit. `true` means "quit now".
 typedef ConfirmQuitFn = Future<bool> Function();

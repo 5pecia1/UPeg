@@ -24,7 +24,7 @@ const String emptyBoardCtaLabelKey = 'empty.find_tool_button';
 const String emptyBoardHintTextKey = 'empty.pegboard.hint';
 const String emptyBoardSuggestionsLabelKey = 'empty.suggestion_header';
 
-class EmptyBoard extends ConsumerWidget {
+class EmptyBoard extends ConsumerStatefulWidget {
   const EmptyBoard({required this.onOpenPalette, this.boardKey, super.key});
 
   final VoidCallback onOpenPalette;
@@ -35,9 +35,34 @@ class EmptyBoard extends ConsumerWidget {
   final BoardKey? boardKey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmptyBoard> createState() => _EmptyBoardState();
+}
+
+class _EmptyBoardState extends ConsumerState<EmptyBoard> {
+  bool _pinPending = false;
+  String? _pinFailure;
+
+  Future<void> _pinSuggestion(ToolDto tool) async {
+    final boardKey = widget.boardKey;
+    if (boardKey == null || _pinPending) return;
+    setState(() {
+      _pinPending = true;
+      _pinFailure = null;
+    });
+    final pinId = await ref
+        .read(pegboardMutationsProvider)
+        .pin(boardKey, ToolId.parse(tool.id));
+    if (!mounted) return;
+    setState(() {
+      _pinPending = false;
+      _pinFailure = pinId == null ? t(ref, 'modal.pin.failed_generic') : null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = context.upeg;
-    final key = boardKey;
+    final key = widget.boardKey;
     final List<ToolDto> suggestions = key == null
         ? const <ToolDto>[]
         : ref.watch(emptyBoardSuggestionsProvider(key));
@@ -92,7 +117,7 @@ class EmptyBoard extends ConsumerWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: InkWell(
-                  onTap: onOpenPalette,
+                  onTap: widget.onOpenPalette,
                   borderRadius: BorderRadius.circular(UpegSizing.radius1),
                   child: Container(
                     key: const Key('empty-board-cta'),
@@ -142,14 +167,24 @@ class EmptyBoard extends ConsumerWidget {
                     child: _SuggestionTile(
                       key: Key('empty-board-suggestion-${tool.id}'),
                       tool: tool,
-                      onTap: () => unawaited(
-                        ref
-                            .read(pegboardMutationsProvider)
-                            .pin(key, ToolId.parse(tool.id)),
-                      ),
+                      onTap: _pinPending
+                          ? null
+                          : () => unawaited(_pinSuggestion(tool)),
                     ),
                   ),
               ],
+              if (_pinFailure case final message?)
+                Semantics(
+                  liveRegion: true,
+                  child: Padding(
+                    key: const Key('empty-board-pin-feedback'),
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      message,
+                      style: TextStyle(color: tokens.warn, fontSize: 11),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -162,7 +197,7 @@ class _SuggestionTile extends ConsumerWidget {
   const _SuggestionTile({required this.tool, required this.onTap, super.key});
 
   final ToolDto tool;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

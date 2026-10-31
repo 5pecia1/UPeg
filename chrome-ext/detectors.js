@@ -11,12 +11,6 @@
 // derived offline) a preview function. Nothing else in the extension
 // branches on which detector fired.
 //
-// A row's `tool` is `null` when no upeg tool can resolve it. That is not a
-// placeholder: `epoch` has no host tool today (the `time` toolkit ships
-// `time.epoch_now`/`time.iso_now`, neither of which takes an epoch), so it
-// renders its offline preview and is deliberately NOT wired to a
-// click affordance — a dead deep link is worse than a plain annotation.
-//
 // Rendering contract: matches are wrapped in a `.upeg-mark` span carrying
 // `data-upeg-detector` and a `data-upeg-tip` tooltip. A row with a host
 // tool is actionable (`role=button`, `tabindex=0`) and resolves lazily on
@@ -43,6 +37,7 @@ const UpegDetectors = (() => {
   const DETECTOR_TOOL = Object.freeze({
     HEX_TO_DECIMAL: Object.freeze({ id: 'num.hex_to_decimal', arg: 'input' }),
     BASE64_DECODE: Object.freeze({ id: 'convert.base64_decode', arg: 'input' }),
+    FROM_EPOCH: Object.freeze({ id: 'time.from_epoch', arg: 'input' }),
   });
 
   const HEX_PATTERN = /\b0[xX][0-9a-fA-F]{2,64}\b/g;
@@ -136,7 +131,8 @@ const UpegDetectors = (() => {
       id: DETECTOR_ID.EPOCH,
       pattern: EPOCH_PATTERN,
       labelKey: 'detectorLabelEpoch',
-      tool: null,
+      tool: DETECTOR_TOOL.FROM_EPOCH,
+      args: (value) => ({ unit: value.length === EPOCH_MILLIS_DIGITS ? 'milliseconds' : 'seconds' }),
       normalize: normalizeEpoch,
       preview: previewEpoch,
     }),
@@ -212,7 +208,7 @@ const UpegDetectors = (() => {
   function dispatchArgsFor(detection) {
     const detector = detectorFor(detection.detectorId);
     if (detector === null || detector.tool === null) return null;
-    return { [detector.tool.arg]: detection.value };
+    return { [detector.tool.arg]: detection.value, ...(detector.args ? detector.args(detection.value) : {}) };
   }
 
   function toolIdFor(detection) {

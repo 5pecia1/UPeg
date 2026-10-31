@@ -2,7 +2,8 @@
 ///
 /// The value field is a single TextField that decodes the hex input
 /// live on every keystroke, the decimal preview sits underneath, and
-/// F1/F2 shortcuts re-run / copy the result. F1 also dispatches the
+/// F1 re-runs the result. The modal owns F2 so it copies its run outcome.
+/// F1 also dispatches the
 /// real tool via the existing `onSubmit` seam so the modal can render
 /// the canonical output block + embed.
 ///
@@ -10,7 +11,7 @@
 /// - The local `_result` field is a [HexDecodeResult] sealed variant —
 ///   the UI dispatches on it via a switch (no stringly-typed flags).
 /// - `onSubmit` hands a [ToolArgs] envelope back to the modal host. The
-///   JSON dictionary still contains only `{'value': '<raw input>'}`, but
+///   JSON dictionary contains `{'input': '<raw input>'}`, but
 ///   `Map<String, dynamic>` no longer leaks through the widget API.
 library;
 
@@ -20,7 +21,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
-import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/bespoke_forms/hex_decode_result.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 
@@ -34,19 +34,22 @@ class HexToDecForm extends ConsumerStatefulWidget {
   const HexToDecForm({
     required this.tool,
     required this.onSubmit,
+    this.onInputChanged,
     this.initialInput,
-    this.clipboardWriter = const FlutterClipboardWriter(),
     super.key,
   });
 
   final ToolDto tool;
   final void Function(ToolArgs args) onSubmit;
 
+  /// Receives the current raw input on every edit, including invalid text.
+  /// The host can persist an in-progress draft without waiting for Run.
+  final ValueChanged<ToolArgs>? onInputChanged;
+
   /// Deep-link / pin pre-fill. Carries a single value (the raw hex string
   /// under the tool's input-field key); the form seeds its input with it so
   /// a `upeg://open?...&input=0x2a` link opens with the value already typed.
   final ToolArgs? initialInput;
-  final ClipboardWriter clipboardWriter;
 
   @override
   ConsumerState<HexToDecForm> createState() => _HexToDecFormState();
@@ -54,10 +57,6 @@ class HexToDecForm extends ConsumerStatefulWidget {
 
 class _RunIntent extends Intent {
   const _RunIntent();
-}
-
-class _CopyIntent extends Intent {
-  const _CopyIntent();
 }
 
 class _HexToDecFormState extends ConsumerState<HexToDecForm> {
@@ -99,21 +98,20 @@ class _HexToDecFormState extends ConsumerState<HexToDecForm> {
     setState(() {
       _result = decodeHex(_input.text);
     });
+    widget.onInputChanged?.call(
+      ToolArgs.fromJsonObject(<String, Object?>{
+        hexToDecInputArgKey: _input.text,
+      }),
+    );
   }
 
   void _handleRun() {
     if (_result is! HexDecodeOk) return;
     widget.onSubmit(
       ToolArgs.fromJsonObject(<String, Object?>{
-        hexToDecInputArgKey: _input.text.trim(),
+        hexToDecInputArgKey: _input.text,
       }),
     );
-  }
-
-  void _handleCopy() {
-    final r = _result;
-    if (r is! HexDecodeOk) return;
-    widget.clipboardWriter.write(r.decimal.toString());
   }
 
   @override
@@ -122,19 +120,12 @@ class _HexToDecFormState extends ConsumerState<HexToDecForm> {
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.f1): _RunIntent(),
-        SingleActivator(LogicalKeyboardKey.f2): _CopyIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
           _RunIntent: CallbackAction<_RunIntent>(
             onInvoke: (_) {
               _handleRun();
-              return null;
-            },
-          ),
-          _CopyIntent: CallbackAction<_CopyIntent>(
-            onInvoke: (_) {
-              _handleCopy();
               return null;
             },
           ),
@@ -173,7 +164,7 @@ class _HexToDecFormState extends ConsumerState<HexToDecForm> {
                       fontFamily: upegMonoFontFamily,
                       fontFamilyFallback: upegMonoFontFamilyFallback,
                       fontSize: 10,
-                      color: tokens.fg4,
+                      color: tokens.fg3,
                     ),
                   ),
                   const Spacer(),
@@ -206,7 +197,7 @@ class _PreviewBlock extends ConsumerWidget {
         return Text(
           t(ref, 'modal.hex.empty'),
           style: TextStyle(
-            color: tokens.fg4,
+            color: tokens.fg3,
             fontStyle: FontStyle.italic,
             fontSize: 11,
           ),
@@ -222,12 +213,12 @@ class _PreviewBlock extends ConsumerWidget {
           child: Row(
             children: [
               Text(
-                'decimal',
+                t(ref, 'modal.hex.preview_label'),
                 style: TextStyle(
                   fontFamily: upegMonoFontFamily,
                   fontFamilyFallback: upegMonoFontFamilyFallback,
                   fontSize: 10,
-                  color: tokens.fg4,
+                  color: tokens.fg3,
                 ),
               ),
               const SizedBox(width: 10),

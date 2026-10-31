@@ -191,9 +191,11 @@
     }
 
     span.setAttribute(TIP_ATTR, tipFor(detection, { value: preview, linked: true }));
+    const args = dispatchArgsFor(detection);
+    const input = Object.keys(args).length > 1 ? JSON.stringify(args) : detection.value;
     span.setAttribute(
       LINK_ATTR,
-      buildDeepLink({ board: CONTENT_SCRIPT_BOARD, toolId, input: detection.value }),
+      buildDeepLink({ board: CONTENT_SCRIPT_BOARD, toolId, input }),
     );
     span.setAttribute('role', 'button');
     span.setAttribute('tabindex', '0');

@@ -1,0 +1,21 @@
+[package]
+name = "heic-rs"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+description = "Pure-Rust HEIC/HEIF image decoder: no C, no unsafe, no_std-friendly, wasm-ready"
+repository = "https://github.com/tbraun96/heic-rs"
+
+[lib]
+name = "heic_rs"
+path = "src/lib.rs"
+
+[features]
+default = ["std", "parallel"]
+std = []
+parallel = ["std", "dep:rayon"]
+bench = []
+
+[dependencies]
+rayon = { version = "1.10", optional = true }

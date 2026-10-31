@@ -8,6 +8,9 @@ final imagePreviewFixture = base64Decode(
 );
 
 class FakeImageFileBridge extends FilePickerBridge {
+  PickedFileData? pickedFile;
+  List<String>? pickerAllowedExtensions;
+  bool pickerAllowsMultiple = false;
   bool failSave = false;
   bool cancelSave = false;
   Completer<void>? writeGate;
@@ -44,7 +47,13 @@ class FakeImageFileBridge extends FilePickerBridge {
     int? maxCount,
     int? maxFileBytes,
     int? maxTotalBytes,
-  }) async => null;
+  }) async {
+    pickerAllowedExtensions = List<String>.of(allowedExtensions ?? const []);
+    pickerAllowsMultiple = allowMultiple;
+    final file = pickedFile;
+    return file == null ? null : [file];
+  }
+
   @override
   Future<String?> pickOpenPath() async => null;
 }

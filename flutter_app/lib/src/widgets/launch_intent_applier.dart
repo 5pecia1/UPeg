@@ -7,9 +7,15 @@
 ///     dispatch the result through the same switch the board page
 ///     uses on a regular pin tap.
 ///
+/// Every intent first brings the window forward. A summon-only intent
+/// (neither board nor tool: a bare `upeg://open`, the extension popup's
+/// link, or a tool-less link naming an unknown board) does only that and
+/// leaves the current board selected. A link that names a tool but no
+/// known board still runs the tool, on the current board.
+///
 /// Clears the provider once the intent is applied so a stale value
 /// doesn't re-fire on the next rebuild. Three intent sources
-/// (cold-boot argv via `AppInitReport.launch`, second-instance
+/// (cold-boot argv via `currentLaunchIntent()`, second-instance
 /// `app_links` event, in-process popup encode) all share this one
 /// observer so the routing policy lives in exactly one place.
 library;
@@ -56,12 +62,12 @@ class LaunchIntentApplier extends ConsumerStatefulWidget {
   /// Tree to render below the observer — typically the BoardPage shell.
   final Widget child;
 
-  /// Injected foregrounding call, fired for every non-empty intent.
-  /// A deep link must surface the window even when the target mode
-  /// equals the current one — the mode pipeline dedupes equal states,
-  /// so show+focus needs this unconditional path (launcher
-  /// immediacy). Defaults to the production `summonWindow`, which
-  /// no-ops on unsupported platforms.
+  /// Injected foregrounding call, fired for every intent, including a
+  /// summon-only one. A deep link must surface the window even when the
+  /// target mode equals the current one — the mode pipeline dedupes
+  /// equal states, so show+focus needs this unconditional path
+  /// (launcher immediacy). Defaults to the production `summonWindow`,
+  /// which no-ops on unsupported platforms.
   final SummonWindowFn summonWindow;
 
   @override
@@ -83,12 +89,20 @@ class _LaunchIntentApplierState extends ConsumerState<LaunchIntentApplier> {
   void _maybeApply() {
     if (!mounted) return;
     final LaunchIntent? intent = ref.read(launchIntentProvider);
-    if (intent == null || intent.isEmpty) return;
+    if (intent == null) return;
 
     // Foreground first: a deep link that arrives while the window is
     // hidden (popup auto-hide) or minimized must surface it even when
-    // the window-mode write below dedupes to a no-op.
+    // the window-mode write below dedupes to a no-op. Every link
+    // summons, a summon-only one included.
     unawaited(_summonBestEffort());
+
+    if (intent.isEmpty) {
+      // Nothing to apply: the link named no known board and no tool, so
+      // the current board stays selected.
+      ref.read(launchIntentProvider.notifier).clear();
+      return;
+    }
 
     if (intent.board != null) {
       ref
@@ -255,8 +269,8 @@ class _LaunchIntentApplierState extends ConsumerState<LaunchIntentApplier> {
 /// Chain approval gate as a real approval, from a surface whose
 /// approvals count.
 ///
-/// Extension links carry a *raw scalar* input (e.g. `0x2a`), not a JSON
-/// object, so the three shapes are:
+/// Extension links carry either a raw scalar (e.g. `0x2a`) or a JSON
+/// object for multiple fields, so the three shapes are:
 ///   * a JSON object — kept, filtered down to declared field keys;
 ///   * an object with nothing declared left in it (and the empty-object
 ///     form) — `null`, "no pre-fill";

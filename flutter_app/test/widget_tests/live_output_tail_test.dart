@@ -20,6 +20,7 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import 'package:upeg/src/widgets/inline/generic_inline_pin_body.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
+import '../test_helpers/pin_persistence_overrides.dart';
 import '../test_helpers/tool_fixture.dart';
 
 const _stdout = 'stdout';
@@ -89,6 +90,7 @@ Widget _modalHarness(_ScriptedDispatch dispatch, _CancelLog cancel) {
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(dispatch.fn),
       cancelDispatchFnProvider.overrideWithValue(cancel.call),
     ],
@@ -103,6 +105,7 @@ Widget _inlineHarness(_ScriptedDispatch dispatch, _CancelLog cancel) {
   return ProviderScope(
     overrides: [
       ...i18nTestOverrides,
+      ...pinPersistenceTestOverrides,
       dispatchStreamFnProvider.overrideWithValue(dispatch.fn),
       cancelDispatchFnProvider.overrideWithValue(cancel.call),
     ],

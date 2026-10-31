@@ -45,7 +45,7 @@ final class ExternalRunController {
   }) async {
     final result = await ref
         .read(hostAttachDispatchProvider.notifier)
-        .run(ToolId.parse(tool.id), args, pinKey: pinKey);
+        .run(ToolId.parse(tool.id), args, pinKey: pinKey, recordOutcome: false);
     final outcome = switch (result) {
       AttachDispatchOk(:final result) => result,
       AttachDispatchToolError(:final error) => CanonicalToolResult(

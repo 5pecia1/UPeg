@@ -93,9 +93,10 @@ pub fn state_path_from_env() -> Option<PathBuf> {
 }
 
 /// Change revision of the store at `path`: `None` while no store exists
-/// or nothing was ever written, then a counter that grows with every
-/// write. Successor of the old file-mtime probe — surfaces poll this to
-/// pick up another surface's edits.
+/// or shared state was never written, then a counter that grows with board,
+/// layout, selection and memo writes. Local-only rows (pin drafts and
+/// results, diagnostics, the execution log) do not change it.
+/// Successor of the old file-mtime probe for another surface's edits.
 pub fn state_change_rev_from_path(path: &Path) -> Option<u64> {
     // Probing must not create the database as a side effect.
     if !path.exists() {
