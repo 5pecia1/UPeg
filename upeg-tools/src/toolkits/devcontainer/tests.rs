@@ -139,15 +139,15 @@ fn sample_entry() -> DevContainerEntry {
         workspace_json: "/home/u/.config/Code/User/workspaceStorage/abc123/workspace.json"
             .to_string(),
         workspace_kind: "folder".to_string(),
-        uri: "vscode-remote://dev-container+abc/workspaces/byfactory-api".to_string(),
-        container_path: "/workspaces/byfactory-api".to_string(),
-        host_workspace_path: "/home/u/projects/byfactory".to_string(),
-        devcontainer_config_path: "/home/u/projects/byfactory/.devcontainer/devcontainer.json"
+        uri: "vscode-remote://dev-container+abc/workspaces/sample-project-api".to_string(),
+        container_path: "/workspaces/sample-project-api".to_string(),
+        host_workspace_path: "/home/u/projects/sample-project".to_string(),
+        devcontainer_config_path: "/home/u/projects/sample-project/.devcontainer/devcontainer.json"
             .to_string(),
         remote_authority: "ssh-remote+deadbeef".to_string(),
         remote_host: "build.example.test".to_string(),
         devcontainer_authority: "dev-container+abc".to_string(),
-        decoded: Some(serde_json::json!({"workspacePath": "/home/u/projects/byfactory"})),
+        decoded: Some(serde_json::json!({"workspacePath": "/home/u/projects/sample-project"})),
         mtime: 1000.0,
         open_rank: None,
         recent_rank: None,
@@ -287,11 +287,11 @@ fn empty_authority_is_empty_pair() {
 #[test]
 fn pattern_tokens_match_case_insensitive_and() {
     let entry = sample_entry();
-    assert!(entry_matches(&entry, "byfactory"));
-    assert!(entry_matches(&entry, "BYFACTORY api"));
+    assert!(entry_matches(&entry, "sample-project"));
+    assert!(entry_matches(&entry, "SAMPLE-PROJECT api"));
     assert!(entry_matches(&entry, "")); // empty matches all
     assert!(!entry_matches(&entry, "nonexistent"));
-    assert!(!entry_matches(&entry, "byfactory nonexistent"));
+    assert!(!entry_matches(&entry, "sample-project nonexistent"));
 }
 
 // ─── Field::value / parse ───────────────────────────────────────────
@@ -299,8 +299,11 @@ fn pattern_tokens_match_case_insensitive_and() {
 #[test]
 fn field_value_selects() {
     let entry = sample_entry();
-    assert_eq!(Field::Container.value(&entry), "/workspaces/byfactory-api");
-    assert_eq!(Field::Host.value(&entry), "/home/u/projects/byfactory");
+    assert_eq!(
+        Field::Container.value(&entry),
+        "/workspaces/sample-project-api"
+    );
+    assert_eq!(Field::Host.value(&entry), "/home/u/projects/sample-project");
     assert_eq!(Field::Remote.value(&entry), "build.example.test");
     assert_eq!(Field::App.value(&entry), "Code");
     assert_eq!(Field::Id.value(&entry), "abc123");
@@ -432,14 +435,14 @@ fn entry_serializes_to_json() {
             "storage_path": "/home/u/.config/Code/User/workspaceStorage/abc123",
             "workspace_json": "/home/u/.config/Code/User/workspaceStorage/abc123/workspace.json",
             "workspace_kind": "folder",
-            "uri": "vscode-remote://dev-container+abc/workspaces/byfactory-api",
-            "container_path": "/workspaces/byfactory-api",
-            "host_workspace_path": "/home/u/projects/byfactory",
-            "devcontainer_config_path": "/home/u/projects/byfactory/.devcontainer/devcontainer.json",
+            "uri": "vscode-remote://dev-container+abc/workspaces/sample-project-api",
+            "container_path": "/workspaces/sample-project-api",
+            "host_workspace_path": "/home/u/projects/sample-project",
+            "devcontainer_config_path": "/home/u/projects/sample-project/.devcontainer/devcontainer.json",
             "remote_authority": "ssh-remote+deadbeef",
             "remote_host": "build.example.test",
             "devcontainer_authority": "dev-container+abc",
-            "decoded": {"workspacePath": "/home/u/projects/byfactory"},
+            "decoded": {"workspacePath": "/home/u/projects/sample-project"},
             "mtime": 1000.0,
             "open_rank": serde_json::Value::Null,
             "recent_rank": serde_json::Value::Null,
