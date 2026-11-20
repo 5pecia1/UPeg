@@ -202,8 +202,9 @@ The `.deb` and `.rpm` install the app under `/opt/upeg` and link
 name stays with the CLI binary; the `.desktop` file launches the app by
 its absolute path.
 
-The release workflow (`release`, manual dispatch) stages a fixed set of
-release assets, each with a `.sha256` sidecar produced only after its final
+The public `release` workflow (manual dispatch) verifies builds from the exported
+source; official publication distributes a fixed set of finalized producer
+packages, each with a `.sha256` sidecar produced only after its final
 signing/notarization step where applicable:
 `upeg-v<ver>-x86_64-unknown-linux-gnu.tar.gz`,
 `upeg-v<ver>-aarch64-unknown-linux-gnu.tar.gz`,
@@ -212,7 +213,7 @@ signing/notarization step where applicable:
 `upeg_<ver>_amd64.deb`, `upeg-<ver>-1.x86_64.rpm`, and
 `upeg-v<ver>-x86_64.AppImage` (Linux desktop),
 `upeg-v<ver>.dmg` (macOS desktop), `upeg-v<ver>-x86_64.msix` (Windows
-desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). It also publishes
+desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). Official releases also include
 native toolkit catalogues and their versioned packs for Linux
 x86-64/ARM64, macOS ARM64/Intel x86-64, and Windows x86-64. The published
 release manifest requires every asset and SHA256 sidecar before publication.
