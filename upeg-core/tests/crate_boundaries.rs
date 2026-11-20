@@ -18,6 +18,7 @@
 //! | Crate | Layer | Owns | Does not own |
 //! |---|---|---|---|
 //! | `upeg-core` | domain | Toolkit/Tool/Chain/Board value types, schema contracts, pure validation, pure positional binding, capability verdicts | runtime toolbox, dispatch, host I/O, UX labels |
+//! | `upeg-tool-grammar` | domain contracts | shared fixed-unit duration grammar and compile-time Tool declaration syntax | runtime dispatch, source discovery, host I/O |
 //! | `upeg-runtime` | runtime | toolbox overlay, dispatch, trigger binding/execution, embed binding, manifest lowering, conflict policy | source-format parsing, surface UI flow |
 //! | `upeg-toolkit-catalog` | metadata | generated built-in metadata and artifact digest contract | executable engines, network download |
 //! | `upeg-toolkit-native` | adapter | verified native pack download, cache, sidecar dispatch | tool implementations |
@@ -40,6 +41,10 @@
 //! trigger registration, embed-binding normalization, and
 //! manifest→toolbox conversion are applied only in `upeg-runtime`
 //! lowering.
+//!
+//! Runtime schedule conditions and macro timer literals share the duration
+//! grammar in `upeg-tool-grammar`. Runtime disables its `syntax` feature so
+//! this inward dependency does not pull macro syntax crates into the runtime.
 //!
 //! Reads every workspace member's `Cargo.toml` and reconstructs the
 //! `upeg-*` → `upeg-*` edge set, then holds it against three rules:
@@ -224,6 +229,7 @@ const ALLOWED_EDGES: &[(&str, &str)] = &[
     ("upeg-pegboard-ui", "upeg-toolkit-catalog"),
     ("upeg-plugin-macros", "upeg-tool-grammar"),
     ("upeg-runtime", "upeg-core"),
+    ("upeg-runtime", "upeg-tool-grammar"),
     ("upeg-sources", "upeg-core"),
     ("upeg-sources", "upeg-loader"),
     ("upeg-sources", "upeg-runtime"),

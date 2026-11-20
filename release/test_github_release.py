@@ -31,6 +31,7 @@ class FakeClient:
         self.next_asset_id = 200
         self.patches = 0
         self.uploads = []
+        self.deletes = []
 
     def json(self, method, url, payload=None):
         path = url.removeprefix(BASE)
@@ -72,7 +73,8 @@ class FakeClient:
             name = parse_qs(urlparse(url).query)['name'][0]
             asset_id = self.next_asset_id
             self.next_asset_id += 1
-            self.assets.append({'id': asset_id, 'name': name, 'size': len(data), 'state': 'uploaded'})
+            self.assets.append({'id': asset_id, 'name': name, 'size': len(data), 'state': 'uploaded',
+                                'digest': 'sha256:' + digest(data)})
             self.bytes[asset_id] = data
             self.uploads.append(name)
             return b'{}'
@@ -80,6 +82,7 @@ class FakeClient:
             return self.bytes[int(path.rsplit('/', 1)[1])]
         if method == 'DELETE' and path.startswith('/releases/assets/'):
             asset_id = int(path.rsplit('/', 1)[1])
+            self.deletes.append(asset_id)
             self.assets = [item for item in self.assets if item['id'] != asset_id]
             self.bytes.pop(asset_id, None)
             return b''
@@ -158,11 +161,75 @@ class ReleaseProtocolTest(unittest.TestCase):
     def test_resume_discards_only_incomplete_starter(self):
         self.staged()
         item = self.client.assets[0]
-        item['state'] = 'starter'
+        item.update(state='starter', size=0, digest=None)
+        self.client.bytes[item['id']] = b''
         uploads = len(self.client.uploads)
         self.staged()
         self.assertEqual(len(self.client.uploads), uploads + 1)
         self.assertEqual(len(self.client.assets), len(list(self.files.iterdir())) + 1)
+
+    def test_resume_validates_other_assets_before_deleting_an_empty_starter(self):
+        self.staged()
+        starter, changed = self.client.assets[:2]
+        starter.update(state='starter', size=0, digest=None)
+        self.client.bytes[starter['id']] = b''
+        self.client.bytes[changed['id']] = b'X' * changed['size']
+        uploads = list(self.client.uploads)
+        with self.assertRaisesRegex(GateError, 'bytes differ'):
+            self.staged()
+        self.assertEqual(self.client.deletes, [])
+        self.assertEqual(self.client.uploads, uploads)
+
+    def test_resume_preserves_nonempty_starter_reservations(self):
+        self.staged()
+        item = self.client.assets[0]
+        item['state'] = 'starter'
+        with self.assertRaisesRegex(GateError, 'reservation is not empty'):
+            self.staged()
+        item['size'] = 0
+        with self.assertRaisesRegex(GateError, 'reservation is not empty'):
+            self.staged()
+        self.assertEqual(self.client.deletes, [])
+
+    def test_resume_rejects_foreign_assets_before_removing_a_starter(self):
+        self.staged()
+        starter = self.client.assets[0]
+        starter.update(state='starter', size=0, digest=None)
+        self.client.assets.append({'id': 999, 'name': 'foreign', 'size': 0, 'state': 'starter'})
+        with self.assertRaisesRegex(GateError, 'unexpected release assets'):
+            self.staged()
+        self.assertEqual(self.client.deletes, [])
+
+    def test_resume_rejects_wrong_reported_digest_without_replacing_bytes(self):
+        self.staged()
+        item = self.client.assets[0]
+        item['digest'] = 'sha256:' + '0' * 64
+        uploads = list(self.client.uploads)
+        with self.assertRaisesRegex(GateError, 'metadata digest differs'):
+            self.staged()
+        self.assertEqual(self.client.uploads, uploads)
+        self.assertEqual(self.client.deletes, [])
+
+    def test_api_digest_may_be_absent_for_legacy_assets(self):
+        result = self.staged()
+        for item in self.client.assets:
+            item.pop('digest')
+        self.assertEqual(self.staged(), result)
+        self.assertTrue(finalize(self.client, REPO, TAG, COMMIT, 100,
+                                 result['manifest_sha256'])['published'])
+
+    def test_finalize_rejects_wrong_reported_manifest_or_payload_digest(self):
+        result = self.staged()
+        manifest = next(item for item in self.client.assets if item['name'] == 'release-manifest.json')
+        payload = next(item for item in self.client.assets if item['name'] != 'release-manifest.json')
+        for item in (manifest, payload):
+            with self.subTest(name=item['name']):
+                original = item['digest']
+                item['digest'] = 'sha256:' + '0' * 64
+                with self.assertRaisesRegex(GateError, 'metadata digest differs'):
+                    finalize(self.client, REPO, TAG, COMMIT, 100, result['manifest_sha256'])
+                self.assertEqual(self.client.patches, 0)
+                item['digest'] = original
 
     def test_changed_existing_asset_is_rejected(self):
         self.staged()

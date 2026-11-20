@@ -61,7 +61,7 @@ impl FromStr for ScheduleCondition {
                 expression: expression.to_string(),
             });
         };
-        let interval = humantime::parse_duration(interval.trim()).map_err(|error| {
+        let interval = upeg_tool_grammar::parse_duration(interval.trim()).map_err(|error| {
             ScheduleConditionError::UnparsableInterval {
                 expression: expression.to_string(),
                 reason: error.to_string(),
@@ -82,7 +82,7 @@ impl FromStr for ScheduleCondition {
 pub enum ScheduleConditionError {
     /// Neither `now` nor `every:<duration>`.
     Unsupported { expression: String },
-    /// `every:` carrying a duration `humantime` could not read.
+    /// `every:` carrying a duration the shared grammar could not read.
     UnparsableInterval { expression: String, reason: String },
     /// `every:0s`, `every:500ms` — an interval finer than the watch's poll
     /// resolution, which the watch could only honor by quantizing it up.
@@ -109,7 +109,7 @@ impl std::fmt::Display for ScheduleConditionError {
             } => write!(
                 f,
                 "schedule interval in `{expression}` must be at least {resolution} — the trigger watch polls once per {resolution}, so a finer interval could only be honored by quantizing it up",
-                resolution = humantime::format_duration(*resolution)
+                resolution = upeg_tool_grammar::format_duration(*resolution)
             ),
         }
     }
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn every_condition_parses_as_humantime_interval() {
+    fn every_condition_parses_with_the_shared_duration_grammar() {
         assert_eq!(
             ScheduleCondition::parse_optional(Some("every:30s")),
             Ok(ScheduleCondition::Every(Duration::from_secs(30)))
@@ -147,6 +147,51 @@ mod tests {
             ScheduleCondition::parse_optional(Some("every: 1h 30m ")),
             Ok(ScheduleCondition::Every(Duration::from_secs(5400)))
         );
+    }
+
+    #[test]
+    fn recurring_intervals_preserve_compound_spacing_aliases_and_exact_fractions() {
+        for (text, duration) in [
+            ("1m30s", Duration::from_secs(90)),
+            ("1 2s", Duration::from_secs(12)),
+            ("1000000µs", Duration::from_secs(1)),
+            ("1.25s", Duration::from_millis(1_250)),
+            ("1M", Duration::from_secs(2_630_016)),
+            ("18446744073709551615s", Duration::from_secs(u64::MAX)),
+        ] {
+            assert_eq!(
+                format!("every:{text}").parse(),
+                Ok(ScheduleCondition::Every(duration)),
+                "{text}"
+            );
+        }
+        for text in ["0", "0s", "0.5s", "999999999ns"] {
+            assert!(
+                matches!(
+                    format!("every:{text}").parse::<ScheduleCondition>(),
+                    Err(ScheduleConditionError::IntervalBelowPollResolution { .. })
+                ),
+                "{text}"
+            );
+        }
+        for text in ["1s2", "0.5ns", "1.0000000001s", "18446744073709551616s"] {
+            assert!(
+                matches!(
+                    format!("every:{text}").parse::<ScheduleCondition>(),
+                    Err(ScheduleConditionError::UnparsableInterval { .. })
+                ),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn interval_errors_keep_the_compound_resolution_format() {
+        let error = ScheduleConditionError::IntervalBelowPollResolution {
+            expression: "every:1s".into(),
+            resolution: Duration::from_millis(1_500),
+        };
+        assert!(error.to_string().contains("at least 1s 500ms"));
     }
 
     #[test]

@@ -36,7 +36,7 @@ upeg은 아직 초기 단계다.
 
 - **다운로드 구성은 릴리스마다 다르다.** 게시된 패키지는
   [GitHub Releases](https://github.com/5pecia1/UPeg/releases)에서 확인할 수
-  있다. 패키지는 서명되지 않았으며, 아래의 소스 빌드도 사용할 수 있다.
+  있다. v0.7.8 macOS 패키지는 Developer ID 서명 도입 전에 발행했다.
   최신 릴리스에는 Linux x86_64·ARM64 CLI 아카이브, macOS ARM64 CLI 아카이브,
   Windows x86_64 CLI 아카이브, Linux Debian 패키지와 AppImage, universal macOS
   DMG, Windows MSIX, web 아카이브가 있다.

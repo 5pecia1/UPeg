@@ -7,7 +7,7 @@ tags: [installation]
 
 # Installation
 
-Published, unsigned release artifacts are listed on
+Published release artifacts are listed on
 [GitHub Releases](https://github.com/5pecia1/UPeg/releases). Building from
 source remains supported, and `just package-*` produces local unsigned
 artifacts for development.
@@ -94,7 +94,8 @@ On macOS, use `cd flutter_app && flutter run -d macos --release` for a local
 release run, or `just flutter-build-macos` from the repository root to build
 the release `.app`. The DMG made by `just package-macos-dmg` contains that app
 bundle. Its app icon and menu bar template icon are bundled; no separate icon
-registration step is needed. The current DMG packaging recipe does not sign or notarize the app; see
+registration step is needed. Local builds remain unsigned. Official releases
+sign the app, then sign, notarize and staple its DMG; see
 [Packaging](#packaging-installable-artifacts) before installing a downloaded DMG.
 
 From the repository root, the web/PWA recipes build the `wasm32` bridge first:
@@ -186,8 +187,15 @@ the current run and refuses an existing destination filename. Remove or move
 that specific prior file before rebuilding the same version.
 Every package embeds the full notice set — `LICENSE`, `NOTICE`, the OFL
 font licenses, and `BUILD-INFO` — via `packaging/release-files.sh`.
-Signing and notarization are intentionally out of scope — artifacts are
-unsigned.
+
+### Verify a signed macOS download
+
+Check the release checksum first. For a notarized DMG, run `xcrun stapler validate <download.dmg>` and
+`spctl --assess --type open --context context:primary-signature -v <download.dmg>`. After copying
+the app into Applications, use `codesign --verify --deep --strict /Applications/upeg.app` and
+`spctl --assess --type execute -v /Applications/upeg.app`. For the downloaded CLI, assess the
+extracted executable with `spctl --assess --type execute -v ./upeg`; Gatekeeper can retrieve its
+notarization ticket online. The v0.7.8 download predates this release-signing workflow.
 
 The `.deb` and `.rpm` install the app under `/opt/upeg` and link
 `/usr/bin/upeg-app` — the desktop app's PATH entry. The plain `upeg`
@@ -195,7 +203,8 @@ name stays with the CLI binary; the `.desktop` file launches the app by
 its absolute path.
 
 The release workflow (`release`, manual dispatch) stages a fixed set of
-unsigned release assets, each with a `.sha256` sidecar:
+release assets, each with a `.sha256` sidecar produced only after its final
+signing/notarization step where applicable:
 `upeg-v<ver>-x86_64-unknown-linux-gnu.tar.gz`,
 `upeg-v<ver>-aarch64-unknown-linux-gnu.tar.gz`,
 `upeg-v<ver>-aarch64-apple-darwin.tar.gz`,
@@ -204,7 +213,7 @@ unsigned release assets, each with a `.sha256` sidecar:
 `upeg-v<ver>-x86_64.AppImage` (Linux desktop),
 `upeg-v<ver>.dmg` (macOS desktop), `upeg-v<ver>-x86_64.msix` (Windows
 desktop), and `upeg-v<ver>-web.tar.gz` (PWA bundle). It also publishes
-native toolkit catalogues and 15 versioned packs per target for Linux
+native toolkit catalogues and their versioned packs for Linux
 x86-64/ARM64, macOS ARM64/Intel x86-64, and Windows x86-64. The published
 release manifest requires every asset and SHA256 sidecar before publication.
 

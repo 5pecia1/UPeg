@@ -37,8 +37,7 @@ packs stay available offline.
 upeg is early-stage:
 
 - **Downloads vary by release.** See [GitHub Releases](https://github.com/5pecia1/UPeg/releases)
-  for published packages. They are unsigned; building from source (below)
-  remains an alternative. The latest release provides Linux x86_64 and ARM64
+  for published packages. The v0.7.8 macOS download predates Developer ID signing. The latest release provides Linux x86_64 and ARM64
   CLI archives, a macOS ARM64 CLI archive, a Windows x86_64 CLI archive, a
   Linux Debian package and AppImage, a universal macOS DMG, a Windows MSIX,
   and a web archive.

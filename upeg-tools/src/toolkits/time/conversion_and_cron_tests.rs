@@ -159,3 +159,73 @@ fn cron_description_lists_the_actual_selected_values() {
     );
     assert!(weekly.description.contains("AND"), "{}", weekly.description);
 }
+
+#[test]
+fn epoch_fractional_precision_matches_the_existing_wire_format() {
+    for (input, expected) in [
+        ("1", "1970-01-01T00:00:00.001Z"),
+        ("10", "1970-01-01T00:00:00.010Z"),
+        ("100", "1970-01-01T00:00:00.100Z"),
+        ("1000", "1970-01-01T00:00:01Z"),
+        ("-1001", "1969-12-31T23:59:58.999Z"),
+    ] {
+        assert_eq!(from_epoch(input, "milliseconds").unwrap(), expected);
+    }
+    for (input, seconds, millis) in [
+        ("1969-12-31T23:59:59.999999999Z", -1, -1),
+        ("1969-12-31T23:59:58.999999999Z", -2, -1001),
+        ("1970-01-01T00:00:00.000000001Z", 0, 0),
+        ("1970-01-01T00:00:00.123999999999Z", 0, 123),
+    ] {
+        assert_eq!(to_epoch(input, "seconds").unwrap(), seconds);
+        assert_eq!(to_epoch(input, "milliseconds").unwrap(), millis);
+    }
+}
+
+#[test]
+fn rfc3339_input_keeps_its_original_syntax_and_year_boundaries() {
+    for input in [
+        "1970-01-01t00:00:00z",
+        "1970-01-01 00:00:00Z",
+        "1970-01-01T23:59:00+23:59",
+        "1970-01-01T00:00:00-00:00",
+    ] {
+        assert_eq!(to_epoch(input, "seconds").unwrap(), 0, "{input}");
+    }
+    for input in [
+        "1970-01-01X00:00:00Z",
+        "1970-01-01T00:00Z",
+        "19700101T00:00:00Z",
+        "1970-01-01T00:00:00+00",
+        "1970-01-01T00:00:00+0000",
+        "1970-01-01T00:00:00Z[UTC]",
+        "1970-01-01T00:00:00,1Z",
+        "2016-12-31T23:59:60Z",
+        "0000-01-01T00:00:00+00:01",
+    ] {
+        assert!(to_epoch(input, "seconds").is_err(), "{input}");
+    }
+    assert_eq!(
+        from_epoch("-62167219200", "seconds").unwrap(),
+        "0000-01-01T00:00:00Z"
+    );
+    assert_eq!(
+        from_epoch("253402300799", "seconds").unwrap(),
+        "9999-12-31T23:59:59Z"
+    );
+}
+
+#[test]
+fn cron_normalizes_offsets_and_retains_all_five_utc_occurrences() {
+    let result = cron_inspect("0 0 * * *", "2024-02-28T23:00:00-01:00").unwrap();
+    assert_eq!(
+        result.next,
+        [
+            "2024-03-01T00:00:00Z",
+            "2024-03-02T00:00:00Z",
+            "2024-03-03T00:00:00Z",
+            "2024-03-04T00:00:00Z",
+            "2024-03-05T00:00:00Z",
+        ]
+    );
+}

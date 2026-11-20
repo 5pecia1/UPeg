@@ -53,8 +53,44 @@ fn run() -> Result<(), String> {
             option(&args, "--target")?,
             option(&args, "--app-version")?,
         ),
+        Some("refresh-native") => refresh_native(Path::new(option(&args, "--root")?), option(&args, "--target")?),
         _ => Err("usage: prepare-web --out FILE | verify-metadata | build-web --out DIR | verify-web --root DIR --app-version V | build-native --target TRIPLE --out DIR --base-url URL | verify-native --root DIR --target TRIPLE --app-version V".into()),
     }
+}
+
+fn refresh_native(root: &Path, target: &str) -> Result<(), String> {
+    let catalog_path = root.join(format!("toolkits-{target}-catalog.json"));
+    let mut catalog: Catalog =
+        serde_json::from_slice(&fs::read(&catalog_path).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+    for toolkit in &mut catalog.toolkits {
+        let Some(artifact) = toolkit.native.get_mut(target) else {
+            continue;
+        };
+        let filename = artifact
+            .url
+            .rsplit('/')
+            .next()
+            .ok_or("native URL has no filename")?;
+        let path = root.join(filename);
+        let compressed = fs::read(&path).map_err(|error| error.to_string())?;
+        let mut expanded = Vec::new();
+        GzDecoder::new(compressed.as_slice())
+            .take(EXPANDED_MAX_BYTES + 1)
+            .read_to_end(&mut expanded)
+            .map_err(|error| error.to_string())?;
+        if compressed.len() as u64 > NATIVE_MAX_BYTES || expanded.len() as u64 > EXPANDED_MAX_BYTES
+        {
+            return Err(format!("native pack exceeds limit: {}", path.display()));
+        }
+        artifact.sha256 = sha256_hex(&compressed);
+        artifact.size = compressed.len() as u64;
+        artifact.expanded_sha256 = sha256_hex(&expanded);
+        artifact.expanded_size = expanded.len() as u64;
+    }
+    let version = catalog.app_version.clone();
+    write_catalog(&catalog_path, &mut catalog)?;
+    verify_native(root, target, &version)
 }
 
 fn option<'a>(args: &'a [String], key: &str) -> Result<&'a str, String> {

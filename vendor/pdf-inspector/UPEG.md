@@ -29,6 +29,10 @@ Local patches:
 - `Cargo.toml`: `lopdf` bumped from `0.42.0` to `0.44.0` on both targets
   (matching upstream main at review time). In 0.44 `ttf-parser` moved behind
   the optional `font_embedding` feature, which nothing here enables.
+- `Cargo.toml`: disable native `lopdf` default features, retaining `rayon`.
+  PDF parsing and extraction do not use its optional datetime conversion
+  implementations; this removes the unused chrono dependency. The WASM
+  dependency already disabled those defaults and keeps `wasm_js`.
 - `Cargo.toml`, `src/sfnt.rs` (new), `src/tounicode.rs`, `src/detector.rs`,
   `src/extractor/fonts.rs`: `ttf-parser` (RUSTSEC-2026-0192, unmaintained)
   replaced by `skrifa` 0.44 / `read-fonts` 0.41, already in UPeg's graph via

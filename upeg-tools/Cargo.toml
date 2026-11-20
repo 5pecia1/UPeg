@@ -11,8 +11,9 @@ description = "Built-in Tool implementations selected one Toolkit feature at a t
 [dependencies]
 base32 = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
-chrono = { workspace = true, optional = true }
+jiff = { workspace = true, optional = true }
 croner = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
@@ -86,7 +87,7 @@ num = []
 qr = ["dep:qrcode", "dep:rqrr", "dep:image"]
 security = ["dep:getrandom", "dep:zxcvbn"]
 text = ["dep:regex", "dep:similar"]
-time = ["dep:chrono", "dep:croner"]
+time = ["dep:jiff", "dep:croner", "dep:time"]
 weather = ["dep:ureq", "dep:urlencoding"]
 
 # `unsafe_code = "deny"` is inherited from `[workspace.lints.rust]` via

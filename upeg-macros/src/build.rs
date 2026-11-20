@@ -312,8 +312,7 @@ pub(super) fn build_source_expr(source: Option<&SourceArg>) -> Result<proc_macro
 /// Parse a human-readable duration literal (`"30s"`, `"500ms"`, `"1m"`,
 /// `"1m30s"`, …) and return its length in milliseconds.
 ///
-/// Backed by [`humantime::parse_duration`] so we don't reimplement the
-/// number-and-unit grammar ourselves. The compile-time scheduler uses ms,
+/// Uses the same duration grammar as runtime schedules. The compile-time scheduler uses ms,
 /// so durations above `u64::MAX` ms are rejected at the macro boundary.
 pub(super) fn parse_duration_to_ms(lit: &LitStr) -> Result<u64> {
     let raw = lit.value();
@@ -324,11 +323,11 @@ pub(super) fn parse_duration_to_ms(lit: &LitStr) -> Result<u64> {
             "duration must not be empty (e.g. \"30s\", \"500ms\", \"1m\", \"1m30s\")",
         ));
     }
-    let duration = humantime::parse_duration(trimmed).map_err(|err| {
+    let duration = upeg_tool_grammar::parse_duration(trimmed).map_err(|err| {
         syn::Error::new(
             lit.span(),
             format!(
-                "duration `{raw}` could not be parsed by humantime: {err} \
+                "duration `{raw}` could not be parsed: {err} \
                  (expected e.g. \"500ms\", \"30s\", \"1m\", \"1m30s\")"
             ),
         )

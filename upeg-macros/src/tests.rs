@@ -141,9 +141,7 @@ fn timer_duration_parsing_accepts_multiple_suffixes() {
 
 #[test]
 fn timer_duration_sums_compound_expressions_exactly() {
-    // Delegated to the humantime crate — "1m30s" = 90s (the earlier
-    // partition implementation misread it as 130ms). Unit splitting and
-    // summation are left to the library.
+    // Compound parsing must sum units rather than concatenate their digits.
     use syn::LitStr;
     let make = |s: &str| LitStr::new(s, proc_macro2::Span::call_site());
     assert_eq!(parse_duration_to_ms(&make("1m30s")).unwrap(), 90_000);
@@ -151,8 +149,42 @@ fn timer_duration_sums_compound_expressions_exactly() {
     assert_eq!(
         parse_duration_to_ms(&make("2s500ms")).unwrap(),
         2_500,
-        "humantime also accepts ms-granularity compounds"
+        "compound intervals retain millisecond precision"
     );
+}
+
+#[test]
+fn timer_duration_preserves_zero_microseconds_fraction_and_millisecond_bounds() {
+    let parse =
+        |text: &str| parse_duration_to_ms(&syn::LitStr::new(text, proc_macro2::Span::call_site()));
+    for (text, expected) in [
+        ("0", 0),
+        ("0s", 0),
+        ("999us", 0),
+        ("1000µs", 1),
+        ("1.5s", 1_500),
+        ("1 h 30m", 5_400_000),
+    ] {
+        assert_eq!(parse(text).unwrap(), expected, "{text}");
+    }
+    assert_eq!(parse("18446744073709551s615ms").unwrap(), u64::MAX);
+    let error = parse("18446744073709551s616ms").unwrap_err().to_string();
+    assert!(
+        error.contains("too large to represent in milliseconds"),
+        "{error}"
+    );
+    for text in [
+        "1s2",
+        "+1s",
+        ".5s",
+        "0.5ns",
+        "1e3s",
+        "18446744073709551616s",
+    ] {
+        let error = parse(text).unwrap_err().to_string();
+        assert!(error.contains(text), "{error}");
+        assert!(error.contains("expected e.g."), "{error}");
+    }
 }
 
 #[test]

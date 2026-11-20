@@ -1,4 +1,6 @@
-# Public release build from the public main branch.
+# Verify release packaging from an exact public main commit.
+# These build outputs are disposable verification evidence. Release assets
+# are delivered by the upstream producer, never by this workflow.
 #
 # Tag policy: the dispatch `tag` input must equal `v<Cargo workspace version>`
 # (Cargo.toml [workspace.package].version is the version source of truth).
@@ -6,11 +8,16 @@
 # Every downloaded tool is version- and SHA256-pinned; no `latest` or
 # `continuous` downloads. Action pins match .github/workflows/ci.yml.
 name: release
+run-name: Verify ${{ inputs.tag }} at ${{ inputs.public_sha }}
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag, must equal v<workspace version> (e.g. v0.1.2)'
+        description: 'Verification tag, must equal v<workspace version> (e.g. v0.1.2)'
+        required: true
+        type: string
+      public_sha:
+        description: 'Expected full public main commit SHA'
         required: true
         type: string
 permissions:
@@ -35,7 +42,7 @@ env:
 jobs:
   preflight:
     name: preflight
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       version: ${{ steps.resolve.outputs.version }}
@@ -49,10 +56,14 @@ jobs:
         id: resolve
         env:
           REF: ${{ github.ref }}
+          EXPECTED_PUBLIC_SHA: ${{ inputs.public_sha }}
         run: |
           set -euo pipefail
           [ "$REF" = "refs/heads/main" ] \
-            || { echo "release builds only run on main (got $REF)" >&2; exit 1; }
+            || { echo "release verification only runs on main (got $REF)" >&2; exit 1; }
+          [[ "$EXPECTED_PUBLIC_SHA" =~ ^[0-9a-f]{40}$ ]] \
+            && [ "$(git rev-parse HEAD)" = "$EXPECTED_PUBLIC_SHA" ] \
+            || { echo 'public main differs from the expected commit' >&2; exit 1; }
           version="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' \
             Cargo.toml | head -n 1)"
           [ -n "$version" ] || { echo "workspace version not found" >&2; exit 1; }
@@ -67,17 +78,18 @@ jobs:
   cli-linux:
     name: cli-linux
     needs: preflight
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       TARGET: x86_64-unknown-linux-gnu
       UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-unknown-linux-gnu-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
-      UPEG_COMMIT: ${{ github.sha }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
       UPEG_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
           persist-credentials: false
       - name: Install build dependencies
         run: |
@@ -108,12 +120,12 @@ jobs:
           ls -la dist/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: cli-linux
+          name: verification-build-cli-linux
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   cli-macos:
     name: cli-macos
@@ -124,11 +136,12 @@ jobs:
       TARGET: aarch64-apple-darwin
       UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-aarch64-apple-darwin-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
-      UPEG_COMMIT: ${{ github.sha }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
       UPEG_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
@@ -154,12 +167,12 @@ jobs:
           ls -la dist/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: cli-macos
+          name: verification-build-cli-macos
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
             dist/upeg-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   cli-linux-arm64:
     name: cli-linux-arm64
@@ -208,12 +221,12 @@ jobs:
           ls -la dist/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: cli-linux-arm64
+          name: verification-build-cli-linux-arm64
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz
             dist/upeg-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   cli-windows:
     name: cli-windows
@@ -224,11 +237,12 @@ jobs:
       TARGET: x86_64-pc-windows-msvc
       UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-pc-windows-msvc-catalog.json
       UPEG_VERSION: ${{ inputs.tag }}
-      UPEG_COMMIT: ${{ github.sha }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
       UPEG_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
@@ -265,29 +279,30 @@ jobs:
           Get-ChildItem dist
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: cli-windows
+          name: verification-build-cli-windows
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64-pc-windows-msvc.zip
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64-pc-windows-msvc.zip.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   flutter-linux:
     name: flutter-linux
     needs: preflight
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       # UPEG_VERSION carries the tag so release-files.sh names artifacts after
       # it; package-linux-deb strips the leading v for the .deb version field.
       UPEG_VERSION: ${{ inputs.tag }}
-      UPEG_COMMIT: ${{ github.sha }}
+      UPEG_COMMIT: ${{ needs.preflight.outputs.public_sha }}
       UPEG_REPO: ${{ github.repository }}
       UPEG_APPIMAGE_RUNTIME: /opt/upeg-tools/appimage-runtime-x86_64
       UPEG_TOOLKIT_CATALOG_URL: https://github.com/5pecia1/UPeg/releases/download/${{ inputs.tag }}/toolkits-x86_64-unknown-linux-gnu-catalog.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
           persist-credentials: false
       - name: Install system dependencies
         run: |
@@ -354,7 +369,7 @@ jobs:
           ls -la dist/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flutter-linux
+          name: verification-build-flutter-linux
           path: |
             dist/upeg_*.deb
             dist/upeg_*.deb.sha256
@@ -363,15 +378,15 @@ jobs:
             dist/upeg-*-x86_64.AppImage
             dist/upeg-*-x86_64.AppImage.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flutter-web
+          name: verification-build-flutter-web
           path: |
             dist/upeg-*-web.tar.gz
             dist/upeg-*-web.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   flutter-macos:
     name: flutter-macos
@@ -419,12 +434,12 @@ jobs:
           ( cd dist && shasum -a 256 "upeg-${RELEASE_TAG}.dmg" > "upeg-${RELEASE_TAG}.dmg.sha256" )
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flutter-macos
+          name: verification-build-flutter-macos
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}.dmg
             dist/upeg-${{ env.RELEASE_TAG }}.dmg.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   flutter-windows:
     name: flutter-windows
@@ -466,12 +481,12 @@ jobs:
           ( cd dist && sha256sum "$name" > "$name.sha256" )
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flutter-windows
+          name: verification-build-flutter-windows
           path: |
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64.msix
             dist/upeg-${{ env.RELEASE_TAG }}-x86_64.msix.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   toolkit-native:
     name: toolkit native (${{ matrix.target }})
@@ -527,24 +542,26 @@ jobs:
           bash packaging/pages-static.sh limits "$out"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: toolkit-native-${{ matrix.target }}
+          name: verification-build-toolkit-native-${{ matrix.target }}
           path: toolkit-release/${{ matrix.target }}/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
-  # One v2 manifest covers every public release asset and its source commit.
+  # Check the complete packaging contract; this manifest is never delivered.
   manifest:
     name: manifest
     needs: [preflight, cli-linux, cli-linux-arm64, cli-macos, cli-windows, flutter-linux, flutter-macos, flutter-windows, toolkit-native]
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.preflight.outputs.public_sha }}
           persist-credentials: false
-      - name: Download build artifacts
+      - name: Download verification artifacts
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
+          pattern: verification-build-*
           path: artifacts
       - name: Flatten build artifacts without basename collisions
         run: |
@@ -565,22 +582,26 @@ jobs:
               seen[path.name] = path
               copyfile(path, target / path.name)
           PY
-      - name: Write the release manifest
+      - name: Verify the complete release packaging profile
         run: |
+          set -euo pipefail
           mkdir -p release-manifest
           python3 release/artifacts.py manifest-v2 dist release-manifest/release-manifest.json \
             --tag "$RELEASE_TAG" --commit "${{ needs.preflight.outputs.public_sha }}" --profile public --include-rpm
+          python3 release/artifacts.py verify-mirror dist \
+            release-manifest/release-manifest.json --tag "$RELEASE_TAG"
+          ( cd dist && sha256sum -c ./*.sha256 )
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: release-manifest
+          name: verification-release-manifest
           path: release-manifest/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   release-ci:
     name: release-${{ matrix.lane }}
     needs: preflight
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -594,74 +615,3 @@ jobs:
       - uses: ./.github/actions/verify
         with:
           lane: ${{ matrix.lane }}
-
-  native-publish:
-    name: publish native release
-    needs: [preflight, manifest, release-ci]
-    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64"]') || 'ubuntu-24.04' }}
-    timeout-minutes: 20
-    env:
-      RELEASE_TAG: ${{ inputs.tag }}
-      PUBLIC_SHA: ${{ needs.preflight.outputs.public_sha }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ needs.preflight.outputs.public_sha }}
-          persist-credentials: false
-      - name: Download the native payload and its manifest
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          path: incoming
-      - name: Verify the native payload and source commit
-        run: |
-          set -euo pipefail
-          mkdir files
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          from shutil import copyfile
-          manifest = json.load(open('incoming/release-manifest/release-manifest.json'))
-          if manifest.get('build_commit') != os.environ['PUBLIC_SHA']:
-              raise SystemExit('native manifest build_commit differs from public target')
-          seen = {}
-          for path in sorted(Path('incoming').rglob('*')):
-              if path.is_symlink():
-                  raise SystemExit(f'symlink in downloaded artifacts: {path}')
-              if path.is_dir() or path.parent.name == 'release-manifest':
-                  continue
-              if not path.is_file() or path.name in seen:
-                  raise SystemExit(f'duplicate or non-regular release artifact: {path}')
-              seen[path.name] = path
-              copyfile(path, Path('files') / path.name)
-          PY
-          python3 release/artifacts.py verify-mirror files \
-            incoming/release-manifest/release-manifest.json --tag "$RELEASE_TAG"
-      - name: Check native release App configuration
-        env:
-          APP_ID: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
-          APP_KEY: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
-        run: |
-          [ -n "$APP_ID" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_ID' >&2; exit 1; }
-          [ -n "$APP_KEY" ] || { echo 'native publishing requires PUBLIC_RELEASE_APP_PRIVATE_KEY' >&2; exit 1; }
-      - name: Mint the public release App token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
-        id: public-release-token
-        with:
-          app-id: ${{ secrets.PUBLIC_RELEASE_APP_ID }}
-          private-key: ${{ secrets.PUBLIC_RELEASE_APP_PRIVATE_KEY }}
-          owner: 5pecia1
-          repositories: UPeg
-          permission-contents: write
-      - name: Stage and finalize the native release
-        env:
-          GH_TOKEN: ${{ steps.public-release-token.outputs.token }}
-        run: |
-          set -euo pipefail
-          python3 release/github_release.py stage --repo "$GITHUB_REPOSITORY" \
-            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --files files \
-            --manifest incoming/release-manifest/release-manifest.json > staged.json
-          release_id="$(python3 -c 'import json; print(json.load(open("staged.json"))["release_id"])')"
-          manifest_sha256="$(python3 -c 'import json; print(json.load(open("staged.json"))["manifest_sha256"])')"
-          python3 release/github_release.py finalize --repo "$GITHUB_REPOSITORY" \
-            --tag "$RELEASE_TAG" --commit "$PUBLIC_SHA" --release-id "$release_id" \
-            --manifest-sha256 "$manifest_sha256"
