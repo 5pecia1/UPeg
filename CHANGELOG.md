@@ -4,6 +4,13 @@ This repository receives verified exports from the development repository as
 ordinary pull requests; see the git history and README's *Project status*
 section.
 
+## v0.7.9 (Unreleased)
+
+- Verify release builds on the exported public commit and publish the producer’s byte-identical packages.
+- Add Developer ID signing and notarization steps for official macOS app, CLI,
+  and native Toolkit releases, with catalog digests and checksums refreshed from
+  the final signed bytes.
+
 ## v0.5.0
 
 - Adds project context from `.upeg` and shared diagnostics.

@@ -9,11 +9,11 @@ repository.workspace = true
 description = "Application runtime boundary for upeg registries, dispatchers, triggers, embeds, and execution context."
 
 [dependencies]
-humantime = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 upeg-core = { workspace = true, features = ["serde"] }
+upeg-tool-grammar = { workspace = true }
 
 # Optional native dependency for the Controlled Embed headless backend
 # (drives a real Chrome/Chromium/Edge via CDP). WASM-incompatible by

@@ -174,9 +174,16 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def check_reported_digest(item: dict, checksum: str) -> None:
+    reported = item.get('digest')
+    if reported is not None and reported != 'sha256:' + checksum:
+        raise GateError(f'release asset metadata digest differs: {item.get("name")}')
+
+
 def download_and_check(client: Client, base: str, item: dict, size: int, checksum: str) -> None:
     if item.get('state') != 'uploaded' or item.get('size') != size:
         raise GateError(f'release asset metadata differs: {item.get("name")}')
+    check_reported_digest(item, checksum)
     raw = client.request('GET', f'{base}/releases/assets/{item["id"]}',
                          accept='application/octet-stream')
     if len(raw) != size or digest(raw) != checksum:
@@ -236,16 +243,28 @@ def stage(client: Client, repo: str, tag: str, commit: str, files: Path,
         if release.get('draft') is not True:
             raise GateError('new release was not created as a draft')
     release_id = release['id']
-    # Interrupted GitHub uploads can leave a "starter" reservation. Only that
-    # incomplete state may be removed on a draft; uploaded bytes are immutable.
-    for item in assets(client, base, release_id):
-        if item.get('state') == 'starter' and item.get('name') in wanted:
+    present = names_by_id(assets(client, base, release_id))
+    extra = set(present) - set(wanted)
+    if extra:
+        raise GateError(f'unexpected release assets: {sorted(extra)}')
+    # An interrupted upload may leave an empty "starter" reservation. Check
+    # every uploaded asset and the complete name set before removing one.
+    starters = {}
+    for name, item in present.items():
+        if item.get('state') == 'starter':
             if release.get('draft') is not True:
                 raise GateError('published release has an incomplete asset')
-            client.request('DELETE', f'{base}/releases/assets/{item["id"]}')
-    present = checked_assets(client, base, release_id, wanted, allow_missing=True)
+            if item.get('size') != 0 or item.get('digest') not in (None, ''):
+                raise GateError('interrupted upload reservation is not empty')
+            starters[name] = item
+        else:
+            size, checksum, _ = wanted[name]
+            download_and_check(client, base, item, size, checksum)
     if release.get('draft') is not True and len(present) != len(wanted):
         raise GateError('published release is missing expected assets')
+    for name, item in starters.items():
+        client.request('DELETE', f'{base}/releases/assets/{item["id"]}')
+        del present[name]
     for name in sorted(set(wanted) - set(present)):
         _, _, path = wanted[name]
         client.request('POST', upload_url(release, repo, release_id, name),
@@ -273,6 +292,7 @@ def finalize(client: Client, repo: str, tag: str, commit: str,
                                   accept='application/octet-stream')
     if digest(manifest_raw) != manifest_sha256 or manifest_asset.get('size') != len(manifest_raw):
         raise GateError('release manifest digest or size differs')
+    check_reported_digest(manifest_asset, manifest_sha256)
     try:
         document = json.loads(manifest_raw)
     except ValueError as error:
@@ -298,6 +318,7 @@ def finalize(client: Client, repo: str, tag: str, commit: str,
                                  accept='application/octet-stream')
             if len(raw) != item.get('size'):
                 raise GateError(f'release asset metadata size differs: {name}')
+            check_reported_digest(item, digest(raw))
             (files / name).write_bytes(raw)
         verify_mirror(files, manifest_path, tag)
     if set(present) != {entry['name'] for entry in document['files']} | {'release-manifest.json'}:
@@ -306,8 +327,8 @@ def finalize(client: Client, repo: str, tag: str, commit: str,
     latest = release_by_id(client, base, release_id)
     bound_release(latest, release_id, tag, commit)
     latest_assets = names_by_id(assets(client, base, release_id))
-    if {name: (item['id'], item.get('size'), item.get('state')) for name, item in latest_assets.items()} != {
-            name: (item['id'], item.get('size'), item.get('state')) for name, item in present.items()}:
+    if {name: (item['id'], item.get('size'), item.get('state'), item.get('digest')) for name, item in latest_assets.items()} != {
+            name: (item['id'], item.get('size'), item.get('state'), item.get('digest')) for name, item in present.items()}:
         raise GateError('release assets changed during verification')
     if latest.get('draft') is False:
         return {'release_id': release_id, 'published': True}

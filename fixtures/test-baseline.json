@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-30T14:02:34Z",
+  "generatedAt": "2026-11-20T09:34:32Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3728,
+      "total": 3740,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -90,6 +90,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "adapters::execution_log::execution_log_time::tests::live_local_offset_path_renders_rfc3339_with_z_or_numeric_offset"
+        },
+        {
+          "className": "adapters::execution_log::execution_log_time::tests",
+          "methodName": "local_offset_falls_back_to_utc_outside_the_supported_timestamp_range",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "adapters::execution_log::execution_log_time::tests::local_offset_falls_back_to_utc_outside_the_supported_timestamp_range"
         },
         {
           "className": "adapters::execution_log::execution_log_time::tests",
@@ -15983,6 +15990,13 @@
         },
         {
           "className": "tests",
+          "methodName": "timer_duration_preserves_zero_microseconds_fraction_and_millisecond_bounds",
+          "status": "passed",
+          "target": "upeg_macros::src/lib.rs",
+          "fullName": "tests::timer_duration_preserves_zero_microseconds_fraction_and_millisecond_bounds"
+        },
+        {
+          "className": "tests",
           "methodName": "timer_duration_sums_compound_expressions_exactly",
           "status": "passed",
           "target": "upeg_macros::src/lib.rs",
@@ -18328,10 +18342,10 @@
         },
         {
           "className": "triggers::schedule::tests",
-          "methodName": "every_condition_parses_as_humantime_interval",
+          "methodName": "every_condition_parses_with_the_shared_duration_grammar",
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
-          "fullName": "triggers::schedule::tests::every_condition_parses_as_humantime_interval"
+          "fullName": "triggers::schedule::tests::every_condition_parses_with_the_shared_duration_grammar"
         },
         {
           "className": "triggers::schedule::tests",
@@ -18342,10 +18356,24 @@
         },
         {
           "className": "triggers::schedule::tests",
+          "methodName": "interval_errors_keep_the_compound_resolution_format",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "triggers::schedule::tests::interval_errors_keep_the_compound_resolution_format"
+        },
+        {
+          "className": "triggers::schedule::tests",
           "methodName": "interval_shorter_than_poll_interval_is_rejected_naming_resolution",
           "status": "passed",
           "target": "upeg_runtime::src/lib.rs",
           "fullName": "triggers::schedule::tests::interval_shorter_than_poll_interval_is_rejected_naming_resolution"
+        },
+        {
+          "className": "triggers::schedule::tests",
+          "methodName": "recurring_intervals_preserve_compound_spacing_aliases_and_exact_fractions",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "triggers::schedule::tests::recurring_intervals_preserve_compound_spacing_aliases_and_exact_fractions"
         },
         {
           "className": "triggers::schedule::tests",
@@ -19781,6 +19809,41 @@
           "status": "passed",
           "target": "upeg_tool_grammar::src/lib.rs",
           "fullName": "display_label::tests::slug_preserves_known_acronyms"
+        },
+        {
+          "className": "duration_tests",
+          "methodName": "duration_aliases_keep_the_previous_fixed_unit_values",
+          "status": "passed",
+          "target": "upeg_tool_grammar::src/lib.rs",
+          "fullName": "duration_tests::duration_aliases_keep_the_previous_fixed_unit_values"
+        },
+        {
+          "className": "duration_tests",
+          "methodName": "duration_compounds_and_whitespace_match_recorded_pre_migration_outputs",
+          "status": "passed",
+          "target": "upeg_tool_grammar::src/lib.rs",
+          "fullName": "duration_tests::duration_compounds_and_whitespace_match_recorded_pre_migration_outputs"
+        },
+        {
+          "className": "duration_tests",
+          "methodName": "duration_errors_retain_actionable_number_unit_and_byte_offset_details",
+          "status": "passed",
+          "target": "upeg_tool_grammar::src/lib.rs",
+          "fullName": "duration_tests::duration_errors_retain_actionable_number_unit_and_byte_offset_details"
+        },
+        {
+          "className": "duration_tests",
+          "methodName": "duration_formatting_preserves_compound_tokens_and_round_trips",
+          "status": "passed",
+          "target": "upeg_tool_grammar::src/lib.rs",
+          "fullName": "duration_tests::duration_formatting_preserves_compound_tokens_and_round_trips"
+        },
+        {
+          "className": "duration_tests",
+          "methodName": "duration_rejects_unsupported_syntax_precision_and_overflow_without_saturation",
+          "status": "passed",
+          "target": "upeg_tool_grammar::src/lib.rs",
+          "fullName": "duration_tests::duration_rejects_unsupported_syntax_precision_and_overflow_without_saturation"
         },
         {
           "className": "file_policy_tests",
@@ -23431,6 +23494,13 @@
         },
         {
           "className": "toolkits::time::conversion_and_cron_tests",
+          "methodName": "cron_normalizes_offsets_and_retains_all_five_utc_occurrences",
+          "status": "passed",
+          "target": "upeg_tools::src/lib.rs",
+          "fullName": "toolkits::time::conversion_and_cron_tests::cron_normalizes_offsets_and_retains_all_five_utc_occurrences"
+        },
+        {
+          "className": "toolkits::time::conversion_and_cron_tests",
           "methodName": "cron_rejects_empty_list_items_and_limits_step_size",
           "status": "passed",
           "target": "upeg_tools::src/lib.rs",
@@ -23477,6 +23547,20 @@
           "status": "passed",
           "target": "upeg_tools::src/lib.rs",
           "fullName": "toolkits::time::conversion_and_cron_tests::epoch_conversion_handles_negative_values_and_offsets"
+        },
+        {
+          "className": "toolkits::time::conversion_and_cron_tests",
+          "methodName": "epoch_fractional_precision_matches_the_existing_wire_format",
+          "status": "passed",
+          "target": "upeg_tools::src/lib.rs",
+          "fullName": "toolkits::time::conversion_and_cron_tests::epoch_fractional_precision_matches_the_existing_wire_format"
+        },
+        {
+          "className": "toolkits::time::conversion_and_cron_tests",
+          "methodName": "rfc3339_input_keeps_its_original_syntax_and_year_boundaries",
+          "status": "passed",
+          "target": "upeg_tools::src/lib.rs",
+          "fullName": "toolkits::time::conversion_and_cron_tests::rfc3339_input_keeps_its_original_syntax_and_year_boundaries"
         },
         {
           "className": "toolkits::time::conversion_and_cron_tests",

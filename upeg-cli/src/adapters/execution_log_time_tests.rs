@@ -79,7 +79,7 @@ fn negative_utc_offset_renders_across_date_boundary() {
 }
 
 /// Exercises the live (non-pure) path: `local_utc_offset_seconds_at`
-/// resolves the process's actual timezone via `chrono::Local`, so —
+/// resolves the process's actual timezone via `jiff::tz::TimeZone::system`, so —
 /// unlike every other test in this file — the expected offset isn't a
 /// fixture; it's whatever the test-running environment's `TZ` happens to
 /// be. This doesn't force `TZ` (mutating it is process-global and
@@ -115,4 +115,10 @@ fn live_local_offset_path_renders_rfc3339_with_z_or_numeric_offset() {
         );
         assert_eq!(suffix_bytes[3], b':', "got: {rendered}");
     }
+}
+
+#[test]
+fn local_offset_falls_back_to_utc_outside_the_supported_timestamp_range() {
+    assert_eq!(local_utc_offset_seconds_at(i64::MIN), 0);
+    assert_eq!(local_utc_offset_seconds_at(i64::MAX), 0);
 }

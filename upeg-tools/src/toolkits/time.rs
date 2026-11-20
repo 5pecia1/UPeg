@@ -1,7 +1,8 @@
 //! `time` toolkit — Unix epoch and ISO 8601 UTC timestamps.
 
-use chrono::{DateTime, Datelike, SecondsFormat, Timelike, Utc};
+use jiff::{Timestamp, tz::TimeZone};
 use serde::Serialize;
+use time::{OffsetDateTime, UtcOffset, format_description::well_known::Rfc3339};
 use upeg_core::tool;
 
 /// Howard Hinnant's `civil_from_days` algorithm: convert days-since-
@@ -92,16 +93,52 @@ fn epoch_unit(unit: &str) -> Result<EpochUnit, &'static str> {
     }
 }
 
-fn parse_datetime(input: &str) -> Result<DateTime<Utc>, &'static str> {
-    let value = DateTime::parse_from_rfc3339(input).map_err(|_| "invalid RFC 3339 timestamp")?;
-    if value.nanosecond() >= 1_000_000_000 {
+fn parse_datetime(input: &str) -> Result<OffsetDateTime, &'static str> {
+    // time's RFC 3339 parser also accepts arbitrary date/time separators.
+    // Keep the public input contract at T/t/space and reject leap-second
+    // inputs instead of accepting the parser's preceding-nanosecond stand-in.
+    if !matches!(input.as_bytes().get(10), Some(b'T' | b't' | b' ')) {
+        return Err("invalid RFC 3339 timestamp");
+    }
+    let value = OffsetDateTime::parse(input, &Rfc3339).map_err(|_| "invalid RFC 3339 timestamp")?;
+    if input.as_bytes().get(17..19) == Some(b"60") {
         return Err("leap seconds are not supported");
     }
-    let utc = value.with_timezone(&Utc);
+    let utc = value
+        .checked_to_offset(UtcOffset::UTC)
+        .ok_or("timestamp is outside RFC 3339 year range")?;
     if !(0..=9999).contains(&utc.year()) {
         return Err("timestamp is outside RFC 3339 year range");
     }
     Ok(utc)
+}
+
+fn format_rfc3339_utc(date: OffsetDateTime) -> String {
+    let mut rendered = format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+        date.year(),
+        u8::from(date.month()),
+        date.day(),
+        date.hour(),
+        date.minute(),
+        date.second(),
+    );
+    // Preserve the existing AutoSi wire format: whole seconds, or exactly
+    // 3/6/9 fractional digits rather than dropping trailing millisecond zeros.
+    let nanos = date.nanosecond();
+    if nanos != 0 {
+        use std::fmt::Write as _;
+        let (fraction, width) = if nanos.is_multiple_of(1_000_000) {
+            (nanos / 1_000_000, 3)
+        } else if nanos.is_multiple_of(1_000) {
+            (nanos / 1_000, 6)
+        } else {
+            (nanos, 9)
+        };
+        let _ = write!(rendered, ".{fraction:0width$}");
+    }
+    rendered.push('Z');
+    rendered
 }
 
 #[tool(
@@ -114,18 +151,17 @@ pub fn from_epoch(input: &str, unit: &str) -> Result<String, &'static str> {
     let value: i64 = input
         .parse()
         .map_err(|_| "timestamp must be a signed integer")?;
-    let (secs, nanos) = match epoch_unit(unit)? {
-        EpochUnit::Seconds => (value, 0),
-        EpochUnit::Milliseconds => (
-            value.div_euclid(1000),
-            value.rem_euclid(1000) as u32 * 1_000_000,
-        ),
-    };
-    let date = DateTime::from_timestamp(secs, nanos).ok_or("timestamp out of range")?;
+    let nanos = i128::from(value)
+        * match epoch_unit(unit)? {
+            EpochUnit::Seconds => 1_000_000_000,
+            EpochUnit::Milliseconds => 1_000_000,
+        };
+    let date =
+        OffsetDateTime::from_unix_timestamp_nanos(nanos).map_err(|_| "timestamp out of range")?;
     if !(0..=9999).contains(&date.year()) {
         return Err("timestamp is outside RFC 3339 year range");
     }
-    Ok(date.to_rfc3339_opts(SecondsFormat::AutoSi, true))
+    Ok(format_rfc3339_utc(date))
 }
 
 #[tool(
@@ -138,8 +174,9 @@ pub fn from_epoch(input: &str, unit: &str) -> Result<String, &'static str> {
 pub fn to_epoch(input: &str, unit: &str) -> Result<i64, &'static str> {
     let date = parse_datetime(input)?;
     Ok(match epoch_unit(unit)? {
-        EpochUnit::Seconds => date.timestamp(),
-        EpochUnit::Milliseconds => date.timestamp_millis(),
+        EpochUnit::Seconds => date.unix_timestamp(),
+        EpochUnit::Milliseconds => i64::try_from(date.unix_timestamp_nanos().div_euclid(1_000_000))
+            .map_err(|_| "timestamp out of range")?,
     })
 }
 
@@ -246,10 +283,12 @@ pub fn cron_inspect(expression: &str, after: &str) -> Result<CronInspection, &'s
         .parse(&fields.join(" "))
         .map_err(|_| "invalid cron expression")?;
     let mut cursor = if after.is_empty() {
-        Utc::now()
+        Timestamp::now()
     } else {
-        parse_datetime(after)?
-    };
+        Timestamp::from_nanosecond(parse_datetime(after)?.unix_timestamp_nanos())
+            .map_err(|_| "timestamp out of range")?
+    }
+    .to_zoned(TimeZone::UTC);
     if !(1..=5000).contains(&cursor.year()) {
         return Err("cron reference year must be between 1 and 5000");
     }
@@ -261,7 +300,7 @@ pub fn cron_inspect(expression: &str, after: &str) -> Result<CronInspection, &'s
         if !(1..=5000).contains(&cursor.year()) {
             return Err("cron occurrence out of range");
         }
-        next.push(cursor.to_rfc3339_opts(SecondsFormat::Secs, true));
+        next.push(cursor.strftime("%Y-%m-%dT%H:%M:%SZ").to_string());
     }
     Ok(CronInspection {
         description: cron_description(&cron),

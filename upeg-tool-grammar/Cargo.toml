@@ -6,12 +6,16 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Shared, drift-prone `#[tool]` grammar — the inputs/outputs DSL, tool-identity rules, and enum allow-lists reused by both upeg-macros (built-in) and upeg-plugin-macros (WASM guest). Plain library crate — no proc-macro export restrictions."
+description = "Shared duration and tool-declaration grammar for upeg macros and runtime."
+
+[features]
+default = ["syntax"]
+syntax = ["dep:proc-macro2", "dep:quote", "dep:syn"]
 
 [dependencies]
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true }
+proc-macro2 = { workspace = true, optional = true }
+quote = { workspace = true, optional = true }
+syn = { workspace = true, optional = true }
 
 [lints]
 workspace = true

@@ -20,7 +20,8 @@ path = "src/lib.rs"
 axum = { workspace = true }
 cap-fs-ext = "3.4.5"
 cap-std = "3.4.5"
-chrono = { workspace = true }
+# Per-record local timestamps, including TZ overrides and the Windows tzdb.
+jiff = { workspace = true, features = ["tz-system", "tzdb-zoneinfo", "tzdb-concatenated", "tzdb-bundle-platform"] }
 clap = { workspace = true, features = ["string"] }
 clap_complete = { workspace = true }
 crossterm = { workspace = true }

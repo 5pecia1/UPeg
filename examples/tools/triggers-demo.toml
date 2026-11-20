@@ -8,7 +8,7 @@
 # Watch semantics (the poll interval is 1s):
 #   schedule   `now` fires once, on the poll that starts the watch.
 #              `every:<duration>` fires at watch start and then once per
-#              elapsed interval; the duration is humantime syntax
+#              elapsed interval; the duration uses shared fixed-unit syntax
 #              (`30s`, `5m`, `1h 30m`) and is rejected at load time if it
 #              cannot be read or is shorter than the 1s poll. A fire that
 #              a poll notices late does not push the next one back — the

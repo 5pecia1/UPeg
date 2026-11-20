@@ -8,7 +8,7 @@
 //! and takes the UTC offset, in seconds, as a plain parameter, so its
 //! calendar math is exhaustively unit-testable without touching the
 //! system clock or timezone database. [`local_utc_offset_seconds_at`] is
-//! the one impure function in this module — it asks `chrono::Local`
+//! the one impure function in this module — it asks `jiff::tz::TimeZone::system`
 //! (which resolves offsets from the system timezone database, honouring
 //! `TZ`) which offset from UTC was in effect **at a given instant**.
 //! `upeg log`'s live call site chains the two once per row: resolve that
@@ -35,7 +35,7 @@ const DAYS_PER_ERA: i64 = 146_097;
 /// Years in one 400-year Gregorian cycle ("era").
 const YEARS_PER_ERA: i64 = 400;
 
-/// Offset used when `chrono::Local` cannot map an instant to a local
+/// Offset used when `jiff::tz::TimeZone::system` cannot map an instant to a local
 /// time at all (a timestamp outside the representable range). Rendering
 /// falls back to UTC — a `Z`-suffixed timestamp — rather than dropping
 /// the row from the log.
@@ -43,24 +43,18 @@ const FALLBACK_UTC_OFFSET_SECONDS: i32 = 0;
 
 /// The local offset from UTC, in seconds east of UTC, that was in effect
 /// **at** `ms` (Unix epoch milliseconds) — what `upeg log`'s human output
-/// renders that row's timestamp in. Backed by `chrono::Local`, which
+/// renders that row's timestamp in. Backed by `jiff::tz::TimeZone::system`, which
 /// resolves offsets from the system timezone database (honouring `TZ`);
 /// an instant it cannot map falls back to
 /// [`FALLBACK_UTC_OFFSET_SECONDS`]. Mapping a UTC instant onto a local
-/// one is never ambiguous, so the `.single()` here only ever loses
-/// out-of-range timestamps, not the repeated hour of a DST fall-back.
+/// one is never ambiguous, including the repeated hour of a DST fall-back.
 /// Not a pure function: it reads process/system timezone state, so it
 /// belongs at the live call site, not inside a test — see
 /// [`epoch_ms_to_rfc3339_local`] for the pure renderer tests exercise.
 pub(crate) fn local_utc_offset_seconds_at(ms: i64) -> i32 {
-    use chrono::{Local, TimeZone};
-
-    Local
-        .timestamp_millis_opt(ms)
-        .single()
-        .map_or(FALLBACK_UTC_OFFSET_SECONDS, |at| {
-            at.offset().local_minus_utc()
-        })
+    jiff::Timestamp::from_millisecond(ms)
+        .map(|at| jiff::tz::TimeZone::system().to_offset(at).seconds())
+        .unwrap_or(FALLBACK_UTC_OFFSET_SECONDS)
 }
 
 /// Howard Hinnant's `civil_from_days`: given `z`, the number of days

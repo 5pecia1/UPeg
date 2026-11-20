@@ -64,7 +64,7 @@ zxcvbn 3.1.1 — password-strength estimation
     Full text: vendor/zxcvbn/LICENSE
     Upstream: https://github.com/shssoichiro/zxcvbn-rs
     Vendored from the published crates.io tarball; the pinned SHA-256 and the
-    single local compatibility patch are recorded in vendor/zxcvbn/UPEG.md.
+    local compatibility patches are recorded in vendor/zxcvbn/UPEG.md.
 
 Cargokit — Flutter/Rust build integration
     Copyright 2022 Matej Knopp
@@ -777,12 +777,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-Wasmtime internal cache 36.0.20
+Wasmtime internal cache 36.0.21
     Copyright The Wasmtime Project Developers
     License: Apache-2.0 WITH LLVM-exception
-    Source: https://crates.io/crates/wasmtime-internal-cache/36.0.20
+    Source: https://crates.io/crates/wasmtime-internal-cache/36.0.21
     Full text: wasmtime-internal-cache-LICENSE
-    Local change: zstd dependency updated to 0.14.3.
 
 croner 4.0.2
     Source: https://crates.io/crates/croner/4.0.2

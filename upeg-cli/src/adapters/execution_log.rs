@@ -447,9 +447,10 @@ mod tests {
         let record = test_record("time.check", 1_786_957_503_000);
         let out = format_records(&[record], false);
         let timestamp = out.split('\t').next().expect("timestamp column");
-        let parsed = chrono::DateTime::parse_from_rfc3339(timestamp)
+        let parsed: jiff::Timestamp = timestamp
+            .parse()
             .expect("human output must lead with an RFC3339 local timestamp");
-        assert_eq!(parsed.timestamp_millis(), 1_786_957_503_000);
+        assert_eq!(parsed.as_millisecond(), 1_786_957_503_000);
         assert!(
             !out.contains("1786957503000"),
             "human output must not print the raw epoch-ms number; got:\n{out}"

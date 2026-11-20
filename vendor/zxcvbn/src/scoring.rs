@@ -94,12 +94,22 @@ lazy_static! {
         }
         let unix_millis = unsafe { unix_time_milliseconds_imported() };
 
-        use chrono::Datelike;
-        chrono::DateTime::<chrono::Utc>::from(
-            std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(unix_millis),
-        )
-        .year()
+        reference_year_from_unix_milliseconds(unix_millis)
     };
+}
+
+#[cfg(any(test, all(target_arch = "wasm32", feature = "custom_wasm_env")))]
+fn reference_year_from_unix_milliseconds(unix_millis: u64) -> i32 {
+    // Published 3.1.1 accepted unsigned clocks through chrono's MAX_UTC:
+    // +262142-12-31T23:59:59.999Z. Keep that bound with time/large-dates.
+    const MAX_IMPORTED_UNIX_MILLIS: u64 = 8_210_266_876_799_999;
+    assert!(
+        unix_millis <= MAX_IMPORTED_UNIX_MILLIS,
+        "imported UTC timestamp must be in the supported calendar range"
+    );
+    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(unix_millis) * 1_000_000)
+        .expect("imported UTC timestamp must be in the supported calendar range")
+        .year()
 }
 
 const MIN_YEAR_SPACE: i32 = 20;
@@ -535,6 +545,44 @@ impl Estimator for DatePattern {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn imported_reference_year_uses_utc_at_calendar_boundaries() {
+        // Independently fixed Unix milliseconds for the UTC year boundary.
+        assert_eq!(super::reference_year_from_unix_milliseconds(0), 1970);
+        assert_eq!(
+            super::reference_year_from_unix_milliseconds(1_704_067_199_999),
+            2023
+        );
+        assert_eq!(
+            super::reference_year_from_unix_milliseconds(1_704_067_200_000),
+            2024
+        );
+        assert_eq!(
+            super::reference_year_from_unix_milliseconds(1_709_164_800_000),
+            2024
+        );
+    }
+
+    #[cfg(feature = "custom_wasm_env")]
+    #[test]
+    fn imported_reference_year_preserves_the_published_calendar_range() {
+        assert_eq!(
+            super::reference_year_from_unix_milliseconds(253_402_300_800_000),
+            10000
+        );
+        assert_eq!(
+            super::reference_year_from_unix_milliseconds(8_210_266_876_799_999),
+            262142
+        );
+    }
+
+    #[cfg(feature = "custom_wasm_env")]
+    #[test]
+    #[should_panic(expected = "imported UTC timestamp must be in the supported calendar range")]
+    fn imported_reference_year_rejects_clock_values_above_the_published_limit() {
+        super::reference_year_from_unix_milliseconds(8_210_266_876_800_000);
+    }
+
     use crate::matching::patterns::*;
     use crate::matching::Match;
     use crate::scoring;

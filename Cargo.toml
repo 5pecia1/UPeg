@@ -18,7 +18,7 @@ members = [
     "upeg-tools",
     "upeg-wasm",
 ]
-exclude = ["upeg-wasm/tests/fixture-src", "vendor/extism", "vendor/wasmtime-internal-cache", "vendor/heic-rs", "vendor/pdf-inspector", "vendor/zxcvbn", "vendor/vtracer"]
+exclude = ["upeg-wasm/tests/fixture-src", "vendor/extism", "vendor/heic-rs", "vendor/pdf-inspector", "vendor/zxcvbn", "vendor/vtracer"]
 resolver = "3"
 
 # Avoid debug-info generation and disk I/O during routine builds and tests.
@@ -38,7 +38,7 @@ lto = "thin"
 # Single source of truth for workspace member versions. Each member opts in
 # via `version.workspace = true` in its own [package] block. Bump here for
 # any release — do not edit member Cargo.toml files individually.
-version = "0.7.8"
+version = "0.7.9"
 edition = "2024"
 rust-version = "1.92"
 authors = ["upeg contributors"]
@@ -49,12 +49,12 @@ repository = "https://github.com/5pecia1/UPeg"
 axum = "0.8"
 base32 = "0.5"
 base64 = "0.22"
-# Local-timezone offset for `upeg log`'s human timestamps (`Local::now()`,
-# libc `localtime_r` under the hood). MIT/Apache-2.0. Already resolved
-# transitively (`upeg-tools` → `lopdf` → `chrono`), so this pins no new
-# major version. `wasmbind` enables the time toolkit clock in browsers.
-chrono = { version = "0.4", default-features = false, features = ["clock", "wasmbind"] }
-croner = "4.0.2"
+# Jiff supplies Croner's maintained UTC datetime backend. Browser packs need
+# clock reads (`js`), while the CLI enables system timezone discovery locally.
+jiff = { version = "0.2.35", default-features = false, features = ["std", "js"] }
+croner = { version = "4.0.2", default-features = false, features = ["jiff"] }
+# RFC 3339 parsing for the time toolkit; also used by vendored zxcvbn.
+time = { version = "0.3", features = ["parsing"] }
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
 # `Stream` trait only, for the HTTP surface's NDJSON streaming body
@@ -79,7 +79,6 @@ flutter_rust_bridge = "2.12"
 getrandom = "0.3"
 http = "1"
 http-body-util = "0.1"
-humantime = "2"
 inventory = "0.3"
 md-5 = "0.10"
 notify-rust = "4"
@@ -99,9 +98,10 @@ rustix = { version = "1", features = ["fs", "process", "pty", "termios"] }
 # so the same version ships on every desktop target — no system libsqlite3
 # drift. Native-only: consumed by `upeg-sources`, which is itself gated to
 # `cfg(not(target_arch = "wasm32"))` by its consumers (never enters the wasm32
-# graph). 0.37 is the newest line whose libsqlite3-sys builds on rustc 1.92
-# (0.40 → libsqlite3-sys 0.38 needs the unstable `cfg_select!`).
-rusqlite = { version = "0.37", features = ["bundled"] }
+# graph). The 0.41 line bundles patched SQLite through libsqlite3-sys 0.39
+# and supports Rust 1.92. `fallible_uint` preserves the checked u64/usize
+# SQL conversions that 0.37 enabled by default.
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 # qr.decode: QR detection/decoding, MIT/Apache-2.0/ISC. `img` feature (default)
 # pulls in `image` with its own `default-features = false` — unifies with the
 # `image` dependency below, no extra codec features.
@@ -168,7 +168,8 @@ hayro = "0.7"
 # image samples and zune-jpeg validates DCTDecode (JPEG) passthrough streams —
 # no PDFium, no native dylib. All MIT-licensed and wasm-capable, but wired
 # native-only for stage 1 (contract unchanged; browser support lands later).
-lopdf = "0.44"
+# Only parsing/manipulation is used; datetime conversion features are unused.
+lopdf = { version = "0.44", default-features = false, features = ["rayon"] }
 # Pinned upstream with embedded native CMaps; see vendor/pdf-inspector/UPEG.md.
 pdf-inspector = { path = "vendor/pdf-inspector", version = "=1.17.0", default-features = false }
 flate2 = "1"
@@ -191,7 +192,7 @@ upeg-plugin-api = { path = "upeg-plugin-api", version = "0.7" }
 upeg-plugin-macros = { path = "upeg-plugin-macros", version = "0.7" }
 upeg-runtime = { path = "upeg-runtime", version = "0.7" }
 upeg-sources = { path = "upeg-sources", version = "0.7" }
-upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.7" }
+upeg-tool-grammar = { path = "upeg-tool-grammar", version = "0.7", default-features = false }
 upeg-tools = { path = "upeg-tools", version = "0.7" }
 upeg-toolkit-catalog = { path = "upeg-toolkit-catalog", version = "0.7" }
 upeg-toolkit-native = { path = "upeg-toolkit-native", version = "0.7" }
@@ -418,7 +419,3 @@ multiple_crate_versions = "allow"
 # decide to publish.
 # Transitive dep version duplicates (e.g. syn 1 + syn 2) are out of our
 # control — `cargo update` decides the resolution, not us.
-
-[patch.crates-io]
-# Wasmtime 36 cache uses zstd 0.13, which has unfixed RustSec advisories.
-wasmtime-internal-cache = { path = "vendor/wasmtime-internal-cache" }

@@ -33,7 +33,7 @@ status = "passively-maintained"
 
 [features]
 builder = ["derive_builder"]
-custom_wasm_env = []
+custom_wasm_env = ["time/large-dates"]
 default = ["builder"]
 ser = ["serde"]
 
@@ -86,9 +86,6 @@ version = "0.8"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.serde_json]
 version = "1"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.chrono]
-version = "0.4.38"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.wasm-bindgen]
 version = "0.2"
