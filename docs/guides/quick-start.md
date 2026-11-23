@@ -1,18 +1,37 @@
 ---
 title: Quick start
-description: "From a built upeg binary to boards, pins, MCP, and HTTP in a few minutes."
+description: "Start with an installed desktop app or CLI, then explore tools, boards, MCP, and HTTP."
 type: Guide
 tags: [usage]
 ---
 
 # Quick start
 
-Assumes the `upeg` binary is built or on your `PATH` — see
-[Installation](installation.md). Sections 1–6 need no network, account, or
-token. The `--local` calls below force in-process dispatch; without it,
-`upeg call` dispatches locally when no host is discoverable and attaches to a
-live host recorded in `server.json` when one exists. Sections 7–8 start a
-server; HTTP calls need the bearer token it prints.
+Install a desktop package or the CLI first; see [Installation](installation.md).
+No upeg account is needed for the local examples. A Tool's first use may need
+internet access to download its versioned Toolkit pack; a verified cached pack
+can be used offline afterwards. You do not need to download `toolkits-*` assets
+manually.
+
+The terminal examples need the `upeg` CLI on your `PATH`. `--local` forces
+in-process dispatch and is not an offline mode. Without it, `upeg call` dispatches
+locally when no host is discoverable and attaches to a live host recorded in
+`server.json` when one exists. Sections 7–8 start a server; HTTP calls need its
+bearer token.
+
+## Desktop first use
+
+1. Open the installed `upeg` app. On macOS, open the copy in Applications; on
+   Linux, use the application menu or `upeg-app` after a deb/rpm installation.
+   See the [Windows MSIX limitation](installation.md#windows-desktop) before
+   choosing the Windows desktop package.
+2. Press `a` to open the Tool picker, or `/` to search. Find the hex-to-decimal
+   Tool (`num.hex_to_decimal`), enter `0xff`, and run it. The result is `255`.
+3. Pin a Tool to a board to keep it available; see
+   [Pin tools on a board](#4-pin-tools-on-a-board) for the shared board model.
+
+Installing the desktop app does not add a CLI command to your `PATH`. Install
+the CLI separately to follow the terminal commands below.
 
 ## 1. Call a Tool
 
@@ -54,8 +73,8 @@ upeg --board dev               # TUI filtered to one board
 
 The TUI is keyboard-first: search, tab between boards, run pins, and copy
 results without a mouse. Essential keys: `Enter` run · `o` open · `p` pin ·
-`/` search · `Esc` back · `?` catalog (a Desktop overlay; the TUI shows a
-hint bar).
+`/` search · `Esc` back · `?` keyboard help (the Desktop opens a cheatsheet;
+the TUI shows a hint bar).
 
 ## 4. Pin tools on a board
 

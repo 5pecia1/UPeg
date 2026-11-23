@@ -13,7 +13,8 @@ from urllib.request import Request
 
 sys.path.insert(0, str(Path(__file__).parent))
 from artifacts import GateError, PUBLIC_TOOLKIT_TARGETS, expected_files, manifest_v2
-from github_release import APIError, Client, PrivateRedirect, digest, finalize, stage
+from github_release import (APIError, Client, DOWNLOAD_GUIDE_MARKER, PrivateRedirect,
+                            digest, finalize, stage)
 
 REPO = '5pecia1/UPeg'
 TAG = 'v1.2.3'
@@ -148,6 +149,73 @@ class ReleaseProtocolTest(unittest.TestCase):
         finalize(self.client, REPO, TAG, COMMIT, result['release_id'], result['manifest_sha256'])
         self.assertEqual(self.client.patches, 1)
         self.assertEqual(len(self.client.uploads), len(list(self.files.iterdir())) + 1)
+
+    def test_new_draft_guides_gui_and_cli_downloads_from_the_manifest(self):
+        rpm = self.files / 'upeg-1.2.3-1.x86_64.rpm'
+        rpm.write_bytes(b'RPM package')
+        rpm.with_name(rpm.name + '.sha256').write_text(f'{digest(rpm.read_bytes())}  {rpm.name}\n')
+        manifest_v2(self.files, self.manifest, TAG, BUILD, 'public', include_rpm=True)
+        self.staged()
+        body = self.client.release['body']
+        self.assertIn('### Desktop app', body)
+        self.assertIn('### CLI', body)
+        downloads = (
+            f'upeg-{TAG}.dmg', f'upeg-{TAG}-x86_64.msix', 'upeg_1.2.3_amd64.deb',
+            rpm.name, f'upeg-{TAG}-x86_64.AppImage',
+            f'upeg-{TAG}-aarch64-apple-darwin.tar.gz',
+            f'upeg-{TAG}-x86_64-unknown-linux-gnu.tar.gz',
+            f'upeg-{TAG}-aarch64-unknown-linux-gnu.tar.gz',
+            f'upeg-{TAG}-x86_64-pc-windows-msvc.zip',
+        )
+        for name in downloads:
+            with self.subTest(name=name):
+                url = f'https://github.com/{REPO}/releases/download/{TAG}/{name}'
+                self.assertIn(f']({url})', body)
+                self.assertIn(f']({url}.sha256)', body)
+        self.assertIn('curl -fsSL https://raw.githubusercontent.com/5pecia1/UPeg/main/install.sh | sh', body)
+        self.assertIn('https://github.com/5pecia1/UPeg/blob/main/docs/guides/installation.md', body)
+        self.assertIn('[signing requirements]', body)
+        self.assertIn('installation.md#windows-desktop)', body)
+        self.assertIn('Toolkit automatically', body)
+        self.assertIn('release-manifest.json)', body)
+        self.assertNotIn(f'upeg-{TAG}-x86_64-apple-darwin.tar.gz', body)
+        self.assertNotIn('/toolkits-', body)
+        self.assertEqual(body.count(DOWNLOAD_GUIDE_MARKER), 1)
+
+    def test_guide_does_not_link_packages_absent_from_a_linux_manifest(self):
+        from artifacts import profile_files
+        keep = profile_files('1.2.3', TAG, 'linux')
+        for file in self.files.iterdir():
+            if file.name not in keep:
+                file.unlink()
+        manifest_v2(self.files, self.manifest, TAG, BUILD, 'linux')
+        self.staged()
+        body = self.client.release['body']
+        self.assertIn(f'/upeg-{TAG}-aarch64-unknown-linux-gnu.tar.gz)', body)
+        for absent in ('.dmg)', '.msix)', '.rpm)', 'apple-darwin.tar.gz)', 'windows-msvc.zip)'):
+            self.assertNotIn(absent, body)
+
+    def test_draft_user_notes_survive_resume_and_finalization(self):
+        result = self.staged()
+        notes = 'Operator notes with intentional formatting.\n\nDo not replace these.\n'
+        self.client.release['body'] = notes
+        removed = self.client.assets.pop()
+        self.client.bytes.pop(removed['id'])
+        self.staged()
+        self.assertEqual(self.client.release['body'], notes)
+        finalize(self.client, REPO, TAG, COMMIT, 100, result['manifest_sha256'])
+        self.assertEqual(self.client.release['body'], notes)
+
+    def test_published_notes_and_existing_guide_survive_replay(self):
+        result = self.staged()
+        finalize(self.client, REPO, TAG, COMMIT, 100, result['manifest_sha256'])
+        notes = f'Operator introduction\n\n{self.client.release["body"]}\nOperator conclusion\n'
+        self.client.release['body'] = notes
+        self.staged()
+        finalize(self.client, REPO, TAG, COMMIT, 100, result['manifest_sha256'])
+        self.assertEqual(self.client.release['body'], notes)
+        self.assertEqual(self.client.release['body'].count(DOWNLOAD_GUIDE_MARKER), 1)
+        self.assertEqual(self.client.patches, 1)
 
     def test_resume_uploads_only_missing_assets(self):
         result = self.staged()

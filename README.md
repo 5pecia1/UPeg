@@ -36,11 +36,10 @@ packs stay available offline.
 
 upeg is early-stage:
 
-- **Downloads vary by release.** See [GitHub Releases](https://github.com/5pecia1/UPeg/releases)
-  for published packages. The v0.7.8 macOS download predates Developer ID signing. The latest release provides Linux x86_64 and ARM64
-  CLI archives, a macOS ARM64 CLI archive, a Windows x86_64 CLI archive, a
-  Linux Debian package and AppImage, a universal macOS DMG, a Windows MSIX,
-  and a web archive.
+- **Prebuilt downloads are available.** Use the CLI installer below or choose a
+  desktop package from the [latest release](https://github.com/5pecia1/UPeg/releases/latest).
+  The [installation guide](docs/guides/installation.md#choose-a-download) lists
+  the OS and CPU choices, including Linux `.deb`, `.rpm`, and AppImage packages.
 - **This repository is a public mirror.** Development happens in a private
   source repository; updates arrive here as exported pull requests that
   merge like normal PRs. The development history is not mirrored — each
@@ -59,26 +58,84 @@ Support is best-effort through GitHub Issues — see
 
 ## Install
 
-There is no installer yet; build the CLI from source. You need:
+Install the CLI on **macOS Apple Silicon**, **GNU/Linux x86_64**, or **GNU/Linux ARM64**:
 
-- **Git**, a **C toolchain** for the linker (`build-essential` on
-  Debian/Ubuntu, Xcode Command Line Tools on macOS, MSVC Build Tools on
-  Windows), and **Rust 1.92+**. Install Rust with the OS-specific
-  instructions at <https://rustup.rs/>: on macOS/Linux use
-  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`; on
-  Windows run `rustup-init.exe` from that site.
-
-```bash
-git clone https://github.com/5pecia1/UPeg.git
-cd UPeg
-cargo install --locked --path upeg-cli   # installs `upeg` into ~/.cargo/bin
-upeg doctor                              # prints binary/feature/source-dir diagnostics
+```sh
+curl -fsSL https://raw.githubusercontent.com/5pecia1/UPeg/main/install.sh | sh
 ```
 
-The Desktop app, PWA, and WASM plugins need more (Flutter SDK, `wasm-pack`,
-extra targets) — but not for the CLI. The full matrix, including optional
-packaging tools, is in the
-[Installation guide](docs/guides/installation.md).
+It installs the latest published CLI at `~/.local/bin/upeg` without `sudo` or
+Rust. Linux archives target glibc; see the guide's
+[Linux compatibility notes](docs/guides/installation.md#linux-cli-compatibility)
+for release-specific requirements and source builds.
+Run the same command again to update that CLI. If `upeg` is not on your
+`PATH`, add `export PATH="$HOME/.local/bin:$PATH"` to your shell configuration
+and open a new terminal.
+
+For a **desktop window**, choose a GUI package from the
+[latest release](https://github.com/5pecia1/UPeg/releases/latest): the universal
+macOS DMG, a Linux x86_64 `.deb` / `.rpm` / AppImage, or the Windows x86_64 MSIX.
+Intel Macs have the universal GUI package; the CLI installer has no Intel Mac
+build. Windows CLI installation uses the ZIP download. The currently published
+Windows MSIX is unsigned and may fail to install on standard Windows; see the
+[manual installation steps](docs/guides/installation.md#choose-a-download).
+The CLI installer does not install or update the GUI app.
+
+For checksum checks, manual installs, web deployment, or building from source,
+see the [installation guide](docs/guides/installation.md).
+
+## First success
+
+```bash
+upeg call --local num.hex_to_decimal -a input=0xff
+# → 255
+```
+
+No account or token is needed. The first call may download its versioned
+Toolkit pack; later calls can use the verified cache offline. `--local` forces
+in-process dispatch instead of attaching to a running local host; it is not an
+offline mode. You do not need to download `toolkits-*` release assets manually.
+Then look around:
+
+```bash
+upeg tool list                 # every registered Tool
+upeg num hex-to-decimal 0xff   # short dynamic form of the same call
+upeg                           # on a terminal: the interactive TUI
+```
+
+Every surface returns the same structured `ToolResult` envelope
+(`ok`, `primary_output_id`, `outputs[]`); the plain CLI prints just the
+primary value. The [Quick start guide](docs/guides/quick-start.md) walks
+through boards, presets, MCP client setup, and file input.
+
+## Choose your surface
+
+| Surface | Start it |
+|---|---|
+| Terminal (TUI / CLI) | `upeg` · `upeg call <toolkit>.<tool>` |
+| Desktop app | Open the installed app; use the [GUI first-use steps](docs/guides/quick-start.md#desktop-first-use) |
+| MCP (agents) | `upeg board dev connect` · `upeg mcp --board dev` |
+| HTTP host | `upeg http --addr 127.0.0.1:7173` |
+| PWA | Deployment archive for operators; see [web deployment](docs/guides/installation.md#web-deployment) |
+| Chrome extension | `./chrome-ext/build.sh`, then load `chrome-ext/dist/` unpacked |
+
+Sandboxed surfaces (PWA, extension) run native-runtime tools through a
+paired local host. PWA deployment needs cross-origin isolation headers, and
+the extension needs host endpoint/token pairing; both are covered by the
+[Installation guide](docs/guides/installation.md). Wrap your own commands as
+Tools — see the [Tool author guide](docs/guides/tool-author.md).
+
+<a id="file-input-wire"></a>
+
+File input and output use one canonical `FileValue` JSON on every surface —
+the contract lives in
+[`docs/architecture.md#file-wire`](docs/architecture.md#file-wire).
+
+> **Breaking migration (beta):** the former `"bytes":[0,255]` numeric array
+> is no longer supported — File values must carry a padded standard Base64
+> string such as `"bytes":"AP8="`.
+
+## Storage and project paths
 
 `upeg paths` (or `upeg paths --json`) reports paths without loading Tools or
 changing files. **Unreleased storage upgrade:** new native installations use
@@ -132,57 +189,6 @@ directory is checked. The user storage root is excluded from automatic project
 discovery. When no project is found, JSON reports `"project": null`. This command
 performs no migration or project edits: `.upeg/project.toml` and `.upeg/toolkits`
 remain project-local.
-
-## First success
-
-```bash
-upeg call --local num.hex_to_decimal -a input=0xff
-# → 255
-```
-
-This built-in call needs no network, account, or token — `--local` forces
-in-process dispatch. Without it, `upeg call` uses a running local host when
-one is discoverable. A selected distributed Toolkit is different: its first
-call may fetch the exact versioned pack listed by the release catalog, then
-the verified cached pack can run offline. Then look around:
-
-```bash
-upeg tool list                 # every registered Tool
-upeg num hex-to-decimal 0xff   # short dynamic form of the same call
-upeg                           # on a terminal: the interactive TUI
-```
-
-Every surface returns the same structured `ToolResult` envelope
-(`ok`, `primary_output_id`, `outputs[]`); the plain CLI prints just the
-primary value. The [Quick start guide](docs/guides/quick-start.md) walks
-through boards, presets, MCP client setup, and file input.
-
-## Choose your surface
-
-| Surface | Start it |
-|---|---|
-| Terminal (TUI / CLI) | `upeg` · `upeg call <toolkit>.<tool>` |
-| Desktop app | macOS: `cd flutter_app && flutter run -d macos --release`; Linux: `cd flutter_app && flutter run -d linux --release` |
-| MCP (agents) | `upeg board dev connect` · `upeg mcp --board dev` |
-| HTTP host | `upeg http --addr 127.0.0.1:7173` |
-| PWA | `just package-web` |
-| Chrome extension | `./chrome-ext/build.sh`, then load `chrome-ext/dist/` unpacked |
-
-Sandboxed surfaces (PWA, extension) run native-runtime tools through a
-paired local host. PWA deployment needs cross-origin isolation headers, and
-the extension needs host endpoint/token pairing; both are covered by the
-[Installation guide](docs/guides/installation.md). Wrap your own commands as
-Tools — see the [Tool author guide](docs/guides/tool-author.md).
-
-<a id="file-input-wire"></a>
-
-File input and output use one canonical `FileValue` JSON on every surface —
-the contract lives in
-[`docs/architecture.md#file-wire`](docs/architecture.md#file-wire).
-
-> **Breaking migration (beta):** the former `"bytes":[0,255]` numeric array
-> is no longer supported — File values must carry a padded standard Base64
-> string such as `"bytes":"AP8="`.
 
 ## Documentation
 
