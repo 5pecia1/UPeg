@@ -193,9 +193,10 @@ font licenses, and `BUILD-INFO` — via `packaging/release-files.sh`.
 Check the release checksum first. For a notarized DMG, run `xcrun stapler validate <download.dmg>` and
 `spctl --assess --type open --context context:primary-signature -v <download.dmg>`. After copying
 the app into Applications, use `codesign --verify --deep --strict /Applications/upeg.app` and
-`spctl --assess --type execute -v /Applications/upeg.app`. For the downloaded CLI, assess the
-extracted executable with `spctl --assess --type execute -v ./upeg`; Gatekeeper can retrieve its
-notarization ticket online. The v0.7.8 download predates this release-signing workflow.
+`spctl --assess --type execute -v /Applications/upeg.app`. For the downloaded CLI, verify the
+extracted executable with `codesign --verify --strict --check-notarization -R='notarized' ./upeg`;
+this explicitly requires its notarization ticket, which may be retrieved online.
+The v0.7.8 download predates this release-signing workflow.
 
 The `.deb` and `.rpm` install the app under `/opt/upeg` and link
 `/usr/bin/upeg-app` — the desktop app's PATH entry. The plain `upeg`
