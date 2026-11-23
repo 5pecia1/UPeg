@@ -19,6 +19,7 @@ import 'api/i18n.dart';
 import 'api/keyboard.dart';
 import 'api/last_outcomes.dart';
 import 'api/memos.dart';
+import 'api/notification_results.dart';
 import 'api/palette.dart';
 import 'api/pause.dart';
 import 'api/pegboard.dart';
@@ -429,6 +430,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MemoEntry> dco_decode_list_memo_entry(dynamic raw);
 
   @protected
+  List<NotificationResultDto> dco_decode_list_notification_result_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<String?> dco_decode_list_opt_String(dynamic raw);
 
   @protected
@@ -518,6 +524,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkStatusDto dco_decode_network_status_dto(dynamic raw);
+
+  @protected
+  NotificationResultDto dco_decode_notification_result_dto(dynamic raw);
 
   @protected
   NumberConstraintsDto dco_decode_number_constraints_dto(dynamic raw);
@@ -1280,6 +1289,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MemoEntry> sse_decode_list_memo_entry(SseDeserializer deserializer);
 
   @protected
+  List<NotificationResultDto> sse_decode_list_notification_result_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String?> sse_decode_list_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -1391,6 +1405,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkStatusDto sse_decode_network_status_dto(SseDeserializer deserializer);
+
+  @protected
+  NotificationResultDto sse_decode_notification_result_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NumberConstraintsDto sse_decode_number_constraints_dto(
@@ -2352,6 +2371,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_notification_result_dto(
+    List<NotificationResultDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_opt_String(List<String?> self, SseSerializer serializer);
 
   @protected
@@ -2492,6 +2517,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_network_status_dto(
     NetworkStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_notification_result_dto(
+    NotificationResultDto self,
     SseSerializer serializer,
   );
 

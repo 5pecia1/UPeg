@@ -39,6 +39,8 @@ pub const TWEAKS_FILENAME: &str = ".upeg-tweaks.json";
 /// placements / selection today; memos and execution log follow in
 /// later migration steps).
 pub const STORE_FILE: &str = "upeg.db";
+/// Local notification summaries awaiting acknowledgement on the desktop.
+pub const NOTIFICATION_RESULTS_FILE: &str = "notification-results.db";
 /// Single-instance lock file taken by the desktop shell (PRD §5.9).
 /// The path lives here — not in the surface that takes the lock — so
 /// the lock owner (`upeg-frb`) and any surface that merely reports on it

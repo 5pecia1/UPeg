@@ -30,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/platform/tray.dart';
+import 'package:upeg/src/state/notification_results_provider.dart';
 import 'package:upeg/src/rust/api/events.dart';
 import 'package:upeg/src/state/host_state_provider.dart';
 
@@ -59,6 +60,9 @@ void main() {
       addTearDown(controller.close);
       final container = ProviderContainer(
         overrides: [
+          unreadNotificationResultsProvider.overrideWith(
+            (ref) => const Stream<bool>.empty(),
+          ),
           ...i18nTestOverrides,
           hostStateStreamProvider.overrideWith((ref) => controller.stream),
         ],

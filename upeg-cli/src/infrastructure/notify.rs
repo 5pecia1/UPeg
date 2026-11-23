@@ -5,6 +5,10 @@
 //! centralizes the enabled-check so call sites have no gate to forget
 //! and no module outside this one can reach `notify_rust` directly.
 
+use std::io::Write as _;
+
+use upeg_sources::store::append_notification_result;
+
 /// Pure boolean parser for the historic `UPEG_NOTIFY` env vocabulary.
 /// Public so the CLI argument-resolution path can call this at startup
 /// without re-implementing the truthy-set.
@@ -21,21 +25,29 @@ pub fn enabled_from(value: Option<&str>) -> bool {
 /// accidentally fire without threading its capability flag through.
 pub(crate) fn fire_if(enabled: bool, tool_id: &str, success: bool, summary: &str) {
     if enabled {
-        fire(tool_id, success, summary);
+        let title = if success {
+            format!("upeg · {tool_id}")
+        } else {
+            format!("upeg · {tool_id} (error)")
+        };
+        let body = truncate(summary, 240);
+        // Record the same summary offered to the OS. Delivery is best-effort
+        // and the tray can still show the result if the OS suppresses it.
+        if let Err(error) = append_notification_result(tool_id, &title, &body, success) {
+            let _ = writeln!(
+                std::io::stderr(),
+                "upeg: could not queue the tool-result notification: {error}"
+            );
+        }
+        fire(&title, &body);
     }
 }
 
-fn fire(tool_id: &str, success: bool, summary: &str) {
-    let title = if success {
-        format!("upeg · {tool_id}")
-    } else {
-        format!("upeg · {tool_id} (error)")
-    };
-    let body = truncate(summary, 240);
+fn fire(title: &str, body: &str) {
     let _ = notify_rust::Notification::new()
         .appname("upeg")
-        .summary(&title)
-        .body(&body)
+        .summary(title)
+        .body(body)
         .show();
 }
 

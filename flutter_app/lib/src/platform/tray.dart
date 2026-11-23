@@ -19,6 +19,7 @@
 library;
 
 import 'dart:io' show Platform;
+import 'dart:async' show Timer;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/foundation.dart'
@@ -29,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 import 'package:upeg/src/platform/app_lifecycle.dart';
+import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/platform/tray_animation.dart';
 import 'package:upeg/src/platform/tray_icon.dart';
 import 'package:upeg/src/platform/window_summon.dart';
@@ -36,6 +38,10 @@ import 'package:upeg/src/state/pause_control_provider.dart';
 import 'package:upeg/src/state/pause_provider.dart';
 import 'package:upeg/src/state/pinned_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
+import 'package:upeg/src/state/notification_results_provider.dart';
+import 'package:upeg/src/state/locale_provider.dart';
+import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
+import 'package:upeg/src/widgets/notification_results_dialog.dart';
 
 export 'package:upeg/src/platform/tray_icon.dart';
 
@@ -46,6 +52,7 @@ export 'package:upeg/src/platform/tray_icon.dart';
 enum TrayCommand {
   quit('quit'),
   openDashboard('open_dashboard'),
+  openResults('open_results'),
   togglePopup('toggle_popup'),
   togglePin('toggle_pin'),
   togglePause('toggle_pause');
@@ -101,6 +108,7 @@ void dispatchTrayCommand(ProviderContainer container, TrayCommand cmd) {
       // the tray.
       unawaited(container.read(quitAppProvider)());
     case TrayCommand.openDashboard:
+    case TrayCommand.openResults:
     case TrayCommand.togglePopup:
       // Handled at the UpegTray call site — they need the window mode
       // notifier and/or the summon seam.
@@ -178,12 +186,14 @@ Future<void> showTrayContextMenuFromIconClick({
 Menu buildTrayMenu({
   bool pauseControllable = true,
   bool keepPopupOpen = false,
+  String resultsLabel = 'Tool results',
 }) => Menu(
   items: [
     MenuItem(
       key: TrayCommand.openDashboard.menuItemKey,
       label: 'Open Pegboard',
     ),
+    MenuItem(key: TrayCommand.openResults.menuItemKey, label: resultsLabel),
     MenuItem(
       key: TrayCommand.togglePopup.menuItemKey,
       label: 'Toggle popup / full',
@@ -268,30 +278,53 @@ class TrayMenuSync extends ConsumerWidget {
       _resyncBestEffort(
         pauseControllable: ref.read(pauseControllableProvider),
         keepPopupOpen: ref.read(pinnedProvider),
+        resultsLabel: _resultsLabel(ref.container),
       );
     }
 
     ref
       ..listen<bool>(pauseControllableProvider, resync)
-      ..listen<bool>(pinnedProvider, resync);
+      ..listen<bool>(pinnedProvider, resync)
+      ..listen<LocaleDto>(localeProvider, (previous, next) {
+        if (previous != next && isTraySupported) {
+          _resyncBestEffort(
+            pauseControllable: ref.read(pauseControllableProvider),
+            keepPopupOpen: ref.read(pinnedProvider),
+            resultsLabel: _resultsLabel(ref.container),
+          );
+        }
+      });
     return child;
   }
 
   Future<void> _resyncBestEffort({
     required bool pauseControllable,
     required bool keepPopupOpen,
+    required String resultsLabel,
   }) async {
     try {
       await setContextMenu(
         buildTrayMenu(
           pauseControllable: pauseControllable,
           keepPopupOpen: keepPopupOpen,
+          resultsLabel: resultsLabel,
         ),
       );
     } on Object catch (err, stack) {
       debugPrint('upeg: setContextMenu failed: $err');
       debugPrint(stack.toString());
     }
+  }
+}
+
+String _resultsLabel(ProviderContainer container) {
+  try {
+    return container.read(i18nTranslateOverride)(
+      'notifications.results',
+      container.read(localeProvider),
+    );
+  } on Object {
+    return 'Tool results';
   }
 }
 
@@ -316,6 +349,40 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
   static UpegTray? _installed;
   static bool _installing = false;
   bool _disposed = false;
+  bool _unread = false;
+  bool _iconApplied = true;
+  int _iconRevision = 0;
+  Timer? _iconRetry;
+  Future<void> _iconUpdate = Future<void>.value();
+
+  void _syncIcon(bool unread, {bool force = false, bool allowRetry = true}) {
+    if (_disposed || (!force && unread == _unread && _iconApplied)) return;
+    _iconRetry?.cancel();
+    _unread = unread;
+    _iconApplied = false;
+    final revision = ++_iconRevision;
+    _iconUpdate = _iconUpdate
+        .then((_) async {
+          await finishTrayAnimationForIconUpdate();
+          if (_disposed || revision != _iconRevision) return;
+          final brightness =
+              WidgetsBinding.instance.platformDispatcher.platformBrightness;
+          await setPlatformTrayIcon(
+            _unread
+                ? trayUnreadIconSpecFor(defaultTargetPlatform, brightness)
+                : trayIconSpecFor(defaultTargetPlatform),
+          );
+          if (revision == _iconRevision) _iconApplied = true;
+        })
+        .catchError((Object error) {
+          debugPrint('upeg: tray result icon update failed: $error');
+          if (!_disposed && revision == _iconRevision && allowRetry) {
+            _iconRetry = Timer(const Duration(seconds: 2), () {
+              _syncIcon(_unread, force: true, allowRetry: false);
+            });
+          }
+        });
+  }
 
   /// Install the tray. Idempotent: subsequent calls are no-ops so
   /// hot-reload doesn't stack listeners.
@@ -339,6 +406,7 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
         buildTrayMenu(
           pauseControllable: ref.read(pauseControllableProvider),
           keepPopupOpen: ref.read(pinnedProvider),
+          resultsLabel: _resultsLabel(ref.container),
         ),
       );
       if (tray._disposed) return;
@@ -346,6 +414,13 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
       WidgetsBinding.instance.addObserver(tray);
       _installed = tray;
       unawaited(playTrayStartupAnimation());
+      ref.listen<AsyncValue<bool>>(unreadNotificationResultsProvider, (
+        _,
+        next,
+      ) {
+        final unread = next.value;
+        if (unread != null) tray._syncIcon(unread);
+      }, fireImmediately: true);
     } on Exception catch (err) {
       debugPrint('upeg: tray install failed: $err');
     } finally {
@@ -355,6 +430,7 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
 
   void _dispose() {
     _disposed = true;
+    _iconRetry?.cancel();
     trayManager.removeListener(this);
     WidgetsBinding.instance.removeObserver(this);
     if (identical(_installed, this)) _installed = null;
@@ -369,6 +445,13 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
         .accessibilityFeatures
         .disableAnimations) {
       unawaited(stopTrayAnimation());
+    }
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_unread && defaultTargetPlatform == TargetPlatform.macOS) {
+      _syncIcon(true, force: true);
     }
   }
 
@@ -407,6 +490,8 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
     switch (cmd) {
       case TrayCommand.openDashboard:
         unawaited(openPegboardFromTray(_ref.container));
+      case TrayCommand.openResults:
+        unawaited(_openResults());
       case TrayCommand.togglePopup:
         _toggleMode();
       case TrayCommand.quit:
@@ -414,6 +499,11 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
       case TrayCommand.togglePause:
         dispatchTrayCommand(_ref.container, cmd);
     }
+  }
+
+  Future<void> _openResults() async {
+    await openPegboardFromTray(_ref.container);
+    await showNotificationResults();
   }
 
   void _toggleMode() {

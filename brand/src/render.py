@@ -14,31 +14,36 @@ import gen
 
 REPO = Path(__file__).resolve().parents[2]
 BRAND = REPO / "brand"
-TRAY_SWAY_DELTAS = (6, 1.1, -2.2, -1.3, 0.5, 0.7, 0, -0.2, 0)
+TRAY_SWAY_DELTAS = (9, 2, -4, -2.2, 1, 1.1, 0, -0.3, 0)
 
 
-def sway_png(source, size, delta, template=False):
-    """Rotate only the U around one stationary attachment from the rest asset.
-
-    These temporary render SVGs may use transforms; delivered canonical SVGs
-    remain flat. No per-frame silhouette centering or pin movement is applied.
-    """
+def tray_png(source, size, delta=0, template=False, unread=False, dark=False):
+    """Render a fixed-pivot through-hole and optional unread pin."""
     text = (BRAND / source).read_text()
+    root = ET.fromstring(text)
+    path = next(node for node in root if node.tag.endswith('path'))
     if template:
-        spec = gen.MONO[44]
-        u = gen.optical_u(44, spec, mono=True, motion=True)
+        u = gen.optical_u(44, gen.MONO[44], mono=True, motion=True)
         _, pts = gen.mark_geometry(u, gen.TILT)
         px, py = pts[gen.PIN]
+        radius = 1.9 * 512 / 44
+        if dark:
+            path.set('fill', gen.WHITE)
     else:
-        orange = next(node for node in ET.fromstring(text) if node.attrib.get('fill') == gen.ORANGE)
-        if orange.tag.endswith('circle'):
-            px, py = float(orange.attrib['cx']), float(orange.attrib['cy'])
+        pin = next(node for node in root if node.attrib.get('fill') == gen.ORANGE)
+        if pin.tag.endswith('circle'):
+            px, py, radius = (float(pin.attrib[k]) for k in ('cx', 'cy', 'r'))
         else:
-            px = float(orange.attrib['x']) + float(orange.attrib['width']) / 2
-            py = float(orange.attrib['y']) + float(orange.attrib['height']) / 2
-    text, count = re.subn(r'<path ', f'<path transform="rotate({delta} {gen.f(px)} {gen.f(py)})" ', text)
-    assert count == 1, source
-    return cairosvg.svg2png(bytestring=text.encode(), output_width=size, output_height=size)
+            radius = float(pin.attrib['width']) / 2
+            px = float(pin.attrib['x']) + radius
+            py = float(pin.attrib['y']) + float(pin.attrib['height']) / 2
+        root.remove(pin)
+    path.set('d', path.attrib['d'] + gen.circle_sub(px, py, radius))
+    path.set('transform', f'rotate({delta} {gen.f(px)} {gen.f(py)})')
+    if unread:
+        ET.SubElement(root, '{http://www.w3.org/2000/svg}circle', {
+            'cx': gen.f(px), 'cy': gen.f(py), 'r': gen.f(radius), 'fill': gen.ORANGE})
+    return cairosvg.svg2png(bytestring=ET.tostring(root), output_width=size, output_height=size)
 
 
 def png(source, size, white=False):
@@ -52,12 +57,12 @@ def write_png(target, source, size, white=False):
     (REPO / target).write_bytes(png(source, size, white))
 
 
-def write_ico(target, sizes, tray=False, delta=None):
+def write_ico(target, sizes, tray=False, delta=None, unread=False):
     # Embed one independently hinted PNG per frame; never downscale another frame.
     frames = []
     for n in sizes:
         source = f"src/tray-color-{n}.svg" if tray else f"src/mark-{n}.svg" if n <= 48 else "mark.svg"
-        frames.append(png(source, n) if delta is None else sway_png(source, n, delta))
+        frames.append(tray_png(source, n, delta or 0, unread=unread) if tray else png(source, n))
     offset = 6 + 16 * len(sizes)
     directory = []
     for n, data in zip(sizes, frames):
@@ -69,23 +74,27 @@ def write_ico(target, sizes, tray=False, delta=None):
 def write_sway_frames():
     base = REPO / 'flutter_app/assets/tray/sway'
     for platform in ('linux', 'macos', 'windows'):
-        (base / platform).mkdir(parents=True, exist_ok=True)
+        for stale in (base / platform).glob('frame_*_unread*'):
+            stale.unlink()
     for frame, delta in enumerate(TRAY_SWAY_DELTAS):
-        (base / 'linux' / f'frame_{frame}.png').write_bytes(sway_png('src/tray-color-22.svg', 22, delta))
-        (base / 'macos' / f'frame_{frame}.png').write_bytes(sway_png('src/mono-44.svg', 44, delta, template=True))
-        write_ico(f'flutter_app/assets/tray/sway/windows/frame_{frame}.ico', (16, 20, 24, 32), tray=True, delta=delta)
+        (base / 'linux' / f'frame_{frame}.png').write_bytes(
+            tray_png('src/tray-color-22.svg', 22, delta))
+        write_ico(f'flutter_app/assets/tray/sway/windows/frame_{frame}.ico',
+                  (16, 20, 24, 32), tray=True, delta=delta)
+        (base / 'macos' / f'frame_{frame}.png').write_bytes(
+            tray_png('src/mono-44.svg', 44, delta, template=True))
 
 
 def main():
     gen.main()
     for n in (16, 20, 22, 24, 32):
-        write_png(f"brand/tray/color/tray_icon_{n}.png", f"src/tray-color-{n}.svg", n)
+        (BRAND / f"tray/color/tray_icon_{n}.png").write_bytes(tray_png(f"src/tray-color-{n}.svg", n))
     for n in (16, 22, 32):
         source = "mark-mono.svg" if n == 22 else f"src/mono-{n}.svg"
         write_png(f"brand/tray/black/tray_icon_{n}.png", source, n)
         write_png(f"brand/tray/white/tray_icon_{n}.png", source, n, white=True)
-    write_png("brand/tray/trayTemplate.png", "mark-mono.svg", 22)
-    write_png("brand/tray/trayTemplate@2x.png", "src/mono-44.svg", 44)
+    (BRAND / "tray/trayTemplate.png").write_bytes(tray_png("src/mono-44.svg", 22, template=True))
+    (BRAND / "tray/trayTemplate@2x.png").write_bytes(tray_png("src/mono-44.svg", 44, template=True))
     for n in (192, 512):
         write_png(f"flutter_app/web/icons/Icon-{n}.png", "mark.svg", n)
         write_png(f"flutter_app/web/icons/Icon-maskable-{n}.png", "src/mark-maskable.svg", n)
@@ -107,6 +116,11 @@ def main():
     logo = logo.replace('aria-label="upeg"', 'aria-label="{{ config.site_name }}" width="24" height="24"')
     (REPO / "oss/website/overrides/partials/logo.html").write_text(
         '{#- Generated from brand/src/mark-24.svg by brand/src/render.py. -#}\n' + logo)
+    (REPO / "flutter_app/assets/tray_icon_unread.png").write_bytes(tray_png("src/tray-color-22.svg", 22, unread=True))
+    write_ico("flutter_app/assets/tray/tray_icon_unread.ico", (16, 20, 24, 32), tray=True, unread=True)
+    for theme in ('light', 'dark'):
+        (REPO / f"flutter_app/assets/tray/trayUnread_{theme}@2x.png").write_bytes(
+            tray_png("src/mono-44.svg", 44, template=True, unread=True, dark=theme == 'dark'))
     write_sway_frames()
 
 

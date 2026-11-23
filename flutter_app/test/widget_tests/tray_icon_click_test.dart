@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/platform/tray.dart';
+import 'package:upeg/src/state/notification_results_provider.dart';
 import 'package:upeg/src/platform/app_lifecycle.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 
@@ -84,6 +85,9 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
+            unreadNotificationResultsProvider.overrideWith(
+              (ref) => const Stream<bool>.empty(),
+            ),
             windowModeProvider.overrideWith(
               () => WindowModeNotifier(initial: WindowMode.full),
             ),
@@ -178,7 +182,13 @@ void main() {
                 return true;
               });
 
-          final container = ProviderContainer();
+          final container = ProviderContainer(
+            overrides: [
+              unreadNotificationResultsProvider.overrideWith(
+                (ref) => const Stream<bool>.empty(),
+              ),
+            ],
+          );
           addTearDown(container.dispose);
           final installProvider = Provider<Future<void>>(
             (ref) => UpegTray.install(ref),
@@ -234,6 +244,9 @@ void main() {
       });
       final container = ProviderContainer(
         overrides: [
+          unreadNotificationResultsProvider.overrideWith(
+            (ref) => const Stream<bool>.empty(),
+          ),
           quitAppProvider.overrideWithValue(
             () => runAppQuit(
               shutdown: () => quitCalls.add('shutdown'),

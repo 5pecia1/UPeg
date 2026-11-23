@@ -40,6 +40,7 @@ void main() {
 
       expect(keys, [
         TrayCommand.openDashboard.menuItemKey,
+        TrayCommand.openResults.menuItemKey,
         TrayCommand.togglePopup.menuItemKey,
         TrayCommand.togglePin.menuItemKey,
         TrayCommand.togglePause.menuItemKey,
@@ -54,7 +55,7 @@ void main() {
           if (items[i].type == 'separator') i,
       ];
 
-      expect(separatorIndexes, [3, 5]);
+      expect(separatorIndexes, [4, 6]);
       for (final index in separatorIndexes) {
         expect(items[index].disabled, isTrue);
       }
@@ -69,6 +70,7 @@ void main() {
 
       expect(labelsByKey, {
         TrayCommand.openDashboard.menuItemKey: 'Open Pegboard',
+        TrayCommand.openResults.menuItemKey: 'Tool results',
         TrayCommand.togglePopup.menuItemKey: 'Toggle popup / full',
         TrayCommand.togglePin.menuItemKey: 'Keep popup open',
         TrayCommand.togglePause.menuItemKey: 'Pause / Resume host',

@@ -30,6 +30,7 @@ pub mod i18n;
 pub mod keyboard;
 pub mod last_outcomes;
 pub mod memos;
+pub mod notification_results;
 pub mod palette;
 pub mod pause;
 pub mod pegboard;

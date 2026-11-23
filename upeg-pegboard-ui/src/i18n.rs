@@ -98,6 +98,12 @@ fn lookup_tool_meta(
 // Both maps must list the same keys; the parity tests pin that.
 
 static EN: Map<&'static str, &'static str> = phf_map! {
+    "notifications.results" => "Tool results",
+    "notifications.load_failed" => "Could not load results.",
+    "notifications.empty" => "No results yet.",
+    "notifications.previous" => "Previous",
+    "notifications.next" => "Next",
+    "notifications.close" => "Close",
     "modal.pin.failed_generic" => "Could not pin tool. Try again.",
     "pin.state.load_failed" => "Saved state could not be loaded. Retry.",
     "pin.state.save_failed" => "Changes could not be saved. Retry.",
@@ -533,6 +539,12 @@ static EN: Map<&'static str, &'static str> = phf_map! {
 };
 
 static KO: Map<&'static str, &'static str> = phf_map! {
+    "notifications.results" => "도구 실행 결과",
+    "notifications.load_failed" => "결과를 불러오지 못했습니다.",
+    "notifications.empty" => "아직 결과가 없습니다.",
+    "notifications.previous" => "이전",
+    "notifications.next" => "다음",
+    "notifications.close" => "닫기",
     "modal.pin.failed_generic" => "도구를 핀으로 추가하지 못했습니다. 다시 시도하세요.",
     "pin.state.load_failed" => "저장된 상태를 불러오지 못했습니다. 다시 시도하세요.",
     "pin.state.save_failed" => "변경 내용을 저장하지 못했습니다. 다시 시도하세요.",

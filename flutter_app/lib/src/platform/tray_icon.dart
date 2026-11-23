@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
+import 'dart:ui' show Brightness;
 import 'package:tray_manager/tray_manager.dart';
 
 /// What `tray_manager.setIcon` needs for one platform: the bundled
@@ -47,6 +48,30 @@ TrayIconSpec trayIconSpecFor(TargetPlatform platform) => switch (platform) {
   TargetPlatform.android ||
   TargetPlatform.fuchsia ||
   TargetPlatform.iOS => _linuxTrayIcon,
+};
+
+/// The result indicator uses a coloured icon on macOS so the orange pin is
+/// visible. Choose its foreground for the system menu bar appearance.
+TrayIconSpec trayUnreadIconSpecFor(
+  TargetPlatform platform,
+  Brightness brightness,
+) => switch (platform) {
+  TargetPlatform.macOS => (
+    assetPath:
+        'assets/tray/trayUnread_${brightness == Brightness.dark ? 'dark' : 'light'}@2x.png',
+    isTemplate: false,
+    iconSize: 22,
+  ),
+  TargetPlatform.windows => (
+    assetPath: 'assets/tray/tray_icon_unread.ico',
+    isTemplate: false,
+    iconSize: 18,
+  ),
+  _ => (
+    assetPath: 'assets/tray_icon_unread.png',
+    isTemplate: false,
+    iconSize: 18,
+  ),
 };
 
 /// Injection seam for the platform `setIcon` call. Production wraps

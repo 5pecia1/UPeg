@@ -41,6 +41,7 @@ mod execution_log;
 pub mod export;
 mod last_outcomes;
 mod memos;
+mod notification_results;
 mod pegboard;
 mod pin_drafts;
 mod schema;
@@ -51,6 +52,10 @@ mod tests;
 pub use diagnostics::{DIAGNOSTIC_RETENTION, DiagnosticRecord};
 pub use execution_log::{ExecutionLogFilter, ExecutionLogRecord};
 pub use last_outcomes::{LastOutcomeRecord, NewLastOutcome};
+pub use notification_results::{
+    NotificationResultRecord, acknowledge_notification_results, append_notification_result,
+    has_unread_notification_results, list_notification_results,
+};
 pub use pin_drafts::PinDraftRecord;
 
 use std::path::Path;
