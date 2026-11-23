@@ -4,6 +4,12 @@ This repository receives verified exports from the development repository as
 ordinary pull requests; see the git history and README's *Project status*
 section.
 
+## v0.7.11 (2026-11-23)
+
+- The tray icon's pin is empty until a tool result notification arrives, then
+  turns orange until you view the result in the tray's Tool results menu. The
+  icon also sways briefly at startup.
+
 ## v0.7.10
 
 - Update the transitive Linux notification dependency `async-executor` to

@@ -11,6 +11,7 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' show Brightness;
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugDefaultTargetPlatformOverride;
@@ -101,6 +102,33 @@ void main() {
   });
 
   group('bundled tray assets', () {
+    testWidgets('unread assets load for each platform and macOS appearance', (
+      tester,
+    ) async {
+      for (final platform in [
+        TargetPlatform.linux,
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+      ]) {
+        for (final brightness in Brightness.values) {
+          final spec = trayUnreadIconSpecFor(platform, brightness);
+          final data = await tester.runAsync(
+            () => rootBundle.load(spec.assetPath),
+          );
+          expect(data!.lengthInBytes, greaterThan(0));
+          expect(spec.isTemplate, isFalse);
+        }
+      }
+      expect(
+        trayUnreadIconSpecFor(TargetPlatform.macOS, Brightness.light).assetPath,
+        isNot(
+          trayUnreadIconSpecFor(
+            TargetPlatform.macOS,
+            Brightness.dark,
+          ).assetPath,
+        ),
+      );
+    });
     testWidgets('every_platform_asset_is_declared_in_pubspec_and_loads', (
       tester,
     ) async {

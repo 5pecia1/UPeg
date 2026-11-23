@@ -7,7 +7,7 @@ use super::{PinDraftRecord, Store, schema};
 use crate::pegboard::{BoardData, PegboardSelection, PegboardState};
 use crate::store::export;
 
-fn temp_store_dir(label: &str) -> PathBuf {
+pub(super) fn temp_store_dir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "upeg-store-{label}-{}-{:?}",
         std::process::id(),

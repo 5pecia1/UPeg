@@ -160,7 +160,7 @@ def mark_geometry(u, angle):
 
 
 def optical_u(N, spec, *, inset=0, pin_inset=0, angle=None, mono=False, motion=False):
-    """Fit small hints only where their static or +/-6deg motion bounds need room.
+    """Fit small hints only where their static or -4/+9deg motion bounds need room.
 
     Preserve the U's proportions and the pin's hinted pixel size. Fit the whole
     motion envelope once; each frame subsequently uses identical geometry.
@@ -179,7 +179,7 @@ def optical_u(N, spec, *, inset=0, pin_inset=0, angle=None, mono=False, motion=F
         a = math.radians(angle)
         vx, vy = -math.sin(a)*pin_inset, math.cos(a)*pin_inset
         radial = 0
-        for step in (range(-24,25) if motion else (0,)):
+        for step in (range(-24,25) if motion and mono and N != 44 else range(-16,37) if motion else (0,)):
             delta=step/4; da=math.radians(delta)
             correction=(vx-vx*math.cos(da)+vy*math.sin(da), vy-vx*math.sin(da)-vy*math.cos(da))
             bounds=rotated_bounds(u, angle+delta)

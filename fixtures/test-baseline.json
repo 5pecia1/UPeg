@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-20T09:34:32Z",
+  "generatedAt": "2026-11-23T14:36:58Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3740,
+      "total": 3744,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -19482,6 +19482,34 @@
           "fullName": "store::diagnostics::tests::timeout_and_cancellation_debug_context_round_trip_without_raw_secret_values"
         },
         {
+          "className": "store::notification_results::tests",
+          "methodName": "acknowledgement_leaves_results_from_another_connection_unread",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::notification_results::tests::acknowledgement_leaves_results_from_another_connection_unread"
+        },
+        {
+          "className": "store::notification_results::tests",
+          "methodName": "queue_is_private_and_does_not_follow_symlinks",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::notification_results::tests::queue_is_private_and_does_not_follow_symlinks"
+        },
+        {
+          "className": "store::notification_results::tests",
+          "methodName": "retention_keeps_the_newest_summaries",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::notification_results::tests::retention_keeps_the_newest_summaries"
+        },
+        {
+          "className": "store::notification_results::tests",
+          "methodName": "unread_poll_does_not_create_storage",
+          "status": "passed",
+          "target": "upeg_sources::src/lib.rs",
+          "fullName": "store::notification_results::tests::unread_poll_does_not_create_storage"
+        },
+        {
           "className": "store::tests",
           "methodName": "canonical_export_preserves_board_guidance_and_layout_shape",
           "status": "passed",
@@ -26230,7 +26258,7 @@
         "test",
         "--reporter=json"
       ],
-      "total": 1535,
+      "total": 1538,
       "tests": [
         {
           "className": "flutter::flutter_app/test/platform_tests/file_picker_bridge_test.dart",
@@ -35509,6 +35537,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "acknowledges each result only after it is displayed",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "acknowledges each result only after it is displayed"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "after_an_output_conversion_failure_reopening_debug_or_clearing_the_log_never_shows_the_raw_success_output",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -35681,6 +35716,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "bundled tray assets::the_macOS_template_is_2x_the_icon_size_in_points"
+        },
+        {
+          "className": "bundled tray assets",
+          "methodName": "unread assets load for each platform and macOS appearance",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "bundled tray assets::unread assets load for each platform and macOS appearance"
         },
         {
           "className": "flutter::widget_tester.dart",
@@ -36969,6 +37011,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "unknown result inputs remain unknown when copied inline"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "unread result wins over startup icon restoration",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "unread result wins over startup icon restoration"
         },
         {
           "className": "flutter::widget_tester.dart",

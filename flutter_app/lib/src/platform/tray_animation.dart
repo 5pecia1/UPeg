@@ -91,6 +91,10 @@ class TraySwayAnimation {
     await _running;
   }
 
+  Future<void> waitForCompletion() async {
+    await _running;
+  }
+
   Future<void> dispose() async {
     _disposed = true;
     // Quit must not wait indefinitely on a native icon write. If it stalls,
@@ -119,4 +123,9 @@ Future<void> playTrayStartupAnimation() async {
 
 Future<void> stopTrayAnimation() async {
   await _startupAnimation?.dispose();
+}
+
+/// Wait for the current write and restore before applying a new icon state.
+Future<void> finishTrayAnimationForIconUpdate() async {
+  await _startupAnimation?.waitForCompletion();
 }

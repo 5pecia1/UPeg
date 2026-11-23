@@ -106,6 +106,11 @@ const ROLES: &[(&str, &str, Option<&str>)] = &[
         Some("UPEG_MCP_IMPORTS_DIR"),
     ),
     ("upeg.db", "data/upeg.db", None),
+    (
+        paths::NOTIFICATION_RESULTS_FILE,
+        "data/notification-results.db",
+        None,
+    ),
     ("toolkits", "data/toolkits", Some("UPEG_TOOLKITS_DIR")),
     ("wasm", "data/wasm", Some("UPEG_WASM_DIR")),
     (
@@ -252,7 +257,7 @@ fn inventory(
     let kind = if metadata.is_dir() {
         EntryKind::Directory
     } else if metadata.is_file() {
-        if source == Path::new("upeg.db") {
+        if source == Path::new("upeg.db") || source == Path::new(paths::NOTIFICATION_RESULTS_FILE) {
             EntryKind::Sqlite
         } else {
             EntryKind::File

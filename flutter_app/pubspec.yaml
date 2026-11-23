@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.7.10+1
+version: 0.7.11+1
 
 environment:
   sdk: ^3.12.0
@@ -108,7 +108,7 @@ msix_config:
   publisher_display_name: upeg contributors
   identity_name: io.github.5pecia1.upeg
   publisher: CN=upeg contributors
-  msix_version: 0.7.10.0
+  msix_version: 0.7.11.0
   logo_path: web/icons/Icon-512.png
   capabilities: internetClient
   # Register the upeg:// custom scheme so packaged Windows installs route
@@ -133,8 +133,12 @@ flutter:
   # re-bundles automatically.
   assets:
     - assets/tray_icon.png
+    - assets/tray_icon_unread.png
     - assets/tray/trayTemplate@2x.png
     - assets/tray/tray_icon.ico
+    - assets/tray/tray_icon_unread.ico
+    - assets/tray/trayUnread_light@2x.png
+    - assets/tray/trayUnread_dark@2x.png
     - assets/tray/sway/linux/
     - assets/tray/sway/macos/
     - assets/tray/sway/windows/

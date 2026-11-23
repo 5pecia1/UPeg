@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/platform/app_lifecycle.dart';
 import 'package:upeg/src/platform/tray.dart';
+import 'package:upeg/src/state/notification_results_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 
 const MethodChannel _trayChannel = MethodChannel('tray_manager');
@@ -67,6 +68,9 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          unreadNotificationResultsProvider.overrideWith(
+            (ref) => const Stream<bool>.empty(),
+          ),
           windowModeProvider.overrideWith(
             () => WindowModeNotifier(initial: WindowMode.full),
           ),

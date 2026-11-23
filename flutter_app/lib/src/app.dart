@@ -30,6 +30,7 @@ import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/launch_intent_applier.dart';
 import 'package:upeg/src/widgets/popup_auto_hide_observer.dart';
 import 'package:upeg/src/widgets/window_mode_applier.dart';
+import 'package:upeg/src/widgets/notification_results_dialog.dart';
 
 /// Indirection so widget tests can override the boot call without loading
 /// the native dylib.
@@ -257,6 +258,7 @@ class UpegApp extends ConsumerWidget {
     final accent = ref.watch(accentProvider);
     return AppExitListener(
       child: MaterialApp(
+        navigatorKey: notificationResultsNavigatorKey,
         title: 'upeg',
         // Both palettes are built via the same `forAccent` factory so
         // K03 (accent flip) re-paints the live MaterialApp without a
