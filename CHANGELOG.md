@@ -4,7 +4,13 @@ This repository receives verified exports from the development repository as
 ordinary pull requests; see the git history and README's *Project status*
 section.
 
-## v0.7.9 (Unreleased)
+## v0.7.10
+
+- Update the transitive Linux notification dependency `async-executor` to
+  1.14.1, fixing the use-after-free regression in the yanked 1.14.0 when a task
+  wakes as its executor is dropped.
+
+## v0.7.9 (2026-11-23)
 
 - Verify release builds on the exported public commit and publish the producer’s byte-identical packages.
 - Add Developer ID signing and notarization steps for official macOS app, CLI,
