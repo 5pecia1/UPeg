@@ -23,6 +23,8 @@ from artifacts import GateError, PUBLIC_REPO, safe_name, verify_mirror
 API = 'https://api.github.com'
 SHA = re.compile(r'[0-9a-f]{40}\Z')
 SHA256 = re.compile(r'[0-9a-f]{64}\Z')
+DOWNLOAD_GUIDE_MARKER = '<!-- upeg-download-guide -->'
+INSTALL_GUIDE_URL = f'https://github.com/{PUBLIC_REPO}/blob/main/docs/guides/installation.md'
 
 
 class APIError(GateError):
@@ -216,6 +218,60 @@ def checked_assets(client: Client, base: str, release_id: int,
     return present
 
 
+def download_guide(document: dict) -> str:
+    """Render user downloads from a verified manifest without changing notes."""
+    tag, version = document['tag'], document['version']
+    names = {entry['name'] for entry in document['files']}
+    base = f'https://github.com/{PUBLIC_REPO}/releases/download/{quote(tag, safe="")}'
+    desktop = (
+        ('macOS (Apple Silicon and Intel)', 'DMG', f'upeg-{tag}.dmg'),
+        (f'Windows x64 ([signing requirements]({INSTALL_GUIDE_URL}#windows-desktop))',
+         'MSIX', f'upeg-{tag}-x86_64.msix'),
+        ('Linux x86_64', 'DEB', f'upeg_{version}_amd64.deb'),
+        ('Linux x86_64', 'RPM', f'upeg-{version}-1.x86_64.rpm'),
+        ('Linux x86_64', 'AppImage', f'upeg-{tag}-x86_64.AppImage'),
+    )
+    cli = (
+        ('macOS Apple Silicon', 'tar.gz', f'upeg-{tag}-aarch64-apple-darwin.tar.gz'),
+        ('Linux x86_64 (glibc)', 'tar.gz', f'upeg-{tag}-x86_64-unknown-linux-gnu.tar.gz'),
+        ('Linux ARM64 (glibc)', 'tar.gz', f'upeg-{tag}-aarch64-unknown-linux-gnu.tar.gz'),
+        ('Windows x64', 'ZIP', f'upeg-{tag}-x86_64-pc-windows-msvc.zip'),
+    )
+
+    def table(rows: tuple) -> list[str]:
+        lines = ['| Platform | Download | SHA-256 |', '| --- | --- | --- |']
+        for platform, label, name in rows:
+            if name not in names:
+                continue
+            if f'{name}.sha256' not in names:
+                raise GateError(f'download has no checksum asset: {name}')
+            url = f'{base}/{quote(name, safe="")}'
+            lines.append(f'| {platform} | [{label}]({url}) | [SHA-256]({url}.sha256) |')
+        return lines
+
+    return '\n'.join([
+        DOWNLOAD_GUIDE_MARKER,
+        f'## Install UPeg {tag}', '',
+        'Choose the desktop app for the graphical interface, or the CLI for terminal use.', '',
+        '### Desktop app', '', *table(desktop), '',
+        '### CLI', '',
+        'Install the latest stable CLI on macOS Apple Silicon or Linux x86_64/ARM64 (glibc):', '',
+        '```sh',
+        'curl -fsSL https://raw.githubusercontent.com/5pecia1/UPeg/main/install.sh | sh',
+        '```', '',
+        'The installer writes `~/.local/bin/upeg`. Desktop apps are installed separately. '
+        'For Windows or a manual installation of this release, use the CLI archive below.', '',
+        *table(cli), '',
+        f'[Installation guide]({INSTALL_GUIDE_URL})', '',
+        '### Toolkits and verification', '',
+        'UPeg downloads each Toolkit automatically when you first use it and reuses verified cached files. '
+        'You do not need to download the individual Toolkit assets manually.', '',
+        'For manual downloads, verify the matching SHA-256 file before installing. '
+        f'[release-manifest.json]({base}/release-manifest.json) lists file sizes and SHA-256 hashes.',
+        '<!-- /upeg-download-guide -->', '',
+    ])
+
+
 def stage(client: Client, repo: str, tag: str, commit: str, files: Path,
           manifest: Path, prerelease: bool = False) -> dict:
     base = repo_url(repo)
@@ -236,6 +292,7 @@ def stage(client: Client, repo: str, tag: str, commit: str, files: Path,
         release = client.json('POST', f'{base}/releases', {
             'tag_name': tag, 'target_commitish': commit, 'name': tag,
             'draft': True, 'prerelease': prerelease,
+            'body': download_guide(json.loads(manifest.read_text())),
         })
         if not isinstance(release, dict) or not isinstance(release.get('id'), int):
             raise GateError('release creation returned no numeric ID')

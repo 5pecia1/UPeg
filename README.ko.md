@@ -34,12 +34,10 @@ loopback에 바인드하며, `/healthz`를 제외한 모든 라우트에 bearer 
 
 upeg은 아직 초기 단계다.
 
-- **다운로드 구성은 릴리스마다 다르다.** 게시된 패키지는
-  [GitHub Releases](https://github.com/5pecia1/UPeg/releases)에서 확인할 수
-  있다. v0.7.8 macOS 패키지는 Developer ID 서명 도입 전에 발행했다.
-  최신 릴리스에는 Linux x86_64·ARM64 CLI 아카이브, macOS ARM64 CLI 아카이브,
-  Windows x86_64 CLI 아카이브, Linux Debian 패키지와 AppImage, universal macOS
-  DMG, Windows MSIX, web 아카이브가 있다.
+- **빌드된 파일을 내려받아 설치할 수 있다.** 아래 CLI 설치 명령을 사용하거나
+  [최신 릴리스](https://github.com/5pecia1/UPeg/releases/latest)에서 데스크톱 패키지를
+  선택한다. OS와 CPU별 파일 및 Linux `.deb`, `.rpm`, AppImage 선택은
+  [설치 가이드](docs/guides/installation.md#choose-a-download)에서 안내한다.
 - **이 저장소는 공개 미러다.** 개발은 비공개 소스 저장소에서 이뤄지고,
   업데이트는 여기에 export된 pull request로 도착해 일반 PR처럼 merge된다.
   개발 히스토리 자체는 미러링되지 않는다 — 각 export가 squash된 검증 커밋
@@ -57,24 +55,28 @@ upeg은 아직 초기 단계다.
 
 ## 설치
 
-아직 인스톨러가 없으므로 CLI를 소스에서 빌드한다. 필요한 것:
+**macOS Apple Silicon**, **GNU/Linux x86_64**, **GNU/Linux ARM64**에서는 다음 명령으로 CLI를 설치한다.
 
-- **Git**, 링커용 **C 툴체인**(Debian/Ubuntu는 `build-essential`, macOS는
-  Xcode Command Line Tools, Windows는 MSVC Build Tools), 그리고
-  **Rust 1.92+**. Rust는 <https://rustup.rs/>의 OS별 설치 방법을 따른다.
-  macOS/Linux에서는 `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`를
-  쓰고, Windows에서는 그 사이트의 `rustup-init.exe`를 실행한다.
-
-```bash
-git clone https://github.com/5pecia1/UPeg.git
-cd UPeg
-cargo install --locked --path upeg-cli   # `upeg`를 ~/.cargo/bin에 설치
-upeg doctor                              # 바이너리/기능/소스 디렉터리 진단 출력
+```sh
+curl -fsSL https://raw.githubusercontent.com/5pecia1/UPeg/main/install.sh | sh
 ```
 
-Desktop 앱, PWA, WASM 플러그인에는 더 많은 것이 필요하다(Flutter SDK,
-`wasm-pack`, 추가 타깃) — 단, CLI에는 필요 없다. 선택적 패키징 도구를 포함한
-전체 표는 [설치 가이드](docs/guides/installation.md)에 있다.
+최신 공개 CLI를 `~/.local/bin/upeg`에 설치하며 `sudo`나 Rust는 필요하지 않다.
+Linux 아카이브는 glibc 환경을 대상으로 한다. 릴리스별 요구사항과 소스 빌드는
+[Linux 호환성 안내](docs/guides/installation.md#linux-cli-compatibility)를 따른다.
+같은 명령을 다시 실행하면 해당 CLI를 갱신한다. `upeg`를 찾지 못하면 셸 설정에
+`export PATH="$HOME/.local/bin:$PATH"`를 추가하고 새 터미널을 연다.
+
+**데스크톱 창**을 사용하려면 [최신 릴리스](https://github.com/5pecia1/UPeg/releases/latest)에서
+universal macOS DMG, Linux x86_64 `.deb` / `.rpm` / AppImage 또는 Windows x86_64
+MSIX를 선택한다. Intel Mac에는 universal GUI 패키지가 있으며 이 설치 명령은
+Intel Mac용 CLI를 제공하지 않는다. Windows CLI는 ZIP 파일로 수동 설치한다. 현재 공개된 Windows MSIX는
+서명되지 않아 일반 Windows 환경에서 설치가 실패할 수 있다.
+[수동 설치 안내](docs/guides/installation.md#choose-a-download)를 확인한다.
+CLI 설치 명령은 GUI 앱을 설치하거나 갱신하지 않는다.
+
+체크섬 확인, 수동 설치, 웹 배포 및 소스 빌드는
+[설치 가이드](docs/guides/installation.md)를 따른다.
 
 ## 첫 성공
 
@@ -83,11 +85,10 @@ upeg call --local num.hex_to_decimal -a input=0xff
 # → 255
 ```
 
-이 내장 호출에는 네트워크도, 계정도, 토큰도 필요 없다 — `--local`이
-프로세스 안 dispatch를 강제한다. 이 옵션이 없으면 `upeg call`은 발견된
-실행 중 로컬 host를 사용한다. 선택한 배포 Toolkit의 첫 호출은 릴리스 catalog에
-기록된 정확한 버전 pack을 가져올 수 있고, 검증한 캐시 뒤에는 오프라인으로
-실행한다. 이어서 둘러본다:
+계정이나 토큰은 필요하지 않다. 첫 호출은 해당 버전의 Toolkit pack을 내려받을 수 있으며,
+검증된 캐시가 있으면 이후에는 오프라인에서도 실행할 수 있다. `--local`은 실행 중인 로컬
+host에 연결하는 대신 현재 프로세스에서 실행하도록 지정하며, 오프라인 모드는 아니다.
+릴리스의 `toolkits-*` 파일을 직접 내려받을 필요는 없다. 이어서 둘러본다:
 
 ```bash
 upeg tool list                 # 등록된 모든 Tool
@@ -105,10 +106,10 @@ MCP 클라이언트 설정, 파일 입력은
 | Surface | 시작 |
 |---|---|
 | 터미널 (TUI / CLI) | `upeg` · `upeg call <toolkit>.<tool>` |
-| Desktop 앱 | macOS: `cd flutter_app && flutter run -d macos --release`; Linux: `cd flutter_app && flutter run -d linux --release` |
+| Desktop 앱 | 설치한 앱을 연다. [GUI 첫 사용 안내](docs/guides/quick-start.md#desktop-first-use)를 따른다 |
 | MCP (에이전트) | `upeg board dev connect` · `upeg mcp --board dev` |
 | HTTP host | `upeg http --addr 127.0.0.1:7173` |
-| PWA | `just package-web` |
+| PWA | 운영자가 사용하는 배포 아카이브다. [웹 배포 안내](docs/guides/installation.md#web-deployment)를 따른다 |
 | Chrome extension | `./chrome-ext/build.sh` 후 `chrome-ext/dist/`를 unpacked로 로드 |
 
 샌드박스된 surface(PWA, 확장)는 네이티브 런타임이 필요한 도구를 페어링된
