@@ -585,3 +585,138 @@ async fn dropping_the_stream_connection_kills_the_running_child() {
         "connection dropped but child (pid={child_pid}) stayed alive for {CHILD_EXIT_TIMEOUT:?}"
     );
 }
+
+#[test]
+fn authenticated_tui_streams_the_requested_pin_and_keeps_board_tool_and_surface_gates() {
+    use crate::infrastructure::auth::HostTokens;
+    use crate::surfaces::http::{ORIGIN_SURFACE_HEADER, router_with_tokens};
+    use upeg_core::{
+        ArgsPreset, InputFieldSpec, InputKind, InputName, InputSpec, Invoker, PegboardUnits, PinId,
+        PinKind, Placement, Source, Surface, ToolMeta,
+    };
+
+    const BOARD: &str = "exact-stream";
+    const TOOL: &str = "httpstream.pin_fixture";
+    const TOKEN: &str = "test-exact-stream-operator-token";
+    const SECOND: &str = "second/pin";
+
+    let input = InputFieldSpec::new(
+        InputName::new("message").expect("fixture input name"),
+        None,
+        None,
+        true,
+        InputKind::String,
+    )
+    .expect("fixture input");
+    let _registration = upeg_runtime::toolbox_add_tool_managed(ToolMeta {
+        id: TOOL,
+        toolkit: "httpstream",
+        local_id: "pin_fixture",
+        tags: &[],
+        display_label: "Exact pin stream fixture",
+        description: "",
+        input_spec: InputSpec::new(vec![input]).expect("fixture input spec"),
+        output_spec: upeg_core::OutputSpec::empty(),
+        primary_output_id: None,
+        effect: upeg_core::ToolEffect::Unknown,
+        presentation: None,
+        source: Source::UserInput,
+        pin: PinKind::Inline,
+        pegboard_units: PegboardUnits::U1,
+        invoker: Invoker::Function,
+        surfaces: &[Surface::Tui],
+        boards: &[],
+    });
+    upeg_runtime::register_single_text_runtime_dispatcher(TOOL, |args| {
+        args.get("message")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| "missing message".into())
+    });
+    load_fixture();
+
+    crate::test_support::with_seeded_pegboard_home(
+        "exact-pin-stream",
+        |state| {
+            assert_eq!(
+                upeg_sources::pegboard::add_board(state, "Exact Stream").as_deref(),
+                Some(BOARD)
+            );
+            let first = Placement::new(TOOL, 0, 0).with_args_preset(Some(
+                ArgsPreset::parse(r#"{"message":"first"}"#).expect("first preset"),
+            ));
+            let mut second = Placement::new(TOOL, 1, 0).with_args_preset(Some(
+                ArgsPreset::parse(r#"{"message":"second"}"#).expect("second preset"),
+            ));
+            second.pin_id = PinId::parse(SECOND).expect("second id");
+            let wrong_tool = Placement::new(STREAMING_TOOL_ID, 2, 0);
+            state
+                .layouts
+                .insert(BOARD.into(), vec![first, second, wrong_tool]);
+        },
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("test runtime")
+                .block_on(async {
+                    let app = router_with_tokens(HostTokens::with_agents(TOKEN, Vec::new()));
+                    let request = |uri: &str, origin: Surface| {
+                        Request::builder()
+                            .method("POST")
+                            .uri(uri)
+                            .header("authorization", format!("Bearer {TOKEN}"))
+                            .header(ORIGIN_SURFACE_HEADER, origin.label())
+                            .body(Body::from("{}"))
+                            .expect("test request")
+                    };
+                    let route = format!("/v1/boards/{BOARD}/tools/{TOOL}");
+                    let exact = format!("{route}/pins/{}/stream", urlencoding::encode(SECOND));
+
+                    for (uri, value) in [
+                        (format!("{route}/stream"), "first"),
+                        (exact.clone(), "second"),
+                    ] {
+                        let response = app
+                            .clone()
+                            .oneshot(request(&uri, Surface::Tui))
+                            .await
+                            .expect("router response");
+                        assert_eq!(response.status(), StatusCode::OK);
+                        let bytes = to_bytes(response.into_body(), usize::MAX)
+                            .await
+                            .expect("stream body");
+                        let body = String::from_utf8(bytes.to_vec()).expect("UTF-8");
+                        let result: Value =
+                            serde_json::from_str(body.lines().last().expect("result"))
+                                .expect("result JSON");
+                        assert_eq!(result["result"]["ok"], true, "{body}");
+                        assert_eq!(result["result"]["outputs"][0]["value"], value, "{body}");
+                    }
+
+                    for (uri, origin) in [
+                        (format!("{route}/pins/missing/stream"), Surface::Tui),
+                        (
+                            format!("{route}/pins/{STREAMING_TOOL_ID}/stream"),
+                            Surface::Tui,
+                        ),
+                        (
+                            format!(
+                                "/v1/boards/personal/tools/{TOOL}/pins/{}/stream",
+                                urlencoding::encode(SECOND)
+                            ),
+                            Surface::Tui,
+                        ),
+                        (exact, Surface::Cli),
+                    ] {
+                        let response = app
+                            .clone()
+                            .oneshot(request(&uri, origin))
+                            .await
+                            .expect("router response");
+                        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{uri}");
+                    }
+                });
+        },
+    );
+}

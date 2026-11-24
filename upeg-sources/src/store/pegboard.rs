@@ -17,7 +17,7 @@
 
 use std::collections::BTreeMap;
 
-use rusqlite::{OptionalExtension as _, Transaction, params};
+use rusqlite::{Connection, OptionalExtension as _, Transaction, params};
 use upeg_core::{ArgsPreset, BoardGuidance, ColSpan, PinColorHex, PinSpan, Placement, RowSpan};
 
 use super::schema::{BOARDS_TABLE, PLACEMENTS_TABLE, SELECTION_ROW_ID, SELECTION_TABLE};
@@ -79,27 +79,54 @@ impl Store {
         // The board rows and their pins must come from one SQLite snapshot:
         // MCP binds a revision and dispatches from this same loaded state.
         let read = self.connection().unchecked_transaction()?;
-        let boards = self.load_boards(visibility)?;
-        let mut layouts: BTreeMap<String, Vec<Placement>> = boards
-            .iter()
-            .map(|board| (board.key.clone(), Vec::new()))
-            .collect();
-        for (store_key, placement) in self.load_live_placements()? {
-            // Placements whose board was tombstoned, belongs to another
-            // project, or sits on a shadowed row stay invisible.
-            let Some(visible) = visibility.owns(&store_key) else {
-                continue;
-            };
-            if let Some(entry) = layouts.get_mut(&visible) {
-                entry.push(placement);
-            }
-        }
-        let selection = self.load_selection()?;
+        let state = load_state_from_connection(&read, visibility)?;
         read.commit()?;
-        Ok(PegboardState {
-            boards,
-            layouts,
-            selection,
+        Ok(state)
+    }
+
+    /// Read and edit from the same write snapshot. A rejected edit rolls back.
+    pub(crate) fn edit_state<T, E>(
+        &mut self,
+        visibility: &BoardVisibility,
+        edit: impl FnOnce(&mut PegboardState) -> Result<T, E>,
+    ) -> Result<Result<T, E>, StoreError> {
+        let device_id = self.device_id()?;
+        let now = epoch_millis_now();
+        self.write_tx_with(|tx| {
+            let mut state = load_state_from_connection(tx, visibility)?;
+            let stored = state.clone();
+            if state.boards.is_empty() {
+                let defaults = crate::pegboard::default_state();
+                state.boards = defaults.boards;
+                state.layouts = defaults.layouts;
+            }
+            let persisted_boards = state.boards.len();
+            crate::pegboard::merge_project_boards(&mut state, visibility);
+            let unsaved_project_boards: BTreeMap<_, _> = state.boards[persisted_boards..]
+                .iter()
+                .map(|board| (board.key.clone(), state.layouts.get(&board.key).cloned()))
+                .collect();
+            let previous = state.clone();
+            let result = edit(&mut state);
+            if result.is_err() || state == previous {
+                return Ok((result, false));
+            }
+            for (key, original) in unsaved_project_boards {
+                if state.layouts.get(&key) == original.as_ref() {
+                    state.boards.retain(|board| board.key != key);
+                    state.layouts.remove(&key);
+                }
+            }
+            if state.boards != stored.boards {
+                save_boards_tx(tx, &state.boards, visibility, now, &device_id)?;
+            }
+            if state.layouts != stored.layouts {
+                save_layouts_tx(tx, &state.layouts, visibility, now, &device_id)?;
+            }
+            if state.selection != stored.selection {
+                save_selection_tx(tx, &state.selection, now, &device_id)?;
+            }
+            Ok((result, true))
         })
     }
 
@@ -159,78 +186,106 @@ impl Store {
         let now = epoch_millis_now();
         self.write_tx(|tx| save_selection_tx(tx, selection, now, &device_id))
     }
+}
 
-    fn load_boards(&self, visibility: &BoardVisibility) -> Result<Vec<BoardData>, StoreError> {
-        let sql = format!(
-            "SELECT key, title, description, instructions FROM {BOARDS_TABLE} \
-             WHERE deleted = ?1 ORDER BY position, key"
-        );
-        let mut stmt = self.connection().prepare(&sql)?;
-        let rows = stmt.query_map([LIVE], |row| {
-            let key: String = row.get(0)?;
-            let title: String = row.get(1)?;
-            let guidance = BoardGuidance {
-                description: row.get(2)?,
-                instructions: row.get(3)?,
-            };
-            Ok((key, title, guidance))
-        })?;
-
-        let mut boards: Vec<BoardData> = Vec::new();
-        for row in rows {
-            let (store_key, title, guidance) = row?;
-            let Some(visible) = visibility.owns(&store_key) else {
-                continue;
-            };
-            boards.push(BoardData {
-                key: visible,
-                title,
-                guidance,
-            });
+fn load_state_from_connection(
+    conn: &Connection,
+    visibility: &BoardVisibility,
+) -> Result<PegboardState, StoreError> {
+    let boards = load_boards(conn, visibility)?;
+    let mut layouts: BTreeMap<String, Vec<Placement>> = boards
+        .iter()
+        .map(|board| (board.key.clone(), Vec::new()))
+        .collect();
+    for (store_key, placement) in load_live_placements(conn)? {
+        // Placements whose board was tombstoned, belongs to another
+        // project, or sits on a shadowed row stay invisible.
+        let Some(visible) = visibility.owns(&store_key) else {
+            continue;
+        };
+        if let Some(entry) = layouts.get_mut(&visible) {
+            entry.push(placement);
         }
-        Ok(boards)
     }
+    let selection = load_selection(conn)?;
+    Ok(PegboardState {
+        boards,
+        layouts,
+        selection,
+    })
+}
 
-    fn load_live_placements(&self) -> Result<Vec<(String, Placement)>, StoreError> {
-        let sql = format!(
-            "SELECT board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset \
-             FROM {PLACEMENTS_TABLE} WHERE deleted = ?1 ORDER BY board_key, y, x, pin_id"
-        );
-        let mut stmt = self.connection().prepare(&sql)?;
-        let rows = stmt.query_map([LIVE], |row| {
-            Ok(RawPlacementRow {
+fn load_boards(
+    conn: &Connection,
+    visibility: &BoardVisibility,
+) -> Result<Vec<BoardData>, StoreError> {
+    let sql = format!(
+        "SELECT key, title, description, instructions FROM {BOARDS_TABLE} \
+         WHERE deleted = ?1 ORDER BY position, key"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([LIVE], |row| {
+        let key: String = row.get(0)?;
+        let title: String = row.get(1)?;
+        let guidance = BoardGuidance {
+            description: row.get(2)?,
+            instructions: row.get(3)?,
+        };
+        Ok((key, title, guidance))
+    })?;
+
+    let mut boards: Vec<BoardData> = Vec::new();
+    for row in rows {
+        let (store_key, title, guidance) = row?;
+        let Some(visible) = visibility.owns(&store_key) else {
+            continue;
+        };
+        boards.push(BoardData {
+            key: visible,
+            title,
+            guidance,
+        });
+    }
+    Ok(boards)
+}
+
+fn load_live_placements(conn: &Connection) -> Result<Vec<(String, Placement)>, StoreError> {
+    let sql = format!(
+        "SELECT board_key, pin_id, tool_id, x, y, color, span_cols, span_rows, args_preset \
+         FROM {PLACEMENTS_TABLE} WHERE deleted = ?1 ORDER BY board_key, y, x, pin_id"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([LIVE], |row| {
+        Ok(RawPlacementRow {
+            board_key: row.get(0)?,
+            pin_id: row.get(1)?,
+            tool_id: row.get(2)?,
+            x: row.get(3)?,
+            y: row.get(4)?,
+            color: row.get(5)?,
+            span_cols: row.get(6)?,
+            span_rows: row.get(7)?,
+            args_preset: row.get(8)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?.into_placement()?);
+    }
+    Ok(out)
+}
+
+fn load_selection(conn: &Connection) -> Result<PegboardSelection, StoreError> {
+    let sql = format!("SELECT board_key, tag FROM {SELECTION_TABLE} WHERE id = {SELECTION_ROW_ID}");
+    let selection = conn
+        .query_row(&sql, [], |row| {
+            Ok(PegboardSelection {
                 board_key: row.get(0)?,
-                pin_id: row.get(1)?,
-                tool_id: row.get(2)?,
-                x: row.get(3)?,
-                y: row.get(4)?,
-                color: row.get(5)?,
-                span_cols: row.get(6)?,
-                span_rows: row.get(7)?,
-                args_preset: row.get(8)?,
+                tag: row.get(1)?,
             })
-        })?;
-        let mut out = Vec::new();
-        for row in rows {
-            out.push(row?.into_placement()?);
-        }
-        Ok(out)
-    }
-
-    fn load_selection(&self) -> Result<PegboardSelection, StoreError> {
-        let sql =
-            format!("SELECT board_key, tag FROM {SELECTION_TABLE} WHERE id = {SELECTION_ROW_ID}");
-        let selection = self
-            .connection()
-            .query_row(&sql, [], |row| {
-                Ok(PegboardSelection {
-                    board_key: row.get(0)?,
-                    tag: row.get(1)?,
-                })
-            })
-            .optional()?;
-        Ok(selection.unwrap_or_default())
-    }
+        })
+        .optional()?;
+    Ok(selection.unwrap_or_default())
 }
 
 /// Raw SQLite row image of a placement; domain validation (color hex,

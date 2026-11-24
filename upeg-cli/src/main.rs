@@ -41,6 +41,9 @@ fn main() -> ExitCode {
     // the auto-loader's stderr summaries before they fire. clap exits
     // with the usual code for --help / --version / parse errors.
     let cli = Cli::parse();
+    if let Some(help) = cli.board_scoped_help() {
+        return print_result(Ok(help));
+    }
     let quiet = cli.quiet;
     if let Err(error) = apply_working_directory(cli.working_directory.as_deref()) {
         eprintln!("{error}");
@@ -49,7 +52,11 @@ fn main() -> ExitCode {
 
     if matches!(
         cli.command,
-        Some(upeg_cli::Command::Paths { .. } | upeg_cli::Command::Storage { .. })
+        Some(
+            upeg_cli::Command::Paths { .. }
+                | upeg_cli::Command::Storage { .. }
+                | upeg_cli::Command::Settings { .. }
+        )
     ) {
         return print_result(run(cli));
     }

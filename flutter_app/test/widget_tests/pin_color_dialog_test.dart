@@ -67,6 +67,61 @@ void main() {
       });
     });
 
+    testWidgets(
+      'should select a focused swatch with Space and show its focus ring',
+      (tester) async {
+        final robot = _SwatchKeyboardRobot(tester);
+        await tester.pumpWidget(
+          buildHarness(onSave: (_) {}, onReset: (_) {}, onCancel: () {}),
+        );
+        await tester.pumpAndSettle();
+
+        await robot.focusFirstSwatch();
+        robot.expectFocusRing();
+        await robot.selectSwatch();
+
+        robot.expectHex(_validHex);
+        robot.expectFirstSwatchSelected(true);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        robot.expectFirstSwatchSelected(true);
+      },
+    );
+
+    testWidgets('should preserve the saved swatch selection after reopening', (
+      tester,
+    ) async {
+      final robot = _SwatchKeyboardRobot(tester);
+      String? saved;
+      await tester.pumpWidget(
+        buildHarness(
+          onSave: (color) => saved = color,
+          onReset: (_) {},
+          onCancel: () {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await robot.focusFirstSwatch();
+      await robot.selectSwatch();
+      await robot.save();
+
+      expect(saved, _validHex);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        buildHarness(
+          initialColor: saved,
+          onSave: (_) {},
+          onReset: (_) {},
+          onCancel: () {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      robot.expectHex(_validHex);
+      robot.expectFirstSwatchSelected(true);
+    });
+
     group('HEX validation', () {
       testWidgets('a_valid_hex_shows_no_error_message', (tester) async {
         await tester.pumpWidget(
@@ -229,4 +284,54 @@ void main() {
       });
     });
   });
+}
+
+class _SwatchKeyboardRobot {
+  _SwatchKeyboardRobot(this.tester);
+
+  final WidgetTester tester;
+
+  Future<void> focusFirstSwatch() async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectSwatch() async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> save() async {
+    await tester.tap(find.byKey(const Key('pin-color-save')));
+    await tester.pumpAndSettle();
+  }
+
+  void expectFirstSwatchSelected(bool expected) {
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('color-swatch-ff5733')),
+        matching: find.byIcon(Icons.check),
+      ),
+      expected ? findsOneWidget : findsNothing,
+    );
+  }
+
+  void expectFocusRing() {
+    final key = find.byKey(const Key('color-swatch-ff5733'));
+    final focus = FocusManager.instance.primaryFocus?.context;
+    expect(
+      find.ancestor(
+        of: find.byElementPredicate((element) => element == focus),
+        matching: key,
+      ),
+      findsOneWidget,
+    );
+    final style = tester.widget<OutlinedButton>(key).style!;
+    expect(style.side!.resolve({WidgetState.focused})!.width, 3);
+  }
+
+  void expectHex(String value) {
+    final input = tester.widget<TextField>(find.byType(TextField));
+    expect(input.controller!.text, value);
+  }
 }

@@ -164,6 +164,7 @@ class _ControlledEmbedTileState extends ConsumerState<ControlledEmbedTile> {
           ),
         },
         child: Focus(
+          canRequestFocus: false,
           child: Container(
             decoration: BoxDecoration(
               color: tokens.surface,

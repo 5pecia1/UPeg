@@ -52,8 +52,8 @@ pub use infrastructure::process::pid_alive;
 pub use surfaces::cli::WasmAction;
 pub use surfaces::cli::{
     BoardAction, Cli, Command, CredentialAction, DiagnosticAction, HostAction, HttpAction,
-    ProjectAction, ProjectChoiceArg, StorageAction, TagAction, ToolAction, ToolkitAction,
-    TriggerAction,
+    ProjectAction, ProjectChoiceArg, SettingKey, SettingsAction, StorageAction, TagAction,
+    ToolAction, ToolkitAction, TriggerAction,
 };
 pub use surfaces::http::router as http_router;
 pub use surfaces::mcp::handle as handle_mcp_message;

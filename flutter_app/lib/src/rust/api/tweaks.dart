@@ -31,6 +31,13 @@ TweaksDto loadTweaks() => RustLib.instance.api.crateApiTweaksLoadTweaks();
 void saveTweaks({required TweaksDto tweaks}) =>
     RustLib.instance.api.crateApiTweaksSaveTweaks(tweaks: tweaks);
 
+/// Merge only fields changed from the editor's original snapshot.
+TweaksDto patchTweaks({required TweaksDto before, required TweaksDto after}) =>
+    RustLib.instance.api.crateApiTweaksPatchTweaks(
+      before: before,
+      after: after,
+    );
+
 /// Dart-mirrored appearance of the pin's drag handle.
 enum PinHandleStyleDto { peg, dots }
 

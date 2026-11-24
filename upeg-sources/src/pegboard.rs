@@ -251,6 +251,29 @@ pub fn save_state(state: &PegboardState) -> Result<(), PegboardStateError> {
     save_state_to_path(&path, state)
 }
 
+/// Load pins from the store without discarding entries for unavailable tools.
+pub fn load_persisted_state() -> Result<PegboardState, PegboardStateError> {
+    let path = state_path_from_env().ok_or(PegboardStateError::ConfigRootUnavailable)?;
+    let visibility = BoardVisibility::from_process();
+    let store = Store::open_at(&path)?;
+    let mut state = store.load_state(&visibility)?;
+    if state.boards.is_empty() {
+        return Ok(default_state_in(&visibility));
+    }
+    merge_project_boards(&mut state, &visibility);
+    Ok(state)
+}
+
+/// Edit the shared board snapshot atomically. The callback works with
+/// persisted pins, including tools that this process has not loaded.
+pub fn edit_state<T, E>(
+    edit: impl FnOnce(&mut PegboardState) -> Result<T, E>,
+) -> Result<Result<T, E>, PegboardStateError> {
+    let path = state_path_from_env().ok_or(PegboardStateError::ConfigRootUnavailable)?;
+    let mut store = Store::open_at(&path)?;
+    Ok(store.edit_state(&BoardVisibility::from_process(), edit)?)
+}
+
 pub fn boards_json() -> Option<String> {
     export::boards_to_json(&load_state().boards).ok()
 }

@@ -82,7 +82,13 @@ pub fn update(state: &mut State, msg: Msg<'_>) -> Effect {
             tools,
             area,
         } => handle_key_stroke_with_area(state, stroke, tools, area),
-        Msg::Mouse { mouse, tools, area } => handle_mouse(state, mouse, tools, area),
+        Msg::Mouse { mouse, tools, area } => {
+            if state.help_open {
+                Effect::None
+            } else {
+                handle_mouse(state, mouse, tools, area)
+            }
+        }
         Msg::ToolDone {
             run,
             host,
@@ -262,9 +268,18 @@ pub(super) fn run_selected_tool(state: &mut State, tools: &[&'static ToolMeta]) 
         return dispatch_or_confirm(state, tool.id, json!({}));
     }
     state.right_scroll = ScrollOffset::ZERO;
+    let spec = tool.input_spec.clone();
+    let form = match state
+        .selected_board_pin()
+        .filter(|pin| pin.tool_id == tool.id)
+        .and_then(|pin| pin.args_preset)
+    {
+        Some(preset) => TuiFormState::with_initial_values(spec, &Value::Object(preset.to_object())),
+        None => TuiFormState::new(spec),
+    };
     state.view = View::Form {
         tool_id: tool.id,
-        form: TuiFormState::new(tool.input_spec.clone()),
+        form,
     };
     Effect::None
 }
@@ -282,6 +297,41 @@ fn handle_key_stroke_with_area(
     tools: &[&'static ToolMeta],
     area: Option<Rect>,
 ) -> Effect {
+    if state.help_open {
+        let max_scroll = crate::i18n::t(state.tweaks.locale, state.help_key())
+            .lines()
+            .count()
+            .saturating_sub(1) as u16;
+        match stroke.key {
+            Key::Esc => state.help_open = false,
+            Key::Down | Key::Char('j') => {
+                state.help_scroll = state.help_scroll.saturating_add(1).min(max_scroll);
+            }
+            Key::Up | Key::Char('k') => state.help_scroll = state.help_scroll.saturating_sub(1),
+            Key::PageDown => {
+                state.help_scroll = state.help_scroll.saturating_add(5).min(max_scroll);
+            }
+            Key::PageUp => state.help_scroll = state.help_scroll.saturating_sub(5),
+            Key::Home => state.help_scroll = 0,
+            _ => {}
+        }
+        return Effect::None;
+    }
+    let editing_text = matches!(
+        state.view,
+        View::Form { .. }
+            | View::BoardEditor { .. }
+            | View::PinColorEditor(_)
+            | View::ToolPicker { .. }
+    );
+    if !stroke.modifiers.has_command_modifier()
+        && (stroke.key == Key::F(5) || (stroke.key == Key::Char('?') && !editing_text))
+    {
+        state.help_open = true;
+        state.help_scroll = 0;
+        return Effect::None;
+    }
+
     // Any ephemeral toast (e.g. F2 clipboard feedback) is a one-shot
     // notice — the next keystroke, whatever it is, dismisses it.
     state.status_message = None;

@@ -13,34 +13,22 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/rust/api/i18n.dart' show LocaleDto;
-import 'package:upeg/src/rust/api/pause.dart' as pause_frb;
-import 'package:upeg/src/rust/api/status.dart' as status_frb;
 import 'package:upeg/src/rust/api/tweaks.dart';
-import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/diagnostics_provider.dart';
 import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/settings_overlay.dart';
+import 'package:upeg/src/widgets/desktop_app_commands.dart';
+import 'package:upeg/src/widgets/notification_results_dialog.dart';
+import 'package:flutter/foundation.dart';
 import 'package:upeg/src/widgets/tweaks_form.dart';
-
-import '../test_helpers/fake_keyboard_resolver.dart';
-
-class _FakeStatusNotifier extends StatusNotifier {
-  @override
-  status_frb.StatusSnapshotDto build() {
-    return const status_frb.StatusSnapshotDto(
-      network: status_frb.NetworkStatusDto(
-        reachability: status_frb.NetworkReachabilityDto.offline,
-        label: 'offline',
-      ),
-      paused: pause_frb.PausedStateDto.running,
-      mcpImportCount: 0,
-      mcpImportPhase: status_frb.McpImportPhaseDto.notStarted,
-      buildVersion: 'test',
-    );
-  }
-}
+import 'package:upeg/src/pages/popup_page.dart';
+import 'package:upeg/src/state/app_state.dart';
+import 'package:upeg/src/rust/api/pegboard.dart';
+import 'package:upeg/src/rust/api/tools.dart';
+import 'package:upeg/src/rust/api/palette.dart';
+import '../test_helpers/popup_page_harness.dart';
 
 class _FakeProjectApi implements ProjectContextApi {
   const _FakeProjectApi();
@@ -147,9 +135,23 @@ Widget _hostHarness({
   TweaksDto initial = _defaultDto,
   void Function(TweaksDto value)? onSave,
   DiagnosticsApi? diagnosticsApi,
+  Widget? home,
 }) {
   return ProviderScope(
     overrides: [
+      ...basePopupOverrides(),
+      boardsLoaderProvider.overrideWith(
+        (ref) =>
+            () => const <BoardDto>[],
+      ),
+      toolsLoaderProvider.overrideWith(
+        (ref) =>
+            () => const <ToolDto>[],
+      ),
+      paletteSearcherProvider.overrideWith(
+        (ref) =>
+            (_) => const <PaletteHit>[],
+      ),
       tweaksLoaderProvider.overrideWith(
         (ref) =>
             () => initial,
@@ -172,34 +174,111 @@ Widget _hostHarness({
       ),
       i18nTranslateOverride.overrideWithValue(_fakeTranslate),
       i18nTranslateArgsOverride.overrideWithValue(_fakeTranslateArgs),
-      fakeKeyboardResolverOverride,
       // The status bar reads this — the FRB-defaulted version would
       // crash because the dylib never loads in widget tests.
-      statusSnapshotProvider.overrideWith(() => _FakeStatusNotifier()),
       projectContextApiProvider.overrideWithValue(const _FakeProjectApi()),
       diagnosticsApiProvider.overrideWithValue(
         diagnosticsApi ?? _FakeDiagnosticsApi(),
       ),
     ],
     child: MaterialApp(
+      navigatorKey: notificationResultsNavigatorKey,
+      builder: (context, child) => DesktopAppCommands(child: child!),
       theme: UpegTheme.darkTheme(),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: TextButton(
-              key: const Key('open-settings-btn'),
-              onPressed: () => showSettingsOverlay(context),
-              child: const Text('open'),
+      home:
+          home ??
+          Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  key: const Key('open-settings-btn'),
+                  onPressed: () => showSettingsOverlay(context),
+                  child: const Text('open'),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     ),
   );
 }
 
 void main() {
   group('showSettingsOverlay', () {
+    testWidgets('desktop shortcut and native menu open one settings dialog', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await tester.pumpWidget(_hostHarness());
+      await tester.pumpAndSettle();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.comma);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsOneWidget);
+      final data = const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('settings'),
+      );
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        'upeg/app_commands',
+        data,
+        (_) {},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('settings-close-btn')));
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('macOS settings accepts Command and rejects Control', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      await tester.pumpWidget(_hostHarness());
+      await tester.pumpAndSettle();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.comma);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsNothing);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.comma);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('settings-close-btn')));
+      await tester.pumpAndSettle();
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('popup search and focus survive settings over an editable', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      await tester.pumpWidget(_hostHarness(home: const PopupPage()));
+      await tester.pumpAndSettle();
+      final search = find.byKey(const Key('popup-search-field'));
+      await tester.enterText(search, 'question?');
+      await tester.tap(search);
+      final originalFocus = FocusManager.instance.primaryFocus;
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.comma);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('SETTINGS'), findsOneWidget);
+      final path = find.byKey(const Key('project-context-root-input'));
+      await tester.tap(path);
+      await tester.enterText(path, '/tmp/a,b');
+      expect(tester.widget<TextField>(path).controller?.text, '/tmp/a,b');
+      await tester.tap(find.byKey(const Key('settings-close-btn')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(search).controller?.text, 'question?');
+      expect(FocusManager.instance.primaryFocus, originalFocus);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
     testWidgets('settingsOverlay_renders_the_title_and_close_button', (
       tester,
     ) async {
@@ -305,6 +384,11 @@ void main() {
       final input = tester.widget<TextField>(
         find.byKey(const Key('project-context-root-input')),
       );
+      expect(input.controller?.text, '/tmp/project');
+      final priorFocus = FocusManager.instance.primaryFocus;
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(FocusManager.instance.primaryFocus, isNot(priorFocus));
       expect(input.controller?.text, '/tmp/project');
     });
 

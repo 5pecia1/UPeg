@@ -23,6 +23,9 @@ chromiumoxide = { version = "0.7", optional = true, default-features = false, fe
 tokio = { version = "1", optional = true, default-features = false, features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
 futures-util = { version = "0.3", optional = true, default-features = false }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = { workspace = true }
+
 [features]
 # Wires the Chromium-DevTools-Protocol-backed Controlled Embed
 # implementation. CLI/release binaries enable this so headless surfaces

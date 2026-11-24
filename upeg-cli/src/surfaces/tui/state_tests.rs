@@ -126,6 +126,7 @@ fn external_pegboard_reload_is_deferred_during_board_edits_and_move_mode() {
     s.move_mode = Some(MoveMode {
         board: "dev".into(),
         tool_id: "num.hex_to_decimal",
+        pin_id: upeg_core::PinId::from_legacy_tool_id("num.hex_to_decimal"),
         target_x: 0,
         target_y: 0,
         base: Vec::new(),
@@ -137,6 +138,7 @@ fn external_pegboard_reload_is_deferred_during_board_edits_and_move_mode() {
     s.resize_mode = Some(ResizeMode {
         board: "dev".into(),
         tool_id: "num.hex_to_decimal",
+        pin_id: upeg_core::PinId::from_legacy_tool_id("num.hex_to_decimal"),
         cols: 1,
         rows: 1,
         base: Vec::new(),
@@ -565,4 +567,26 @@ fn board_cycle_moves_from_all_to_first_real_board() {
         next.as_deref() == Some("dev"),
         "cycling from All must move to the first board ('dev')"
     );
+}
+
+#[test]
+fn help_preserves_editor_and_focus_and_allows_question_mark_input() {
+    let mut s = fresh();
+    s.focus = FocusArea::Tags;
+    s.view = View::BoardEditor {
+        mode: BoardEditMode::AddBoard,
+        buffer: "draft".into(),
+    };
+    let before = s.view.clone();
+    handle_key(&mut s, Key::F(5), &[]);
+    assert!(s.help_open);
+    handle_key(&mut s, Key::Down, &[]);
+    assert_eq!(s.help_scroll, 1);
+    handle_key(&mut s, Key::Esc, &[]);
+    assert_eq!(s.view, before);
+    assert_eq!(s.focus, FocusArea::Tags);
+    for ch in "a?b".chars() {
+        handle_key(&mut s, Key::Char(ch), &[]);
+    }
+    assert!(matches!(&s.view, View::BoardEditor { buffer, .. } if buffer == "drafta?b"));
 }

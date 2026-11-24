@@ -30,6 +30,10 @@ bearer token.
 3. Pin a Tool to a board to keep it available; see
    [Pin tools on a board](#4-pin-tools-on-a-board) for the shared board model.
 
+On macOS, `Cmd+,` opens settings and `Cmd+N` creates a board. On Windows and
+Linux, use `Ctrl+,` and `Ctrl+N`. On the board, `Ctrl+Tab` and
+`Ctrl+Shift+Tab` switch boards. Press `?` for keyboard help.
+
 Installing the desktop app does not add a CLI command to your `PATH`. Install
 the CLI separately to follow the terminal commands below.
 
@@ -73,8 +77,9 @@ upeg --board dev               # TUI filtered to one board
 
 The TUI is keyboard-first: search, tab between boards, run pins, and copy
 results without a mouse. Essential keys: `Enter` run · `o` open · `p` pin ·
-`/` search · `Esc` back · `?` keyboard help (the Desktop opens a cheatsheet;
-the TUI shows a hint bar).
+`/` search · `s` settings · `m` move · `e` resize · `c` color · `Esc` back.
+Press `?` for the current screen's keyboard help; while typing, use `F5` so
+`?` remains available as text. Use the arrow keys to scroll and `Esc` to return.
 
 ## 4. Pin tools on a board
 
@@ -96,6 +101,37 @@ upeg board show dev --json
 
 A pin written by the CLI is the same object a Desktop drag-and-drop writes —
 there is one shared pegboard store.
+
+Use `upeg board <board> --help` to see scoped commands. Create, rename,
+and delete personal boards by key. Rename keeps the key and its pins.
+
+```bash
+board=$(upeg board create "My Scripts")
+upeg board "$board" rename "Daily Scripts"
+upeg board "$board" pin num.hex_to_decimal
+upeg board "$board" pin-list --json
+upeg board "$board" pin-show num.hex_to_decimal --json
+upeg board "$board" pin-edit num.hex_to_decimal --size 2x1 --color '#AABBCC'
+upeg board "$board" pin-edit num.hex_to_decimal --reset-size --reset-color
+upeg board "$board" delete
+```
+
+`pin-list` returns one row per instance, even for repeated tools. Use its
+`pin_id` for `pin-show` and `pin-edit`. The plain-text columns are pin ID,
+tool ID, row and column, effective size, and color. JSON also includes the
+size override and the saved argument preset. When a tool is unavailable,
+its manifest size appears as `unknown` in text and `null` in JSON. Use `board on <key> <action>`
+when a key is also a board subcommand.
+
+Inspect or change the preferences shared by native Desktop and TUI.
+
+```bash
+upeg settings get --json
+upeg settings get theme
+upeg settings set locale ko
+upeg settings set theme dark
+upeg settings set accent cyan
+```
 
 Desktop and PWA also restore each pin's saved form values and last saved
 result after reopening the app. Editing a value keeps the previous result

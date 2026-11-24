@@ -72,7 +72,10 @@ private final class StartupTrayImageRecorder {
 }
 
 class MainFlutterWindow: NSWindow {
+  private var appCommandsChannel: FlutterMethodChannel?
   private var accessibilityChannel: FlutterMethodChannel?
+  private var desktopUpdateChannel: FlutterMethodChannel?
+  private var desktopUpdateInProgress = false
   private var startupTrayImageRecorder: StartupTrayImageRecorder?
   // KVC gives the hosted Release XCTest read-only access without requiring
   // the app target to expose a testable Swift module.
@@ -107,6 +110,18 @@ class MainFlutterWindow: NSWindow {
     FileHandle.standardError.write(Data("UPEG_STARTUP_PROFILE ".utf8) + payload + Data([0x0A]))
   }
 
+  @objc func openSettings(_ sender: Any?) {
+    NSApp.activate(ignoringOtherApps: true)
+    makeKeyAndOrderFront(sender)
+    appCommandsChannel?.invokeMethod("settings", arguments: nil)
+  }
+
+  @objc func openKeyboardHelp(_ sender: Any?) {
+    NSApp.activate(ignoringOtherApps: true)
+    makeKeyAndOrderFront(sender)
+    appCommandsChannel?.invokeMethod("help", arguments: nil)
+  }
+
   override func awakeFromNib() {
     if let expected = ProcessInfo.processInfo.environment["UPEG_EXPECT_REDUCE_MOTION"],
        expected == "0" || expected == "1" {
@@ -123,6 +138,10 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     logStartupProfile("native.plugins_ready")
 
+    appCommandsChannel = FlutterMethodChannel(
+      name: "upeg/app_commands",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+
     let accessibilityChannel = FlutterMethodChannel(
       name: "upeg/accessibility",
       binaryMessenger: flutterViewController.engine.binaryMessenger)
@@ -134,6 +153,47 @@ class MainFlutterWindow: NSWindow {
       result(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
     self.accessibilityChannel = accessibilityChannel
+
+    let desktopUpdateChannel = FlutterMethodChannel(
+      name: "upeg/desktop_update",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    desktopUpdateChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "performUpdate" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let self, !self.desktopUpdateInProgress else {
+        result(FlutterError(code: "update_busy", message: "An update is already in progress", details: nil))
+        return
+      }
+      guard let args = call.arguments as? [String: Any],
+            let version = args["version"] as? String, DesktopUpdate.versionParts(version) != nil else {
+        result(FlutterError(code: "invalid_version", message: "Invalid release version", details: nil))
+        return
+      }
+      self.desktopUpdateInProgress = true
+      DispatchQueue.global(qos: .userInitiated).async {
+        let outcome = Result { try DesktopUpdate.prepare(version) }
+        DispatchQueue.main.async {
+          switch outcome {
+          case .success(.staged):
+            // Dart flushes pending drafts and quits through its normal path.
+            result("installed")
+          case .success(.manual):
+            self.desktopUpdateInProgress = false
+            if NSWorkspace.shared.open(DesktopUpdate.releasePage(version)) {
+              result("openedDownloads")
+            } else {
+              result(FlutterError(code: "open_failed", message: "Could not open the release page", details: nil))
+            }
+          case .failure(let error):
+            self.desktopUpdateInProgress = false
+            result(FlutterError(code: "update_failed", message: error.localizedDescription, details: nil))
+          }
+        }
+      }
+    }
+    self.desktopUpdateChannel = desktopUpdateChannel
 
     super.awakeFromNib()
     logStartupProfile("native.awake_done")

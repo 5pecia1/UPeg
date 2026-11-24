@@ -23,6 +23,7 @@ mod file_output;
 mod paths_command;
 mod plugin_command;
 mod project_command;
+mod settings_command;
 mod storage_command;
 pub(crate) mod tool_readiness;
 
@@ -316,9 +317,12 @@ fn dispatch_local_or_attached(
 /// [`run_no_command_with_terminal`] with `stdout_is_terminal=false`
 /// exercises the no-command path without spawning the TUI.
 pub fn run(cli: Cli) -> Result<String, CliError> {
+    if let Some(help) = cli.board_scoped_help() {
+        return Ok(help);
+    }
     let _storage = if matches!(
         cli.command,
-        Some(Command::Paths { .. } | Command::Storage { .. })
+        Some(Command::Paths { .. } | Command::Storage { .. } | Command::Settings { .. })
     ) {
         None
     } else {
@@ -339,6 +343,7 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
         Some(Command::Project { action }) => project_command::run_project_action(action),
         Some(Command::Tag { action }) => run_tag_action(action),
         Some(Command::Board { action }) => run_board_action(action),
+        Some(Command::Settings { action }) => settings_command::run(action),
         Some(Command::Log {
             tool,
             surface,
@@ -528,7 +533,8 @@ fn run_board_action(action: BoardAction) -> Result<String, CliError> {
     match action {
         BoardAction::List { json } => format_board_list(json),
         BoardAction::Show { board, json } => format_board_show(&board, json),
-        BoardAction::Scoped(argv) => board_scope::run_board_scoped(argv),
+        BoardAction::Create { title, json } => board_scope::create_board(&title, json),
+        BoardAction::Scoped(argv) | BoardAction::On { argv } => board_scope::run_board_scoped(argv),
     }
 }
 

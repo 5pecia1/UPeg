@@ -114,8 +114,7 @@ impl RunningDispatch {
         run: RunToken,
         tool_id: &'static str,
         args: Value,
-        board: Option<upeg_core::BoardKey>,
-        preset: Option<upeg_core::ArgsPreset>,
+        scope: super::DispatchScope,
     ) -> Self {
         let attached_host = (!crate::domain::execution::context::requires_local_dispatch(tool_id))
             .then(crate::infrastructure::attach::current_host)
@@ -126,7 +125,7 @@ impl RunningDispatch {
             PresentationHost::LocalTui
         };
         Self::spawn_with_host(run, tool_id, presentation_host, move || {
-            super::dispatch_through_host_or_local(tool_id, args, board, preset, attached_host)
+            super::dispatch_through_host_or_local(tool_id, args, scope, attached_host)
         })
     }
 

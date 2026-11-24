@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/i18n/t.dart';
@@ -27,9 +28,14 @@ import 'package:upeg/src/rust/api/tools.dart' show CanonicalToolResult;
 import 'package:upeg/src/rust/canonical_tool_result_view.dart';
 import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/state/status_provider.dart';
+import 'package:upeg/src/state/pause_control_provider.dart';
+import 'package:upeg/src/state/pause_provider.dart';
+import 'package:upeg/src/state/pinned_provider.dart';
+import 'package:upeg/src/widgets/notification_results_dialog.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
+import 'package:upeg/src/widgets/desktop_update_button.dart';
 import 'package:upeg/src/widgets/popup_auto_hide_observer.dart';
 import 'package:upeg/src/widgets/popup_board_tabs.dart';
 
@@ -103,7 +109,10 @@ class PopupPage extends ConsumerStatefulWidget {
   ConsumerState<PopupPage> createState() => _PopupPageState();
 }
 
+enum _LauncherAction { pin, pause, results }
+
 class _PopupPageState extends ConsumerState<PopupPage> {
+  final _actionsKey = GlobalKey<PopupMenuButtonState<_LauncherAction>>();
   late final TextEditingController _controller;
   final FocusNode _rootFocus = FocusNode(debugLabel: 'PopupPage');
 
@@ -145,6 +154,7 @@ class _PopupPageState extends ConsumerState<PopupPage> {
   /// the side-effect. Returns `true` when the event was consumed so the
   /// Focus chain stops propagating.
   KeyEventResult _onKeyEvent(KeyEvent event) {
+    if (primaryFocusHasActiveTextComposition()) return KeyEventResult.ignored;
     if (primaryFocusIsEditableText() && isPlainTextEntryKeyEvent(event)) {
       return KeyEventResult.ignored;
     }
@@ -221,6 +231,15 @@ class _PopupPageState extends ConsumerState<PopupPage> {
     final query = ref.watch(paletteQueryProvider);
     final results = ref.watch(paletteResultsProvider);
     final catalogueHits = ref.watch(popupCatalogueHitsProvider);
+    final desktop =
+        !kIsWeb &&
+        {
+          TargetPlatform.macOS,
+          TargetPlatform.windows,
+          TargetPlatform.linux,
+        }.contains(defaultTargetPlatform);
+    final pinned = desktop && ref.watch(pinnedProvider);
+    final canPause = desktop && ref.watch(pauseControllableProvider);
     return Scaffold(
       backgroundColor: tokens.bg,
       body: Focus(
@@ -252,6 +271,55 @@ class _PopupPageState extends ConsumerState<PopupPage> {
                       ),
                     ),
                     const Spacer(),
+                    if (desktop)
+                      Focus(
+                        onKeyEvent: (_, event) {
+                          if (event is KeyDownEvent &&
+                              (event.logicalKey == LogicalKeyboardKey.enter ||
+                                  event.logicalKey ==
+                                      LogicalKeyboardKey.space)) {
+                            _actionsKey.currentState?.showButtonMenu();
+                            return KeyEventResult.handled;
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                        child: PopupMenuButton<_LauncherAction>(
+                          key: _actionsKey,
+                          tooltip: t(ref, 'popup.actions'),
+                          icon: const Icon(Icons.more_horiz, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          onSelected: (action) {
+                            switch (action) {
+                              case _LauncherAction.pin:
+                                ref.read(pinnedProvider.notifier).toggle();
+                              case _LauncherAction.pause:
+                                ref.read(togglePausedProvider)();
+                              case _LauncherAction.results:
+                                unawaited(showNotificationResults());
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            CheckedPopupMenuItem(
+                              value: _LauncherAction.pin,
+                              checked: pinned,
+                              child: Text(t(ref, 'popup.keep_open')),
+                            ),
+                            PopupMenuItem(
+                              value: _LauncherAction.pause,
+                              enabled: canPause,
+                              child: Text(t(ref, 'popup.pause')),
+                            ),
+                            PopupMenuItem(
+                              value: _LauncherAction.results,
+                              child: Text(t(ref, 'popup.results')),
+                            ),
+                          ],
+                        ),
+                      ),
                     InkWell(
                       key: const Key('popup-open-desktop'),
                       onTap: () => ref
@@ -338,14 +406,20 @@ class _PopupFooter extends ConsumerWidget {
     );
     return Align(
       alignment: Alignment.centerRight,
-      child: Text(
-        'v$version',
-        style: TextStyle(
-          fontFamily: upegMonoFontFamily,
-          fontFamilyFallback: upegMonoFontFamilyFallback,
-          fontSize: 10,
-          color: tokens.fg3,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const DesktopUpdateButton(),
+          Text(
+            'v$version',
+            style: TextStyle(
+              fontFamily: upegMonoFontFamily,
+              fontFamilyFallback: upegMonoFontFamilyFallback,
+              fontSize: 10,
+              color: tokens.fg3,
+            ),
+          ),
+        ],
       ),
     );
   }

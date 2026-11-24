@@ -31,6 +31,10 @@ pub(super) fn rest_routes() -> Router<HttpState> {
             "/v1/boards/{board}/tools/{id}/stream",
             post(stream::board_tools_call_stream),
         )
+        .route(
+            "/v1/boards/{board}/tools/{id}/pins/{pin_id}/stream",
+            post(stream::board_pin_call_stream),
+        )
         .route("/v1/credentials", get(credentials_list))
         .route("/v1/logs", get(logs_list))
         .route("/v1/tools", get(tools_list))

@@ -19,6 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/i18n/t.dart';
@@ -117,6 +118,23 @@ class CheatsheetOverlay extends ConsumerWidget {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
                     children: [
+                      if (!kIsWeb &&
+                          {
+                            TargetPlatform.macOS,
+                            TargetPlatform.windows,
+                            TargetPlatform.linux,
+                          }.contains(defaultTargetPlatform))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            t(
+                              ref,
+                              defaultTargetPlatform == TargetPlatform.macOS
+                                  ? 'keys.desktop.mac'
+                                  : 'keys.desktop.other',
+                            ),
+                          ),
+                        ),
                       for (final section in sections)
                         _ScopeSection(
                           key: scopeSectionKey(section.scope),

@@ -72,7 +72,7 @@ KeyboardCommandDto? _boardCommand(
     'ArrowDown' ||
     'j' ||
     'J' => const KeyboardCommandDto.move(direction: DirectionDto.down),
-    'Enter' => const KeyboardCommandDto.open(),
+    'Enter' || 'o' || 'O' => const KeyboardCommandDto.open(),
     ' ' || 'F1' => const KeyboardCommandDto.run(),
     'F2' => const KeyboardCommandDto.copy(),
     'Escape' => const KeyboardCommandDto.close(),

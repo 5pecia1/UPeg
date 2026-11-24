@@ -106,11 +106,19 @@ final Map<LogicalKeyboardKey, String> _logicalLetterLabels = {
 bool isKeyboardPress(KeyEvent event) =>
     event is KeyDownEvent || event is KeyRepeatEvent;
 
-bool primaryFocusIsEditableText() {
+EditableText? _primaryEditableText() {
   final focusedContext = FocusManager.instance.primaryFocus?.context;
-  if (focusedContext == null) return false;
-  if (focusedContext.widget is EditableText) return true;
-  return focusedContext.findAncestorWidgetOfExactType<EditableText>() != null;
+  if (focusedContext == null) return null;
+  final widget = focusedContext.widget;
+  if (widget is EditableText) return widget;
+  return focusedContext.findAncestorWidgetOfExactType<EditableText>();
+}
+
+bool primaryFocusIsEditableText() => _primaryEditableText() != null;
+
+bool primaryFocusHasActiveTextComposition() {
+  final composing = _primaryEditableText()?.controller.value.composing;
+  return composing != null && composing.isValid && !composing.isCollapsed;
 }
 
 /// Marker wrapper around an inline embed pin body (the `bodyOverride`

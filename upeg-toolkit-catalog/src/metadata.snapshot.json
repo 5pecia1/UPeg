@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "app_version": "0.7.11",
+  "app_version": "0.7.12",
   "toolkits": [
     {
       "id": "color",

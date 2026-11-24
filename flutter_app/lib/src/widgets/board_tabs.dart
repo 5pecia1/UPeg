@@ -330,10 +330,6 @@ class _BoardTabButton extends ConsumerWidget {
       unawaited(_showKeyboardContextMenu(context, ref));
       return KeyEventResult.handled;
     }
-    if (isKeyboardActivationEvent(event)) {
-      onTap();
-      return KeyEventResult.handled;
-    }
     return KeyEventResult.ignored;
   }
 
@@ -348,6 +344,7 @@ class _BoardTabButton extends ConsumerWidget {
         button: true,
         onTap: onTap,
         child: Focus(
+          canRequestFocus: false,
           onKeyEvent: (_, event) => _handleKey(context, ref, event),
           child: GestureDetector(
             onSecondaryTapDown: (details) => unawaited(
@@ -657,6 +654,11 @@ class _BoardNameDialogState extends ConsumerState<_BoardNameDialog> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (primaryFocusHasActiveTextComposition() &&
+        (event.logicalKey == LogicalKeyboardKey.escape ||
+            keyboardLabelForEvent(event) == 'Enter')) {
+      return KeyEventResult.skipRemainingHandlers;
+    }
     final cmd = resolveKeyboardCommand(
       ref,
       event,

@@ -1,4 +1,8 @@
 pub(crate) mod args;
+mod board_edit;
+mod inventory;
+pub use board_edit::{PinEditArgs, SettingKey, SettingsAction};
+pub(crate) use inventory::interface_inventory_entries;
 pub(crate) mod completion;
 pub(crate) mod doctor;
 pub(crate) mod doctor_surfaces;
@@ -12,128 +16,8 @@ use self::args::parse_kv_arg;
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use std::ffi::OsString;
-use upeg_core::{
-    Surface,
-    interface_inventory::{
-        Compatibility, ContractIo, ContractIoKind, ContractLocator, ContractShape, DocRef,
-        InterfaceEntry, InterfaceKind, OwnerRef, SourceRef, SurfaceSet, TestMapping,
-    },
-};
 
 use crate::inventory::command::InterfaceCommand;
-
-const CLI_SURFACE_VERSION: &str = "v1";
-const CLI_OWNER_PATH: &str = "upeg-cli/Cargo.toml";
-const CLI_DOCS_PATH: &str = "README.md";
-const CLI_TEST_PATH: &str = "upeg-cli/src/inventory/tests.rs";
-/// The test inside [`CLI_TEST_PATH`] that actually asserts these
-/// entries. Pinned by the inventory honesty check, which fails when
-/// no `fn <name>` with this spelling exists in that file.
-const CLI_TEST_NAME: &str = "interface_inventory_covers_cli_http_and_mcp";
-
-struct CliCommandDeclaration {
-    id: &'static str,
-    command_path: &'static str,
-}
-
-const CLI_COMMANDS: &[CliCommandDeclaration] = &[
-    CliCommandDeclaration {
-        id: "cli.tool.list",
-        command_path: "tool.list",
-    },
-    CliCommandDeclaration {
-        id: "cli.call",
-        command_path: "call",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.list",
-        command_path: "board.list",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.call",
-        command_path: "board.call",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.pin",
-        command_path: "board.pin",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.unpin",
-        command_path: "board.unpin",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.move",
-        command_path: "board.move",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.context",
-        command_path: "board.context",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.connect",
-        command_path: "board.connect",
-    },
-    CliCommandDeclaration {
-        id: "cli.board.describe",
-        command_path: "board.describe",
-    },
-    CliCommandDeclaration {
-        id: "cli.host.start",
-        command_path: "host.start",
-    },
-    CliCommandDeclaration {
-        id: "cli.host.status",
-        command_path: "host.status",
-    },
-    CliCommandDeclaration {
-        id: "cli.host.stop",
-        command_path: "host.stop",
-    },
-];
-
-pub(crate) fn interface_inventory_entries() -> Vec<InterfaceEntry> {
-    CLI_COMMANDS
-        .iter()
-        .map(CliCommandDeclaration::interface_entry)
-        .collect()
-}
-
-impl CliCommandDeclaration {
-    fn interface_entry(&self) -> InterfaceEntry {
-        InterfaceEntry {
-            id: self.id.to_string(),
-            surfaces: SurfaceSet::single(Surface::Cli),
-            kind: InterfaceKind::CliCommand,
-            contract: ContractShape::new(
-                ContractLocator::command_path(self.command_path),
-                ContractIo::declared(
-                    ContractIoKind::CommandArgs,
-                    None,
-                    None,
-                    "CLI command arguments",
-                ),
-                ContractIo::not_declared(
-                    "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
-                ),
-            ),
-            version: CLI_SURFACE_VERSION.to_string(),
-            compatibility: Compatibility::Stable,
-            owner: OwnerRef {
-                path: Some(CLI_OWNER_PATH.to_string()),
-                url: None,
-            },
-            docs: DocRef {
-                path: Some(CLI_DOCS_PATH.to_string()),
-                url: None,
-            },
-            source: SourceRef {
-                path: Some("upeg-cli/src/surfaces/cli/mod.rs".to_string()),
-                url: None,
-            },
-            tests: TestMapping::covered(CLI_TEST_PATH, Some(CLI_TEST_NAME.to_string())),
-        }
-    }
-}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -210,10 +94,15 @@ pub enum Command {
         #[command(subcommand)]
         action: TagAction,
     },
-    /// Inspect Board tabs.
+    /// Inspect and edit Boards. Use `upeg board <board> --help` for pin commands.
     Board {
         #[command(subcommand)]
         action: BoardAction,
+    },
+    /// Read or change shared display preferences.
+    Settings {
+        #[command(subcommand)]
+        action: SettingsAction,
     },
     /// Inspect metadata-only execution history.
     Log {
@@ -739,6 +628,24 @@ pub enum BoardAction {
         #[arg(long)]
         json: bool,
     },
+    /// Create a personal board and print its generated key.
+    Create {
+        /// Board title.
+        title: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Address a board whose key equals a board command, such as create.
+    On {
+        /// Board key followed by an action (see `upeg board <board> --help`).
+        #[arg(
+            value_name = "BOARD ACTION",
+            required = true,
+            trailing_var_arg = true,
+            allow_hyphen_values = true
+        )]
+        argv: Vec<String>,
+    },
     /// Board-scoped route: `upeg board <board> list` shows that board's
     /// pins; `upeg board <board> call <tool> …` calls a pinned tool with
     /// its saved args preset merged as defaults. The first token is the
@@ -749,7 +656,12 @@ pub enum BoardAction {
 
 /// Parser for the tokens after `upeg board <board>`.
 #[derive(Parser, Debug)]
-#[command(name = "upeg board <board>", no_binary_name = true)]
+#[command(
+    name = "upeg board <board>",
+    bin_name = "upeg board <board>",
+    no_binary_name = true,
+    about = "Inspect and edit one board and its pins."
+)]
 pub struct BoardScopedCli {
     #[command(subcommand)]
     pub action: BoardScopedAction,
@@ -757,6 +669,30 @@ pub struct BoardScopedCli {
 
 #[derive(Subcommand, Debug)]
 pub enum BoardScopedAction {
+    /// Change a personal board's title without changing its key.
+    Rename {
+        title: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a personal board and its pins.
+    Delete {
+        #[arg(long)]
+        json: bool,
+    },
+    /// List pin instances, including repeated or unavailable tools.
+    PinList {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Read one pin instance by exact ID.
+    PinShow {
+        pin_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Update or reset an exact pin instance's size and color.
+    PinEdit(PinEditArgs),
     /// List the tools pinned on this board (user pegboard state).
     List {
         /// Emit a JSON array instead of tab-separated rows.

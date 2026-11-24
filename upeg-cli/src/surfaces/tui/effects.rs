@@ -9,6 +9,7 @@ use std::io;
 use std::time::SystemTime;
 use upeg_core::ToolMeta;
 use upeg_core::prefs::{Locale, Tweaks};
+use upeg_runtime::persistence::pick_locale_hint;
 use upeg_sources::pegboard;
 
 use crate::domain::execution::context::{ExecutionContext, prepare_tool_args};
@@ -260,9 +261,8 @@ pub fn serve_with_filters(board: Option<&str>, tag: Option<&str>) -> io::Result<
                         // only place a worker is born and the assert-by-
                         // construction holds: one loop, one dispatch.
                         if in_flight.is_none() {
-                            let (board, preset) = dispatch_board_scope(&state, tool_id);
-                            in_flight =
-                                Some(RunningDispatch::spawn(run, tool_id, args, board, preset));
+                            let scope = dispatch_board_scope(&state, tool_id);
+                            in_flight = Some(RunningDispatch::spawn(run, tool_id, args, scope));
                         }
                     }
                     Effect::CancelRun => {
@@ -277,7 +277,9 @@ pub fn serve_with_filters(board: Option<&str>, tag: Option<&str>) -> io::Result<
                         // affordance for failures so we swallow the
                         // error rather than risk splattering the alt
                         // screen with stderr output.
-                        let _ = persist_tweaks(&state.tweaks);
+                        if let Ok(latest) = persist_tweaks(&state) {
+                            state.tweaks = latest;
+                        }
                         seen_tweaks_mtime = tweaks_modified_time();
                     }
                     Effect::SavePegboard => {
@@ -362,31 +364,47 @@ fn load_current_tweaks() -> Option<Tweaks> {
     Some(upeg_runtime::persistence::bootstrap_tweaks(&path, &hint))
 }
 
-/// The board scope for a TUI dispatch: the active board filter plus the
-/// pin's saved args preset from the session's cached layouts. `All`
-/// (union view) dispatches globally.
-fn dispatch_board_scope(
-    state: &State,
-    tool_id: &str,
-) -> (Option<upeg_core::BoardKey>, Option<upeg_core::ArgsPreset>) {
+#[derive(Default)]
+struct DispatchScope {
+    board: Option<upeg_core::BoardKey>,
+    preset: Option<upeg_core::ArgsPreset>,
+    exact_pin: Option<upeg_core::PinId>,
+}
+
+/// Resolve the board and preset from the exact visible pin when running
+/// the selected tile. The union view dispatches globally.
+fn dispatch_board_scope(state: &State, tool_id: &str) -> DispatchScope {
     let Some(board) = state
         .filters
         .board
         .as_deref()
         .and_then(|key| upeg_core::BoardKey::parse(key).ok())
     else {
-        return (None, None);
+        return DispatchScope::default();
     };
-    let preset = state
+    let selected = state
+        .selected_board_pin()
+        .filter(|pin| pin.tool_id == tool_id);
+    let representative = state
         .layouts
         .get(board.as_str())
-        .and_then(|placements| {
-            placements
-                .iter()
-                .find(|placement| placement.tool_id == tool_id)
-        })
-        .and_then(|placement| placement.args_preset.clone());
-    (Some(board), preset)
+        .into_iter()
+        .flatten()
+        .filter(|pin| pin.tool_id == tool_id)
+        .min_by_key(|pin| (pin.y, pin.x));
+    let exact_pin = selected
+        .as_ref()
+        .filter(|pin| representative.is_some_and(|first| first.pin_id != pin.pin_id))
+        .map(|pin| pin.pin_id.clone());
+    let preset = selected
+        .as_ref()
+        .or(representative)
+        .and_then(|pin| pin.args_preset.clone());
+    DispatchScope {
+        board: Some(board),
+        preset,
+        exact_pin,
+    }
 }
 
 /// PRD §5.8 — TUI is L4 client-only. When a host is up we forward
@@ -398,8 +416,7 @@ fn dispatch_board_scope(
 fn dispatch_through_host_or_local(
     tool_id: &'static str,
     args: Value,
-    board: Option<upeg_core::BoardKey>,
-    preset: Option<upeg_core::ArgsPreset>,
+    scope: DispatchScope,
     attached_host: Option<crate::infrastructure::discovery::DiscoveredHost>,
 ) -> crate::domain::execution::dispatch::Outcome {
     // D-3: attaching does not turn the TUI into an HTTP client, so the
@@ -408,7 +425,8 @@ fn dispatch_through_host_or_local(
     // `_upeg.surface` from that (`infrastructure::attach`), so a
     // forwarded run is answered as `tui` — the same caller identity the
     // standalone route produces.
-    let context = ExecutionContext::for_optional_board(upeg_core::Surface::Tui, board, preset);
+    let context =
+        ExecutionContext::for_optional_board(upeg_core::Surface::Tui, scope.board, scope.preset);
     let args = prepare_tool_args(args, &context, None);
     // D-1: a Project Manifest tool exists only in this process's toolbox
     // (the host resolved its own `upeg.toml`, or none), so it never
@@ -418,7 +436,13 @@ fn dispatch_through_host_or_local(
         // D-2: the host would otherwise run External tools from the
         // daemon's working directory.
         let args = crate::domain::execution::context::with_caller_cwd(args);
-        dispatch_over_attach(&host, tool_id, &args, context.board_key())
+        dispatch_over_attach(
+            &host,
+            tool_id,
+            &args,
+            context.board_key(),
+            scope.exact_pin.as_ref(),
+        )
     } else {
         dispatch_tool(tool_id, &args)
     }
@@ -443,10 +467,29 @@ fn dispatch_over_attach(
     tool_id: &str,
     args: &Value,
     board: Option<&upeg_core::BoardKey>,
+    exact_pin: Option<&upeg_core::PinId>,
 ) -> crate::domain::execution::dispatch::Outcome {
     use crate::infrastructure::attach::{self, LiveCall, StreamedDispatch};
 
     let live = LiveCall::ambient();
+    if let (Some(board), Some(pin_id)) = (board, exact_pin) {
+        return match attach::dispatch_pin_on_board_streamed(
+            host, board, tool_id, pin_id, args, &live,
+        ) {
+            Ok(StreamedDispatch::Streamed(outcome)) => outcome,
+            Ok(StreamedDispatch::RouteUnavailable) => {
+                crate::domain::execution::dispatch::Outcome::Failure(
+                    crate::domain::execution::dispatch::dispatch_failure(
+                        "host_pin_unavailable",
+                        format!(
+                            "the host could not run pin `{pin_id}` on `{board}`; check the pin or upgrade the host"
+                        ),
+                    ),
+                )
+            }
+            Err(error) => attach_error_outcome(&error),
+        };
+    }
     let streamed = match board {
         Some(board) => attach::dispatch_tool_on_board_streamed(
             host,
@@ -500,26 +543,6 @@ fn attach_error_outcome(error: &std::io::Error) -> crate::domain::execution::dis
             format!("attach: {error}"),
         ),
     )
-}
-
-/// Order in which the TUI tries platform hints to seed the [`Tweaks::locale`]
-/// on a first run when no prefs file exists yet. `UPEG_LOCALE` always wins
-/// because it's the deliberate per-process override; `$LC_ALL` outranks
-/// `$LANG` to match POSIX precedence.
-pub const TUI_LOCALE_ENV_PRECEDENCE: &[&str] = &["UPEG_LOCALE", "LC_ALL", "LANG"];
-
-/// Pure helper: first non-empty hint from a callback walking
-/// `TUI_LOCALE_ENV_PRECEDENCE`. Split out so the precedence rule is
-/// unit-testable without mutating the real process env.
-pub fn pick_locale_hint(env_lookup: impl Fn(&str) -> Option<String>) -> String {
-    for name in TUI_LOCALE_ENV_PRECEDENCE {
-        if let Some(value) = env_lookup(name)
-            && !value.trim().is_empty()
-        {
-            return value;
-        }
-    }
-    String::new()
 }
 
 fn read_locale_hint_from_env() -> String {
@@ -578,11 +601,21 @@ fn persist_pegboard_selection(state: &State) -> Result<(), pegboard::PegboardSta
 /// IO) without retrying; the event loop logs and continues so a
 /// long-running TUI session never wedges on a transient filesystem
 /// hiccup.
-fn persist_tweaks(tweaks: &Tweaks) -> Result<(), String> {
+fn persist_tweaks(state: &State) -> Result<Tweaks, String> {
+    use super::model::{SettingsField, View};
+    let View::Settings { focused_field } = state.view else {
+        return Err("settings view unavailable".into());
+    };
     let path =
         upeg_core::paths::tweaks_path().ok_or_else(|| "config_root unavailable".to_string())?;
-    let json = serde_json::to_string(tweaks).map_err(|e| format!("serialize: {e}"))?;
-    upeg_runtime::persistence::io::save_to_path(&path, &json).map_err(|e| format!("write: {e}"))
+    let (key, value) = match focused_field {
+        SettingsField::Locale => ("locale", serde_json::to_value(state.tweaks.locale)),
+        SettingsField::Theme => ("theme", serde_json::to_value(state.tweaks.theme)),
+        SettingsField::Accent => ("accent", serde_json::to_value(state.tweaks.accent)),
+    };
+    let mut patch = serde_json::Map::new();
+    patch.insert(key.into(), value.map_err(|e| e.to_string())?);
+    upeg_runtime::persistence::io::patch_tweaks_to_path(&path, &patch).map_err(|e| e.to_string())
 }
 
 /// Best-effort clipboard writer for the F2 copy command. No clipboard
@@ -717,11 +750,6 @@ mod tweaks_bootstrap_tests {
     fn missing_env_returns_empty_string() {
         let lookup = |_: &str| None;
         assert_eq!(pick_locale_hint(lookup), "");
-    }
-
-    #[test]
-    fn precedence_constant_matches_documented_order() {
-        assert_eq!(TUI_LOCALE_ENV_PRECEDENCE, ["UPEG_LOCALE", "LC_ALL", "LANG"]);
     }
 
     #[test]
@@ -883,5 +911,53 @@ mod pegboard_reload_tests {
 
         assert_eq!(seen, OLD_REV);
         assert!(state.boards.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod dispatch_scope_tests {
+    use super::*;
+    use upeg_core::{ArgsPreset, PinId, Placement};
+
+    #[test]
+    fn exact_duplicate_scope_uses_selected_preset_and_preserves_representative_attach() {
+        let mut state = State::default();
+        state.filters.select_board("dev");
+        let tool_id = "num.hex_to_decimal";
+        let first = Placement::new(tool_id, 0, 0).with_args_preset(Some(
+            ArgsPreset::parse(r#"{"input":"f"}"#).expect("first preset"),
+        ));
+        let mut second = Placement::new(tool_id, 1, 1);
+        second.pin_id = PinId::parse("duplicate").expect("duplicate id");
+        state.layouts.insert("dev".into(), vec![second, first]);
+        state.cursor = 1;
+
+        let exact = dispatch_board_scope(&state, tool_id);
+        assert_eq!(
+            exact.board.as_ref().map(upeg_core::BoardKey::as_str),
+            Some("dev")
+        );
+        assert_eq!(
+            exact.exact_pin.as_ref().map(PinId::as_str),
+            Some("duplicate")
+        );
+        assert!(
+            exact.preset.is_none(),
+            "the first pin's preset must not leak"
+        );
+
+        state.cursor = 0;
+        let representative = dispatch_board_scope(&state, tool_id);
+        assert!(representative.exact_pin.is_none());
+        assert_eq!(
+            representative.preset.expect("first preset").to_object()["input"],
+            "f"
+        );
+
+        state.filters = crate::surfaces::tui::TuiFilters::default();
+        let all = dispatch_board_scope(&state, tool_id);
+        assert!(all.board.is_none());
+        assert!(all.preset.is_none());
+        assert!(all.exact_pin.is_none());
     }
 }

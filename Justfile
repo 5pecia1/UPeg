@@ -855,6 +855,11 @@ package-linux-appimage: flutter-build-linux
 	cat > "$tmp/AppRun" <<'EOF'
 	#!/bin/sh
 	HERE=$(dirname "$(readlink -f "$0")")
+	export UPEG_APPIMAGE_LAUNCH=1
+	# The runtime strips --appimage-extract-and-run from argv before AppRun.
+	case "${APPDIR##*/}" in
+	  appimage_extracted_*) export APPIMAGE_EXTRACT_AND_RUN=1 ;;
+	esac
 	exec "$HERE/upeg" "$@"
 	EOF
 	chmod +x "$tmp/AppRun"
@@ -872,6 +877,7 @@ package-linux-appimage: flutter-build-linux
 	mkdir -p "$probe"
 	( cd "$probe" && "$out/upeg-${version}-x86_64.AppImage" --appimage-extract >/dev/null )
 	bash packaging/release-files.sh check "$probe/squashfs-root/usr/share/doc/upeg"
+	test -f "$probe/squashfs-root/data/desktop_update.py"
 
 # macOS .dmg via create-dmg. Requires: just flutter-build-macos on macOS host.
 # cargokit wires the cdylib build via flutter_app/rust_builder/macos/upeg_frb.podspec,
@@ -895,7 +901,7 @@ package-macos-dmg: flutter-build-macos
 	  echo "error: expected macOS app bundle at $app" >&2
 	  exit 1
 	fi
-	# Stage only the app users install plus the legal set in the .dmg window.
+	# Stage the app users install plus the legal set in the .dmg window.
 	mkdir -p "$work/dmg"
 	cp -a "$app" "$work/dmg/"
 	bash packaging/release-files.sh stage "$work/dmg/licenses"
@@ -907,6 +913,9 @@ package-macos-dmg: flutter-build-macos
 	fi
 	create-dmg \
 	    --volname "upeg" \
+	    --window-size 580 360 \
+	    --icon "$app_name" 160 180 \
+	    --app-drop-link 420 180 \
 	    "$dmg" \
 	    "$work/dmg"
 

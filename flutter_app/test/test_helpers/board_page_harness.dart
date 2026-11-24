@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:upeg/src/widgets/window_close_handler.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/pages/board_page.dart';
 import 'package:upeg/src/platform/app_lifecycle.dart';
@@ -138,14 +139,12 @@ Widget boardPageHarness({
       ),
     ...extraOverlays,
   ];
-  final home = overlays.isEmpty
-      ? const BoardPage(report: fakeReport)
-      : Stack(
-          children: [
-            const BoardPage(report: fakeReport),
-            ...overlays,
-          ],
-        );
+  final home = WindowCloseHandler(
+    builder: (requestQuit) {
+      final board = BoardPage(report: fakeReport, onQuitRequest: requestQuit);
+      return overlays.isEmpty ? board : Stack(children: [board, ...overlays]);
+    },
+  );
 
   return ProviderScope(
     overrides: [
@@ -286,6 +285,97 @@ Finder boardPageFocusFinder() {
   return find.byWidgetPredicate(
     (widget) => widget is Focus && widget.focusNode?.debugLabel == 'BoardPage',
   );
+}
+
+FocusNode boardGridFocus(WidgetTester tester) => tester
+    .widget<Focus>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Focus && widget.focusNode?.debugLabel == 'Board grid',
+      ),
+    )
+    .focusNode!;
+
+class BoardKeyboardRobot {
+  BoardKeyboardRobot(this.tester);
+
+  final WidgetTester tester;
+
+  Future<void> press(LogicalKeyboardKey key) async {
+    await tester.sendKeyEvent(key);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> chord(
+    LogicalKeyboardKey modifier,
+    LogicalKeyboardKey key, {
+    bool shift = false,
+  }) async {
+    await tester.sendKeyDownEvent(modifier);
+    if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(key);
+    if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(modifier);
+    await tester.pumpAndSettle();
+  }
+
+  void expectGridFocus(bool expected) =>
+      expect(boardGridFocus(tester).hasPrimaryFocus, expected);
+
+  void expectVisible(Key key, bool expected) =>
+      expect(find.byKey(key), expected ? findsOneWidget : findsNothing);
+
+  void expectControlFocus(Key key) {
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(
+      find.ancestor(
+        of: find.byElementPredicate((element) => element == focused),
+        matching: find.byKey(key),
+      ),
+      findsOneWidget,
+    );
+  }
+
+  Future<void> tabToControl(Key key) async {
+    final button = find.byKey(key);
+    for (var i = 0; i < 20; i++) {
+      final focused = FocusManager.instance.primaryFocus?.context;
+      if (find
+          .ancestor(
+            of: find.byElementPredicate((element) => element == focused),
+            matching: button,
+          )
+          .evaluate()
+          .isNotEmpty) {
+        return;
+      }
+      await press(LogicalKeyboardKey.tab);
+    }
+    fail('Tab did not reach $key');
+  }
+
+  void expectActiveBoard(String boardKey) {
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(BoardPage)),
+    );
+    expect(container.read(currentBoardKeyProvider), BoardKey.parse(boardKey));
+  }
+
+  Future<void> typeInFocusedField(String text, {bool composing = false}) async {
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+        composing: composing
+            ? TextRange(start: 0, end: text.length)
+            : TextRange.empty,
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  void expectEditableFocus(bool expected) =>
+      expect(primaryFocusIsEditableText(), expected);
 }
 
 /// Stub mirroring the Rust keymap slice used by the quit flow

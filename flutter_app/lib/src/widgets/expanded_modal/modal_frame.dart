@@ -131,9 +131,16 @@ Widget _buildModalFrame(_ExpandedModalPageState state, BuildContext context) {
         },
         child: Focus(
           autofocus: true,
-          onKeyEvent: (_, event) => state._handleAliasKey(event)
-              ? KeyEventResult.handled
-              : KeyEventResult.ignored,
+          onKeyEvent: (_, event) {
+            if (primaryFocusHasActiveTextComposition() &&
+                (event.logicalKey == LogicalKeyboardKey.escape ||
+                    keyboardLabelForEvent(event) == 'Enter')) {
+              return KeyEventResult.skipRemainingHandlers;
+            }
+            return state._handleAliasKey(event)
+                ? KeyEventResult.handled
+                : KeyEventResult.ignored;
+          },
           child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {

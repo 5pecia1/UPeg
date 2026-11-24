@@ -38,8 +38,14 @@ pub fn handle_mouse(
     // against a hidden preview on the *previous* board. Any meaningful
     // Down click ends both previews first so mouse and keyboard share
     // one modal-state.
-    state.move_mode = None;
-    state.resize_mode = None;
+    let preview_pins = (state.move_mode.is_some() || state.resize_mode.is_some()).then(|| {
+        state
+            .visible_placements()
+            .into_iter()
+            .map(|(pin, _)| pin.pin_id)
+            .collect::<Vec<_>>()
+    });
+    state.cancel_pin_preview();
 
     if rect_contains(layout.boards, mouse.column, mouse.row) {
         state.focus = FocusArea::Boards;
@@ -108,7 +114,11 @@ pub fn handle_mouse(
             mouse.column,
             mouse.row,
         ) {
-            state.cursor = idx.min(tools.len().saturating_sub(1));
+            if let Some(pin_id) = preview_pins.as_ref().and_then(|pins| pins.get(idx)) {
+                state.focus_pin(pin_id);
+            } else {
+                state.cursor = idx.min(tools.len().saturating_sub(1));
+            }
             state.right_scroll = ScrollOffset::ZERO;
             state.view = View::Detail;
         }

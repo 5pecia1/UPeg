@@ -25,8 +25,14 @@ typedef AccentListProvider = List<String> Function();
 final tweaksLoaderProvider = Provider<TweaksLoader>((ref) => loadTweaks);
 
 final tweaksSaverProvider = Provider<TweaksSaver>(
-  (ref) =>
-      (TweaksDto t) => saveTweaks(tweaks: t),
+  (ref) => (TweaksDto next) {
+    final before = ref.read(tweaksProvider).value;
+    if (before == null) throw StateError('preferences are not loaded');
+    ref.read(tweaksProvider.notifier)._mergedSave = patchTweaks(
+      before: before,
+      after: next,
+    );
+  },
 );
 
 final supportedLocalesProvider = Provider<LocaleListProvider>(
@@ -48,6 +54,7 @@ final supportedAccentsProvider = Provider<AccentListProvider>(
 /// the new value to Rust and, on success, swaps the in-memory copy
 /// so listeners re-render.
 class TweaksController extends AsyncNotifier<TweaksDto> {
+  TweaksDto? _mergedSave;
   @override
   FutureOr<TweaksDto> build() {
     final load = ref.watch(tweaksLoaderProvider);
@@ -66,10 +73,12 @@ class TweaksController extends AsyncNotifier<TweaksDto> {
   /// `AsyncNotifier.update`, which has a different signature.
   Future<void> save(TweaksDto next) async {
     final saver = ref.read(tweaksSaverProvider);
-    state = const AsyncValue.loading();
+    // Keep the original snapshot readable until the synchronous saver has
+    // computed its delta. The native bridge merges that delta under a lock.
+    _mergedSave = null;
     state = await AsyncValue.guard(() async {
       saver(next);
-      return next;
+      return _mergedSave ?? next;
     });
   }
 }

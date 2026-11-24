@@ -187,15 +187,24 @@ impl Store {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<T, StoreError>,
     ) -> Result<T, StoreError> {
+        self.write_tx_with(|tx| f(tx).map(|out| (out, true)))
+    }
+
+    fn write_tx_with<T>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<(T, bool), StoreError>,
+    ) -> Result<T, StoreError> {
         if let Some(lease) = &self.storage_lease {
             lease.validate()?;
         }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let out = f(&tx)?;
-        bump_rev(&tx)?;
-        tx.commit()?;
+        let (out, changed) = f(&tx)?;
+        if changed {
+            bump_rev(&tx)?;
+            tx.commit()?;
+        }
         Ok(out)
     }
 
@@ -226,18 +235,7 @@ impl Store {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<bool, StoreError>,
     ) -> Result<bool, StoreError> {
-        if let Some(lease) = &self.storage_lease {
-            lease.validate()?;
-        }
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if !f(&tx)? {
-            return Ok(false);
-        }
-        bump_rev(&tx)?;
-        tx.commit()?;
-        Ok(true)
+        self.write_tx_with(|tx| f(tx).map(|changed| (changed, changed)))
     }
 
     pub(crate) const fn connection(&self) -> &Connection {

@@ -17,9 +17,33 @@
 
 use std::path::Path;
 
-use upeg_core::prefs::{Locale, Tweaks, parse_tweaks};
+use upeg_core::prefs::{Locale, Tweaks, parse_stored_tweaks};
 
 use super::io;
+
+const LOCALE_HINT_ENV: &[&str] = &["UPEG_LOCALE", "LC_ALL", "LANG"];
+
+/// Pick the first non-empty locale hint in native startup precedence.
+pub fn pick_locale_hint(env_lookup: impl Fn(&str) -> Option<String>) -> String {
+    LOCALE_HINT_ENV
+        .iter()
+        .filter_map(|name| env_lookup(name))
+        .find(|value| !value.trim().is_empty())
+        .unwrap_or_default()
+}
+
+/// Defaults for a native user who has no saved preferences.
+pub fn native_default_tweaks() -> Tweaks {
+    let hint = pick_locale_hint(|name| std::env::var(name).ok());
+    default_tweaks(&hint)
+}
+
+fn default_tweaks(detect_hint: &str) -> Tweaks {
+    Tweaks {
+        locale: Locale::detect_from_str(detect_hint),
+        ..Tweaks::default_const()
+    }
+}
 
 /// Resolve `Tweaks` for the current process. See module docs for the rule.
 ///
@@ -28,20 +52,20 @@ use super::io;
 /// when no detection source is available.
 pub fn bootstrap_tweaks(path: &Path, detect_hint: &str) -> Tweaks {
     if let Some(json) = io::load_from_path(path)
-        && let Some(tweaks) = parse_tweaks(&json)
+        && let Some(tweaks) = parse_stored_tweaks(&json)
     {
         return tweaks;
     }
     // Either the file doesn't exist or it's corrupt — both branches treat
     // this as the user's first launch on this machine and seed the prefs.
-    let tweaks = Tweaks {
-        locale: Locale::detect_from_str(detect_hint),
-        ..Tweaks::default_const()
-    };
-    if let Ok(json) = serde_json::to_string(&tweaks) {
-        let _ = io::save_to_path(path, &json);
-    }
-    tweaks
+    let defaults = default_tweaks(detect_hint);
+    io::update_to_path(path, |current| {
+        if let Some(tweaks) = current.and_then(parse_stored_tweaks) {
+            return Ok((None, tweaks));
+        }
+        Ok((Some(serde_json::to_string(&defaults)?), defaults))
+    })
+    .unwrap_or(defaults)
 }
 
 #[cfg(test)]
@@ -76,7 +100,7 @@ mod tests {
         };
 
         io::save_to_path(&path, &serde_json::to_string(&original).unwrap()).expect("write prefs");
-        let reloaded = parse_tweaks(&io::load_from_path(&path).expect("read prefs"))
+        let reloaded = parse_stored_tweaks(&io::load_from_path(&path).expect("read prefs"))
             .expect("parse round-tripped prefs");
         assert_eq!(reloaded, original);
 

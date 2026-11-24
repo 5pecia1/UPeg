@@ -20,17 +20,30 @@ import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EmbedPage extends ConsumerStatefulWidget {
-  const EmbedPage({required this.tool, this.debugTargetOverride, super.key});
+  const EmbedPage({
+    required this.tool,
+    this.debugTargetOverride,
+    this.focusExternalAction = false,
+    super.key,
+  });
 
   final ToolDto tool;
+  final bool focusExternalAction;
 
   /// Forwarded to `WebViewPanel` so widget tests can pin the platform
   /// branch without depending on the actual build target.
   final WebViewTarget? debugTargetOverride;
 
-  static Future<void> open(BuildContext context, ToolDto tool) {
+  static Future<void> open(
+    BuildContext context,
+    ToolDto tool, {
+    bool focusExternalAction = false,
+  }) {
     return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => EmbedPage(tool: tool)),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            EmbedPage(tool: tool, focusExternalAction: focusExternalAction),
+      ),
     );
   }
 
@@ -79,14 +92,18 @@ class _EmbedPageState extends ConsumerState<EmbedPage> {
             ),
           },
           child: Focus(
-            autofocus: true,
+            autofocus: !widget.focusExternalAction,
+            skipTraversal: true,
             child: SafeArea(
               child: Column(
                 children: [
                   _EmbedHeader(
                     tool: widget.tool,
                     onClose: () => Navigator.of(context).pop(),
-                    onOpenExternally: _openExternally,
+                    onOpenExternally: resolution == null
+                        ? null
+                        : _openExternally,
+                    autofocusExternal: widget.focusExternalAction,
                   ),
                   Expanded(
                     child: resolution == null
@@ -122,11 +139,13 @@ class _EmbedHeader extends ConsumerWidget {
     required this.tool,
     required this.onClose,
     required this.onOpenExternally,
+    required this.autofocusExternal,
   });
 
   final ToolDto tool;
   final VoidCallback onClose;
-  final VoidCallback onOpenExternally;
+  final VoidCallback? onOpenExternally;
+  final bool autofocusExternal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -159,6 +178,7 @@ class _EmbedHeader extends ConsumerWidget {
           ),
           TextButton(
             key: const Key('embed-page-open-externally'),
+            autofocus: autofocusExternal,
             onPressed: onOpenExternally,
             child: Text(t(ref, 'embed.open_externally')),
           ),

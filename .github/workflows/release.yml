@@ -432,6 +432,18 @@ jobs:
           mkdir -p dist
           cp "target/packages/macos/upeg-${RELEASE_TAG}.dmg" dist/
           ( cd dist && shasum -a 256 "upeg-${RELEASE_TAG}.dmg" > "upeg-${RELEASE_TAG}.dmg.sha256" )
+      - name: Verify desktop keyboard workflows
+        working-directory: flutter_app
+        env:
+          UPEG_PROJECT_MANIFEST_PATH: 'off'
+        run: |
+          set -euo pipefail
+          test_home="$(mktemp -d "$RUNNER_TEMP/upeg-keyboard.XXXXXXXX")"
+          trap 'rm -rf -- "$test_home"' EXIT
+          UPEG_HOME="$(cd "$test_home" && pwd -P)"
+          export UPEG_HOME
+          flutter pub get --enforce-lockfile
+          flutter test --no-pub integration_test/desktop_keyboard_integration_test.dart -d macos
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: verification-build-flutter-macos
@@ -479,6 +491,24 @@ jobs:
           name="upeg-${RELEASE_TAG}-x86_64.msix"
           cp "${packages[0]}" "dist/$name"
           ( cd dist && sha256sum "$name" > "$name.sha256" )
+      - name: Verify desktop keyboard workflows
+        shell: pwsh
+        working-directory: flutter_app
+        env:
+          UPEG_PROJECT_MANIFEST_PATH: 'off'
+        run: |
+          $testHome = [IO.Directory]::CreateDirectory(
+            (Join-Path $env:RUNNER_TEMP "upeg-keyboard-$([guid]::NewGuid())")
+          )
+          $env:UPEG_HOME = $testHome.FullName
+          try {
+            flutter pub get --enforce-lockfile
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            flutter test --no-pub integration_test/desktop_keyboard_integration_test.dart -d windows
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Remove-Item -LiteralPath $testHome.FullName -Recurse -Force
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: verification-build-flutter-windows

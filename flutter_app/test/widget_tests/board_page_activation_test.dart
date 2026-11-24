@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:upeg/src/widgets/window_close_handler.dart';
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/pages/board_page.dart';
@@ -168,11 +169,14 @@ Widget _boardHarness({
         inlineDraftProvider.overrideWithValue(inlineDraftStore),
     ],
     child: MaterialApp(
-      home: BoardPage(
-        report: const AppInitReport(
-          launch: DesktopLaunchDto(board: _testBoardKey),
-          hostState: HostStateDto.noHost(),
-          version: 'test',
+      home: WindowCloseHandler(
+        builder: (requestQuit) => BoardPage(
+          onQuitRequest: requestQuit,
+          report: const AppInitReport(
+            launch: DesktopLaunchDto(board: _testBoardKey),
+            hostState: HostStateDto.noHost(),
+            version: 'test',
+          ),
         ),
       ),
     ),

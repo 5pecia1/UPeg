@@ -86,7 +86,8 @@ use http_transport::{
     request_within as http_request_within,
 };
 pub(crate) use stream::{
-    LiveCall, StreamedDispatch, dispatch_tool_on_board_streamed, dispatch_tool_streamed,
+    LiveCall, StreamedDispatch, dispatch_pin_on_board_streamed, dispatch_tool_on_board_streamed,
+    dispatch_tool_streamed,
 };
 
 /// Forward a single JSON-RPC line to the host's `/mcp` endpoint and

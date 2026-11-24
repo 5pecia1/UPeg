@@ -1,4 +1,4 @@
-use upeg_core::{PinColorError, PinColorHex};
+use upeg_core::{PinColorError, PinColorHex, PinId};
 
 const PALETTE_FIRST_DIGIT: char = '1';
 const PIN_COLOR_PALETTE_LEN: usize = 9;
@@ -21,19 +21,27 @@ pub(crate) fn pin_color_palette_for_digit(digit: char) -> Option<PinColorHex> {
 pub struct PinColorEditor {
     pub board: String,
     pub tool_id: String,
+    pub pin_id: PinId,
     pub original: Option<PinColorHex>,
     pub draft: PinColorEditorDraft,
     pub error: Option<String>,
 }
 
 impl PinColorEditor {
-    pub(crate) fn new(board: String, tool_id: String, original: Option<PinColorHex>) -> Self {
+    pub(crate) fn new(board: String, placement: upeg_core::Placement) -> Self {
+        let upeg_core::Placement {
+            tool_id,
+            pin_id,
+            color: original,
+            ..
+        } = placement;
         let draft = original
             .clone()
             .map_or(PinColorEditorDraft::Empty, PinColorEditorDraft::Existing);
         Self {
             board,
             tool_id,
+            pin_id,
             original,
             draft,
             error: None,

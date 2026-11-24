@@ -12,26 +12,9 @@
 /// `keyboardCommandFor` FRB so the binding policy stays canonical with
 /// the TUI surface. See `upeg-frb/src/api/keyboard.rs`.
 ///
-/// Embed focus contract — enforced once primary focus is inside an
-/// editable text field, a View Embed webview body, or a ControlledEmbed
-/// cockpit form:
-///   * ALL keys route to the focused field/body — characters and arrows,
-///     but also Home/End, PageUp/PageDown, Backspace, and Delete, so the
-///     caret/scroll moves instead of the board paging. Only Cmd/Ctrl
-///     chords, the scoped F1–F4 commands, and Esc stay global
-///     ([_shouldYieldToEmbedBody]).
-///   * `Tab` performs ordinary focus traversal within the focused
-///     subtree ([_handleFlutterFocusTraversal]), never a board command.
-///   * `Esc` is two-stage inside an embed body: the first returns focus
-///     to the board root and dispatches nothing; the second — now with
-///     board focus — is the normal Back/Close ([_handleEmbedBodyKey]).
-///   * The passive-embed gate keys off pin metadata, not DOM focus:
-///     platform webviews frequently do not propagate DOM focus into the
-///     Flutter focus tree, so an `Embed`/`ControlledEmbed` pin kind
-///     forces the yield regardless of what the focus tree reports.
-///   * The hidden ControlledEmbed engine (the off-canvas webview that
-///     executes selector bindings) must never receive pointer,
-///     semantics, or keyboard focus.
+/// Tab traverses the toolbar and the board grid. The grid uses arrows to
+/// select pins. Enter can move focus into an embed pin body and Escape
+/// returns it to the grid.
 library;
 
 export 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
@@ -46,8 +29,7 @@ import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/boot/startup_profile.dart';
 import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/pages/embed_page.dart';
-import 'package:upeg/src/platform/app_lifecycle.dart'
-    show installWindowCloseIntercept, quitAppProvider, runQuitRequest;
+import 'package:upeg/src/platform/keyboard_label.dart';
 import 'package:upeg/src/rust/api/boot.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/palette.dart';
@@ -78,45 +60,47 @@ import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/tool_roles.dart';
 import 'package:upeg/src/widgets/board_canvas.dart';
+import 'package:upeg/src/widgets/board_canvas/pin_with_label.dart';
 import 'package:upeg/src/widgets/board_tabs.dart';
 import 'package:upeg/src/widgets/cheatsheet_overlay.dart';
 import 'package:upeg/src/widgets/copy_to_clipboard_button.dart';
 import 'package:upeg/src/widgets/copyable_outcome_text.dart';
 import 'package:upeg/src/widgets/expanded_modal_button.dart';
 import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
-import 'package:upeg/src/widgets/no_transition_dialog.dart';
 import 'package:upeg/src/widgets/palette_overlay.dart';
 import 'package:upeg/src/widgets/pending_activation_bridge.dart';
 import 'package:upeg/src/widgets/settings_overlay.dart';
 import 'package:upeg/src/widgets/pin_color_dialog.dart';
 import 'package:upeg/src/widgets/status_bar.dart';
 import 'package:upeg/src/widgets/tag_chips.dart';
-import 'package:window_manager/window_manager.dart'
-    show WindowListener, windowManager;
 import 'package:upeg/src/pages/board_page/board_selection_commands.dart';
 import 'package:upeg/src/pages/board_page/directional_focus.dart';
-import 'package:upeg/src/pages/board_page/quit_confirm_dialog.dart';
 
 class BoardPage extends ConsumerStatefulWidget {
-  const BoardPage({required this.report, super.key});
+  const BoardPage({
+    required this.report,
+    required this.onQuitRequest,
+    super.key,
+  });
 
   final AppInitReport report;
+  final Future<void> Function() onQuitRequest;
 
   @override
   ConsumerState<BoardPage> createState() => _BoardPageState();
 }
 
-class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
+class _BoardPageState extends ConsumerState<BoardPage> {
   static bool _firstPostFrameRecorded = false;
-  final FocusNode _rootFocus = FocusNode(debugLabel: 'BoardPage');
-
-  /// Reentrancy guard so a second Quit request (key repeat, X button
-  /// while the dialog is up) can't stack a second confirm dialog.
-  bool _quitConfirmOpen = false;
+  final FocusNode _rootFocus = FocusNode(
+    debugLabel: 'BoardPage',
+    skipTraversal: true,
+  );
+  final FocusNode _gridFocus = FocusNode(debugLabel: 'Board grid');
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    _gridFocus.dispose();
     _rootFocus.dispose();
     super.dispose();
   }
@@ -131,44 +115,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
         markStartupPhase('board_first_post_frame');
       });
     }
-    // Route the OS close (X) button through the same quit-confirm path
-    // as keyboard `q`: setPreventClose keeps the window alive and fires
-    // [onWindowClose] instead, so shutdown() (instance lock / discovery
-    // cleanup) can never be bypassed.
-    windowManager.addListener(this);
-    unawaited(installWindowCloseIntercept());
     Future<void>.microtask(_restorePegboardSelection);
-  }
-
-  /// OS close request intercepted by [installWindowCloseIntercept].
-  /// Joins the keyboard Quit path: confirm first, then shutdown+destroy.
-  @override
-  void onWindowClose() {
-    unawaited(_requestQuit());
-  }
-
-  /// Shared quit path for keyboard Quit and the intercepted X button.
-  /// Only an explicit confirm runs the shutdown (lock/discovery release)
-  /// + window destroy pipeline behind [quitAppProvider].
-  Future<void> _requestQuit() {
-    return runQuitRequest(
-      confirm: _confirmQuit,
-      quit: ref.read(quitAppProvider),
-    );
-  }
-
-  Future<bool> _confirmQuit() async {
-    if (_quitConfirmOpen) return false;
-    _quitConfirmOpen = true;
-    try {
-      final confirmed = await showNoTransitionDialog<bool>(
-        context: context,
-        builder: (_) => const QuitConfirmDialog(),
-      );
-      return confirmed ?? false;
-    } finally {
-      _quitConfirmOpen = false;
-    }
   }
 
   /// Boot-time hydration from the shared native pegboard selection.
@@ -215,6 +162,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   }
 
   void _onPinTap(PlacementDto placement) {
+    _gridFocus.requestFocus();
     // Capture the tool id BEFORE handing control to async branches so a
     // mid-flight UI state reset cannot race the activation lookup —
     // mirrors the snapshot pattern memorialised in
@@ -404,20 +352,20 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
   /// side-effect. Returns `true` when the event was handled so the
   /// caller can mark it as consumed.
   bool _handleKey(KeyEvent event) {
-    if (_handleFlutterFocusTraversal(event)) return true;
-    if (_handleEmbedBodyKey(event)) return true;
-    if (_shouldYieldToEmbedBody(event)) return false;
-    // Metadata-declared keyboard-shortcut tools (e.g. memo.create's
-    // Cmd+Shift+N) activate straight from the catalog before the board
-    // resolver runs. Generic: any Shortcut-source tool gets its chord.
-    if (_handleShortcutSourceTool(event)) return true;
-    // Passive Embed gate (issue 6 gap 2): when the focused pin is an
-    // embed-bodied pin but the platform webview never propagated DOM
-    // focus into the Flutter focus tree, non-global keys must still be
-    // yielded to the embed instead of resolving to board commands.
-    if (_focusedPinIsEmbedBodied() && !isGlobalShortcutKeyEvent(event)) {
-      return false;
+    if (!isKeyboardPress(event)) return false;
+    if (primaryFocusHasActiveTextComposition()) return false;
+    if (event is KeyRepeatEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      return true;
     }
+    if (_handleBoardShortcut(event)) return true;
+    if (event.logicalKey == LogicalKeyboardKey.tab) return false;
+    if (_handleEmbedBodyKey(event)) return true;
+
+    final boardOwnsFocus =
+        _gridFocus.hasPrimaryFocus || _rootFocus.hasPrimaryFocus;
+    if (!boardOwnsFocus && !isGlobalShortcutKeyEvent(event)) return false;
+
     final hasFocus = ref.read(focusedPinProvider) != null;
     // Resize and move modes are mutually exclusive (starting one cancels
     // the other — see handleResizeModeCommand), so the scope check order
@@ -430,6 +378,28 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     } else {
       scope = KeyboardScopeDto.board;
     }
+    if (boardOwnsFocus &&
+        scope == KeyboardScopeDto.board &&
+        event is KeyDownEvent) {
+      if (isKeyboardContextMenuEvent(event)) {
+        final showMenu = _selectedPinFocusNode()?.showContextMenu;
+        if (showMenu == null) return false;
+        showMenu();
+        return true;
+      }
+      final keyboard = HardwareKeyboard.instance;
+      if (keyboardLabelForEvent(event) == 'Enter' &&
+          !keyboard.isControlPressed &&
+          !keyboard.isMetaPressed &&
+          !keyboard.isAltPressed &&
+          !keyboard.isShiftPressed &&
+          _enterSelectedEmbedBody()) {
+        return true;
+      }
+    }
+
+    // Shortcut-source tools use the chord declared in the catalog.
+    if (_handleShortcutSourceTool(event)) return true;
     final cmd = resolveKeyboardCommand(
       ref,
       event,
@@ -440,52 +410,66 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     return _dispatchCommand(cmd);
   }
 
-  /// Fix 3 — Esc focus-return contract. While the primary focus lives
-  /// inside an inline embed body (its form field or its webview), Esc
-  /// must NOT collapse the window or dispatch the board Close command; it
-  /// returns focus to the board root so the *next* Esc behaves as the
-  /// normal board Esc. Cmd/Ctrl+K and F-keys stay global (handled by the
-  /// plain-key yield below / normal resolution).
-  bool _handleEmbedBodyKey(KeyEvent event) {
-    if (!isKeyboardPress(event)) return false;
-    if (event.logicalKey != LogicalKeyboardKey.escape) return false;
-    if (!primaryFocusIsInsideEmbedBody()) return false;
-    _rootFocus.requestFocus();
+  bool _handleBoardShortcut(KeyEvent event) {
+    if (primaryFocusIsEditableText() || primaryFocusIsInsideEmbedBody()) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isAltPressed) return false;
+    if (event.logicalKey == LogicalKeyboardKey.tab &&
+        keyboard.isControlPressed &&
+        !keyboard.isMetaPressed) {
+      cycleBoard(ref, forward: !keyboard.isShiftPressed);
+      return true;
+    }
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.keyN ||
+        keyboard.isShiftPressed) {
+      return false;
+    }
+    final isMacOS = ref.read(keyboardPlatformProvider) == TargetPlatform.macOS;
+    final hasPrimary = isMacOS
+        ? keyboard.isMetaPressed && !keyboard.isControlPressed
+        : keyboard.isControlPressed && !keyboard.isMetaPressed;
+    if (!hasPrimary) return false;
+    unawaited(promptCreateBoard(context, ref));
     return true;
   }
 
-  /// Fixes 1 & 2 — editable-text / webview-focus guard. While the user is
-  /// typing into an inline body (an embed form field, the memo notepad,
-  /// or the embed's live webview platform view), ALL keys are yielded to
-  /// the focused widget EXCEPT the global set — so arrows, Home/End,
-  /// PageUp/PageDown, Backspace, and Delete move the caret instead of
-  /// paging the board (issue 6 gap 1). Only Cmd/Ctrl chords, F-keys, and
-  /// Escape stay global (see [isGlobalShortcutKeyEvent]); Escape's
-  /// two-stage focus return is handled ahead of this by
-  /// [_handleEmbedBodyKey].
-  bool _shouldYieldToEmbedBody(KeyEvent event) {
-    if (!isKeyboardPress(event)) return false;
-    if (isGlobalShortcutKeyEvent(event)) return false;
-    return primaryFocusIsEditableText() || primaryFocusIsInsideEmbedBody();
+  bool _handleEmbedBodyKey(KeyEvent event) {
+    if (event.logicalKey != LogicalKeyboardKey.escape ||
+        !primaryFocusIsInsideEmbedBody()) {
+      return false;
+    }
+    _gridFocus.requestFocus();
+    return true;
   }
 
-  /// Passive Embed gate helper (issue 6 gap 2). True when the focused pin
-  /// is an embed-family pin rendered inline on the visible board (its live
-  /// webview `bodyOverride` is mounted). Platform webviews frequently do
-  /// not propagate DOM focus into the Flutter focus tree, so
-  /// [primaryFocusIsInsideEmbedBody] can miss; keying off the focused pin's
-  /// tool metadata covers that gap.
-  bool _focusedPinIsEmbedBodied() {
+  BoardPinFocusNode? _selectedPinFocusNode() {
     final pinId = ref.read(focusedPinProvider);
-    if (pinId == null) return false;
-    final placement = visiblePlacementsForKeyboard(
-      ref,
-    ).where((p) => p.pinId == pinId.value).firstOrNull;
-    if (placement == null) return false;
-    final tool = ref.read(toolByIdProvider(ToolId.parse(placement.toolId)));
+    if (pinId == null) return null;
+    return _gridFocus.descendants
+        .whereType<BoardPinFocusNode>()
+        .where((node) => node.pinId == pinId)
+        .firstOrNull;
+  }
+
+  bool _enterSelectedEmbedBody() {
+    final node = _selectedPinFocusNode();
+    if (node == null) return false;
+    final tool = ref.read(toolByIdProvider(node.toolId));
     if (tool == null) return false;
-    return tool.pinKind == PinKindDto.embed ||
-        tool.pinKind == PinKindDto.controlledEmbed;
+    if (tool.pinKind != PinKindDto.embed &&
+        tool.pinKind != PinKindDto.controlledEmbed &&
+        !isMemoNotepadTool(tool)) {
+      return false;
+    }
+    if (node.enterEmbedBody()) return true;
+    if (tool.pinKind != PinKindDto.embed) return false;
+    // Some platform views lack a Flutter keyboard focus target. Their
+    // expanded page gives keyboard users a focused browser-launch action.
+    unawaited(EmbedPage.open(context, tool, focusExternalAction: true));
+    return true;
   }
 
   /// Activate any catalog tool whose declared `Shortcut` source chord
@@ -507,22 +491,6 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
       return true;
     }
     return false;
-  }
-
-  bool _handleFlutterFocusTraversal(KeyEvent event) {
-    if (!isKeyboardPress(event)) return false;
-    if (keyboardLabelForEvent(event) != 'Tab') return false;
-
-    final primaryFocus = FocusManager.instance.primaryFocus;
-    final boardOwnsFocus = primaryFocus == _rootFocus;
-    if (boardOwnsFocus && ref.read(focusedPinProvider) != null) return false;
-    final scope = FocusScope.of(context);
-    if (HardwareKeyboard.instance.isShiftPressed) {
-      scope.previousFocus();
-    } else {
-      scope.nextFocus();
-    }
-    return true;
   }
 
   /// Apply a resolved [KeyboardCommandDto] to the page state. Returns
@@ -639,7 +607,7 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
         // Contract (upeg_core::keyboard_catalog): `q` opens the
         // quit-confirm dialog — never an immediate exit. Mirrors the
         // TUI ConfirmQuit view.
-        unawaited(_requestQuit());
+        unawaited(widget.onQuitRequest());
         return true;
       case KeyboardCommandDto_ShowCheatsheet():
         // `?` — keyboard cheatsheet overlay. Renders the shared binding
@@ -864,7 +832,6 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
     final selectedKey = ref.watch(currentBoardKeyProvider);
     return Focus(
       focusNode: _rootFocus,
-      autofocus: true,
       onKeyEvent: (_, event) =>
           _handleKey(event) ? KeyEventResult.handled : KeyEventResult.ignored,
       child: PendingActivationBridge(
@@ -877,7 +844,13 @@ class _BoardPageState extends ConsumerState<BoardPage> with WindowListener {
                 onOpenSettings: () => unawaited(_openSettings()),
               ),
               const TagChipRow(),
-              Expanded(child: _bodyForSelection(selectedKey)),
+              Expanded(
+                child: Focus(
+                  focusNode: _gridFocus,
+                  autofocus: true,
+                  child: _bodyForSelection(selectedKey),
+                ),
+              ),
               const StatusBar(),
             ],
           ),

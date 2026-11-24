@@ -174,6 +174,25 @@ pub(crate) fn dispatch_tool_on_board_streamed(
     dispatch_streamed_via_url(server, &url, args, origin, live)
 }
 
+/// Dispatch an exact pin over the authenticated TUI host transport.
+pub(crate) fn dispatch_pin_on_board_streamed(
+    server: &DiscoveredHost,
+    board: &upeg_core::BoardKey,
+    tool_id: &str,
+    pin_id: &upeg_core::PinId,
+    args: &Value,
+    live: &LiveCall,
+) -> std::io::Result<StreamedDispatch> {
+    let url = format!(
+        "{}/v1/boards/{}/tools/{}/pins/{}{STREAM_PATH_SUFFIX}",
+        server.endpoint.trim_end_matches('/'),
+        urlencoding::encode(board.as_str()),
+        urlencoding::encode(tool_id),
+        urlencoding::encode(pin_id.as_str()),
+    );
+    dispatch_streamed_via_url(server, &url, args, Surface::Tui, live)
+}
+
 fn dispatch_streamed_via_url(
     server: &DiscoveredHost,
     url: &str,

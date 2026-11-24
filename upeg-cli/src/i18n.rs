@@ -35,6 +35,19 @@ pub fn catalog(locale: Locale, key: &str) -> Option<&'static str> {
 // ─── Catalog tables ────────────────────────────────────────────
 
 static EN: Map<&'static str, &'static str> = phf_map! {
+    "tui.help.board" => "Board (tool grid):\nArrows/hjkl navigate · Tab focus\nEnter/Space/F1 run · o inspect\n/ search · s settings · q quit\nb/t filters · 0 clear · 1-9 select\nn new · R rename · D delete board\na add · p pin · c color\nm move · e resize · [/] reorder",
+    "tui.help.detail" => "Detail:\nEnter/F1/r run · F2 copy ID\nm move · s settings · / search\nEsc back",
+    "tui.help.form" => "Form:\nTab/Shift-Tab or ↑↓ change field\n←→ adjust choice · Ctrl+U clear\nEnter/F1 run · Esc back\nF5 help; ? types a question mark",
+    "tui.help.settings" => "Settings:\n↑↓/Tab select · ←→ change\nEsc/q back",
+    "tui.help.editor" => "Board editor:\nType a name · Ctrl+U clear\nEnter/F1 save · Esc cancel\nF5 help; ? types a question mark",
+    "tui.help.color" => "Color editor:\nType a color · 1-9 preset\nr reset · Enter/F1 save\nEsc/q cancel · F5 help",
+    "tui.help.picker" => "Search / tool picker:\nType to filter · ↑↓ select\nEnter/F1 choose · Esc cancel\nCtrl+U clear · F5 help",
+    "tui.help.result" => "Result:\n↑↓ select row · ←→ select action\na open action · F2 copy\nEnter/Space/F1 rerun · Esc/q back",
+    "tui.help.running" => "Running:\nEsc/q cancel run",
+    "tui.help.confirm" => "Confirmation:\ny/Enter/F1 confirm · n/q/Esc cancel",
+    "tui.help.move" => "Move preview:\nArrows/hjkl move · Enter/F1 save\nEsc/q cancel",
+    "tui.help.resize" => "Resize preview:\nArrows/hjkl resize · 0 reset\nEnter/F1 save · Esc/q cancel",
+    "tui.help.title" => " Keyboard help · Esc close · ↑↓ scroll ",
     // Header bar (view.rs `render_header`).
     "tui.header.title"              => " upeg TUI ",
     "tui.header.frame_title"        => " Universal Pegboard ",
@@ -160,6 +173,19 @@ static EN: Map<&'static str, &'static str> = phf_map! {
 };
 
 static KO: Map<&'static str, &'static str> = phf_map! {
+    "tui.help.board" => "보드 (도구 격자):\n방향키/hjkl 이동 · Tab 포커스\nEnter/Space/F1 실행 · o 상세\n/ 검색 · s 설정 · q 종료\nb/t 필터 · 0 해제 · 1-9 선택\nn 새 보드 · R 이름 변경 · D 삭제\na 추가 · p 핀 · c 색상\nm 이동 · e 크기 · [/] 순서",
+    "tui.help.detail" => "상세:\nEnter/F1/r 실행 · F2 ID 복사\nm 이동 · s 설정 · / 검색\nEsc 뒤로",
+    "tui.help.form" => "입력:\nTab/Shift-Tab 또는 ↑↓ 필드 이동\n←→ 선택 변경 · Ctrl+U 지우기\nEnter/F1 실행 · Esc 뒤로\nF5 도움말 · ? 문자 입력",
+    "tui.help.settings" => "설정:\n↑↓/Tab 선택 · ←→ 변경\nEsc/q 뒤로",
+    "tui.help.editor" => "보드 편집:\n이름 입력 · Ctrl+U 지우기\nEnter/F1 저장 · Esc 취소\nF5 도움말 · ? 문자 입력",
+    "tui.help.color" => "색상 편집:\n색상 입력 · 1-9 프리셋\nr 초기화 · Enter/F1 저장\nEsc/q 취소 · F5 도움말",
+    "tui.help.picker" => "검색 / 도구 선택:\n입력하여 필터 · ↑↓ 선택\nEnter/F1 선택 · Esc 취소\nCtrl+U 지우기 · F5 도움말",
+    "tui.help.result" => "결과:\n↑↓ 행 선택 · ←→ 동작 선택\na 동작 열기 · F2 복사\nEnter/Space/F1 재실행 · Esc/q 뒤로",
+    "tui.help.running" => "실행 중:\nEsc/q 실행 취소",
+    "tui.help.confirm" => "확인:\ny/Enter/F1 확인 · n/q/Esc 취소",
+    "tui.help.move" => "이동 미리보기:\n방향키/hjkl 이동 · Enter/F1 저장\nEsc/q 취소",
+    "tui.help.resize" => "크기 미리보기:\n방향키/hjkl 크기 변경 · 0 초기화\nEnter/F1 저장 · Esc/q 취소",
+    "tui.help.title" => " 단축키 도움말 · Esc 닫기 · ↑↓ 스크롤 ",
     "tui.header.title"              => " upeg TUI ",
     "tui.header.frame_title"        => " Universal Pegboard ",
     "tui.header.hint.navigate"      => "←↓↑→/hjkl 이동  ",

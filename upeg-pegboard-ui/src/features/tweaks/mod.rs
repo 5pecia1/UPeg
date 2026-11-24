@@ -110,5 +110,5 @@ pub fn save_tweaks(t: &Tweaks) {
 /// `Tweaks::default_const`.
 pub fn load_tweaks() -> Option<Tweaks> {
     let json = storage::get_item(storage::TWEAKS_KEY)?;
-    parse_tweaks(&json)
+    upeg_core::prefs::parse_stored_tweaks(&json)
 }
