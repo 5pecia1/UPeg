@@ -8,6 +8,7 @@
 #include <gdk/gdkx.h>
 #endif
 
+#include "desktop_update.h"
 #include "flutter/generated_plugin_registrant.h"
 
 // Window body color until Flutter paints. It is the light theme background
@@ -177,6 +178,7 @@ static void start_engine(MyApplication* self) {
   // the view inside the toplevel window and replaces FlView's delete-event
   // handler, and the gtk plugin starts receiving forwarded command lines.
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  register_desktop_update_channel(FL_PLUGIN_REGISTRY(view));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

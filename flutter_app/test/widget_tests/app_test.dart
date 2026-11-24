@@ -11,6 +11,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -18,8 +19,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:upeg/src/app.dart';
 import 'package:upeg/src/identity.dart' show BoardKey;
 import 'package:upeg/src/pages/board_page.dart';
+import 'package:upeg/src/pages/popup_page.dart';
 import 'package:upeg/src/pages/splash_page.dart';
+import 'package:upeg/src/platform/app_lifecycle.dart' show quitAppProvider;
 import 'package:upeg/src/platform/tray.dart' show TrayMenuSync;
+import 'package:upeg/src/platform/window.dart'
+    show isWindowManagerSupported, popupSizeForTesting, fullSizeForTesting;
 import 'package:upeg/src/rust/api/boot.dart';
 import 'package:upeg/src/rust/api/i18n.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
@@ -37,10 +42,28 @@ import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/suggestions_provider.dart';
 import 'package:upeg/src/state/tag_provider.dart';
 import 'package:upeg/src/state/tweaks_provider.dart';
+import 'package:upeg/src/state/window_mode_provider.dart';
+import 'package:upeg/src/rust/api/palette.dart' show PaletteHit;
 import 'package:upeg/src/theme/upeg_theme.dart' show UpegTheme;
 
 import '../test_helpers/pegboard_selection_overrides.dart';
 import '../test_helpers/i18n_test_catalog.dart';
+
+const _windowManagerChannel = MethodChannel('window_manager');
+
+Future<void> _sendNativeWindowClose(WidgetTester tester) async {
+  const codec = StandardMethodCodec();
+  final response = Completer<ByteData?>();
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    _windowManagerChannel.name,
+    codec.encodeMethodCall(
+      const MethodCall('onEvent', <String, Object?>{'eventName': 'close'}),
+    ),
+    response.complete,
+  );
+  final envelope = await response.future;
+  if (envelope != null) codec.decodeEnvelope(envelope);
+}
 
 const _fakeReport = AppInitReport(
   launch: DesktopLaunchDto(board: 'dev'),
@@ -375,6 +398,87 @@ void main() {
       expect(find.byType(BoardPage), findsOneWidget);
     });
 
+    for (final initialMode in WindowMode.values) {
+      testWidgets(
+        'native_window_close_quits_after_${initialMode.name}_popup_confirmation',
+        (tester) async {
+          final robot = _PopupQuitRobot(tester);
+          var quitCalls = 0;
+          var preventCloseInstalled = false;
+          final mode = WindowModeNotifier(initial: initialMode);
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            _windowManagerChannel,
+            (call) async {
+              if (call.method == 'setPreventClose' &&
+                  (call.arguments as Map)['isPreventClose'] == true) {
+                preventCloseInstalled = true;
+              }
+              if (call.method == 'isMinimized' ||
+                  call.method == 'isMaximized') {
+                return false;
+              }
+              return null;
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(_windowManagerChannel, null),
+          );
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = initialMode == WindowMode.popup
+              ? popupSizeForTesting
+              : fullSizeForTesting;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          await tester.pumpWidget(
+            _harness(
+              initState: const AsyncValue<AppInitReport>.data(_fakeReport),
+              extraOverrides: [
+                ..._boardPageOverrides(),
+                paletteSearcherProvider.overrideWith(
+                  (ref) =>
+                      (String _) => const <PaletteHit>[],
+                ),
+                windowModeProvider.overrideWith(() => mode),
+                quitAppProvider.overrideWithValue(() async {
+                  quitCalls++;
+                }),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
+          if (initialMode == WindowMode.full) {
+            expect(find.byType(BoardPage), findsOneWidget);
+            mode.set(WindowMode.popup);
+            tester.view.physicalSize = popupSizeForTesting;
+            await tester.pumpAndSettle();
+          }
+          expect(find.byType(PopupPage), findsOneWidget);
+          expect(preventCloseInstalled, isTrue);
+
+          await _sendNativeWindowClose(tester);
+          await tester.pumpAndSettle();
+          robot.expectConfirmationVisible();
+          await _sendNativeWindowClose(tester);
+          await tester.pumpAndSettle();
+          robot.expectConfirmationVisible();
+          await robot.cancel();
+          robot.expectConfirmationNotVisible();
+          expect(quitCalls, 0);
+
+          await _sendNativeWindowClose(tester);
+          await tester.pumpAndSettle();
+          robot.expectConfirmationVisible();
+          await robot.confirm();
+          await tester.pumpAndSettle();
+          robot.expectConfirmationNotVisible();
+          expect(quitCalls, 1);
+        },
+        skip: !isWindowManagerSupported,
+      );
+    }
+
     testWidgets('UpegApp_first_frame_paints_the_saved_Dark_theme_and_accent', (
       tester,
     ) async {
@@ -693,4 +797,26 @@ void main() {
       },
     );
   });
+}
+
+class _PopupQuitRobot {
+  _PopupQuitRobot(this.tester);
+
+  final WidgetTester tester;
+
+  void expectConfirmationVisible() =>
+      expect(find.byKey(QuitConfirmDialog.dialogKey), findsOneWidget);
+
+  void expectConfirmationNotVisible() =>
+      expect(find.byKey(QuitConfirmDialog.dialogKey), findsNothing);
+
+  Future<void> cancel() async {
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> confirm() async {
+    await tester.tap(find.byKey(QuitConfirmDialog.confirmButtonKey));
+    await tester.pumpAndSettle();
+  }
 }

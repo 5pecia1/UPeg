@@ -406,6 +406,11 @@ class _GenericFormWidgetState extends ConsumerState<GenericFormWidget> {
   }
 
   KeyEventResult _onFormKeyEvent(FocusNode node, KeyEvent event) {
+    if (primaryFocusIsInsideEmbedBody() &&
+        primaryFocusIsEditableText() &&
+        event.logicalKey != LogicalKeyboardKey.tab) {
+      return KeyEventResult.ignored;
+    }
     final cmd = resolveKeyboardCommand(
       ref,
       event,

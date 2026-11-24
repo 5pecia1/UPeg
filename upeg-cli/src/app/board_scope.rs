@@ -25,7 +25,9 @@ use super::{
 use clap::Parser as _;
 use upeg_runtime::toolbox_tool;
 
+mod editing;
 mod guidance;
+pub(super) use editing::create_board;
 mod pin;
 
 /// Where a `board <b> …` operation lands — in this process or through a
@@ -117,13 +119,16 @@ pub(super) fn run_board_scoped(argv: Vec<String>) -> Result<String, CliError> {
         BoardKey::parse(&board_token).map_err(|e| CliError::tool_failed(format!("board: {e}")))?;
     let rest: Vec<String> = tokens.collect();
     let parsed = BoardScopedCli::try_parse_from(rest)
-        .map_err(|e| CliError::tool_failed(e.render().to_string()))?;
-
-    let mut state = pegboard::load_state();
-    ensure_board_exists(&state, &board)?;
-
+        .map_err(|error| CliError::tool_failed(error.to_string()))?;
     match parsed.action {
-        BoardScopedAction::List { json } => Ok(format_board_pins(&state, &board, json)),
+        BoardScopedAction::Rename { title, json } => editing::rename_board(&board, &title, json),
+        BoardScopedAction::Delete { json } => editing::delete_board(&board, json),
+        BoardScopedAction::PinList { json } => editing::list_pins(&board, json),
+        BoardScopedAction::PinShow { pin_id, json } => editing::show_pin(&board, &pin_id, json),
+        BoardScopedAction::PinEdit(args) => editing::edit_pin(&board, args),
+        BoardScopedAction::List { json } => {
+            Ok(format_board_pins(&load_board(&board)?, &board, json))
+        }
         BoardScopedAction::Call {
             tool_id,
             args,
@@ -133,7 +138,7 @@ pub(super) fn run_board_scoped(argv: Vec<String>) -> Result<String, CliError> {
             pretty,
             local,
         } => run_board_call(
-            &state,
+            &load_board(&board)?,
             &board,
             tool_id,
             args,
@@ -146,20 +151,22 @@ pub(super) fn run_board_scoped(argv: Vec<String>) -> Result<String, CliError> {
             units,
             at,
             json,
-        } => pin::run_pin(
-            &mut state,
-            &board,
-            &tool_id,
-            units.as_deref(),
-            at.as_deref(),
-            json,
-        ),
-        BoardScopedAction::Unpin { tool_id, json } => {
-            pin::run_unpin(&mut state, &board, &tool_id, json)
-        }
-        BoardScopedAction::Move { tool_id, at, json } => {
-            pin::run_move(&mut state, &board, &tool_id, &at, json)
-        }
+        } => editing::edit_board(&board, |state| {
+            pin::run_pin(
+                state,
+                &board,
+                &tool_id,
+                units.as_deref(),
+                at.as_deref(),
+                json,
+            )
+        }),
+        BoardScopedAction::Unpin { tool_id, json } => editing::edit_board(&board, |state| {
+            pin::run_unpin(state, &board, &tool_id, json)
+        }),
+        BoardScopedAction::Move { tool_id, at, json } => editing::edit_board(&board, |state| {
+            pin::run_move(state, &board, &tool_id, &at, json)
+        }),
         BoardScopedAction::Context { json } => guidance::run_context(&board, json),
         BoardScopedAction::Connect => guidance::run_connect(&board),
         BoardScopedAction::Describe {
@@ -169,7 +176,7 @@ pub(super) fn run_board_scoped(argv: Vec<String>) -> Result<String, CliError> {
             clear_instructions,
             json,
         } => guidance::run_describe(
-            &state,
+            &load_board(&board)?,
             &board,
             description,
             clear_description,
@@ -178,6 +185,12 @@ pub(super) fn run_board_scoped(argv: Vec<String>) -> Result<String, CliError> {
             json,
         ),
     }
+}
+
+fn load_board(board: &BoardKey) -> Result<PegboardState, CliError> {
+    let state = pegboard::load_state();
+    ensure_board_exists(&state, board)?;
+    Ok(state)
 }
 
 fn ensure_board_exists(state: &PegboardState, board: &BoardKey) -> Result<(), CliError> {

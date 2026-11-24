@@ -64,7 +64,7 @@ use axum::{
 };
 use serde_json::{Value, json};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
-use upeg_core::{BoardKey, Surface};
+use upeg_core::{BoardKey, PinId, Surface};
 use upeg_runtime::{
     CancellationToken, ExecutionContext, ProgressEvent, ProgressSink, SharedProgressSink,
     toolbox_tool, with_cancellation, with_progress_sink,
@@ -152,19 +152,53 @@ pub(super) async fn board_tools_call_stream(
     body: Bytes,
 ) -> Response {
     let surface = origin_surface_from_headers(&state, &headers);
-    let Some(context) = board_call_context(&board, &id, surface) else {
+    let Some(context) = board_call_context(&board, &id, surface, None) else {
         return not_found_response("board tool", &format!("{board}/{id}")).into_response();
     };
     let context = context.with_principal(principal_from_headers(&state, &headers));
     stream_dispatch(state.notifications_enabled, id, body, context)
 }
 
+/// Internal TUI attach route. A distinct path makes older hosts fail
+/// safely instead of silently running a different pin's preset.
+pub(super) async fn board_pin_call_stream(
+    State(state): State<HttpState>,
+    Path((board, id, pin_id)): Path<(String, String, String)>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let surface = origin_surface_from_headers(&state, &headers);
+    if surface != Surface::Tui {
+        return not_found_response("board pin", &pin_id).into_response();
+    }
+    let Some(context) = board_call_context(&board, &id, surface, Some(&pin_id)) else {
+        return not_found_response("board pin", &pin_id).into_response();
+    };
+    let context = context.with_principal(principal_from_headers(&state, &headers));
+    stream_dispatch(state.notifications_enabled, id, body, context)
+}
+
 /// Board-scoped execution context, or `None` when the pin gate refuses.
-fn board_call_context(board: &str, id: &str, surface: Surface) -> Option<ExecutionContext> {
+fn board_call_context(
+    board: &str,
+    id: &str,
+    surface: Surface,
+    pin_id: Option<&str>,
+) -> Option<ExecutionContext> {
     let state = pegboard::load_state();
     let board_key = BoardKey::parse(board).ok()?;
-    let placement =
+    let representative =
         pegboard::board_placement_on_surface_in(&state, board_key.as_str(), id, surface)?;
+    let placement = if let Some(pin_id) = pin_id {
+        let pin_id = PinId::parse(pin_id).ok()?;
+        state
+            .layouts
+            .get(board_key.as_str())?
+            .iter()
+            .find(|pin| pin.pin_id == pin_id && pin.tool_id == id)?
+    } else {
+        representative
+    };
     Some(ExecutionContext::board(
         surface,
         board_key,

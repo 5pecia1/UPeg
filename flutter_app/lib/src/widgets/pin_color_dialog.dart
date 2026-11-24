@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:upeg/src/i18n/t.dart';
+import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 
 const String _pinColorDialogKey = 'pin-color-dialog';
@@ -61,8 +62,9 @@ class _PinColorDialogState extends ConsumerState<PinColorDialog> {
   @override
   void initState() {
     super.initState();
-    _displayHex = widget.initialColor?.toUpperCase() ?? '';
-    _hexController = TextEditingController(text: _displayHex);
+    final initialHex = widget.initialColor?.toUpperCase() ?? '';
+    _displayHex = _normalizeHex(initialHex);
+    _hexController = TextEditingController(text: initialHex);
     _focusNode = FocusNode();
   }
 
@@ -107,14 +109,20 @@ class _PinColorDialogState extends ConsumerState<PinColorDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<UpegTokens>()!;
-    return KeyboardListener(
+    return Focus(
       focusNode: _focusNode,
       autofocus: true,
-      onKeyEvent: (event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          _onCancel();
+      skipTraversal: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent ||
+            event.logicalKey != LogicalKeyboardKey.escape) {
+          return KeyEventResult.ignored;
         }
+        if (primaryFocusHasActiveTextComposition()) {
+          return KeyEventResult.skipRemainingHandlers;
+        }
+        _onCancel();
+        return KeyEventResult.handled;
       },
       child: Container(
         key: const Key(_pinColorDialogKey),
@@ -157,17 +165,37 @@ class _PinColorDialogState extends ConsumerState<PinColorDialog> {
       runSpacing: 8,
       children: [
         for (final swatch in _swatches)
-          GestureDetector(
-            onTap: () => _onSwatchTap(swatch.hexRgb),
-            child: Container(
+          Semantics(
+            label: '$_hexPrefix${swatch.hexRgb}',
+            selected: _displayHex == '$_hexPrefix${swatch.hexRgb}',
+            child: OutlinedButton(
               key: Key('color-swatch-${swatch.hexRgb.toLowerCase()}'),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: swatch.color,
-                shape: BoxShape.circle,
-                border: Border.all(color: tokens.line, width: 1),
-              ),
+              onPressed: () => _onSwatchTap(swatch.hexRgb),
+              style:
+                  OutlinedButton.styleFrom(
+                    backgroundColor: swatch.color,
+                    shape: const CircleBorder(),
+                    minimumSize: const Size.square(32),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.standard,
+                  ).copyWith(
+                    side: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.focused)) {
+                        return BorderSide(color: tokens.focusRing, width: 3);
+                      }
+                      return BorderSide(color: tokens.line);
+                    }),
+                  ),
+              child: _displayHex == '$_hexPrefix${swatch.hexRgb}'
+                  ? Icon(
+                      Icons.check,
+                      size: 16,
+                      color: swatch.color.computeLuminance() > 0.179
+                          ? Colors.black
+                          : Colors.white,
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
       ],

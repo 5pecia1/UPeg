@@ -113,8 +113,6 @@ pub(super) enum BoardPinError {
     },
     #[error("could not place tool `{tool_id}` on board `{board}`")]
     PinRefused { board: BoardKey, tool_id: String },
-    #[error("save pegboard state: {0}")]
-    Save(#[from] pegboard::PegboardStateError),
 }
 
 impl From<BoardPinError> for CliError {
@@ -178,7 +176,6 @@ pub(super) fn run_pin(
     if let Some(cell) = cell {
         apply_cell(state, board, &tool_id, cell)?;
     }
-    pegboard::save_state(state).map_err(BoardPinError::Save)?;
     Ok(render(state, board, &tool_id, PinVerb::Pinned, json))
 }
 
@@ -189,7 +186,9 @@ pub(super) fn run_unpin(
     json: bool,
 ) -> Result<String, CliError> {
     let tool_id = normalize_tool_id_segments(tool_id);
-    if pegboard::placement_in(state, board.as_str(), &tool_id).is_none() {
+    if pegboard::placement_in(state, board.as_str(), &tool_id).is_none()
+        || upeg_runtime::toolbox_tool(&tool_id).is_none()
+    {
         return Err(BoardPinError::NotPinned {
             board: board.clone(),
             tool_id,
@@ -197,7 +196,6 @@ pub(super) fn run_unpin(
         .into());
     }
     pegboard::unpin_tool(state, board.as_str(), &tool_id);
-    pegboard::save_state(state).map_err(BoardPinError::Save)?;
     Ok(render(state, board, &tool_id, PinVerb::Unpinned, json))
 }
 
@@ -218,7 +216,6 @@ pub(super) fn run_move(
     }
     let cell = BoardCell::parse(at)?;
     apply_cell(state, board, &tool_id, cell)?;
-    pegboard::save_state(state).map_err(BoardPinError::Save)?;
     Ok(render(state, board, &tool_id, PinVerb::Moved, json))
 }
 

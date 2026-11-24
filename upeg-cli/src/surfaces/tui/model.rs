@@ -14,6 +14,8 @@ mod draft_seed;
 mod form_value;
 mod live_tail;
 mod pin_color;
+mod selection;
+pub use selection::{MoveMode, ResizeMode};
 
 pub use active_run::{ActiveRun, RunToken, RunTokenMint};
 use draft_seed::initial_tui_draft;
@@ -195,36 +197,6 @@ impl View {
 pub enum BoardEditMode {
     AddBoard,
     Rename { key: String, original_title: String },
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// In-progress coordinate move operation. `base` is the committed board layout
-/// at move start; `preview` is recomputed on every arrow key with the shared
-/// push-placement primitive and becomes the committed layout only on Enter.
-pub struct MoveMode {
-    pub board: String,
-    pub tool_id: &'static str,
-    pub target_x: u16,
-    pub target_y: u16,
-    pub base: Vec<Placement>,
-    pub preview: Vec<Placement>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// In-progress pin-resize operation — the size twin of [`MoveMode`].
-/// `cols`/`rows` are the currently previewed effective span; `base` is
-/// the committed board layout at resize start and `preview` is
-/// recomputed on every span change with the shared push-placement
-/// primitive. Only Enter turns the preview into the committed layout.
-pub struct ResizeMode {
-    pub board: String,
-    pub tool_id: &'static str,
-    /// Currently previewed span width in board columns.
-    pub cols: u16,
-    /// Currently previewed span height in board rows.
-    pub rows: u16,
-    pub base: Vec<Placement>,
-    pub preview: Vec<Placement>,
 }
 
 /// Cycle-able prefs the TUI Settings View exposes.
@@ -444,6 +416,10 @@ impl TuiFormState {
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 /// Mutable state for the pure TUI state machine.
 pub struct State {
+    /// Help is an overlay, leaving the underlying view and drafts intact.
+    pub help_open: bool,
+    /// Vertical offset into the wrapped help text.
+    pub help_scroll: u16,
     /// Index of the currently focused tool in the rendered list.
     pub cursor: usize,
     /// Vertical scroll offset for the pegboard grid content area.
@@ -558,6 +534,31 @@ pub struct PresentationFrame {
 }
 
 impl State {
+    pub(crate) fn help_key(&self) -> &'static str {
+        if self.move_mode.is_some() {
+            return "tui.help.move";
+        }
+        if self.resize_mode.is_some() {
+            return "tui.help.resize";
+        }
+        match self.view {
+            View::List => "tui.help.board",
+            View::Detail => "tui.help.detail",
+            View::Form { .. } => "tui.help.form",
+            View::Settings { .. } => "tui.help.settings",
+            View::BoardEditor { .. } => "tui.help.editor",
+            View::PinColorEditor(_) => "tui.help.color",
+            View::ToolPicker { .. } => "tui.help.picker",
+            View::Result { .. } => "tui.help.result",
+            View::Running { .. } => "tui.help.running",
+            View::ConfirmDeleteBoard { .. } | View::ConfirmQuit | View::ConfirmApproval { .. } => {
+                "tui.help.confirm"
+            }
+        }
+    }
+}
+
+impl State {
     /// Claim the identity of a run that is about to start. The token is
     /// what `Msg::ToolProgress` is stamped with, so only output from
     /// *this* run can reach the pane it opens.
@@ -619,10 +620,17 @@ impl State {
     }
 
     pub(crate) fn replace_pegboard_from_external_change(&mut self, next: PegboardState) {
+        let selected_board = self.filters.board.clone();
+        let selected_pin = self.selected_board_pin().map(|pin| pin.pin_id);
         let selection = next.selection.clone();
         self.replace_pegboard(next);
         self.filters = initial_tui_filters(selection.board_key.as_deref(), Some(&selection.tag));
         self.sync_filter_cursors();
+        if self.filters.board == selected_board
+            && let Some(pin_id) = selected_pin
+        {
+            self.focus_pin(&pin_id);
+        }
         let visible_len = self.visible_placements().len();
         if self.cursor >= visible_len {
             self.cursor = visible_len.saturating_sub(1);
@@ -637,6 +645,8 @@ impl State {
                 View::BoardEditor { .. }
                     | View::ConfirmDeleteBoard { .. }
                     | View::PinColorEditor(_)
+                    | View::Form { .. }
+                    | View::ConfirmApproval { .. }
                     | View::ToolPicker {
                         mode: ToolPickerMode::Pin,
                         ..

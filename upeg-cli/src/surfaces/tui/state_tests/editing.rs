@@ -1,6 +1,7 @@
 use super::*;
 
 mod board_crud;
+mod duplicate_pins;
 mod i18n_keys;
 mod movement;
 mod pin_color_editor;

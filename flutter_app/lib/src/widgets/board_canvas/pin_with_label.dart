@@ -13,6 +13,7 @@ import 'package:upeg/src/features/memos/memo_pin_body.dart';
 import 'package:upeg/src/features/memos/memo_roles.dart';
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
+import 'package:upeg/src/keyboard/keyboard_command_resolver.dart';
 import 'package:upeg/src/pegboard_units.dart';
 import 'package:upeg/src/rust/api/capability.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
@@ -65,6 +66,28 @@ const double _dragFeedbackOpacity = 0.75;
 const String _liveFailureCopyKey = 'inline.dispatch_failed';
 const int _liveFailureMaxLines = 3;
 
+/// Provides keyboard actions for the pin selected by the board grid.
+class BoardPinFocusNode extends FocusNode {
+  BoardPinFocusNode(this.pinId, this.toolId) : super(skipTraversal: true);
+
+  final PinId pinId;
+  final ToolId toolId;
+  VoidCallback? showContextMenu;
+
+  bool enterEmbedBody() {
+    for (final scope in descendants) {
+      if (scope.debugLabel != EmbedBodyFocusScope.debugLabel) continue;
+      for (final target in scope.descendants) {
+        if (target.canRequestFocus) {
+          target.requestFocus();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}
+
 /// Wraps [Pin] with a Riverpod lookup for the tool label AND the modeless
 /// drag affordance.
 ///
@@ -77,7 +100,7 @@ const int _liveFailureMaxLines = 3;
 ///   * gesture-owning bodies (embed / controlled-embed / memo): drag
 ///     originates ONLY from the injected move handle so the live body
 ///     (webview / text field) keeps receiving taps/scrolls untouched.
-class PinWithLabel extends ConsumerWidget {
+class PinWithLabel extends ConsumerStatefulWidget {
   const PinWithLabel({
     required this.placement,
     required this.boardKey,
@@ -124,7 +147,27 @@ class PinWithLabel extends ConsumerWidget {
   final ScrollController? verticalScrollController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PinWithLabel> createState() => _PinWithLabelState();
+}
+
+class _PinWithLabelState extends ConsumerState<PinWithLabel> {
+  late final _focusNode = BoardPinFocusNode(
+    PinId.parse(widget.placement.pinId),
+    ToolId.parse(widget.placement.toolId),
+  );
+
+  PlacementDto get placement => widget.placement;
+  BoardKey get boardKey => widget.boardKey;
+  int get columns => widget.columns;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = context.upeg;
     final toolId = ToolId.parse(placement.toolId);
     final pinKey = (boardKey, PinId.parse(placement.pinId));
@@ -338,7 +381,7 @@ class PinWithLabel extends ConsumerWidget {
     if (inlineTapOpensModal) {
       // Tap outside the inline input controls opens the expanded modal
       // (seeded with the inline draft); taps on the fields edit in place.
-      tapHandler = onOpenModal;
+      tapHandler = widget.onOpenModal;
     } else if (bodyOwnsGesture) {
       tapHandler = null;
     } else if (attachRouted) {
@@ -348,7 +391,7 @@ class PinWithLabel extends ConsumerWidget {
             .run(toolId, ToolArgs.empty, pinKey: pinKey),
       );
     } else {
-      tapHandler = onTap;
+      tapHandler = widget.onTap;
     }
     final payload = PinDragPayload(pinKey: pinKey, toolId: toolId);
 
@@ -399,8 +442,8 @@ class PinWithLabel extends ConsumerWidget {
       tapHintKey: inlineTapOpensModal
           ? 'a11y.pin.hint_open'
           : 'a11y.pin.hint_run',
-      onEditColor: onEditColor,
-      onOpenModal: onOpenModal,
+      onEditColor: widget.onEditColor,
+      onOpenModal: widget.onOpenModal,
       bodyOverride: bodyOverride,
       // The failure line is the pin's only status (there is no result for
       // the Semantics value), so assistive technology must reach its text.
@@ -420,8 +463,8 @@ class PinWithLabel extends ConsumerWidget {
         // commit later cannot race a UI-driven state reset (see
         // feedback_dragend_race.md — the retired Dioxus surface hit the
         // same race).
-        onDragCompleted: onDragFinished,
-        onDraggableCanceled: (_, _) => onDragFinished(),
+        onDragCompleted: widget.onDragFinished,
+        onDraggableCanceled: (_, _) => widget.onDragFinished(),
         onDragUpdate: _onDragUpdate,
         feedback: _dragFeedback(pin),
         // Replace the source slot with a hit-test-pass-through placeholder
@@ -444,11 +487,26 @@ class PinWithLabel extends ConsumerWidget {
       ref.read(focusedPinProvider.notifier).focus(pinKey.$2);
     }
 
+    _focusNode.showContextMenu = () {
+      final box = context.findRenderObject() as RenderBox;
+      unawaited(
+        pin.showContextMenu(
+          context,
+          ref,
+          box.localToGlobal(Offset(0, box.size.height)),
+        ),
+      );
+    };
     return Focus(
+      focusNode: _focusNode,
       skipTraversal: true,
       includeSemantics: false,
+      // The grid owns a single Tab stop. A pin's controls join traversal
+      // while the user is interacting with that pin.
+      descendantsAreTraversable: _focusNode.hasFocus,
       onFocusChange: (hasFocus) {
         if (hasFocus) focusThisPin();
+        setState(() {});
       },
       child: Listener(
         onPointerDown: (_) => focusThisPin(),
@@ -498,8 +556,8 @@ class PinWithLabel extends ConsumerWidget {
   ) {
     return Draggable<PinDragPayload>(
       data: payload,
-      onDragCompleted: onDragFinished,
-      onDraggableCanceled: (_, _) => onDragFinished(),
+      onDragCompleted: widget.onDragFinished,
+      onDraggableCanceled: (_, _) => widget.onDragFinished(),
       onDragUpdate: _onDragUpdate,
       feedback: _dragFeedback(feedbackPin),
       child: PinMoveHandle(tokens: tokens),
@@ -522,7 +580,7 @@ class PinWithLabel extends ConsumerWidget {
 
   void _onDragUpdate(DragUpdateDetails details) {
     final RenderBox? box =
-        gridKey.currentContext?.findRenderObject() as RenderBox?;
+        widget.gridKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
     // Use full global position for correct local offset (not
     // Offset(0, dy) which produces wrong results when the grid
@@ -539,7 +597,7 @@ class PinWithLabel extends ConsumerWidget {
     // Expand pointer-leading: request rows ahead of the cursor so
     // drop targets exist before the pointer arrives, eliminating
     // the "step back, expand, step back, expand" pattern.
-    onDragRowUpdate?.call(pointerRow + _dragExpansionLookaheadRows);
+    widget.onDragRowUpdate?.call(pointerRow + _dragExpansionLookaheadRows);
 
     // Drop-target hover highlight: the ACTUAL cell under the pointer
     // (no lookahead — a drop commits where the pointer IS, not where
@@ -548,7 +606,7 @@ class PinWithLabel extends ConsumerWidget {
     // highlight layer's OWN state directly (see `DropHighlightLayer`'s
     // class doc for why that isolation matters here).
     if (pointerCol >= 0 && pointerCol < columns && pointerRow >= 0) {
-      highlightKey?.currentState?.updateHover(
+      widget.highlightKey?.currentState?.updateHover(
         pointerCol,
         pointerRow,
         PinDragPayload(
@@ -557,13 +615,13 @@ class PinWithLabel extends ConsumerWidget {
         ),
       );
     } else {
-      highlightKey?.currentState?.clearHover();
+      widget.highlightKey?.currentState?.clearHover();
     }
 
     // Autoscroll when the drag pointer approaches either vertical
     // viewport edge. Downward scrolling makes newly-expanded rows
     // reachable; upward scrolling keeps existing rows above reachable.
-    final ctrl = verticalScrollController;
+    final ctrl = widget.verticalScrollController;
     if (ctrl != null && ctrl.hasClients) {
       // Use the scroll position's viewportDimension for the visible area.
       final viewportHeight = ctrl.position.viewportDimension;

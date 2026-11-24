@@ -15,13 +15,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/pages/board_page.dart';
+import 'package:upeg/src/rust/api/embed.dart';
+import 'package:upeg/src/rust/api/pegboard.dart';
+import 'package:upeg/src/rust/api/tools.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/widgets/controlled_embed/tile.dart'
     show ControlledEmbedTile;
+import 'package:upeg/src/widgets/expanded_modal/webview_panel.dart';
 import 'package:upeg/src/widgets/palette_overlay.dart';
 import 'package:upeg/src/widgets/pin.dart';
 
 import '../test_helpers/board_page_harness.dart';
+import '../test_helpers/tool_fixture.dart';
 
 void main() {
   group('inline embed keyboard coexistence', () {
@@ -184,7 +189,7 @@ void main() {
       await tester.pump();
       expect(primaryFocusIsInsideEmbedBody(), isTrue);
 
-      final boardFocus = tester.widget<Focus>(boardPageFocusFinder()).focusNode;
+      final boardFocus = boardGridFocus(tester);
 
       // First Esc: return focus to the board root, do NOT close.
       final first = dispatchBoardPageKey(
@@ -282,49 +287,123 @@ void main() {
       },
     );
 
+    testWidgets('should keep grid commands available with a web pin selected', (
+      tester,
+    ) async {
+      final resolverCalls = <String>[];
+      await pumpBoardWithControlledEmbed(
+        tester,
+        onResolverKey: resolverCalls.add,
+        focusedToolId: embedToolId,
+      );
+      final robot = BoardKeyboardRobot(tester);
+      robot.expectGridFocus(true);
+
+      await robot.press(LogicalKeyboardKey.arrowRight);
+      await robot.press(LogicalKeyboardKey.keyH);
+
+      expect(resolverCalls, containsAllInOrder(['ArrowRight', 'h']));
+      robot.expectGridFocus(true);
+    });
+
     testWidgets(
-      'when_a_passive_embed_pin_is_focused_a_plain_key_is_not_a_board_shortcut',
+      'should focus the live passive web view when it exposes a focus target',
       (tester) async {
-        // Issue 6 gap 2: the platform webview never propagated DOM focus into
-        // the Flutter tree (primary focus stays on the board root), yet the
-        // focused pin IS an embed-bodied pin. Plain keys must still be gated
-        // off board shortcuts.
+        final robot = BoardKeyboardRobot(tester);
+        final webViewFocus = FocusNode(debugLabel: 'test native WebView');
+        addTearDown(webViewFocus.dispose);
+        await _pumpPassiveEmbed(
+          tester,
+          webView: Focus(
+            focusNode: webViewFocus,
+            child: const SizedBox.expand(),
+          ),
+        );
+
+        await robot.press(LogicalKeyboardKey.enter);
+        expect(webViewFocus.hasPrimaryFocus, isTrue);
+        await robot.press(LogicalKeyboardKey.escape);
+        robot.expectGridFocus(true);
+      },
+    );
+
+    testWidgets(
+      'should focus the external action when the web view lacks a focus target',
+      (tester) async {
+        const externalButton = Key('embed-page-open-externally');
+        final robot = BoardKeyboardRobot(tester);
+        await _pumpPassiveEmbed(tester, webView: const SizedBox.expand());
+
+        await robot.press(LogicalKeyboardKey.enter);
+        robot.expectVisible(externalButton, true);
+        robot.expectControlFocus(externalButton);
+        await robot.press(LogicalKeyboardKey.escape);
+
+        robot.expectVisible(externalButton, false);
+        robot.expectGridFocus(true);
+      },
+    );
+
+    testWidgets(
+      'should enter a controlled web pin form on Enter and leave on Escape',
+      (tester) async {
         final resolverCalls = <String>[];
         await pumpBoardWithControlledEmbed(
           tester,
           onResolverKey: resolverCalls.add,
           focusedToolId: embedToolId,
         );
+        final robot = BoardKeyboardRobot(tester);
 
-        // Do NOT focus the embed field — primary focus is the board root.
-        expect(primaryFocusIsInsideEmbedBody(), isFalse);
-        expect(primaryFocusIsEditableText(), isFalse);
-
-        for (final probe in plainKeyProbes) {
-          final result = dispatchBoardPageKey(
-            tester,
-            logicalKey: probe.logical,
-            physicalKey: probe.physical,
-            character: probe.character,
-          );
-          expect(result, KeyEventResult.ignored);
-        }
+        await robot.press(LogicalKeyboardKey.enter);
+        robot.expectEditableFocus(true);
+        await robot.press(LogicalKeyboardKey.keyH);
         expect(resolverCalls, isEmpty);
-        expect(find.byType(PaletteOverlay), findsNothing);
 
-        // Cmd+K is still global even for a passive embed pin.
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        final result = dispatchBoardPageKey(
-          tester,
-          logicalKey: LogicalKeyboardKey.keyK,
-          physicalKey: PhysicalKeyboardKey.keyK,
-          character: 'k',
-        );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await tester.pumpAndSettle();
-        expect(result, KeyEventResult.handled);
-        expect(find.byType(PaletteOverlay), findsOneWidget);
+        await robot.press(LogicalKeyboardKey.escape);
+        robot.expectGridFocus(true);
+        robot.expectEditableFocus(false);
+        expect(resolverCalls, isEmpty);
       },
     );
   });
+}
+
+Future<void> _pumpPassiveEmbed(
+  WidgetTester tester, {
+  required Widget webView,
+}) async {
+  final previousBuilder = desktopWebViewBuilder;
+  final previousTarget = webViewTargetResolver;
+  desktopWebViewBuilder = (_, _, _) => webView;
+  webViewTargetResolver = () => const WebViewTarget.inAppWebView();
+  addTearDown(() {
+    desktopWebViewBuilder = previousBuilder;
+    webViewTargetResolver = previousTarget;
+  });
+  const id = 'fixture.passive_web';
+  await tester.pumpWidget(
+    boardPageHarness(
+      focusedToolId: id,
+      tools: [
+        fixtureToolDto(
+          id: id,
+          label: 'Passive Web',
+          pinKind: PinKindDto.embed,
+          invoker: InvokerDto.embed,
+        ),
+      ],
+      layoutLoader: (query) => LayoutSnapshotDto(
+        boardKey: query.boardKey.value,
+        boardCols: 6,
+        placements: const [
+          PlacementDto(toolId: id, pinId: id, x: 0, y: 0, w: 2, h: 2),
+        ],
+      ),
+      resolveEmbed: ({pinKey, required toolId, required args}) =>
+          const EmbedResolutionDto(url: 'https://example.test'),
+      resolver: noKeyboardCommand,
+    ),
+  );
+  await tester.pumpAndSettle();
 }

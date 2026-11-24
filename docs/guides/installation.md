@@ -131,9 +131,10 @@ separate download; it does not replace this CLI ZIP.
 
 ### macOS desktop
 
-Verify the universal DMG, open it, and drag `upeg.app` into Applications. Open
-`upeg` from Applications. The same DMG supports Apple Silicon and Intel Macs;
-the ARM64 CLI archive is a separate package.
+Verify the universal DMG, open it, and drag `upeg.app` onto the Applications
+shortcut in the DMG window, or into Applications in Finder if the shortcut is
+absent. Open `upeg` from Applications. The same DMG supports Apple Silicon and
+Intel Macs; the ARM64 CLI archive is a separate package.
 
 For additional verification of a notarized DMG and its installed app:
 
@@ -178,6 +179,21 @@ or install it with `Add-AppxPackage -Path .\downloaded-file-name.msix` in
 PowerShell. Do not bypass Windows security policy to install an unsigned asset.
 See Microsoft's [MSIX signing overview](https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview)
 for the package-signing requirements.
+
+### Desktop updates
+
+When UPeg finds a newer stable release, open the update icon and review the
+version. Selecting **Later** dismisses that version. Updates start only after
+you approve them.
+
+- **macOS** verifies the signed, notarized DMG before replacing and reopening
+  a writable, signed installation. Other installs open the tagged release page.
+- **Linux** verifies the matching release asset against its SHA-256 checksum.
+  UPeg replaces a writable, user-owned AppImage in place. For a system
+  installation it asks for administrator approval and installs the matching
+  DEB with APT or RPM with DNF. UPeg then restarts. Systems without the required
+  update tools open the tagged release page.
+- **Windows** opens the tagged release page to download the installer manually.
 
 ## Web deployment
 

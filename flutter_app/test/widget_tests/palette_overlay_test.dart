@@ -579,6 +579,77 @@ void main() {
     });
 
     testWidgets(
+      'should pin and activate the focused row when Ctrl+Enter is pressed',
+      (tester) async {
+        const first = PaletteHit(
+          id: 'num.hex_to_decimal',
+          label: 'hex to decimal',
+          description: '',
+          score: 1.0,
+          pinKind: PinKindDto.inline,
+        );
+        const second = PaletteHit(
+          id: 'convert.base64_decode',
+          label: 'base64 decode',
+          description: '',
+          score: 0.9,
+          pinKind: PinKindDto.inline,
+        );
+        final pinCalls = <ToolId>[];
+        PaletteHit? selected;
+        final robot = _PaletteKeyboardRobot(tester);
+        await tester.pumpWidget(
+          _harness(
+            hits: const [first, second],
+            onPick: (hit) => selected = hit,
+            currentBoardKey: 'dev',
+            addPin: (_, tool) {
+              pinCalls.add(tool);
+              return 'keyboard-pin';
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await robot.tabToHit(second.id);
+        await robot.pinFocusedHit();
+
+        expect(pinCalls, [ToolId.parse(second.id)]);
+        expect(selected, second);
+      },
+    );
+
+    testWidgets(
+      'should keep query Enter and Escape in an active IME composition',
+      (tester) async {
+        const hit = PaletteHit(
+          id: 'num.hex_to_decimal',
+          label: 'hex to decimal',
+          description: '',
+          score: 1.0,
+          pinKind: PinKindDto.inline,
+        );
+        PaletteHit? selected;
+        final robot = _PaletteKeyboardRobot(tester);
+        await tester.pumpWidget(
+          _harness(
+            hits: const [hit],
+            onPick: (hit) => selected = hit,
+            childBuilder: (onPick) => _PaletteDialogButton(onPick: onPick),
+          ),
+        );
+
+        await robot.open();
+        await robot.composeQuery('hex');
+        await robot.press(LogicalKeyboardKey.enter);
+        await robot.press(LogicalKeyboardKey.escape);
+
+        robot.expectOpen(true);
+        expect(selected, isNull);
+      },
+    );
+
+    testWidgets(
       'paletteoverlay_arrowdown_then_enter_selects_the_highlighted_hit',
       (tester) async {
         PaletteHit? picked;
@@ -843,4 +914,60 @@ void main() {
       expect(find.text('no active board to pin into'), findsOneWidget);
     });
   });
+}
+
+class _PaletteKeyboardRobot {
+  _PaletteKeyboardRobot(this.tester);
+
+  final WidgetTester tester;
+
+  Future<void> open() async {
+    await tester.tap(find.byKey(const Key('open-palette-dialog')));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> press(LogicalKeyboardKey key) async {
+    await tester.sendKeyEvent(key);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tabToHit(String id) async {
+    for (var i = 0; i < 10; i++) {
+      await press(LogicalKeyboardKey.tab);
+      final focus = FocusManager.instance.primaryFocus?.context;
+      if (find
+          .ancestor(
+            of: find.byElementPredicate((element) => element == focus),
+            matching: find.byKey(ValueKey('palette-hit-$id')),
+          )
+          .evaluate()
+          .isNotEmpty) {
+        return;
+      }
+    }
+    fail('Tab did not reach palette row $id');
+  }
+
+  Future<void> pinFocusedHit() async {
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await press(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  }
+
+  Future<void> composeQuery(String text) async {
+    await tester.showKeyboard(find.byType(TextField));
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+        composing: TextRange(start: 0, end: text.length),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  void expectOpen(bool expected) => expect(
+    find.byType(PaletteOverlay),
+    expected ? findsOneWidget : findsNothing,
+  );
 }

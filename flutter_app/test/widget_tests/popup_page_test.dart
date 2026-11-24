@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:upeg/src/state/app_state.dart';
 import 'package:upeg/src/popup/popup_selection_provider.dart';
 import 'package:upeg/src/state/pending_activation_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
+import 'package:upeg/src/state/pinned_provider.dart';
 import 'package:upeg/src/widgets/popup_board_tabs.dart';
 
 import '../test_helpers/i18n_test_catalog.dart';
@@ -19,6 +21,70 @@ import '../test_helpers/popup_page_harness.dart';
 
 void main() {
   group('PopupPage', () {
+    testWidgets('launcher menu is keyboard accessible and retains search', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      await tester.pumpWidget(
+        popupPageHarness(
+          hits: const [
+            PaletteHit(
+              id: 'num.hex_to_decimal',
+              label: 'Hex',
+              description: '',
+              score: 1,
+              pinKind: PinKindDto.inline,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('popup-search-field')),
+        'draft?',
+      );
+      final iconContext = tester.element(find.byIcon(Icons.more_horiz));
+      for (var i = 0; i < 20 && !Focus.of(iconContext).hasFocus; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(Focus.of(iconContext).hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      final pause = tester.widget<PopupMenuItem<Object?>>(
+        find.byWidgetPredicate(
+          (widget) => widget is PopupMenuItem<Object?> && !widget.enabled,
+        ),
+      );
+      expect(pause.enabled, isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate((w) => w is CheckedPopupMenuItem<Object?>),
+        findsOneWidget,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate((w) => w is CheckedPopupMenuItem<Object?>),
+        findsNothing,
+      );
+      expect(
+        ProviderScope.containerOf(
+          tester.element(find.byType(PopupPage)),
+        ).read(pinnedProvider),
+        isTrue,
+      );
+      final input = tester.widget<TextField>(
+        find.byKey(const Key('popup-search-field')),
+      );
+      expect(input.controller?.text, 'draft?');
+      debugDefaultTargetPlatformOverride = null;
+    });
+
     testWidgets('popuppage_shows_the_search_field_and_empty_result_hint', (
       tester,
     ) async {

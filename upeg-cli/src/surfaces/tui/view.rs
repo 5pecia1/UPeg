@@ -105,65 +105,69 @@ pub(crate) fn render_with_context_and_pin_colors(
     render_board_bar(frame, layout.boards, state, accent);
     render_tag_bar(frame, layout.tags, state, accent);
     let body = layout.body();
-    match &state.view {
-        View::Settings { focused_field } => {
-            render_settings_panel(frame, body, state, *focused_field, accent);
-        }
-        View::BoardEditor { mode, buffer } => {
-            render_board_editor(frame, body, state, mode, buffer, accent);
-        }
-        View::ConfirmDeleteBoard { title, .. } => {
-            render_confirm_delete_board(frame, body, state, title, accent);
-        }
-        View::ConfirmQuit => {
-            render_confirm_quit(frame, body, state, accent);
-        }
-        View::ConfirmApproval { tool_id, .. } => {
-            render_confirm_approval(frame, body, state, tool_id, accent);
-        }
-        View::PinColorEditor(editor) => {
-            render_pin_color_editor(frame, body, state, editor, accent);
-        }
-        View::ToolPicker {
-            mode,
-            query,
-            cursor,
-            ..
-        } => {
-            render_tool_picker(
-                frame,
-                body,
-                ToolPickerRender {
+    if state.help_open {
+        render_help(frame, body, state, accent);
+    } else {
+        match &state.view {
+            View::Settings { focused_field } => {
+                render_settings_panel(frame, body, state, *focused_field, accent);
+            }
+            View::BoardEditor { mode, buffer } => {
+                render_board_editor(frame, body, state, mode, buffer, accent);
+            }
+            View::ConfirmDeleteBoard { title, .. } => {
+                render_confirm_delete_board(frame, body, state, title, accent);
+            }
+            View::ConfirmQuit => {
+                render_confirm_quit(frame, body, state, accent);
+            }
+            View::ConfirmApproval { tool_id, .. } => {
+                render_confirm_approval(frame, body, state, tool_id, accent);
+            }
+            View::PinColorEditor(editor) => {
+                render_pin_color_editor(frame, body, state, editor, accent);
+            }
+            View::ToolPicker {
+                mode,
+                query,
+                cursor,
+                ..
+            } => {
+                render_tool_picker(
+                    frame,
+                    body,
+                    ToolPickerRender {
+                        state,
+                        tools,
+                        mode: *mode,
+                        query,
+                        cursor: *cursor,
+                        accent,
+                    },
+                );
+            }
+            View::List | View::Detail => {
+                render_body_surfaces_with_pin_colors(
+                    frame,
+                    &layout,
+                    BodyDominant::Board,
                     state,
                     tools,
-                    mode: *mode,
-                    query,
-                    cursor: *cursor,
                     accent,
-                },
-            );
-        }
-        View::List | View::Detail => {
-            render_body_surfaces_with_pin_colors(
-                frame,
-                &layout,
-                BodyDominant::Board,
-                state,
-                tools,
-                accent,
-                pin_colors,
-            );
-        }
-        View::Form { .. } | View::Result { .. } | View::Running { .. } => {
-            render_body_surfaces_with_pin_colors(
-                frame,
-                &layout,
-                BodyDominant::RightPane,
-                state,
-                tools,
-                accent,
-                pin_colors,
-            );
+                    pin_colors,
+                );
+            }
+            View::Form { .. } | View::Result { .. } | View::Running { .. } => {
+                render_body_surfaces_with_pin_colors(
+                    frame,
+                    &layout,
+                    BodyDominant::RightPane,
+                    state,
+                    tools,
+                    accent,
+                    pin_colors,
+                );
+            }
         }
     }
     render_footer(
@@ -344,7 +348,7 @@ fn render_header(frame: &mut Frame, area: Rect, state: &State, accent: Color) {
             t(locale, "tui.header.title"),
             Style::default().fg(accent).add_modifier(Modifier::BOLD),
         ),
-        Span::raw("  "),
+        Span::raw("  ?/F5 help  "),
     ];
     // Modeless: one hint set. Board-management (n / R / D / a) and
     // per-pin (p / c / m / [ ]) keys are always live, so the hint bar
@@ -371,6 +375,24 @@ fn render_header(frame: &mut Frame, area: Rect, state: &State, accent: Color) {
             .title(t(locale, "tui.header.frame_title")),
     );
     frame.render_widget(header, area);
+}
+
+fn render_help(frame: &mut Frame, area: Rect, state: &State, accent: Color) {
+    let locale = state.tweaks.locale;
+    let body = t(locale, state.help_key())
+        .lines()
+        .skip(usize::from(state.help_scroll))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let help = Paragraph::new(body)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(accent))
+                .title(t(locale, "tui.help.title")),
+        )
+        .wrap(Wrap { trim: false });
+    frame.render_widget(help, area);
 }
 
 fn render_board_bar(frame: &mut Frame, area: Rect, state: &State, accent: Color) {

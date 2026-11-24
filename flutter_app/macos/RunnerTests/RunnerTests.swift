@@ -4,6 +4,80 @@ import XCTest
 
 class RunnerTests: XCTestCase {
 
+  func testSettingsMenuShortcutOpensFlutterSettings() throws {
+    XCTAssertTrue(waitUntil(timeout: 45) {
+      guard let window = self.flutterWindow() else { return false }
+      return self.statusItemVisible() && window.isVisible && self.isFullWindow(window)
+    }, "The hosted app did not finish starting")
+    let window = try XCTUnwrap(flutterWindow())
+    let controller = try XCTUnwrap(window.contentViewController as? FlutterViewController)
+    let mainMenu = try XCTUnwrap(NSApp.mainMenu)
+    let appMenu = try XCTUnwrap(mainMenu.items.first?.submenu)
+    let settingsItem = try XCTUnwrap(appMenu.items.first {
+      $0.keyEquivalent == "," && $0.keyEquivalentModifierMask == .command
+    }, "The application menu has no Cmd+, keyboard equivalent")
+    let action = try XCTUnwrap(settingsItem.action)
+    XCTAssertEqual(action, NSSelectorFromString("openSettings:"))
+
+    let appDelegate = try XCTUnwrap(NSApp.delegate)
+    XCTAssertTrue((settingsItem.target as AnyObject?) === appDelegate,
+                  "The settings action must have the application delegate as its explicit target")
+
+    // Enable the Flutter accessibility tree without changing system settings.
+    let engine = controller.engine
+    guard engine.responds(to: NSSelectorFromString("setSemanticsEnabled:")) else {
+      XCTFail("The Flutter engine does not expose its semantics switch")
+      return
+    }
+    let priorSemantics = engine.value(forKey: "semanticsEnabled") as? Bool ?? false
+    engine.setValue(true, forKey: "semanticsEnabled")
+    defer { engine.setValue(priorSemantics, forKey: "semanticsEnabled") }
+    let searchLabels: Set<String> = ["search", "검색"]
+    guard waitUntil(timeout: 15, condition: {
+      self.accessibilityContains(searchLabels, in: controller.view)
+    }) else {
+      XCTFail("The Flutter board Search control did not appear in the accessibility tree")
+      return
+    }
+    let closeLabels: Set<String> = ["close", "닫기"]
+    XCTAssertFalse(accessibilityContains(closeLabels, in: controller.view))
+
+    window.orderOut(nil)
+    XCTAssertFalse(window.isVisible)
+    let shortcut = try XCTUnwrap(NSEvent.keyEvent(
+      with: .keyDown, location: .zero, modifierFlags: .command,
+      timestamp: ProcessInfo.processInfo.systemUptime,
+      windowNumber: window.windowNumber, context: nil,
+      characters: ",", charactersIgnoringModifiers: ",", isARepeat: false,
+      keyCode: 43 // ANSI comma.
+    ))
+    XCTAssertTrue(mainMenu.performKeyEquivalent(with: shortcut), "AppKit did not handle Cmd+,")
+    XCTAssertTrue(waitUntil(timeout: 5) { window.isVisible },
+                  "The settings menu action did not restore the Flutter window")
+    XCTAssertTrue(waitUntil(timeout: 5) {
+      self.accessibilityContains(closeLabels, in: controller.view)
+    }, "The native menu action did not open the Flutter settings dialog")
+  }
+
+  private func accessibilityContains(_ labels: Set<String>, in object: Any) -> Bool {
+    guard let element = object as? NSObject else { return false }
+    for attribute in ["accessibilityLabel", "accessibilityValue"] {
+      let getter = NSSelectorFromString(attribute)
+      if element.responds(to: getter),
+         let value = element.perform(getter)?.takeUnretainedValue() as? String,
+         value.split(whereSeparator: \.isNewline).contains(where: {
+           labels.contains($0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+         }) {
+        return true
+      }
+    }
+    let childrenGetter = NSSelectorFromString("accessibilityChildren")
+    guard element.responds(to: childrenGetter),
+          let children = element.perform(childrenGetter)?.takeUnretainedValue() as? [Any]
+    else { return false }
+    return children.contains { accessibilityContains(labels, in: $0) }
+  }
+
   func testTrayIconNativeCallbackKeepsAppAlive() throws {
     let environment = ProcessInfo.processInfo.environment
     let home = try XCTUnwrap(environment["UPEG_HOME"],

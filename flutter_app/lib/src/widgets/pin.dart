@@ -178,7 +178,7 @@ class Pin extends ConsumerWidget {
   /// "unpin" entry dispatches through the central pegboard mutation path using
   /// the active [currentBoardKeyProvider]. The Pin widget owns the menu surface
   /// itself because the menu options are per-pin and very small.
-  Future<void> _showContextMenu(
+  Future<void> showContextMenu(
     BuildContext context,
     WidgetRef ref,
     Offset globalPosition,
@@ -205,6 +205,7 @@ class Pin extends ConsumerWidget {
         PinMenuRow(tokens: tokens, label: tRead(ref, labelKey), keyCap: keyCap);
     final action = await showMenu<PinMenuAction>(
       context: context,
+      requestFocus: true,
       position: RelativeRect.fromRect(
         Rect.fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
@@ -404,9 +405,9 @@ class Pin extends ConsumerWidget {
             // `deferToChild` body (embed webview / memo field) keeps its own
             // pointer events untouched.
             onSecondaryTapDown: (details) =>
-                _showContextMenu(context, ref, details.globalPosition),
+                showContextMenu(context, ref, details.globalPosition),
             onLongPressStart: (details) =>
-                _showContextMenu(context, ref, details.globalPosition),
+                showContextMenu(context, ref, details.globalPosition),
             child: PinChrome(
               tokens: tokens,
               focused: focused,

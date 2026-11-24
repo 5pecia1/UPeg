@@ -921,3 +921,37 @@ fn grid_card_keeps_existing_accent_rendering_without_pin_color() {
 mod approval_running;
 mod controlled_embed;
 mod form_constraints;
+
+#[test]
+fn narrow_header_and_help_are_visible() {
+    use ratatui::backend::TestBackend;
+    let mut terminal = Terminal::new(TestBackend::new(30, 20)).unwrap();
+    let mut state = State::default();
+    terminal.draw(|f| render(f, &state, &[])).unwrap();
+    let text = format!("{:?}", terminal.backend().buffer());
+    assert!(text.contains("?/F5 help"), "{text}");
+    state.help_open = true;
+    terminal.draw(|f| render(f, &state, &[])).unwrap();
+    let text = format!("{:?}", terminal.backend().buffer());
+    assert!(text.contains("Keyboard help"), "{text}");
+    assert!(text.contains("Board (tool grid)"), "{text}");
+}
+
+#[test]
+fn help_starts_with_the_active_editor_shortcuts() {
+    use super::model::BoardEditMode;
+    use ratatui::backend::TestBackend;
+    let mut terminal = Terminal::new(TestBackend::new(40, 24)).unwrap();
+    let state = State {
+        help_open: true,
+        view: View::BoardEditor {
+            mode: BoardEditMode::AddBoard,
+            buffer: "draft".into(),
+        },
+        ..State::default()
+    };
+    terminal.draw(|f| render(f, &state, &[])).unwrap();
+    let text = format!("{:?}", terminal.backend().buffer());
+    assert!(text.contains("Board editor:"), "{text}");
+    assert!(!text.contains("Board (tool grid):"), "{text}");
+}

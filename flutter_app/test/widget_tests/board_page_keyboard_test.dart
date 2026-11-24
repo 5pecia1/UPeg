@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:upeg/src/identity.dart';
 import 'package:upeg/src/pages/board_page.dart';
+import 'package:upeg/src/platform/keyboard_label.dart';
 import 'package:upeg/src/rust/api/keyboard.dart';
 import 'package:upeg/src/rust/api/pegboard.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
@@ -27,6 +28,83 @@ import '../test_helpers/board_page_harness.dart';
 
 void main() {
   group('BoardPage keyboard wiring', () {
+    for (final activation in [
+      LogicalKeyboardKey.enter,
+      LogicalKeyboardKey.space,
+    ]) {
+      testWidgets(
+        'should activate the tab-focused toolbar button with ${activation.keyLabel}',
+        (tester) async {
+          const paletteButton = Key('open-palette-btn');
+          final robot = BoardKeyboardRobot(tester);
+          await tester.pumpWidget(
+            boardPageHarness(resolver: noKeyboardCommand),
+          );
+          await tester.pumpAndSettle();
+
+          await robot.tabToControl(paletteButton);
+          await robot.press(activation);
+          robot.expectVisible(const Key('palette-query-field'), true);
+
+          await robot.press(LogicalKeyboardKey.escape);
+          robot.expectVisible(const Key('palette-query-field'), false);
+          robot.expectControlFocus(paletteButton);
+        },
+      );
+    }
+
+    testWidgets('should cycle boards in both directions with Ctrl+Tab', (
+      tester,
+    ) async {
+      final robot = BoardKeyboardRobot(tester);
+      await tester.pumpWidget(
+        boardPageHarness(
+          resolver: noKeyboardCommand,
+          boards: const [
+            BoardDto(key: 'dev', title: 'Dev'),
+            BoardDto(key: 'ops', title: 'Ops'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await robot.chord(LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.tab);
+      robot.expectActiveBoard('ops');
+      robot.expectGridFocus(true);
+      await robot.chord(
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.tab,
+        shift: true,
+      );
+      robot.expectActiveBoard('dev');
+    });
+
+    for (final platform in [TargetPlatform.linux, TargetPlatform.macOS]) {
+      testWidgets(
+        'should open Create Board using the platform primary modifier on ${platform.name}',
+        (tester) async {
+          final robot = BoardKeyboardRobot(tester);
+          await tester.pumpWidget(
+            boardPageHarness(
+              resolver: noKeyboardCommand,
+              extraOverrides: [
+                keyboardPlatformProvider.overrideWithValue(platform),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await robot.chord(
+            platform == TargetPlatform.macOS
+                ? LogicalKeyboardKey.metaLeft
+                : LogicalKeyboardKey.controlLeft,
+            LogicalKeyboardKey.keyN,
+          );
+          robot.expectVisible(const Key('create-board-dialog'), true);
+        },
+      );
+    }
+
     testWidgets('BoardPage_dispatches_the_Run_command_on_F1', (tester) async {
       KeyboardCommandDto? received;
       await tester.pumpWidget(

@@ -16,11 +16,14 @@ pub(super) fn start_resize(state: &mut State, tools: &[&'static ToolMeta]) -> Ef
     let Some(tool) = tools.get(state.cursor) else {
         return Effect::None;
     };
-    let base = state.layouts.get(&board).cloned().unwrap_or_default();
-    let Some(current) = base.iter().find(|p| p.tool_id == tool.id) else {
+    let Some(current) = state
+        .selected_board_pin()
+        .filter(|pin| pin.tool_id == tool.id)
+    else {
         return Effect::None;
     };
-    let (cols, rows) = upeg_runtime::pegboard::effective_size(current);
+    let (cols, rows) = upeg_runtime::pegboard::effective_size(&current);
+    let base = state.layouts.get(&board).cloned().unwrap_or_default();
     // Mutually exclusive with move mode. The modal key intercepts
     // already prevent entering one mode from inside the other, but
     // clearing here keeps the invariant local and future-proof.
@@ -28,6 +31,7 @@ pub(super) fn start_resize(state: &mut State, tools: &[&'static ToolMeta]) -> Ef
     state.resize_mode = Some(ResizeMode {
         board,
         tool_id: tool.id,
+        pin_id: current.pin_id,
         cols,
         rows,
         base: base.clone(),
@@ -41,7 +45,7 @@ pub(super) fn start_resize(state: &mut State, tools: &[&'static ToolMeta]) -> Ef
 pub(super) fn handle_resize_command(state: &mut State, command: KeyboardCommand) -> Effect {
     match command {
         KeyboardCommand::Cancel => {
-            state.resize_mode = None;
+            state.cancel_pin_preview();
             Effect::None
         }
         KeyboardCommand::Commit => commit_resize(state),
@@ -86,6 +90,8 @@ fn resize_span_by(state: &mut State, cols_delta: i8, rows_delta: i8) {
     resize.cols = col_span.get();
     resize.rows = row_span.get();
     recompute_preview(resize);
+    let id = resize.pin_id.clone();
+    state.focus_pin(&id);
 }
 
 /// `0` — drop the user override and preview the manifest footprint
@@ -99,6 +105,8 @@ fn reset_span_to_manifest(state: &mut State) {
     resize.cols = cols;
     resize.rows = rows;
     recompute_preview(resize);
+    let id = resize.pin_id.clone();
+    state.focus_pin(&id);
 }
 
 /// The span the previewed placement should carry: `None` when the
@@ -117,17 +125,17 @@ fn span_override(tool_id: &str, cols: u16, rows: u16) -> Option<PinSpan> {
 /// target placement, then re-place it at its committed anchor so growth
 /// pushes colliding neighbours instead of overlapping them.
 fn recompute_preview(resize: &mut ResizeMode) {
-    let Some(anchor) = resize.base.iter().find(|p| p.tool_id == resize.tool_id) else {
+    let Some(anchor) = resize.base.iter().find(|p| p.pin_id == resize.pin_id) else {
         return;
     };
     let (anchor_x, anchor_y) = (anchor.x, anchor.y);
     let mut preview = resize.base.clone();
-    if let Some(target) = preview.iter_mut().find(|p| p.tool_id == resize.tool_id) {
+    if let Some(target) = preview.iter_mut().find(|p| p.pin_id == resize.pin_id) {
         target.span = span_override(resize.tool_id, resize.cols, resize.rows);
     }
     let _ = upeg_runtime::pegboard::place_tool_with_push(
         &mut preview,
-        resize.tool_id,
+        resize.pin_id.as_str(),
         anchor_x,
         anchor_y,
     );
@@ -144,18 +152,8 @@ fn commit_resize(state: &mut State) -> Effect {
     if resize.preview == resize.base {
         return Effect::None;
     }
-    let resized_id = resize.tool_id;
     state.layouts.insert(resize.board, resize.preview);
     state.view = View::List;
-    // Selection-after-commit: growth can push neighbours and re-sort
-    // the (y, x) grid order, so re-anchor the cursor on the resized
-    // tool — same contract as `commit_move`.
-    if let Some(idx) = state
-        .visible_placements()
-        .iter()
-        .position(|(_, tool)| tool.id == resized_id)
-    {
-        state.cursor = idx;
-    }
+    state.focus_pin(&resize.pin_id);
     Effect::SavePegboard
 }

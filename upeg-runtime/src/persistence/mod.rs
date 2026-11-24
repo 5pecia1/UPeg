@@ -13,7 +13,7 @@
 mod bootstrap;
 pub mod io;
 
-pub use bootstrap::bootstrap_tweaks;
+pub use bootstrap::{bootstrap_tweaks, native_default_tweaks, pick_locale_hint};
 
 use std::path::Path;
 use std::time::SystemTime;

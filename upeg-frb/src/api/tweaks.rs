@@ -117,6 +117,9 @@ pub fn supported_accents() -> Vec<String> {
 /// Load the persisted tweaks, or the default value if none exist.
 #[flutter_rust_bridge::frb(sync)]
 pub fn load_tweaks() -> TweaksDto {
+    #[cfg(not(target_arch = "wasm32"))]
+    let t = load_inner().unwrap_or_else(upeg_runtime::persistence::native_default_tweaks);
+    #[cfg(target_arch = "wasm32")]
     let t = load_inner().unwrap_or_default();
     TweaksDto::from(&t)
 }
@@ -128,6 +131,60 @@ pub fn save_tweaks(tweaks: TweaksDto) -> Result<(), super::boot::FrbError> {
     let value = Tweaks::try_from(tweaks)?;
     save_inner(&value);
     Ok(())
+}
+
+/// Merge only fields changed from the editor's original snapshot.
+#[flutter_rust_bridge::frb(sync)]
+pub fn patch_tweaks(
+    before: TweaksDto,
+    after: TweaksDto,
+) -> Result<TweaksDto, super::boot::FrbError> {
+    let before = Tweaks::try_from(before)?;
+    let after = Tweaks::try_from(after)?;
+    let previous = serde_json::to_value(before).map_err(|e| super::boot::FrbError::Io {
+        message: e.to_string(),
+    })?;
+    let next = serde_json::to_value(after).map_err(|e| super::boot::FrbError::Io {
+        message: e.to_string(),
+    })?;
+    let mut patch = serde_json::Map::new();
+    if let (Some(previous), Some(next)) = (previous.as_object(), next.as_object()) {
+        for (key, value) in next {
+            if previous.get(key) != Some(value) {
+                patch.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let path = upeg_core::paths::tweaks_path().ok_or_else(|| super::boot::FrbError::Io {
+            message: "config root unavailable".into(),
+        })?;
+        let saved =
+            upeg_runtime::persistence::io::patch_tweaks_to_path(&path, &patch).map_err(|e| {
+                super::boot::FrbError::Io {
+                    message: e.to_string(),
+                }
+            })?;
+        Ok(TweaksDto::from(&saved))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut current = serde_json::to_value(load_inner().unwrap_or_default()).map_err(|e| {
+            super::boot::FrbError::Io {
+                message: e.to_string(),
+            }
+        })?;
+        if let Some(record) = current.as_object_mut() {
+            record.extend(patch);
+        }
+        let saved: Tweaks =
+            serde_json::from_value(current).map_err(|e| super::boot::FrbError::Io {
+                message: e.to_string(),
+            })?;
+        save_inner(&saved);
+        Ok(TweaksDto::from(&saved))
+    }
 }
 
 // ─── enum ↔ string ─────────────────────────────────────────────
@@ -193,6 +250,43 @@ fn parse_locale(s: &str) -> Result<Locale, super::boot::FrbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields() {
+        const MARKER: &str = "UPEG_PREFS_ISOLATED_TEST";
+        if std::env::var_os(MARKER).is_none() {
+            let root =
+                std::env::temp_dir().join(format!("upeg-stale-prefs-{}", std::process::id()));
+            std::fs::create_dir_all(&root).unwrap();
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "api::tweaks::tests::stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields"])
+                .env("UPEG_HOME", &root).env(MARKER, "1").status().unwrap();
+            let _ = std::fs::remove_dir_all(root);
+            assert!(status.success());
+            return;
+        }
+        let path = upeg_core::paths::tweaks_path().unwrap();
+        upeg_runtime::persistence::io::save_to_path(&path, r#"{"theme":"Light","accent":"Green","show_holes":true,"locale":"En","future":{"x":1}}"#).unwrap();
+        let before = load_tweaks();
+        let mut cli = serde_json::Map::new();
+        cli.insert("theme".into(), serde_json::json!("Dark"));
+        upeg_runtime::persistence::io::patch_tweaks_to_path(&path, &cli).unwrap();
+        let mut after = before.clone();
+        after.accent = "Cyan".into();
+        let merged = patch_tweaks(before, after).unwrap();
+        assert_eq!(merged.theme, "Dark");
+        assert_eq!(merged.accent, "Cyan");
+        let mut tui = serde_json::Map::new();
+        tui.insert("locale".into(), serde_json::json!("Ko"));
+        let saved = upeg_runtime::persistence::io::patch_tweaks_to_path(&path, &tui).unwrap();
+        assert_eq!(saved.theme, Theme::Dark);
+        assert_eq!(saved.accent, Accent::Cyan);
+        assert_eq!(saved.locale, Locale::Ko);
+        let raw: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(raw["future"]["x"], 1);
+    }
 
     #[test]
     fn dto_round_trip_preserves_all_fields() {

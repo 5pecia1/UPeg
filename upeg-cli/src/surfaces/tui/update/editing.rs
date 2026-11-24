@@ -70,15 +70,11 @@ pub(super) fn open_pin_color_editor(state: &mut State) -> Effect {
     let Some(board) = state.filters.board.as_deref().map(str::to_string) else {
         return Effect::None;
     };
-    let Some((placement, _tool)) = state.visible_placements().get(state.cursor).cloned() else {
+    let Some(placement) = state.selected_board_pin() else {
         return Effect::None;
     };
     state.right_scroll = ScrollOffset::ZERO;
-    state.view = View::PinColorEditor(super::super::model::PinColorEditor::new(
-        board,
-        placement.tool_id,
-        placement.color,
-    ));
+    state.view = View::PinColorEditor(super::super::model::PinColorEditor::new(board, placement));
     Effect::None
 }
 
@@ -96,7 +92,7 @@ pub(super) fn commit_pin_color_editor(state: &mut State) -> Effect {
             return Effect::None;
         }
     };
-    set_pin_color_and_close(state, &editor.board, &editor.tool_id, color)
+    set_pin_color_and_close(state, &editor.board, editor.pin_id.as_str(), color)
 }
 
 pub(super) fn reset_pin_color_editor(state: &mut State) -> Effect {
@@ -104,17 +100,17 @@ pub(super) fn reset_pin_color_editor(state: &mut State) -> Effect {
         View::PinColorEditor(editor) => editor.clone(),
         _ => return Effect::None,
     };
-    set_pin_color_and_close(state, &editor.board, &editor.tool_id, None)
+    set_pin_color_and_close(state, &editor.board, editor.pin_id.as_str(), None)
 }
 
 fn set_pin_color_and_close(
     state: &mut State,
     board: &str,
-    tool_id: &str,
+    pin_id: &str,
     color: Option<PinColorHex>,
 ) -> Effect {
     let mut snapshot = state.pegboard_snapshot();
-    let changed = upeg_sources::pegboard::set_pin_color(&mut snapshot, board, tool_id, color);
+    let changed = upeg_sources::pegboard::set_pin_color(&mut snapshot, board, pin_id, color);
     state.boards = snapshot.boards;
     state.layouts = snapshot.layouts;
     state.view = View::List;
@@ -152,10 +148,15 @@ fn commit_tool_search(
     let Some(tool) = results.get(cursor) else {
         return Effect::None;
     };
-    let Some(index) = tools.iter().position(|candidate| candidate.id == tool.id) else {
-        return Effect::None;
-    };
-    state.cursor = index;
+    if tools
+        .get(state.cursor)
+        .is_none_or(|candidate| candidate.id != tool.id)
+    {
+        let Some(index) = tools.iter().position(|candidate| candidate.id == tool.id) else {
+            return Effect::None;
+        };
+        state.cursor = index;
+    }
     state.right_scroll = ScrollOffset::ZERO;
     state.view = View::Detail;
     Effect::None

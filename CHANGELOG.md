@@ -4,6 +4,16 @@ This repository receives verified exports from the development repository as
 ordinary pull requests; see the git history and README's *Project status*
 section.
 
+## v0.7.12 (2026-11-24)
+
+- Open desktop settings with Cmd+, on macOS or Ctrl+, on Windows and Linux;
+  use keyboard shortcuts to create and switch boards.
+- Open screen-specific TUI keyboard help with ? (F5 while entering text), and
+  edit the selected pin when a tool appears more than once on a board.
+- Manage settings and board pins from the CLI, including editing individual
+  pin instances.
+- Improve desktop update and close behavior.
+
 ## v0.7.11 (2026-11-23)
 
 - The tray icon's pin is empty until a tool result notification arrives, then

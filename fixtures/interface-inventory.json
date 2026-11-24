@@ -10842,6 +10842,102 @@
       }
     },
     {
+      "id": "cli.board.create",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.create",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.board.delete",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.delete",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
       "id": "cli.board.describe",
       "surfaces": [
         "cli"
@@ -10994,6 +11090,198 @@
       "contract": {
         "locator": {
           "commandPath": "board.pin",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.board.pin-edit",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.pin-edit",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.board.pin-list",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.pin-list",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.board.pin-show",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.pin-show",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.board.rename",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "board.rename",
           "httpMethod": null,
           "httpPath": null,
           "jsonrpcMethod": null
@@ -11234,6 +11522,102 @@
       "contract": {
         "locator": {
           "commandPath": "host.stop",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.settings.get",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "settings.get",
+          "httpMethod": null,
+          "httpPath": null,
+          "jsonrpcMethod": null
+        },
+        "input": {
+          "kind": "commandArgs",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command arguments",
+          "declared": true
+        },
+        "output": {
+          "kind": "notDeclared",
+          "schema": null,
+          "schemaRef": null,
+          "description": "CLI command output is command-specific; tool calls render canonical ToolResult values by output mode",
+          "declared": false
+        },
+        "errors": []
+      },
+      "version": "v1",
+      "compatibility": "stable",
+      "owner": {
+        "path": "upeg-cli/Cargo.toml",
+        "url": null
+      },
+      "docs": {
+        "path": "README.md",
+        "url": null
+      },
+      "source": {
+        "path": "upeg-cli/src/surfaces/cli/mod.rs",
+        "url": null
+      },
+      "tests": {
+        "path": "upeg-cli/src/inventory/tests.rs",
+        "testName": "interface_inventory_covers_cli_http_and_mcp"
+      }
+    },
+    {
+      "id": "cli.settings.set",
+      "surfaces": [
+        "cli"
+      ],
+      "kind": "cliCommand",
+      "contract": {
+        "locator": {
+          "commandPath": "settings.set",
           "httpMethod": null,
           "httpPath": null,
           "jsonrpcMethod": null

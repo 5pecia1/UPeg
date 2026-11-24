@@ -35,6 +35,8 @@ import 'package:upeg/src/platform/tray_animation.dart';
 import 'package:upeg/src/platform/tray_icon.dart';
 import 'package:upeg/src/platform/window_summon.dart';
 import 'package:upeg/src/state/pause_control_provider.dart';
+import 'package:upeg/src/state/desktop_update_provider.dart';
+import 'package:upeg/src/widgets/desktop_update_button.dart';
 import 'package:upeg/src/state/pause_provider.dart';
 import 'package:upeg/src/state/pinned_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
@@ -53,6 +55,7 @@ enum TrayCommand {
   quit('quit'),
   openDashboard('open_dashboard'),
   openResults('open_results'),
+  openUpdate('open_update'),
   togglePopup('toggle_popup'),
   togglePin('toggle_pin'),
   togglePause('toggle_pause');
@@ -109,6 +112,7 @@ void dispatchTrayCommand(ProviderContainer container, TrayCommand cmd) {
       unawaited(container.read(quitAppProvider)());
     case TrayCommand.openDashboard:
     case TrayCommand.openResults:
+    case TrayCommand.openUpdate:
     case TrayCommand.togglePopup:
       // Handled at the UpegTray call site — they need the window mode
       // notifier and/or the summon seam.
@@ -187,6 +191,7 @@ Menu buildTrayMenu({
   bool pauseControllable = true,
   bool keepPopupOpen = false,
   String resultsLabel = 'Tool results',
+  String? updateLabel,
 }) => Menu(
   items: [
     MenuItem(
@@ -194,6 +199,8 @@ Menu buildTrayMenu({
       label: 'Open Pegboard',
     ),
     MenuItem(key: TrayCommand.openResults.menuItemKey, label: resultsLabel),
+    if (updateLabel != null)
+      MenuItem(key: TrayCommand.openUpdate.menuItemKey, label: updateLabel),
     MenuItem(
       key: TrayCommand.togglePopup.menuItemKey,
       label: 'Toggle popup / full',
@@ -279,18 +286,30 @@ class TrayMenuSync extends ConsumerWidget {
         pauseControllable: ref.read(pauseControllableProvider),
         keepPopupOpen: ref.read(pinnedProvider),
         resultsLabel: _resultsLabel(ref.container),
+        updateLabel: _updateLabel(ref.container),
       );
     }
 
     ref
       ..listen<bool>(pauseControllableProvider, resync)
       ..listen<bool>(pinnedProvider, resync)
+      ..listen<DesktopUpdateState>(desktopUpdateProvider, (previous, next) {
+        if (previous?.version != next.version && isTraySupported) {
+          _resyncBestEffort(
+            pauseControllable: ref.read(pauseControllableProvider),
+            keepPopupOpen: ref.read(pinnedProvider),
+            resultsLabel: _resultsLabel(ref.container),
+            updateLabel: _updateLabel(ref.container),
+          );
+        }
+      })
       ..listen<LocaleDto>(localeProvider, (previous, next) {
         if (previous != next && isTraySupported) {
           _resyncBestEffort(
             pauseControllable: ref.read(pauseControllableProvider),
             keepPopupOpen: ref.read(pinnedProvider),
             resultsLabel: _resultsLabel(ref.container),
+            updateLabel: _updateLabel(ref.container),
           );
         }
       });
@@ -301,6 +320,7 @@ class TrayMenuSync extends ConsumerWidget {
     required bool pauseControllable,
     required bool keepPopupOpen,
     required String resultsLabel,
+    required String? updateLabel,
   }) async {
     try {
       await setContextMenu(
@@ -308,12 +328,25 @@ class TrayMenuSync extends ConsumerWidget {
           pauseControllable: pauseControllable,
           keepPopupOpen: keepPopupOpen,
           resultsLabel: resultsLabel,
+          updateLabel: updateLabel,
         ),
       );
     } on Object catch (err, stack) {
       debugPrint('upeg: setContextMenu failed: $err');
       debugPrint(stack.toString());
     }
+  }
+}
+
+String? _updateLabel(ProviderContainer container) {
+  if (container.read(desktopUpdateProvider).version == null) return null;
+  try {
+    return container.read(i18nTranslateOverride)(
+      'desktop.update.available',
+      container.read(localeProvider),
+    );
+  } on Object {
+    return 'Update available';
   }
 }
 
@@ -342,6 +375,9 @@ bool get isTraySupported {
 
 /// Tray controller — keeps the [Ref] for callback dispatch and bridges
 /// `TrayListener` events into Riverpod state updates.
+bool trayHasUnread({required bool toolResults, required bool update}) =>
+    toolResults || update;
+
 class UpegTray with TrayListener, WidgetsBindingObserver {
   UpegTray._(this._ref);
 
@@ -407,6 +443,7 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
           pauseControllable: ref.read(pauseControllableProvider),
           keepPopupOpen: ref.read(pinnedProvider),
           resultsLabel: _resultsLabel(ref.container),
+          updateLabel: _updateLabel(ref.container),
         ),
       );
       if (tray._disposed) return;
@@ -419,7 +456,23 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
         next,
       ) {
         final unread = next.value;
-        if (unread != null) tray._syncIcon(unread);
+        if (unread != null) {
+          tray._syncIcon(
+            trayHasUnread(
+              toolResults: unread,
+              update: ref.read(desktopUpdateProvider).unread,
+            ),
+          );
+        }
+      }, fireImmediately: true);
+      ref.listen<DesktopUpdateState>(desktopUpdateProvider, (_, next) {
+        tray._syncIcon(
+          trayHasUnread(
+            update: next.unread,
+            toolResults:
+                ref.read(unreadNotificationResultsProvider).value ?? false,
+          ),
+        );
       }, fireImmediately: true);
     } on Exception catch (err) {
       debugPrint('upeg: tray install failed: $err');
@@ -492,6 +545,8 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
         unawaited(openPegboardFromTray(_ref.container));
       case TrayCommand.openResults:
         unawaited(_openResults());
+      case TrayCommand.openUpdate:
+        unawaited(_openUpdate());
       case TrayCommand.togglePopup:
         _toggleMode();
       case TrayCommand.quit:
@@ -504,6 +559,11 @@ class UpegTray with TrayListener, WidgetsBindingObserver {
   Future<void> _openResults() async {
     await openPegboardFromTray(_ref.container);
     await showNotificationResults();
+  }
+
+  Future<void> _openUpdate() async {
+    await openPegboardFromTray(_ref.container);
+    await showDesktopUpdateDialog();
   }
 
   void _toggleMode() {

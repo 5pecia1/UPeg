@@ -8,7 +8,8 @@
 //! Wasm builds store preferences in `localStorage`, not the filesystem —
 //! they don't compile this module (see [`super`]).
 
-use std::io;
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 
 pub use upeg_core::paths::TWEAKS_FILENAME;
@@ -25,18 +26,79 @@ pub fn tweaks_path_in(dir: &Path) -> PathBuf {
 /// read-only mount, etc. Callers typically surface the error to the user
 /// as transient ("write failed: …") rather than retrying.
 pub fn save_to_path(path: &Path, value: &str) -> io::Result<()> {
-    let _storage = if path.file_name().is_some_and(|name| name == TWEAKS_FILENAME) {
-        Some(
-            upeg_core::paths::StorageLease::for_artifact(path, "config")
-                .map_err(io::Error::other)?,
-        )
-    } else {
-        None
-    };
+    if path.file_name().is_some_and(|name| name == TWEAKS_FILENAME) {
+        let _lock = lock_preferences(path)?;
+        return write_atomically(path, value);
+    }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(path, value)
+}
+
+/// Patch a preferences file under the same lock as other native writers.
+pub fn update_to_path<T>(
+    path: &Path,
+    edit: impl FnOnce(Option<&str>) -> io::Result<(Option<String>, T)>,
+) -> io::Result<T> {
+    let _lock = lock_preferences(path)?;
+    let current = match std::fs::read_to_string(path) {
+        Ok(current) => Some(current),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error),
+    };
+    let (value, result) = edit(current.as_deref())?;
+    if let Some(value) = value {
+        write_atomically(path, &value)?;
+    }
+    Ok(result)
+}
+
+/// Merge selected preference fields under the shared writer lock, preserving
+/// fields added by newer versions and edits from other surfaces.
+pub fn patch_tweaks_to_path(
+    path: &Path,
+    patch: &serde_json::Map<String, serde_json::Value>,
+) -> io::Result<upeg_core::prefs::Tweaks> {
+    update_to_path(path, |current| {
+        let mut record: serde_json::Map<String, serde_json::Value> = match current {
+            Some(text) => serde_json::from_str(text)?,
+            None => serde_json::from_value(serde_json::to_value(super::native_default_tweaks())?)?,
+        };
+        record.extend(patch.clone());
+        let json = serde_json::to_string(&record)?;
+        let parsed = upeg_core::prefs::parse_stored_tweaks(&json)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "invalid preferences"))?;
+        Ok((Some(json), parsed))
+    })
+}
+
+fn lock_preferences(path: &Path) -> io::Result<(upeg_core::paths::StorageLease, File)> {
+    let storage =
+        upeg_core::paths::StorageLease::for_artifact(path, "config").map_err(io::Error::other)?;
+    let lock_path = path.with_extension("lock");
+    std::fs::create_dir_all(parent_dir(path))?;
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(lock_path)?;
+    file.lock()?;
+    Ok((storage, file))
+}
+
+fn write_atomically(path: &Path, value: &str) -> io::Result<()> {
+    let mut temporary = tempfile::NamedTempFile::new_in(parent_dir(path))?;
+    temporary.write_all(value.as_bytes())?;
+    temporary.as_file().sync_all()?;
+    temporary.persist(path).map_err(|error| error.error)?;
+    Ok(())
+}
+
+fn parent_dir(path: &Path) -> &Path {
+    path.parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
 }
 
 /// Read the contents of `path` into a string. Returns `None` for any
@@ -59,6 +121,30 @@ mod tests {
             "upeg-prefs-io-{label}-{}-{nanos}",
             std::process::id(),
         ))
+    }
+
+    #[test]
+    fn stale_surface_edits_preserve_other_fields_and_unknown_values() {
+        use serde_json::{Map, json};
+        let dir = temp_path("stale-surfaces");
+        let path = dir.join(TWEAKS_FILENAME);
+        save_to_path(&path, r#"{"theme":"Light","accent":"Green","locale":"En","show_holes":true,"pin_handle_style":"Peg","local_http_host":false,"future":{"feature":42}}"#).unwrap();
+        let mut cli = Map::new();
+        cli.insert("theme".into(), json!("Dark"));
+        patch_tweaks_to_path(&path, &cli).unwrap();
+        let mut gui = Map::new();
+        gui.insert("accent".into(), json!("Cyan"));
+        patch_tweaks_to_path(&path, &gui).unwrap();
+        let mut tui = Map::new();
+        tui.insert("locale".into(), json!("Ko"));
+        let merged = patch_tweaks_to_path(&path, &tui).unwrap();
+        assert_eq!(merged.theme, upeg_core::prefs::Theme::Dark);
+        assert_eq!(merged.accent, upeg_core::prefs::Accent::Cyan);
+        assert_eq!(merged.locale, upeg_core::prefs::Locale::Ko);
+        let json: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(json["future"]["feature"], 42);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

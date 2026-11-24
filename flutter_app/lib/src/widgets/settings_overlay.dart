@@ -21,12 +21,22 @@ import 'package:upeg/src/widgets/tweaks_form.dart';
 
 /// Helper used from the BoardPage settings button. Keeps the modal route
 /// transition-free so close/open feels instant like the TUI.
+final Expando<Future<void>> _settingsOpen = Expando<Future<void>>();
+
 Future<void> showSettingsOverlay(BuildContext context) {
-  return showNoTransitionDialog<void>(
+  final navigator = Navigator.of(context);
+  if (_settingsOpen[navigator] case final existing?) return existing;
+  final previousFocus = FocusManager.instance.primaryFocus;
+  final future = showNoTransitionDialog<void>(
     context: context,
     barrierColor: Colors.black54,
     builder: (_) => const _SettingsModal(),
   );
+  _settingsOpen[navigator] = future;
+  return future.whenComplete(() {
+    _settingsOpen[navigator] = null;
+    if (previousFocus?.context != null) previousFocus?.requestFocus();
+  });
 }
 
 class _SettingsModal extends ConsumerStatefulWidget {
@@ -42,6 +52,7 @@ class _SettingsModalState extends ConsumerState<_SettingsModal> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleEditableTraversal);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.invalidate(recentDiagnosticsProvider);
     });
@@ -49,11 +60,28 @@ class _SettingsModalState extends ConsumerState<_SettingsModal> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleEditableTraversal);
     _closeFocusNode.dispose();
     super.dispose();
   }
 
+  bool _handleEditableTraversal(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.tab ||
+        !primaryFocusIsEditableText() ||
+        !FocusScope.of(context).hasFocus) {
+      return false;
+    }
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      FocusScope.of(context).previousFocus();
+    } else {
+      FocusScope.of(context).nextFocus();
+    }
+    return true;
+  }
+
   KeyEventResult _handleSettingsKey(FocusNode node, KeyEvent event) {
+    if (primaryFocusHasActiveTextComposition()) return KeyEventResult.ignored;
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -63,7 +91,9 @@ class _SettingsModalState extends ConsumerState<_SettingsModal> {
     // while editing the project directory. The editable receives the text
     // input first; handling the bubbling key here only prevents an ancestor
     // shortcut. Explicit global chords remain available.
-    if (primaryFocusIsEditableText() && !isGlobalShortcutKeyEvent(event)) {
+    if (primaryFocusIsEditableText() &&
+        event.logicalKey != LogicalKeyboardKey.tab &&
+        !isGlobalShortcutKeyEvent(event)) {
       // Do not bubble into the settings/board shortcut handlers, while still
       // letting the platform text-input channel update EditableText. `handled`
       // also suppresses macOS text entry, which made absolute paths appear to

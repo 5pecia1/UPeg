@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-23T14:36:58Z",
+  "generatedAt": "2026-11-24T16:50:00Z",
   "project": "upeg",
   "suites": {
     "workspace": {
@@ -12,7 +12,7 @@
         "--all-targets",
         "--no-fail-fast"
       ],
-      "total": 3744,
+      "total": 3760,
       "tests": [
         {
           "className": "adapters::credentials::tests",
@@ -3152,6 +3152,13 @@
         },
         {
           "className": "surfaces::http::stream::tests",
+          "methodName": "authenticated_tui_streams_the_requested_pin_and_keeps_board_tool_and_surface_gates",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::http::stream::tests::authenticated_tui_streams_the_requested_pin_and_keeps_board_tool_and_surface_gates"
+        },
+        {
+          "className": "surfaces::http::stream::tests",
           "methodName": "budget_returns_as_the_consumer_reads",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -4390,6 +4397,13 @@
           "fullName": "surfaces::tui::detail_tests::detail_view_shows_none_when_schema_empty"
         },
         {
+          "className": "surfaces::tui::effects::dispatch_scope_tests",
+          "methodName": "exact_duplicate_scope_uses_selected_preset_and_preserves_representative_attach",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::effects::dispatch_scope_tests::exact_duplicate_scope_uses_selected_preset_and_preserves_representative_attach"
+        },
+        {
           "className": "surfaces::tui::effects::pegboard_reload_tests",
           "methodName": "edit_dialog_defers_reload_without_consuming_rev",
           "status": "passed",
@@ -4507,13 +4521,6 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::tui::effects::tweaks_bootstrap_tests::mtime_change_reflects_external_settings_into_state"
-        },
-        {
-          "className": "surfaces::tui::effects::tweaks_bootstrap_tests",
-          "methodName": "precedence_constant_matches_documented_order",
-          "status": "passed",
-          "target": "upeg_cli::src/lib.rs",
-          "fullName": "surfaces::tui::effects::tweaks_bootstrap_tests::precedence_constant_matches_documented_order"
         },
         {
           "className": "surfaces::tui::effects::tweaks_bootstrap_tests",
@@ -5280,6 +5287,13 @@
         },
         {
           "className": "surfaces::tui::render_tests",
+          "methodName": "help_starts_with_the_active_editor_shortcuts",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::render_tests::help_starts_with_the_active_editor_shortcuts"
+        },
+        {
+          "className": "surfaces::tui::render_tests",
           "methodName": "narrow_detail_draws_board_full_body",
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
@@ -5291,6 +5305,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::tui::render_tests::narrow_form_draws_full_body_and_hides_board"
+        },
+        {
+          "className": "surfaces::tui::render_tests",
+          "methodName": "narrow_header_and_help_are_visible",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::render_tests::narrow_header_and_help_are_visible"
         },
         {
           "className": "surfaces::tui::render_tests",
@@ -5909,6 +5930,20 @@
           "fullName": "surfaces::tui::state_tests::editing::board_crud::yes_on_delete_confirm_removes_board_and_returns_to_first_remaining"
         },
         {
+          "className": "surfaces::tui::state_tests::editing::duplicate_pins",
+          "methodName": "duplicate_pin_edits_keep_identity_through_preview_reorder_and_unpin",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::editing::duplicate_pins::duplicate_pin_edits_keep_identity_through_preview_reorder_and_unpin"
+        },
+        {
+          "className": "surfaces::tui::state_tests::editing::duplicate_pins",
+          "methodName": "duplicate_pin_form_uses_the_selected_instances_saved_preset",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::editing::duplicate_pins::duplicate_pin_form_uses_the_selected_instances_saved_preset"
+        },
+        {
           "className": "surfaces::tui::state_tests::editing",
           "methodName": "e_does_not_start_resize_without_a_selected_board",
           "status": "passed",
@@ -6257,6 +6292,13 @@
           "status": "passed",
           "target": "upeg_cli::src/lib.rs",
           "fullName": "surfaces::tui::state_tests::external_pegboard_reload_is_deferred_during_board_edits_and_move_mode"
+        },
+        {
+          "className": "surfaces::tui::state_tests",
+          "methodName": "help_preserves_editor_and_focus_and_allows_question_mark_input",
+          "status": "passed",
+          "target": "upeg_cli::src/lib.rs",
+          "fullName": "surfaces::tui::state_tests::help_preserves_editor_and_focus_and_allows_question_mark_input"
         },
         {
           "className": "surfaces::tui::state_tests::narrow_layout",
@@ -8875,6 +8917,55 @@
           "status": "passed",
           "target": "board_agent_workflow::tests/board_agent_workflow.rs",
           "fullName": "unix::a_generated_board_connection_honours_the_guidance_and_tool_execution_contract_end_to_end"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "a_new_profile_uses_the_terminal_locale_hint_until_a_locale_is_saved",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "a_new_profile_uses_the_terminal_locale_hint_until_a_locale_is_saved"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "last_board_delete_uses_the_normal_empty_profile_defaults",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "last_board_delete_uses_the_normal_empty_profile_defaults"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "personal_board_pin_edit_targets_exact_duplicate_and_preserves_presets",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "personal_board_pin_edit_targets_exact_duplicate_and_preserves_presets"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "project_board_metadata_stays_owned_by_its_manifest",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "project_board_metadata_stays_owned_by_its_manifest"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "resizing_at_right_edge_clamps_and_pushes_the_neighbor_without_replacing_it",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "resizing_at_right_edge_clamps_and_pushes_the_neighbor_without_replacing_it"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "scoped_help_succeeds_on_stdout_even_for_a_board_that_does_not_exist",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "scoped_help_succeeds_on_stdout_even_for_a_board_that_does_not_exist"
+        },
+        {
+          "className": "board_and_settings::tests/board_and_settings.rs",
+          "methodName": "settings_patch_shared_record_concurrently_and_reject_invalid_values",
+          "status": "passed",
+          "target": "board_and_settings::tests/board_and_settings.rs",
+          "fullName": "settings_patch_shared_record_concurrently_and_reject_invalid_values"
         },
         {
           "className": "chrome_ext::tests/chrome_ext.rs",
@@ -17830,6 +17921,13 @@
           "fullName": "persistence::io::tests::settings_path_construction_appends_canonical_filename"
         },
         {
+          "className": "persistence::io::tests",
+          "methodName": "stale_surface_edits_preserve_other_fields_and_unknown_values",
+          "status": "passed",
+          "target": "upeg_runtime::src/lib.rs",
+          "fullName": "persistence::io::tests::stale_surface_edits_preserve_other_fields_and_unknown_values"
+        },
+        {
           "className": "persistence::tests",
           "methodName": "mtime_of_nonexistent_path_is_none",
           "status": "passed",
@@ -26021,6 +26119,20 @@
         },
         {
           "className": "api::tweaks::tests",
+          "methodName": "stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tweaks::tests::stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields"
+        },
+        {
+          "className": "api::tweaks::tests",
+          "methodName": "stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields",
+          "status": "passed",
+          "target": "upeg_frb::src/lib.rs",
+          "fullName": "api::tweaks::tests::stale_gui_and_tui_edits_preserve_cli_theme_and_unknown_fields"
+        },
+        {
+          "className": "api::tweaks::tests",
           "methodName": "supported_locales_returns_exactly_english_and_korean",
           "status": "passed",
           "target": "upeg_frb::src/lib.rs",
@@ -26258,8 +26370,64 @@
         "test",
         "--reporter=json"
       ],
-      "total": 1538,
+      "total": 1569,
       "tests": [
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_provider_test.dart",
+          "methodName": "should allow retry after a failed operation and prevent duplicate work",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_provider_test.dart",
+          "fullName": "should allow retry after a failed operation and prevent duplicate work"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_provider_test.dart",
+          "methodName": "should persist dismissal by release and retain manual access",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_provider_test.dart",
+          "fullName": "should persist dismissal by release and retain manual access"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "methodName": "should fall back to release page when native integration is absent",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "fullName": "should fall back to release page when native integration is absent"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "methodName": "should hand approved version to native updater and surface failure",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "fullName": "should hand approved version to native updater and surface failure"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "methodName": "should open only the approved release page on Windows",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "fullName": "should open only the approved release page on Windows"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "methodName": "should return only a newer stable release from the official path",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "fullName": "should return only a newer stable release from the official path"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "methodName": "should treat network errors as unavailable",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_test.dart",
+          "fullName": "should treat network errors as unavailable"
+        },
+        {
+          "className": "flutter::flutter_app/test/platform/desktop_update_widget_test.dart",
+          "methodName": "tray keeps tool unread and adds update menu dynamically",
+          "status": "passed",
+          "target": "flutter::flutter_app/test/platform/desktop_update_widget_test.dart",
+          "fullName": "tray keeps tool unread and adds update menu dynamically"
+        },
         {
           "className": "flutter::flutter_app/test/platform_tests/file_picker_bridge_test.dart",
           "methodName": "UTF-8_metadata_cap_overflow_is_rejected_before_any_stream_is_read",
@@ -31897,13 +32065,6 @@
         },
         {
           "className": "BoardPage keyboard wiring",
-          "methodName": "BoardPage_moves_GUI_focus_with_Tab_without_pin_focus",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "BoardPage keyboard wiring::BoardPage_moves_GUI_focus_with_Tab_without_pin_focus"
-        },
-        {
-          "className": "BoardPage keyboard wiring",
           "methodName": "BoardPage_opens_the_cheatsheet_overlay_on_question_mark_and_closes_it_on_Esc",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -31988,13 +32149,6 @@
         },
         {
           "className": "BoardPage keyboard wiring",
-          "methodName": "BoardPage_uses_Tab_as_a_board_focus_command_with_pin_focus",
-          "status": "passed",
-          "target": "flutter::widget_tester.dart",
-          "fullName": "BoardPage keyboard wiring::BoardPage_uses_Tab_as_a_board_focus_command_with_pin_focus"
-        },
-        {
-          "className": "BoardPage keyboard wiring",
           "methodName": "Enter_in_move_mode_commits_in_the_moving_scope",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -32069,6 +32223,69 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "BoardPage keyboard wiring::pressing_q_opens_the_quit_confirm_dialog_without_quitting_immediately"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should activate the tab-focused toolbar button with  ",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should activate the tab-focused toolbar button with  "
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should activate the tab-focused toolbar button with Enter",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should activate the tab-focused toolbar button with Enter"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should cycle boards in both directions with Ctrl+Tab",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should cycle boards in both directions with Ctrl+Tab"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should inspect, edit, run and copy a generic pin using the keyboard",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should inspect, edit, run and copy a generic pin using the keyboard"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should leave the grid on Tab with selected pin null",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should leave the grid on Tab with selected pin null"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should leave the grid on Tab with selected pin num.hex_to_decimal",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should leave the grid on Tab with selected pin num.hex_to_decimal"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should open Create Board using the platform primary modifier on linux",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should open Create Board using the platform primary modifier on linux"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should open Create Board using the platform primary modifier on macOS",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should open Create Board using the platform primary modifier on macOS"
+        },
+        {
+          "className": "BoardPage keyboard wiring",
+          "methodName": "should open the selected pin menu with Shift+F10 and Menu",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardPage keyboard wiring::should open the selected pin menu with Shift+F10 and Menu"
         },
         {
           "className": "BoardPage keyboard wiring",
@@ -32181,6 +32398,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "BoardTabs::BoardTabs_switches_the_search_label_to_Korean_in_locale_Ko"
+        },
+        {
+          "className": "BoardTabs",
+          "methodName": "should defer create and close keys while the board name is composing",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "BoardTabs::should defer create and close keys while the board name is composing"
         },
         {
           "className": "BoardTabs",
@@ -33653,6 +33877,13 @@
           "fullName": "Inline pin approval gate::inline_Run_uses_the_same_approval_gate"
         },
         {
+          "className": "flutter::widget_tester.dart",
+          "methodName": "Later dismisses without download, Windows approval opens page",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "Later dismisses without download, Windows approval opens page"
+        },
+        {
           "className": "LaunchIntentApplier",
           "methodName": "launchintentapplier_applies_an_intent_received_via_an_app_links_event",
           "status": "passed",
@@ -33931,6 +34162,20 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "PaletteOverlay::pin_failure_stays_visible_and_the_row_action_can_retry"
+        },
+        {
+          "className": "PaletteOverlay",
+          "methodName": "should keep query Enter and Escape in an active IME composition",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PaletteOverlay::should keep query Enter and Escape in an active IME composition"
+        },
+        {
+          "className": "PaletteOverlay",
+          "methodName": "should pin and activate the focused row when Ctrl+Enter is pressed",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PaletteOverlay::should pin and activate the focused row when Ctrl+Enter is pressed"
         },
         {
           "className": "PaletteOverlay",
@@ -34430,6 +34675,20 @@
           "fullName": "PinColorDialog swatch selection::selecting_a_swatch_updates_the_hex_input"
         },
         {
+          "className": "PinColorDialog",
+          "methodName": "should preserve the saved swatch selection after reopening",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PinColorDialog::should preserve the saved swatch selection after reopening"
+        },
+        {
+          "className": "PinColorDialog",
+          "methodName": "should select a focused swatch with Space and show its focus ring",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PinColorDialog::should select a focused swatch with Space and show its focus ring"
+        },
+        {
           "className": "Popup board scope",
           "methodName": "tapping_another_board_tab_rescopes_the_grid_to_that_boards_pins",
           "status": "passed",
@@ -34631,6 +34890,13 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "PopupPage::esc_handles_popup_close_immediately"
+        },
+        {
+          "className": "PopupPage",
+          "methodName": "launcher menu is keyboard accessible and retains search",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "PopupPage::launcher menu is keyboard accessible and retains search"
         },
         {
           "className": "PopupPage",
@@ -35152,6 +35418,20 @@
         },
         {
           "className": "UpegApp",
+          "methodName": "native_window_close_quits_after_full_popup_confirmation",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "UpegApp::native_window_close_quits_after_full_popup_confirmation"
+        },
+        {
+          "className": "UpegApp",
+          "methodName": "native_window_close_quits_after_popup_popup_confirmation",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "UpegApp::native_window_close_quits_after_popup_popup_confirmation"
+        },
+        {
+          "className": "UpegApp",
           "methodName": "should show AlreadyRunning without retrying native init",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -35621,6 +35901,13 @@
         },
         {
           "className": "flutter::widget_tester.dart",
+          "methodName": "approval runs once, blocks duplicate dialogs, and quits after install",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "approval runs once, blocks duplicate dialogs, and quits after install"
+        },
+        {
+          "className": "flutter::widget_tester.dart",
           "methodName": "asks for an explicit source when a tool id conflicts",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
@@ -35936,10 +36223,31 @@
         },
         {
           "className": "inline embed keyboard coexistence",
-          "methodName": "when_a_passive_embed_pin_is_focused_a_plain_key_is_not_a_board_shortcut",
+          "methodName": "should enter a controlled web pin form on Enter and leave on Escape",
           "status": "passed",
           "target": "flutter::widget_tester.dart",
-          "fullName": "inline embed keyboard coexistence::when_a_passive_embed_pin_is_focused_a_plain_key_is_not_a_board_shortcut"
+          "fullName": "inline embed keyboard coexistence::should enter a controlled web pin form on Enter and leave on Escape"
+        },
+        {
+          "className": "inline embed keyboard coexistence",
+          "methodName": "should focus the external action when the web view lacks a focus target",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "inline embed keyboard coexistence::should focus the external action when the web view lacks a focus target"
+        },
+        {
+          "className": "inline embed keyboard coexistence",
+          "methodName": "should focus the live passive web view when it exposes a focus target",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "inline embed keyboard coexistence::should focus the live passive web view when it exposes a focus target"
+        },
+        {
+          "className": "inline embed keyboard coexistence",
+          "methodName": "should keep grid commands available with a web pin selected",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "inline embed keyboard coexistence::should keep grid commands available with a web pin selected"
         },
         {
           "className": "inline embed keyboard coexistence",
@@ -36759,6 +37067,27 @@
           "status": "passed",
           "target": "flutter::widget_tester.dart",
           "fullName": "showSettingsOverlay::SettingsOverlay_shows_a_Korean_title_when_locale_is_Ko"
+        },
+        {
+          "className": "showSettingsOverlay",
+          "methodName": "desktop shortcut and native menu open one settings dialog",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "showSettingsOverlay::desktop shortcut and native menu open one settings dialog"
+        },
+        {
+          "className": "showSettingsOverlay",
+          "methodName": "macOS settings accepts Command and rejects Control",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "showSettingsOverlay::macOS settings accepts Command and rejects Control"
+        },
+        {
+          "className": "showSettingsOverlay",
+          "methodName": "popup search and focus survive settings over an editable",
+          "status": "passed",
+          "target": "flutter::widget_tester.dart",
+          "fullName": "showSettingsOverlay::popup search and focus survive settings over an editable"
         },
         {
           "className": "showSettingsOverlay",

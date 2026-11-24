@@ -96,6 +96,19 @@ pub fn parse_tweaks(json: &str) -> Option<Tweaks> {
     serde_json::from_str(json).ok()
 }
 
+/// Parse a persisted preference record while ignoring fields from newer versions.
+#[cfg(feature = "serde")]
+pub fn parse_stored_tweaks(json: &str) -> Option<Tweaks> {
+    let mut record: serde_json::Map<String, serde_json::Value> = serde_json::from_str(json).ok()?;
+    record.retain(|key, _| {
+        matches!(
+            key.as_str(),
+            "theme" | "accent" | "show_holes" | "pin_handle_style" | "locale" | "local_http_host"
+        )
+    });
+    serde_json::from_value(serde_json::Value::Object(record)).ok()
+}
+
 #[cfg(all(test, feature = "serde"))]
 mod tests {
     use super::*;

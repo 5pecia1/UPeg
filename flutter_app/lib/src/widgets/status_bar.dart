@@ -30,6 +30,7 @@ import 'package:upeg/src/state/capability_provider.dart';
 import 'package:upeg/src/state/status_provider.dart';
 import 'package:upeg/src/state/project_context_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
+import 'package:upeg/src/widgets/desktop_update_button.dart';
 
 class StatusBar extends ConsumerWidget {
   const StatusBar({super.key});
@@ -133,6 +134,7 @@ class StatusBar extends ConsumerWidget {
             const Spacer()
           else
             const Expanded(child: _ProjectContextStatus()),
+          if (!isWeb) const DesktopUpdateButton(),
           Text('v${status.buildVersion}', style: _baseTextStyle(tokens)),
         ],
       ),

@@ -33,6 +33,7 @@ import 'package:upeg/src/widgets/expanded_modal/tool_args.dart';
 import '../test_helpers/tool_fixture.dart';
 import '../test_helpers/board_page_harness.dart';
 import '../test_helpers/dispatch_stream_fixture.dart';
+import '../test_helpers/fake_keyboard_resolver.dart';
 
 class _RecordingWriter extends ClipboardWriter {
   final writes = <String>[];
@@ -163,6 +164,100 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.f2);
         await tester.pump();
         expect(writer.writes, ['new pin output']);
+      },
+    );
+
+    testWidgets(
+      'should inspect, edit, run and copy a generic pin using the keyboard',
+      (tester) async {
+        final robot = BoardKeyboardRobot(tester);
+        final writer = _RecordingWriter();
+        final submitted = <Map<String, Object?>>[];
+        const id = 'fixture.multi_input';
+        const firstField = Key('field-first');
+        const secondField = Key('field-second');
+        final tool = fixtureToolDto(
+          id: id,
+          label: 'Two inputs',
+          pinKind: PinKindDto.inline,
+          invoker: InvokerDto.function,
+          source: const SourceDto.manual(),
+          inputFields: const [
+            InputFieldDto(
+              key: 'first',
+              label: 'First',
+              fieldType: InputFieldType.text(),
+              required_: true,
+            ),
+            InputFieldDto(
+              key: 'second',
+              label: 'Second',
+              fieldType: InputFieldType.text(),
+              required_: true,
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          boardPageHarness(
+            focusedToolId: id,
+            tools: [tool],
+            layoutLoader: (query) => LayoutSnapshotDto(
+              boardKey: query.boardKey.value,
+              boardCols: 6,
+              placements: const [
+                PlacementDto(toolId: id, pinId: id, x: 0, y: 0, w: 2, h: 3),
+              ],
+            ),
+            resolver: fakeKeyboardResolver,
+            extraOverrides: [
+              clipboardWriterProvider.overrideWithValue(writer),
+              dispatchStreamFnProvider.overrideWithValue(
+                stubDispatchStream(({
+                  required toolId,
+                  required args,
+                  required approve,
+                }) async {
+                  submitted.add(args.toJsonObject());
+                  return const CanonicalToolResult(
+                    ok: true,
+                    primaryOutputId: 'result',
+                    outputs: [
+                      CanonicalOutputEntry(
+                        id: 'result',
+                        kind: 'string',
+                        value: CanonicalOutputValue.string(
+                          value: 'combined result',
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await robot.press(LogicalKeyboardKey.keyO);
+        await robot.tabToControl(firstField);
+        await robot.typeInFocusedField('alpha');
+        await robot.press(LogicalKeyboardKey.tab);
+        robot.expectControlFocus(secondField);
+        await robot.typeInFocusedField('beta', composing: true);
+        await robot.press(LogicalKeyboardKey.enter);
+        await robot.press(LogicalKeyboardKey.escape);
+        robot.expectControlFocus(secondField);
+        expect(submitted, isEmpty);
+        await robot.typeInFocusedField('beta');
+        await robot.press(LogicalKeyboardKey.f1);
+        await robot.press(LogicalKeyboardKey.f2);
+        await robot.press(LogicalKeyboardKey.escape);
+
+        expect(submitted, [
+          {'first': 'alpha', 'second': 'beta'},
+        ]);
+        expect(writer.writes, ['combined result']);
+        robot.expectGridFocus(true);
       },
     );
 
@@ -625,78 +720,43 @@ void main() {
       expect(activated, ToolId.parse('fixture.right'));
     });
 
-    testWidgets('BoardPage_moves_GUI_focus_with_Tab_without_pin_focus', (
+    for (final selected in [null, contextMenuToolId]) {
+      testWidgets('should leave the grid on Tab with selected pin $selected', (
+        tester,
+      ) async {
+        final robot = BoardKeyboardRobot(tester);
+        await pumpBoardPageWithPinnedTool(tester, focusedToolId: selected);
+        robot.expectGridFocus(true);
+
+        await robot.press(LogicalKeyboardKey.tab);
+
+        robot.expectGridFocus(false);
+        await robot.chord(LogicalKeyboardKey.shiftLeft, LogicalKeyboardKey.tab);
+        robot.expectGridFocus(true);
+      });
+    }
+
+    testWidgets('should open the selected pin menu with Shift+F10 and Menu', (
       tester,
     ) async {
-      var resolverCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required KeyboardScopeDto scope,
-                required bool hasToolFocus,
-              }) {
-                resolverCalls += 1;
-                return const KeyboardCommandDto.focusNext();
-              },
-        ),
-      );
-
-      await tester.pumpAndSettle();
-      final boardFocus = tester.widget<Focus>(boardPageFocusFinder()).focusNode;
-      expect(FocusManager.instance.primaryFocus, boardFocus);
-      final result = dispatchBoardPageKey(
+      final robot = BoardKeyboardRobot(tester);
+      await pumpBoardPageWithPinnedTool(
         tester,
-        logicalKey: LogicalKeyboardKey.tab,
-        physicalKey: PhysicalKeyboardKey.tab,
-      );
-      await tester.pump();
-
-      expect(result, KeyEventResult.handled);
-      expect(resolverCalls, 0);
-      expect(FocusManager.instance.primaryFocus, isNot(boardFocus));
-    });
-
-    testWidgets('BoardPage_uses_Tab_as_a_board_focus_command_with_pin_focus', (
-      tester,
-    ) async {
-      var resolverCalls = 0;
-      await tester.pumpWidget(
-        boardPageHarness(
-          focusedToolId: 'num.hex_to_decimal',
-          resolver:
-              ({
-                required String key,
-                required bool ctrl,
-                required bool meta,
-                required bool shift,
-                required bool alt,
-                required KeyboardScopeDto scope,
-                required bool hasToolFocus,
-              }) {
-                resolverCalls += 1;
-                expect(key, 'Tab');
-                expect(scope, KeyboardScopeDto.board);
-                expect(hasToolFocus, isTrue);
-                return const KeyboardCommandDto.focusNext();
-              },
-        ),
+        focusedToolId: contextMenuToolId,
       );
 
-      await tester.pumpAndSettle();
-      final result = dispatchBoardPageKey(
-        tester,
-        logicalKey: LogicalKeyboardKey.tab,
-        physicalKey: PhysicalKeyboardKey.tab,
-      );
+      await robot.chord(LogicalKeyboardKey.shiftLeft, LogicalKeyboardKey.f10);
+      robot.expectVisible(pinContextEditColorKey, true);
+      await robot.press(LogicalKeyboardKey.escape);
+      robot.expectVisible(pinContextEditColorKey, false);
+      robot.expectGridFocus(true);
 
-      expect(result, KeyEventResult.handled);
-      expect(resolverCalls, 1);
+      await robot.press(LogicalKeyboardKey.contextMenu);
+      robot.expectVisible(pinContextEditColorKey, true);
+      await robot.press(LogicalKeyboardKey.arrowDown);
+      await robot.press(LogicalKeyboardKey.arrowDown);
+      await robot.press(LogicalKeyboardKey.enter);
+      robot.expectVisible(pinColorDialogKey, true);
     });
 
     testWidgets('the_right_click_pin_menu_has_a_color_edit_entry', (

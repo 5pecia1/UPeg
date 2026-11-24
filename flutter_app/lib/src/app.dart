@@ -20,6 +20,7 @@ import 'package:upeg/src/platform/global_hotkey.dart';
 import 'package:upeg/src/platform/tray.dart';
 import 'package:upeg/src/rust/api/boot.dart';
 import 'package:upeg/src/state/current_board_provider.dart';
+import 'package:upeg/src/state/desktop_update_provider.dart';
 import 'package:upeg/src/state/launch_intent_provider.dart';
 import 'package:upeg/src/state/shared_state_versions.dart';
 import 'package:upeg/src/state/theme_mode_provider.dart';
@@ -28,9 +29,11 @@ import 'package:upeg/src/state/tweaks_provider.dart';
 import 'package:upeg/src/state/window_mode_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/launch_intent_applier.dart';
+import 'package:upeg/src/widgets/desktop_app_commands.dart';
 import 'package:upeg/src/widgets/popup_auto_hide_observer.dart';
 import 'package:upeg/src/widgets/window_mode_applier.dart';
 import 'package:upeg/src/widgets/notification_results_dialog.dart';
+import 'package:upeg/src/widgets/window_close_handler.dart';
 
 /// Indirection so widget tests can override the boot call without loading
 /// the native dylib.
@@ -59,6 +62,7 @@ final appInitProvider = FutureProvider<AppInitReport>(
     final report = await run();
     markStartupPhase('init_app_done');
     log('upeg: appInitProvider — initApp returned, version=${report.version}');
+    unawaited(ref.read(desktopUpdateProvider.notifier).check(report.version));
     // Restore the saved Board/tag selection before the first routed frame, so
     // the page never paints with a null Board. Best-effort with the same
     // 2-second cap as the integrations below: when the Boards load fails with
@@ -212,10 +216,14 @@ Future<void> runBestEffortIntegration(
 /// PRD §5.9: popup → compact search-first PopupPage; full → BoardPage.
 /// Phase 7 minimum — Phase 10 will add the tray-driven full↔popup live
 /// transition.
-Widget _routeForMode(WindowMode mode, AppInitReport report) {
+Widget _routeForMode(
+  WindowMode mode,
+  AppInitReport report,
+  Future<void> Function() requestQuit,
+) {
   return switch (mode) {
     WindowMode.popup => const PopupPage(),
-    WindowMode.full => BoardPage(report: report),
+    WindowMode.full => BoardPage(report: report, onQuitRequest: requestQuit),
   };
 }
 
@@ -273,8 +281,12 @@ class UpegApp extends ConsumerWidget {
         // re-renders with the new mode without an app restart.
         themeMode: themeMode,
         debugShowCheckedModeBanner: false,
-        builder: (context, child) =>
-            ControlledEmbedSessionHost(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => DesktopAppCommands(
+          enabled: init.hasValue,
+          child: ControlledEmbedSessionHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
         // TrayMenuSync must be mounted OUTSIDE `init.when(data:)` — it has
         // to subscribe to `pauseControllableProvider` on the very first
         // synchronous build, before `appInitProvider`'s async body reaches
@@ -294,9 +306,14 @@ class UpegApp extends ConsumerWidget {
                 // (`upeg://open?...`) that arrives while in popup mode must still
                 // force WindowMode.full and dispatch, so the observer has to be
                 // mounted above the popup↔board route switch, not inside BoardPage.
-                data: (report) => LaunchIntentApplier(
-                  child: _routeForMode(ref.watch(windowModeProvider), report),
-                ),
+                data: (report) {
+                  final mode = ref.watch(windowModeProvider);
+                  return WindowCloseHandler(
+                    builder: (requestQuit) => LaunchIntentApplier(
+                      child: _routeForMode(mode, report, requestQuit),
+                    ),
+                  );
+                },
               ),
             ),
           ),

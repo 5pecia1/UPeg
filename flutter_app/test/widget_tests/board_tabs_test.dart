@@ -23,6 +23,7 @@ import 'package:upeg/src/state/board_details_provider.dart';
 import 'package:upeg/src/theme/upeg_theme.dart';
 import 'package:upeg/src/widgets/board_tabs.dart';
 
+import '../test_helpers/board_page_harness.dart' show BoardKeyboardRobot;
 import '../test_helpers/fake_keyboard_resolver.dart';
 import '../test_helpers/pegboard_selection_overrides.dart';
 import '../test_helpers/i18n_test_catalog.dart';
@@ -386,6 +387,38 @@ void main() {
       expect(container.read(currentBoardKeyProvider), BoardKey.parse('ops'));
       expect(find.byKey(const Key('create-board-dialog')), findsNothing);
     });
+
+    testWidgets(
+      'should defer create and close keys while the board name is composing',
+      (tester) async {
+        final robot = BoardKeyboardRobot(tester);
+        final created = <String>[];
+        const boards = [BoardDto(key: 'dev', title: 'Dev')];
+        final container = _container(
+          boards,
+          boardCreator: (title) {
+            created.add(title);
+            return 'ops';
+          },
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(_harness(boards: boards, container: container));
+        await tester.pumpAndSettle();
+        await robot.tabToControl(const Key('add-board-btn'));
+        await robot.press(LogicalKeyboardKey.enter);
+
+        await robot.typeInFocusedField('Ops', composing: true);
+        await robot.press(LogicalKeyboardKey.enter);
+        await robot.press(LogicalKeyboardKey.escape);
+
+        expect(created, isEmpty);
+        robot.expectVisible(const Key('create-board-dialog'), true);
+        await robot.typeInFocusedField('Ops');
+        await robot.press(LogicalKeyboardKey.enter);
+        expect(created, ['Ops']);
+        robot.expectVisible(const Key('create-board-dialog'), false);
+      },
+    );
 
     testWidgets(
       'BoardTabs_BoardEditor_cancels_create_on_Escape_without_a_transition',

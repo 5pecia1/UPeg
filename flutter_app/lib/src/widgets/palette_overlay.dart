@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:upeg/src/i18n/t.dart';
 import 'package:upeg/src/identity.dart';
@@ -103,10 +104,8 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   /// checked (and early-outs) before the plain-Enter case. The
   /// A failed write keeps the palette open so the action can be retried.
   /// Inventory row H06.
-  Future<void> _commitWithPin(List<PaletteHit> hits) async {
-    if (hits.isEmpty || _pinPending) return;
-    final i = _highlighted.clamp(0, hits.length - 1);
-    final hit = hits[i];
+  Future<void> _commitWithPin(PaletteHit hit) async {
+    if (_pinPending) return;
     final toolId = ToolId.parse(hit.id);
     final pinKey = await _addToCurrentBoard(toolId);
     if (pinKey == null || !mounted) return;
@@ -168,8 +167,11 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
   }
 
   KeyEventResult _handlePaletteKey(KeyEvent event, List<PaletteHit> hits) {
-    if (_isPrimaryCommitWithPin(event)) {
-      unawaited(_commitWithPin(hits));
+    if (primaryFocusHasActiveTextComposition()) return KeyEventResult.ignored;
+    if (isPrimaryKeyboardShortcut(event, 'Enter')) {
+      if (event is KeyDownEvent && hits.isNotEmpty) {
+        unawaited(_commitWithPin(hits[_highlighted.clamp(0, hits.length - 1)]));
+      }
       return KeyEventResult.handled;
     }
     final cmd = resolveKeyboardCommand(
@@ -186,10 +188,6 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
       KeyboardCommandDto_Cancel() => _cancelCommand(),
       _ => KeyEventResult.ignored,
     };
-  }
-
-  bool _isPrimaryCommitWithPin(KeyEvent event) {
-    return isPrimaryKeyboardShortcut(event, 'Enter');
   }
 
   KeyEventResult _moveCommand(DirectionDto direction, int hitCount) {
@@ -242,89 +240,103 @@ class _PaletteOverlayState extends ConsumerState<PaletteOverlay> {
     // stays bounded by the surrounding ConstrainedBox; the ListView scrolls
     // instead of dropping rows.
     final hits = results.value ?? const <PaletteHit>[];
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      alignment: Alignment.topCenter,
-      insetPadding: const EdgeInsets.only(top: 96, left: 16, right: 16),
-      elevation: 0,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 480),
-        child: Container(
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            border: Border.all(color: tokens.line),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 60,
-                offset: Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _PaletteHeader(
-                tokens: tokens,
-                controller: _controller,
-                focusNode: _focusNode,
-                onChanged: (value) {
-                  ref.read(paletteQueryProvider.notifier).state = value;
-                  setState(() => _highlighted = 0);
-                },
-                onKey: (event) => _handlePaletteKey(event, hits),
-              ),
-              if (boardTag case TagSpecific(:final tag))
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilterChip(
-                      key: const Key('palette-current-tag-chip'),
-                      label: Text(
-                        t(ref, 'palette.search_current_tag', {'tag': tag}),
-                      ),
-                      selected: _searchCurrentTag,
-                      onSelected: (selected) => setState(() {
-                        _searchCurrentTag = selected;
-                        _highlighted = 0;
-                      }),
-                    ),
-                  ),
+    return Focus(
+      canRequestFocus: false,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent ||
+            event.logicalKey != LogicalKeyboardKey.escape) {
+          return KeyEventResult.ignored;
+        }
+        if (primaryFocusHasActiveTextComposition()) {
+          return KeyEventResult.skipRemainingHandlers;
+        }
+        return _cancelCommand();
+      },
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        alignment: Alignment.topCenter,
+        insetPadding: const EdgeInsets.only(top: 96, left: 16, right: 16),
+        elevation: 0,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 480),
+          child: Container(
+            decoration: BoxDecoration(
+              color: tokens.surface,
+              border: Border.all(color: tokens.line),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x66000000),
+                  blurRadius: 60,
+                  offset: Offset(0, 20),
                 ),
-              Flexible(
-                child: _PaletteBody(
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _PaletteHeader(
                   tokens: tokens,
-                  query: ref.watch(paletteQueryProvider),
-                  results: results,
-                  highlighted: _highlighted,
-                  currentBoardKey: ref.watch(currentBoardKeyProvider),
-                  scrollController: _scrollController,
-                  onHover: (i) => setState(() => _highlighted = i),
-                  onPick: _pickHit,
-                  onAdd: (toolId) => unawaited(_addToCurrentBoard(toolId)),
-                  pinPending: _pinPending,
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  onChanged: (value) {
+                    ref.read(paletteQueryProvider.notifier).state = value;
+                    setState(() => _highlighted = 0);
+                  },
+                  onKey: (event) => _handlePaletteKey(event, hits),
                 ),
-              ),
-              if (_pinFeedback case final message?)
-                Semantics(
-                  liveRegion: true,
-                  child: Padding(
-                    key: const Key('palette-pin-feedback'),
-                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
-                    child: Text(
-                      message,
-                      style: TextStyle(
-                        color: _pinFeedbackIsError ? tokens.warn : tokens.fg2,
-                        fontSize: 11,
+                if (boardTag case TagSpecific(:final tag))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilterChip(
+                        key: const Key('palette-current-tag-chip'),
+                        label: Text(
+                          t(ref, 'palette.search_current_tag', {'tag': tag}),
+                        ),
+                        selected: _searchCurrentTag,
+                        onSelected: (selected) => setState(() {
+                          _searchCurrentTag = selected;
+                          _highlighted = 0;
+                        }),
                       ),
                     ),
                   ),
+                Flexible(
+                  child: _PaletteBody(
+                    tokens: tokens,
+                    query: ref.watch(paletteQueryProvider),
+                    results: results,
+                    highlighted: _highlighted,
+                    currentBoardKey: ref.watch(currentBoardKeyProvider),
+                    scrollController: _scrollController,
+                    onHover: (i) => setState(() => _highlighted = i),
+                    onPick: _pickHit,
+                    onPickWithPin: (hit) => unawaited(_commitWithPin(hit)),
+                    onAdd: (toolId) => unawaited(_addToCurrentBoard(toolId)),
+                    pinPending: _pinPending,
+                  ),
                 ),
-              _PaletteFooter(tokens: tokens, count: hits.length),
-            ],
+                if (_pinFeedback case final message?)
+                  Semantics(
+                    liveRegion: true,
+                    child: Padding(
+                      key: const Key('palette-pin-feedback'),
+                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          color: _pinFeedbackIsError ? tokens.warn : tokens.fg2,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                _PaletteFooter(tokens: tokens, count: hits.length),
+              ],
+            ),
           ),
         ),
       ),
@@ -368,6 +380,7 @@ class _PaletteHeader extends ConsumerWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Focus(
+              canRequestFocus: false,
               onKeyEvent: (_, event) => onKey(event),
               child: TextField(
                 key: const Key('palette-query-field'),
@@ -409,6 +422,7 @@ class _PaletteBody extends ConsumerWidget {
     required this.scrollController,
     required this.onHover,
     required this.onPick,
+    required this.onPickWithPin,
     required this.onAdd,
     required this.pinPending,
   });
@@ -428,6 +442,7 @@ class _PaletteBody extends ConsumerWidget {
 
   final ValueChanged<int> onHover;
   final PaletteHitCallback onPick;
+  final ValueChanged<PaletteHit> onPickWithPin;
   final ValueChanged<ToolId> onAdd;
   final bool pinPending;
 
@@ -496,6 +511,7 @@ class _PaletteBody extends ConsumerWidget {
               currentBoardKey: currentBoardKey,
               onHover: () => onHover(i),
               onTap: () => onPick(hit, null),
+              onPickWithPin: () => onPickWithPin(hit),
               onAdd: onAdd,
               pinPending: pinPending,
             );
@@ -514,6 +530,7 @@ class _PaletteRow extends ConsumerWidget {
     required this.currentBoardKey,
     required this.onHover,
     required this.onTap,
+    required this.onPickWithPin,
     required this.onAdd,
     required this.pinPending,
     super.key,
@@ -525,6 +542,7 @@ class _PaletteRow extends ConsumerWidget {
   final BoardKey? currentBoardKey;
   final VoidCallback onHover;
   final VoidCallback onTap;
+  final VoidCallback onPickWithPin;
   final ValueChanged<ToolId> onAdd;
   final bool pinPending;
 
@@ -534,90 +552,103 @@ class _PaletteRow extends ConsumerWidget {
     final toolId = ToolId.parse(hit.id);
     return MouseRegion(
       onEnter: (_) => onHover(),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: bg,
+      child: Focus(
+        canRequestFocus: false,
+        onKeyEvent: (_, event) {
+          if (!isPrimaryKeyboardShortcut(event, 'Enter')) {
+            return KeyEventResult.ignored;
+          }
+          if (event is KeyDownEvent && !pinPending) onPickWithPin();
+          return KeyEventResult.handled;
+        },
+        child: Material(
+          color: bg,
+          borderRadius: BorderRadius.circular(5),
+          child: InkWell(
+            onTap: onTap,
+            focusColor: tokens.focusRing.withValues(alpha: 0.22),
             borderRadius: BorderRadius.circular(5),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: tokens.bg2,
-                  border: Border.all(color: tokens.line),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: tokens.bg2,
+                      border: Border.all(color: tokens.line),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(
-                          child: Text(
-                            hit.label,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: upegMonoFontFamily,
-                              fontFamilyFallback: upegMonoFontFamilyFallback,
-                              fontSize: 12.5,
-                              color: tokens.fg,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        if (hit.label != hit.id) ...[
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              hit.id,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: upegMonoFontFamily,
-                                fontFamilyFallback: upegMonoFontFamilyFallback,
-                                fontSize: 10,
-                                color: tokens.fg4,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                hit.label,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: upegMonoFontFamily,
+                                  fontFamilyFallback:
+                                      upegMonoFontFamilyFallback,
+                                  fontSize: 12.5,
+                                  color: tokens.fg,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
+                            if (hit.label != hit.id) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  hit.id,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: upegMonoFontFamily,
+                                    fontFamilyFallback:
+                                        upegMonoFontFamilyFallback,
+                                    fontSize: 10,
+                                    color: tokens.fg4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (hit.description.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              hit.description,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: tokens.fg3, fontSize: 11),
+                            ),
                           ),
-                        ],
                       ],
                     ),
-                    if (hit.description.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          hit.description,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: tokens.fg3, fontSize: 11),
-                        ),
-                      ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 10),
+                  // H11 — kind badge precedes the current-board add button.
+                  KindBadge(
+                    key: Key('palette-kind-badge-${hit.id}'),
+                    pinKind: hit.pinKind,
+                  ),
+                  const SizedBox(width: 8),
+                  if (currentBoardKey != null)
+                    TextButton(
+                      key: Key('palette-add-${hit.id}'),
+                      onPressed: pinPending ? null : () => onAdd(toolId),
+                      child: Text(t(ref, 'desktop.tab.add_tool')),
+                    ),
+                ],
               ),
-              const SizedBox(width: 10),
-              // H11 — kind badge precedes the current-board add button.
-              KindBadge(
-                key: Key('palette-kind-badge-${hit.id}'),
-                pinKind: hit.pinKind,
-              ),
-              const SizedBox(width: 8),
-              if (currentBoardKey != null)
-                TextButton(
-                  key: Key('palette-add-${hit.id}'),
-                  onPressed: pinPending ? null : () => onAdd(toolId),
-                  child: Text(t(ref, 'desktop.tab.add_tool')),
-                ),
-            ],
+            ),
           ),
         ),
       ),

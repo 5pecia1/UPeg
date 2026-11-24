@@ -33,7 +33,12 @@
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="VOq-y0-SEH"/>
-                            <menuItem title="Preferences…" keyEquivalent="," id="BOF-NM-1cW"/>
+                            <menuItem title="Settings…" keyEquivalent="," id="BOF-NM-1cW">
+                                <modifierMask key="keyEquivalentModifierMask" command="YES"/>
+                                <connections>
+                                    <action selector="openSettings:" target="Voe-Tx-rLC" id="upeg-settings-action"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="wFC-TO-SCJ"/>
                             <menuItem title="Services" id="NMo-om-nkz">
                                 <modifierMask key="keyEquivalentModifierMask"/>
@@ -325,7 +330,15 @@
                 </menuItem>
                 <menuItem title="Help" id="EPT-qC-fAb">
                     <modifierMask key="keyEquivalentModifierMask"/>
-                    <menu key="submenu" title="Help" systemMenu="help" id="rJ0-wn-3NY"/>
+                    <menu key="submenu" title="Help" systemMenu="help" id="rJ0-wn-3NY">
+                        <items>
+                            <menuItem title="Keyboard Shortcuts" id="upeg-keyboard-help">
+                                <connections>
+                                    <action selector="openKeyboardHelp:" target="Voe-Tx-rLC" id="upeg-help-action"/>
+                                </connections>
+                            </menuItem>
+                        </items>
+                    </menu>
                 </menuItem>
             </items>
             <point key="canvasLocation" x="142" y="-258"/>
